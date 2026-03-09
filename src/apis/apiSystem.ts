@@ -46,7 +46,7 @@ class ApiSystem {
     const config: RequestInit = {
       method,
       headers: this.defaultHeaders,
-      credentials: "include",
+      credentials: "omit",
     };
 
     if (data && method !== "GET") {

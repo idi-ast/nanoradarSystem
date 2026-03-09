@@ -1,9 +1,8 @@
 //  Configuración de empresa
 import logoWhite from "@/assets/company/AST-LOGO_BLANCO.png";
 import logoBlack from "@/assets/company/AST-LOGO_NEGRO.png";
-import { IconLayoutDashboard } from "@tabler/icons-react";
+import { IconLayoutDashboard, IconRadar2 } from "@tabler/icons-react";
 import React from "react";
-import Dashboard from "@/features/dashboard/pages/Dashboard";
 
 // Imports del template (rutas base de la plantilla)
 import { AdminPage } from "@/template/admin";
@@ -11,6 +10,7 @@ import { UserProfilePage } from "@/template/user-profile";
 import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
+import NanoPages from "@/features/nanoradar/pages/NanoPages";
 
 const name = import.meta.env.VITE_COMPANY_NAME;
 const address = import.meta.env.VITE_COMPANY_ADDRESS;
@@ -88,12 +88,21 @@ export const configServer = () => {
   // Navegación del sistema (aparece en el Sidebar)
   // Aquí se agregarán los menús específicos de cada sistema
   const NAVIGATION_DATA: NavigationItem[] = [
+    // {
+    //   id: 1,
+    //   name: "Dashboard",
+    //   link: "/",
+    //   icon: IconLayoutDashboard,
+    //   component: Dashboard,
+    //   target: false,
+    //   state: true,
+    // },
     {
       id: 1,
-      name: "Dashboard",
-      link: "/",
-      icon: IconLayoutDashboard,
-      component: Dashboard,
+      name: "NanoRadar",
+      link: "/nanoradar",
+      icon: IconRadar2,
+      component: NanoPages,
       target: false,
       state: true,
     }
