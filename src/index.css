@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "tailwind-animations";
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
+
+:root {
+  font-family: "Switzer", sans-serif;
+
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #edf5f8;
+  background-color: #060c0c;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --linearPrimarySecondary: linear-gradient(#8ecae0, #1f718e);
+  --linearPrimaryAccent: linear-gradient(#8ecae0, #3cb2dd);
+  --linearSecondaryAccent: linear-gradient(#1f718e, #3cb2dd);
+  --radialPrimarySecondary: radial-gradient(#8ecae0, #1f718e);
+  --radialPrimaryAccent: radial-gradient(#8ecae0, #3cb2dd);
+  --radialSecondaryAccent: radial-gradient(#1f718e, #3cb2dd);
+}
+
+@theme {
+  /* Fondos (Backgrounds) */
+  --color-bg-100: var(--bg-100);
+  --color-bg-200: var(--bg-200);
+  --color-bg-300: var(--bg-300);
+  --color-bg-400: var(--bg-400);
+  --color-bg-hover: var(--bg-hover);
+
+  /* Colores de Marca y Acción */
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+
+  /* Textos */
+  --color-text-100: var(--text-100);
+  --color-text-200: var(--text-200);
+  --color-text-300: var(--text-300);
+  --color-text-400: var(--text-400);
+  /* Bordes */
+  --color-border: var(--border-100);
+  --color-border-200: var(--border-200);
+}
+
+@layer base {
+  :root {
+    /* Fondos (Backgrounds) */
+    --bg-100: #f2f2f2;
+    --bg-200: #e7e7e7;
+    --bg-300: #ffffff;
+    --bg-400: #000000;
+
+    /* Interacción */
+    --bg-hover: #e2e8f0;
+
+    /* Colores de Marca y Acción */
+    --brand-100: #e02c2c;
+    --brand-200: #ff4b4b;
+
+    /* Textos */
+    --text-100: #1f2937;
+    --text-200: #0a2955;
+    --text-300: #9ca3af;
+    --text-400: #f2f2f2;
+
+    /* Bordes y Separadores */
+    --border-100: #dedfdf;
+    --border-200: #e2e8f0;
+  }
+
+  .dark {
+    /* Fondos (Backgrounds) */
+    --bg-100: #131414;
+    --bg-200: #1f2127;
+    --bg-300: #373a42;
+    --bg-400: #dce0e4;
+
+    /* Interacción */
+
+    /* Colores de Marca y Acción */
+    --brand-100: #e51616;
+    --brand-200: #006aff;
+
+    /* Textos */
+    --text-100: #f9fafb;
+    --text-200: #9ca3af;
+    --text-300: #6b7280;
+    --text-400: #1f2937;
+
+    /* Bordes y Separadores */
+    --border-100: #2a2c37;
+    --border-200: #4e525e;
+  }
+  ˝ body {
+    background-color: var(--bg-100);
+    color: var(--text-100) !important;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  /* OptimizaciÃ³n de GPU para elementos animados */
+  [class*="motion-"] {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  h1 {
+    @apply text-2xl;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+
+  h3 {
+    @apply text-lg;
+  }
+
+  h4 {
+    @apply text-base;
+  }
+
+  h5 {
+    @apply text-sm;
+  }
+
+  h6 {
+    @apply text-xs;
+  }
+
+  p {
+    @apply text-sm;
+  }
+
+  a {
+    @apply font-normal;
+  }
+
+  button {
+    @apply text-[#d7d5d5] transition-all duration-200 ease-in cursor-pointer;
+  }
+
+  input {
+    @apply transition-all duration-200 ease-in cursor-pointer;
+  }
+  section:not([aria-label]) {
+    @apply w-full min-w-screen min-h-150;
+  }
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow-x: hidden;
+  /* font-family: "Raleway", sans-serif; */
+  font-family: "Outfit", sans-serif;
+  /* font-family: "Libre Franklin", sans-serif; */
+  /* font-family: "Space Grotesk", sans-serif; */
+}
+
+.font-secondary{
+    font-family: "La Belle Aurore", cursive;
+
+}
+
+/* Estilo general para el scroll */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 4px;
+}
+
+/* Track (fondo del scroll) */
+::-webkit-scrollbar-track {
+  background: #16161600;
+  border-radius: 5px;
+}
+
+/* Thumb (la parte que se mueve) */
+::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 5px;
+  transition: background 0.3s ease;
+}
+
+/* Thumb al pasar el mouse */
+::-webkit-scrollbar-thumb:hover {
+  background: #ff0000;
+}

@@ -1,0 +1,100 @@
+# Template Lock - Archivos Protegidos
+# =====================================
+# Este archivo define qué archivos/carpetas NO deben ser modificados
+# en proyectos derivados del template-wisensor.
+#
+# Autor: @Camilo Lehue dev
+# Última actualización: Enero 2026
+
+# ============================================
+#  ARCHIVOS INMUTABLES (NUNCA MODIFICAR)
+# ============================================
+
+# Librerías core - Toda la carpeta
+libs/
+
+# Configuración de TypeScript
+tsconfig.json
+tsconfig.app.json
+tsconfig.node.json
+
+# Configuración de Vite
+vite.config.ts
+
+# Configuración de ESLint
+eslint.config.js
+
+# Layouts base del template
+src/layouts/Template.tsx
+src/layouts/header/
+src/layouts/sidebar/
+src/layouts/modeColor/
+
+# Contextos globales
+src/context/ThemeContext.tsx
+
+# Cliente API base
+src/apis/apiClient.ts
+
+# Entry point (solo modificar rutas, no estructura)
+src/main.tsx
+
+# Estilos base de Tailwind
+src/index.css
+
+# ============================================
+#  ARCHIVOS CONFIGURABLES (Solo valores)
+# ============================================
+
+# Configuración del servidor - Modificar solo:
+# - NAVIGATION_DATA (agregar rutas)
+# - Variables de empresa via .env
+src/config/ConfigServer.tsx
+
+# Variables de entorno - Crear tu propio .env
+.env
+
+# Package.json - Solo agregar dependencias nuevas
+# NO modificar scripts existentes
+package.json
+
+# ============================================
+#   ZONAS EDITABLES (Libertad total)
+# ============================================
+
+# Features del proyecto
+src/features/*
+
+# Componentes específicos del proyecto
+src/components/*
+
+# Assets del proyecto
+src/assets/*
+public/*
+
+# Nuevas carpetas que crees
+src/utils/*
+src/services/*
+src/hooks/*
+
+# ============================================
+#  FLUJO DE ACTUALIZACIÓN
+# ============================================
+#
+# 1. El template principal recibe actualizaciones
+# 2. Se notifica a todos los equipos
+# 3. Cada proyecto ejecuta:
+#
+#    git fetch template
+#    git merge template/main --allow-unrelated-histories -X theirs
+#
+# 4. Resolver conflictos SOLO en zonas editables
+# 5. Los archivos inmutables se sobrescriben automáticamente
+
+
+## 1. Configuración inicial (una vez)
+git remote add template https://github.com/CamiloLehue/template-ast-wisensor.git
+
+# 2. Cuando hay actualizaciones del template
+git fetch template
+git merge template/main --allow-unrelated-histories -X theirs
