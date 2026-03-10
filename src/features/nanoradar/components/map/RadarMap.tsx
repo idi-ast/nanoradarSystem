@@ -2,7 +2,12 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import ReactMapGL from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { IconMap, IconWorld, IconSatellite, IconMapPin } from "@tabler/icons-react";
+import {
+  IconMap,
+  IconWorld,
+  IconSatellite,
+  IconMapPin,
+} from "@tabler/icons-react";
 import { MAPBOX_TOKEN, MAP_STYLES } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
 import CustomZoomControl from "@/components/baseMap/components/CustomZoomControl";
@@ -63,10 +68,11 @@ export function RadarMap() {
 
   if (!config) {
     return (
-      <div className="grow h-full flex items-center justify-center bg-black border-r border-emerald-500/20">
-        <p className="text-emerald-500 font-mono text-sm animate-pulse">
-          SINCRONIZANDO MAPA...
-        </p>
+      <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
+        <div className="w-10 h-10 rounded-full border-4 border-bg-400 border-l-transparent animate-spin "></div>
+        <small className="text-bg-400 font-mono  animate-pulse">
+          Cargando configuración del radar...
+        </small>
       </div>
     );
   }

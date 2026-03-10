@@ -100,7 +100,7 @@ export const configServer = () => {
     {
       id: 1,
       name: "NanoRadar",
-      link: "/nanoradar",
+      link: "/",
       icon: IconRadar2,
       component: NanoPages,
       target: false,

@@ -49,7 +49,7 @@ const RadarStatusBar = () => {
   const criticalCount = targets.filter((t) => t.nivel === 4).length;
 
   return (
-    <div className="flex items-center gap-10 px-4 h-full">
+    <div className="flex items-start gap-10 px-4 h-full">
       <div className="flex flex-col">
         <span className="text-[10px] text-text-100/50 uppercase tracking-widest">
           Zonas activas
@@ -165,7 +165,7 @@ const RightBarNano = ({
 
         <div className="flex-1 min-h-0 flex flex-col">
           <h4 className="shrink-0 text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1 mb-2">
-            Últimas Detecciones
+            Últimas detecciones ({targets.length > 0 ? targets.length : "0"})
           </h4>
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
             {targets.length === 0 ? (

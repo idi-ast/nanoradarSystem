@@ -10,13 +10,29 @@ interface Props {
  */
 export function RadarInfoOverlay({ config }: Props) {
   return (
-      <div className="absolute top-2 left-15 z-1000 bg-black/60 p-3 border border-emerald-500/50 text-[10px] text-emerald-400 font-mono pointer-events-none">
-      RADAR_POS: {config.latitud}, {config.longitud}
-      <br />
-      RADIO DETECCION: {config.radio} m<br />
-      AZIMUT: {config.azimut}° | APERTURA: {config.apertura}°
-      <br />
-      ESTADO: <span className="text-emerald-500 animate-pulse">ONLINE</span>
+    <div className="absolute font-semibold top-2 left-2 z-1000 bg-bg-100/80 p-3 border border-border text-[10px] text-text-100  pointer-events-none">
+      <div>
+        <p>
+          Radar posición:{" "}
+          <span className="font-light">
+            {config.latitud}, {config.longitud}
+          </span>{" "}
+        </p>
+        <p>
+          Radio de detección:{" "}
+          <span className="font-light">{config.radio} m</span>
+        </p>
+        <p>
+          Azimut:{" "}
+          <span className="font-light">
+            {config.azimut}° | Apertura: {config.apertura}°
+          </span>
+        </p>
+        <p>
+          Estado:{" "}
+          <span className="text-emerald-300 animate-pulse">En línea</span>
+        </p>
+      </div>
     </div>
   );
 }
