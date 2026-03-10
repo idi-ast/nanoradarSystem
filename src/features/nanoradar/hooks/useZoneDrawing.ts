@@ -1,6 +1,9 @@
 import { useState, useCallback } from "react";
 import type { CreateZonePayload } from "../types";
 
+const STOPPED_COLOR = "#ff0000";
+const MOVING_COLOR = "#00bfff";
+
 /**
  * Hook que encapsula todo el estado y la lógica
  * del modo de dibujo de nuevas zonas de alerta en el mapa.
@@ -9,14 +12,14 @@ export function useZoneDrawing() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [points, setPoints] = useState<[number, number][]>([]);
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#ff0000");
+  const [color, setColor] = useState(STOPPED_COLOR);
   const [alertLevel, setAlertLevel] = useState<1 | 2 | 3 | 4>(1);
 
   const startDrawing = useCallback(() => {
     setIsDrawing(true);
     setPoints([]);
     setName("");
-    setColor("#ff0000");
+    setColor(STOPPED_COLOR);
     setAlertLevel(1);
   }, []);
 
@@ -27,6 +30,10 @@ export function useZoneDrawing() {
 
   const addPoint = useCallback((lat: number, lng: number) => {
     setPoints((prev) => [...prev, [lat, lng]]);
+  }, []);
+
+  const setMovementStatus = useCallback((isMoving: boolean) => {
+    setColor(isMoving ? MOVING_COLOR : STOPPED_COLOR);
   }, []);
 
   const buildPayload = useCallback((): CreateZonePayload => {
@@ -52,6 +59,7 @@ export function useZoneDrawing() {
     addPoint,
     setName,
     setColor,
+    setMovementStatus,
     setAlertLevel,
     buildPayload,
     canSave: points.length >= 3,

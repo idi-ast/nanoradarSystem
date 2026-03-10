@@ -1,8 +1,17 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { RadarTarget } from "../../types";
 import { toGeoCoord } from "./utils/geoHelpers";
+
+const MOVING_COLOR = "#00bfff";
+const STOPPED_COLOR = "#ef4444";
+const TRACKING_ACTIVE_MS = 4000;
+const COLOR_REFRESH_MS = 1000;
+
+function isTargetMoving(target: RadarTarget, now: number): boolean {
+  return now - target.lastUpdate <= TRACKING_ACTIVE_MS;
+}
 
 interface Props {
   targets: RadarTarget[];
@@ -10,18 +19,26 @@ interface Props {
   onSelectTarget: (id: string | null) => void;
 }
 
-/**
- * Capa de objetivos radar en tiempo real sobre Mapbox GL.
- * Renderiza:
- *  - Estela de trayectoria (LineString dashed)
- *  - Punto de detección actual (circle)
- *  - Halo de pulso para objetivos críticos (nivel 4)
- *  - Popup con info al seleccionar un objetivo
- */
-export function RadarTargetsLayer({ targets, selectedTargetId, onSelectTarget }: Props) {
+export function RadarTargetsLayer({
+  targets,
+  selectedTargetId,
+  onSelectTarget,
+}: Props) {
+  const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
-  // GeoJSON de puntos actuales
+  // Fuerza refresco periódico para que el color pase de azul a rojo
+  // cuando un objetivo deja de recibir trackeo.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, COLOR_REFRESH_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const pointsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -35,13 +52,13 @@ export function RadarTargetsLayer({ targets, selectedTargetId, onSelectTarget }:
           id: t.id,
           nivel: t.nivel,
           zona: t.zona,
+          isMoving: isTargetMoving(t, now),
         },
       })),
     }),
-    [targets]
+    [targets, now],
   );
 
-  // GeoJSON de estelas (historial de posiciones)
   const trailsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -54,19 +71,28 @@ export function RadarTargetsLayer({ targets, selectedTargetId, onSelectTarget }:
             // History está en [lat, lon]; convertir a [lon, lat]
             coordinates: t.history.map(toGeoCoord),
           },
-          properties: { id: t.id, nivel: t.nivel },
+          properties: {
+            id: t.id,
+            nivel: t.nivel,
+            isMoving: isTargetMoving(t, now),
+          },
         })),
     }),
-    [targets]
+    [targets, now],
   );
 
   const trailLayer = {
     id: "targets-trails",
     type: "line" as const,
     paint: {
-      "line-color": ["case", ["==", ["get", "nivel"], 4], "#ef4444", "#DC143C"] as unknown as string,
+      "line-color": [
+        "case",
+        ["get", "isMoving"],
+        MOVING_COLOR,
+        STOPPED_COLOR,
+      ] as unknown as string,
       "line-width": 2,
-      "line-dasharray": [1, 6],
+      "line-dasharray": [1, 2],
       "line-opacity": 0.8,
     },
   };
@@ -75,25 +101,49 @@ export function RadarTargetsLayer({ targets, selectedTargetId, onSelectTarget }:
     id: "targets-circles",
     type: "circle" as const,
     paint: {
-      "circle-radius": ["case", ["==", ["get", "nivel"], 4], 7, 4] as unknown as number,
-      "circle-color": ["case", ["==", ["get", "nivel"], 4], "#ef4444", "#8B0000"] as unknown as string,
-      "circle-stroke-width": 2,
-      "circle-stroke-color": ["case", ["==", ["get", "nivel"], 4], "#fca5a5", "#DC143C"] as unknown as string,
-      "circle-opacity": 1,
+      "circle-radius": [
+        "case",
+        ["==", ["get", "nivel"], 3],
+        4,
+        6,
+      ] as unknown as number,
+      "circle-color": [
+        "case",
+        ["get", "isMoving"],
+        MOVING_COLOR,
+        STOPPED_COLOR,
+      ] as unknown as string,
+      "circle-stroke-width": 3,
+      "circle-stroke-color": [
+        "case",
+        ["get", "isMoving"],
+        "#7dd3fc",
+        "#fca5a5",
+      ] as unknown as string,
+      "circle-opacity": 0.8,
     },
   };
 
-  // Halo para objetivos críticos (nivel 4)
   const haloLayer = {
     id: "targets-halo",
     type: "circle" as const,
     filter: ["==", ["get", "nivel"], 4] as unknown as FilterSpecification,
     paint: {
       "circle-radius": 20,
-      "circle-color": "#ef4444",
+      "circle-color": [
+        "case",
+        ["get", "isMoving"],
+        MOVING_COLOR,
+        STOPPED_COLOR,
+      ] as unknown as string,
       "circle-opacity": 0.15,
       "circle-stroke-width": 1,
-      "circle-stroke-color": "#ef4444",
+      "circle-stroke-color": [
+        "case",
+        ["get", "isMoving"],
+        MOVING_COLOR,
+        STOPPED_COLOR,
+      ] as unknown as string,
       "circle-stroke-opacity": 0.4,
     },
   };
@@ -118,13 +168,15 @@ export function RadarTargetsLayer({ targets, selectedTargetId, onSelectTarget }:
           closeButton
           onClose={() => onSelectTarget(null)}
         >
-          <div className="font-mono text-xs text-slate-800 min-w-40">
-            <b className="block border-b border-slate-300 mb-1 pb-1">
+          <div className="font-mono text-xs text-text-100 bg-bg-100 p-3 min-w-40">
+            <b className="block border-b border-border-200 mb-1 pb-1">
               ID: {selected.id}
             </b>
-            ZONA: {selected.zona || "N/A"}<br />
-            NIVEL: {selected.nivel}<br />
-            POS: {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
+            Zona: {selected.zona || "N/A"}
+            <br />
+            Nivel: {selected.nivel}
+            <br />
+            Pos: {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
           </div>
         </Popup>
       )}
