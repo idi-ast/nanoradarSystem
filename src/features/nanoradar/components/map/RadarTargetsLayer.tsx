@@ -128,8 +128,8 @@ export function RadarTargetsLayer({
         MOVING_COLOR,
         STOPPED_COLOR,
       ] as unknown as string,
-      "line-width": 2,
-      "line-dasharray": [1, 2],
+      "line-width": 5,
+      "line-dasharray": [1, 2, 1, 2],
       "line-opacity": 0.8,
     },
   };
