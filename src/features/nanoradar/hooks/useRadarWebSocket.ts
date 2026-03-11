@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { RadarTarget, RawRadarMessage } from "../types";
 
 const WS_URL = import.meta.env.VITE_SOCKET_URL as string;
-const TARGET_TIMEOUT_MS = 120_000; // 2 minutos sin actualización = eliminar
+const TARGET_TIMEOUT_MS = 10_000; // 2 minutos sin actualización = eliminar
 
 /**
  * Hook que conecta al WebSocket nativo del backend del radar
@@ -23,7 +23,8 @@ export function useRadarWebSocket(url: string = WS_URL) {
 
     ws.onmessage = (event: MessageEvent) => {
       try {
-        const payload: RawRadarMessage[] = JSON.parse(event.data as string);
+        const parsed: RawRadarMessage | RawRadarMessage[] = JSON.parse(event.data as string);
+        const payload: RawRadarMessage[] = Array.isArray(parsed) ? parsed : [parsed];
         const now = Date.now();
 
         setTargetsMap((prev) => {

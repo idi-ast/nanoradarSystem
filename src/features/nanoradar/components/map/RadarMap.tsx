@@ -118,9 +118,13 @@ export function RadarMap() {
             targets={targets}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
-            markerModelSrc="/3d/point.glb"
-            markerSizeScale={0.2}
-          />
+            markerModelSrc="/3d/tiny_planet_friends_3d-icon-3143.glb"
+            markerSizeScale={0.06}
+            trailWidth={3}
+            trailOpacity={0.8}
+            movingColor={[0, 191, 255, 255]}
+            stoppedColor={[239, 68, 68, 255]}
+            />
         </ReactMapGL>
 
         {/* Overlay HTML con info del radar (posicionado sobre el mapa) */}
