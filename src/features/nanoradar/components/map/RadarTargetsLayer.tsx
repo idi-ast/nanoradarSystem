@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Source, Layer, Popup } from "react-map-gl";
+import { ScenegraphLayer } from "@deck.gl/mesh-layers";
+import { GLTFLoader } from "@loaders.gl/gltf";
+import { registerLoaders } from "@loaders.gl/core";
 import type { FilterSpecification } from "mapbox-gl";
 import type { RadarTarget } from "../../types";
 import { toGeoCoord } from "./utils/geoHelpers";
+import { DeckOverlay } from "@/components/baseMap/components/DeckOverlay";
 
+// Registrar cargador de modelos 3D
+registerLoaders([GLTFLoader]);
+
+const MOVING_COLOR_RGB: [number, number, number, number] = [0, 191, 255, 255];
+const STOPPED_COLOR_RGB: [number, number, number, number] = [239, 68, 68, 255];
 const MOVING_COLOR = "#00bfff";
 const STOPPED_COLOR = "#ef4444";
 const TRACKING_ACTIVE_MS = 4000;
@@ -17,18 +26,20 @@ interface Props {
   targets: RadarTarget[];
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
+  markerModelSrc?: string;
+  markerSizeScale?: number;
 }
 
 export function RadarTargetsLayer({
   targets,
   selectedTargetId,
   onSelectTarget,
+  markerModelSrc = "/3d/point.glb",
+  markerSizeScale = 0.6,
 }: Props) {
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
-  // Fuerza refresco periódico para que el color pase de azul a rojo
-  // cuando un objetivo deja de recibir trackeo.
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
@@ -39,10 +50,19 @@ export function RadarTargetsLayer({
     };
   }, []);
 
+  const targetsWithMoving = useMemo(
+    () =>
+      targets.map((t) => ({
+        ...t,
+        isMoving: isTargetMoving(t, now),
+      })),
+    [targets, now],
+  );
+
   const pointsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: targets.map((t) => ({
+      features: targetsWithMoving.map((t) => ({
         type: "Feature" as const,
         geometry: {
           type: "Point" as const,
@@ -52,11 +72,11 @@ export function RadarTargetsLayer({
           id: t.id,
           nivel: t.nivel,
           zona: t.zona,
-          isMoving: isTargetMoving(t, now),
+          isMoving: t.isMoving,
         },
       })),
     }),
-    [targets, now],
+    [targetsWithMoving],
   );
 
   const trailsData = useMemo(
@@ -68,7 +88,6 @@ export function RadarTargetsLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            // History está en [lat, lon]; convertir a [lon, lat]
             coordinates: t.history.map(toGeoCoord),
           },
           properties: {
@@ -97,33 +116,6 @@ export function RadarTargetsLayer({
     },
   };
 
-  const circleLayer = {
-    id: "targets-circles",
-    type: "circle" as const,
-    paint: {
-      "circle-radius": [
-        "case",
-        ["==", ["get", "nivel"], 3],
-        4,
-        6,
-      ] as unknown as number,
-      "circle-color": [
-        "case",
-        ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
-      ] as unknown as string,
-      "circle-stroke-width": 3,
-      "circle-stroke-color": [
-        "case",
-        ["get", "isMoving"],
-        "#7dd3fc",
-        "#fca5a5",
-      ] as unknown as string,
-      "circle-opacity": 0.8,
-    },
-  };
-
   const haloLayer = {
     id: "targets-halo",
     type: "circle" as const,
@@ -148,6 +140,41 @@ export function RadarTargetsLayer({
     },
   };
 
+  const handleClick = useCallback(
+    (info: { object?: RadarTarget & { isMoving: boolean } }) => {
+      if (info.object) {
+        onSelectTarget(info.object.id);
+      }
+    },
+    [onSelectTarget],
+  );
+
+  const scenegraphLayer = new ScenegraphLayer({
+    id: "targets-3d-models",
+    data: targetsWithMoving,
+    scenegraph: markerModelSrc,
+    sizeScale: markerSizeScale * 80, // Multiplicador para balancear la escala de deck.gl
+    loaders: [GLTFLoader],
+    getPosition: (d) => [d.lon, d.lat, 0],
+    getColor: (d) => (d.isMoving ? MOVING_COLOR_RGB : STOPPED_COLOR_RGB),
+    getOrientation: [0, 0, 85],
+    _lighting: "flat",
+    _animations: {
+      "*": { playing: true },
+    },
+    pickable: true,
+    onClick: handleClick,
+    transitions: {
+      getColor: 600,
+    },
+    updateTriggers: {
+      getColor: [now],
+    },
+    onError: (error) => console.error("Error cargando modelo 3D:", error),
+  });
+
+  const deckLayers = useMemo(() => [scenegraphLayer], [scenegraphLayer]);
+
   return (
     <>
       <Source id="targets-trails" type="geojson" data={trailsData}>
@@ -156,8 +183,9 @@ export function RadarTargetsLayer({
 
       <Source id="targets-points" type="geojson" data={pointsData}>
         <Layer {...haloLayer} />
-        <Layer {...circleLayer} />
       </Source>
+
+      <DeckOverlay layers={deckLayers} />
 
       {selected && (
         <Popup

@@ -88,12 +88,7 @@ export function RadarMap() {
       return;
     }
 
-    const feature = e.features?.[0];
-    if (feature?.layer?.id === "targets-circles") {
-      setSelectedTargetId(String(feature.properties?.id ?? null));
-    } else {
-      setSelectedTargetId(null);
-    }
+    setSelectedTargetId(null);
   };
 
   return (
@@ -111,7 +106,6 @@ export function RadarMap() {
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
           reuseMaps
-          interactiveLayerIds={["targets-circles"]}
           onClick={handleMapClick}
           cursor={isDrawing ? "crosshair" : undefined}
         >
@@ -124,6 +118,8 @@ export function RadarMap() {
             targets={targets}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
+            markerModelSrc="/3d/point.glb"
+            markerSizeScale={0.2}
           />
         </ReactMapGL>
 

@@ -38,5 +38,16 @@ export default defineConfig(({ mode }) => {
         { find: "@", replacement: path.resolve(__dirname, "./src") },
       ],
     },
+    optimizeDeps: {
+      include: [
+        "deck.gl",
+        "@deck.gl/core",
+        "@deck.gl/react",
+        "@deck.gl/mapbox",
+        "@deck.gl/mesh-layers",
+        "@loaders.gl/core",
+        "@loaders.gl/gltf",
+      ],
+    },
   };
 });
