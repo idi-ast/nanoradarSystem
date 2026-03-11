@@ -51,6 +51,6 @@ export function createCircleCoords(
  * Convierte un par [latitud, longitud] (formato interno del sistema)
  * a [longitud, latitud] (formato GeoJSON/Mapbox).
  */
-export function toGeoCoord(latLon: [number, number]): [number, number] {
+export function toGeoCoord(latLon: [number, number, ...number[]]): [number, number] {
   return [latLon[1], latLon[0]];
 }

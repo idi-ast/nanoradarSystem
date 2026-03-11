@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { RadarTarget } from "../../types";
+import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
 
 const MOVING_COLOR = "#00bfff";
@@ -15,15 +16,42 @@ function isTargetMoving(target: RadarTarget, now: number): boolean {
 
 interface Props {
   targets: RadarTarget[];
+  historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
 }
 
 export function RadarTargetsLayer({
   targets,
+  historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
 }: Props) {
+  const slicedTargets = useMemo(() => {
+    // Calcular el eje de tiempo global a partir de todos los puntos del historial
+    let tMin = Infinity;
+    let tMax = -Infinity;
+    for (const t of targets) {
+      for (const p of t.history) {
+        if (p[2] < tMin) tMin = p[2];
+        if (p[2] > tMax) tMax = p[2];
+      }
+    }
+
+    // Sin suficientes datos temporales → mostrar todo
+    if (!isFinite(tMin) || tMax === tMin) return targets;
+
+    const tRange = tMax - tMin;
+    const tStart  = tMin + (historyRange.start / 100) * tRange;
+    const tEnd    = tMin + (historyRange.end   / 100) * tRange;
+
+    return targets
+      .map((t) => ({
+        ...t,
+        history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
+      }))
+      .filter((t) => t.history.length > 0);
+  }, [targets, historyRange]);
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
@@ -42,27 +70,36 @@ export function RadarTargetsLayer({
   const pointsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: targets.map((t) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [t.lon, t.lat],
-        },
-        properties: {
-          id: t.id,
-          nivel: t.nivel,
-          zona: t.zona,
-          isMoving: isTargetMoving(t, now),
-        },
-      })),
+      features: slicedTargets
+        .filter((t) => t.history.length > 0)
+        .map((t) => {
+          // Usar el último punto del historial recortado como posición del círculo.
+          // Si end=100 esto coincide con t.lat/t.lon (posición en vivo).
+          const lastPoint = t.history[t.history.length - 1];
+          const lat = lastPoint[0];
+          const lon = lastPoint[1];
+          return {
+            type: "Feature" as const,
+            geometry: {
+              type: "Point" as const,
+              coordinates: [lon, lat],
+            },
+            properties: {
+              id: t.id,
+              nivel: t.nivel,
+              zona: t.zona,
+              isMoving: isTargetMoving(t, now),
+            },
+          };
+        }),
     }),
-    [targets, now],
+    [slicedTargets, now],
   );
 
   const trailsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: targets
+      features: slicedTargets
         .filter((t) => t.history.length > 1)
         .map((t) => ({
           type: "Feature" as const,
@@ -78,7 +115,7 @@ export function RadarTargetsLayer({
           },
         })),
     }),
-    [targets, now],
+    [slicedTargets, now],
   );
 
   const trailLayer = {

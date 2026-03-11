@@ -1,3 +1,7 @@
+// Componentes de control
+export { HistoryRangeBar } from "./controls/HistoryRangeBar";
+export type { HistoryRange } from "./controls/HistoryRangeBar";
+
 // Componentes del mapa
 export { RadarMap } from "./map/RadarMap";
 export { RadarBeam } from "./map/RadarBeam";

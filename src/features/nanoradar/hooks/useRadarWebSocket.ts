@@ -31,10 +31,10 @@ export function useRadarWebSocket(url: string = WS_URL) {
 
           payload.forEach((raw) => {
             const id = String(raw.id);
-            const currentPos: [number, number] = [raw.lat, raw.lon];
+            const currentPos: [number, number, number] = [raw.lat, raw.lon, now];
             const existing = next.get(id);
 
-            const history: [number, number][] = existing
+            const history: [number, number, number][] = existing
               ? [...existing.history, currentPos].slice(-500)
               : [currentPos];
 

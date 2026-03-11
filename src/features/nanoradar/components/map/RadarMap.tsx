@@ -14,6 +14,7 @@ import CustomZoomControl from "@/components/baseMap/components/CustomZoomControl
 import ViewControls from "@/components/baseMap/components/ViewControls";
 import LayerSelector from "@/components/baseMap/components/LayerSelector";
 import { useRadarContext } from "../../context/useRadarContext";
+import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { RadarBeam } from "./RadarBeam";
 import { RadarRings } from "./RadarRings";
 import { RadarZonesLayer } from "./RadarZonesLayer";
@@ -21,7 +22,11 @@ import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
 
-export function RadarMap() {
+interface RadarMapProps {
+  historyRange?: HistoryRange;
+}
+
+export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
   const {
     config,
     targets,
@@ -104,8 +109,12 @@ export function RadarMap() {
           initialViewState={{
             latitude: initialCenter.latitude,
             longitude: initialCenter.longitude,
-            zoom: 15,
+            zoom: 19,
+            pitch: 50,
+            bearing: -40,
+            
           }}
+         
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapLayers[selectedLayer].style}
           style={{ width: "100%", height: "100%" }}
@@ -122,6 +131,7 @@ export function RadarMap() {
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
           <RadarTargetsLayer
             targets={targets}
+            historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />

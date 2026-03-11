@@ -16,7 +16,8 @@ export interface RadarTarget {
   nivel: number;
   zona: string;
   lastUpdate: number;
-  history: [number, number][];
+  /** Cada punto es [lat, lon, timestamp_ms] */
+  history: [number, number, number][];
 }
 
 
