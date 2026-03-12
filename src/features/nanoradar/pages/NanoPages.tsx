@@ -32,7 +32,9 @@ function NanoPages() {
             <RadarMap historyRange={historyRange} />
           </div>
           <HistoryRangeBar onChange={handleRangeChange} />
-          <BottomBar title="Estado del Radar">
+          <BottomBar title="Estado del Radar"
+
+          >
             <RadarStatusBar />
           </BottomBar>
         </div>
@@ -83,11 +85,10 @@ const RadarStatusBar = () => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${
-            criticalCount > 0
-              ? "text-red-500 animate-pulse"
-              : "text-text-100/30"
-          }`}
+          className={`font-bold text-xl leading-tight ${criticalCount > 0
+            ? "text-red-500 animate-pulse"
+            : "text-text-100/30"
+            }`}
         >
           {criticalCount}
         </span>
@@ -142,11 +143,10 @@ const RightBarNano = ({
         </button>
         <button
           onClick={isDrawing ? cancelDrawing : startDrawing}
-          className={`px-3 py-1 text-[10px] rounded border text-white ${
-            isDrawing
-              ? "bg-red-500 border-red-400"
-              : "bg-emerald-600 border-emerald-400"
-          }`}
+          className={`px-3 py-1 text-[10px] rounded border text-white ${isDrawing
+            ? "bg-red-500 border-red-400"
+            : "bg-emerald-600 border-emerald-400"
+            }`}
         >
           {isDrawing ? "CANCELAR" : "+ NUEVA"}
         </button>
@@ -217,11 +217,10 @@ function TargetsSection({
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
-                isActive
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-text-100/40 hover:text-text-100/70"
-              }`}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-text-100/40 hover:text-text-100/70"
+                }`}
             >
               {label}
               <span

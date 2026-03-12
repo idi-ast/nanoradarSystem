@@ -22,6 +22,7 @@ import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
+import Camera from "./cameras/Camera";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -118,9 +119,9 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
             zoom: 19,
             pitch: 60,
             bearing: 0,
-            
+
           }}
-        //  -41.46239837025373, -72.9882059747647
+          //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapLayers[selectedLayer].style}
           style={{ width: "100%", height: "100%" }}
@@ -149,8 +150,10 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
         <RadarInfoOverlay config={config} />
       </div>
 
+      <Camera />
+
       {/* Panel de configuración del mapa */}
-      <div className="relative h-full z-50 bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
+      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
         <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
           <LayerSelector
             selectedLayer={selectedLayer}
