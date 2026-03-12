@@ -17,8 +17,9 @@ interface Props {
 export function TargetCard({ target }: Props) {
   const isCritical = target.nivel === 4;
   const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
-  const deviceColor = DEVICE_COLOR[target.deviceType] ?? "bg-slate-500/20 text-slate-300 border-slate-500/40";
-  // Mostrar solo los últimos 4 chars del id original (sin el prefijo deviceType_)
+  const deviceColor =
+    DEVICE_COLOR[target.deviceType] ??
+    "bg-slate-500/20 text-slate-300 border-slate-500/40";
   const rawId = target.id.replace(/^(nanoRadar|spotter)_/, "");
 
   return (
@@ -31,10 +32,12 @@ export function TargetCard({ target }: Props) {
     >
       <div className="flex justify-between items-start gap-1">
         <span className="text-white font-bold text-xs">
-          OBJ_{rawId.slice(-4)}
+          Detección id: {rawId.slice(-4)}
         </span>
         <div className="flex gap-1">
-          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${deviceColor}`}>
+          <span
+            className={`text-[9px] px-1.5 py-0.5 rounded border ${deviceColor}`}
+          >
             {deviceLabel}
           </span>
           <span

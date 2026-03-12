@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { IconArrowNarrowLeft, IconX } from "@tabler/icons-react";
 import BottomBar from "@/components/bars/BottomBar";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
@@ -174,18 +174,7 @@ const RightBarNano = ({
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
-          <h4 className="shrink-0 text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1 mb-2">
-            Últimas detecciones ({targets.length > 0 ? targets.length : "0"})
-          </h4>
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-            {targets.length === 0 ? (
-              <p className="text-text-100/40 text-[10px] italic">
-                No hay objetivos en el área...
-              </p>
-            ) : (
-              targets.map((t) => <TargetCard key={t.id} target={t} />)
-            )}
-          </div>
+          <TargetsSection targets={targets} />
         </div>
       </div>
     </div>
@@ -193,3 +182,70 @@ const RightBarNano = ({
 };
 
 export default NanoPages;
+
+type TabFilter = "all" | "nanoRadar" | "spotter";
+
+const TABS: { key: TabFilter; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "nanoRadar", label: "NanoRadar" },
+  { key: "spotter", label: "Spotter" },
+];
+
+function TargetsSection({
+  targets,
+}: {
+  targets: import("../types").RadarTarget[];
+}) {
+  const [tab, setTab] = useState<TabFilter>("all");
+
+  const filtered = useMemo(
+    () =>
+      tab === "all" ? targets : targets.filter((t) => t.deviceType === tab),
+    [targets, tab],
+  );
+
+  return (
+    <>
+      <div className="shrink-0 flex border-b border-border-200 mb-2">
+        {TABS.map(({ key, label }) => {
+          const count =
+            key === "all"
+              ? targets.length
+              : targets.filter((t) => t.deviceType === key).length;
+          const isActive = tab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
+                isActive
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+              }`}
+            >
+              {label}
+              <span
+                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-emerald-500/20" : "bg-bg-300"}`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lista filtrada */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+        {filtered.length === 0 ? (
+          <p className="text-text-100/40 text-[10px] italic">
+            {tab === "spotter"
+              ? "Spotter desconectado..."
+              : "No hay objetivos en el área..."}
+          </p>
+        ) : (
+          filtered.map((t) => <TargetCard key={t.id} target={t} />)
+        )}
+      </div>
+    </>
+  );
+}
