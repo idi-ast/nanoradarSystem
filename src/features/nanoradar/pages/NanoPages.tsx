@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { IconArrowNarrowLeft, IconX } from "@tabler/icons-react";
 import BottomBar from "@/components/bars/BottomBar";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
@@ -8,10 +8,19 @@ import { RadarMap } from "../components/map/RadarMap";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
+import { HistoryRangeBar, type HistoryRange } from "../components";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
   const [isOpenRightBar, setOpenRightBar] = useState(false);
+  const [historyRange, setHistoryRange] = useState<HistoryRange>({
+    start: 0,
+    end: 100,
+  });
+  const handleRangeChange = useCallback(
+    (range: HistoryRange) => setHistoryRange(range),
+    [],
+  );
 
   return (
     <RadarProvider>
@@ -20,8 +29,9 @@ function NanoPages() {
       >
         <div className="col-span-10 h-full flex flex-col w-full">
           <div className="flex-1 min-h-0 w-full">
-            <RadarMap />
+            <RadarMap historyRange={historyRange} />
           </div>
+          <HistoryRangeBar onChange={handleRangeChange} />
           <BottomBar title="Estado del Radar">
             <RadarStatusBar />
           </BottomBar>
