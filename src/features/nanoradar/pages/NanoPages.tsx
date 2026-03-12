@@ -93,13 +93,6 @@ const RadarStatusBar = () => {
           {criticalCount}
         </span>
       </div>
-
-      <div className="ml-auto flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-[10px] text-emerald-500 uppercase tracking-widest font-mono">
-          Sistema activo
-        </span>
-      </div>
     </div>
   );
 };
@@ -181,10 +174,6 @@ const RightBarNano = ({
 
 export default NanoPages;
 
-/**
- * Overlay de destello en el borde de la pantalla cuando un objetivo activo
- * entra a una geocerca de nivel CRÍTICO (4).
- */
 function GeofenceFlash() {
   const { targets, zones } = useRadarContext();
   const { maxLevel } = useGeofenceDetection(targets, zones);

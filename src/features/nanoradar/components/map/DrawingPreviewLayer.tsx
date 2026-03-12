@@ -7,10 +7,7 @@ interface Props {
   color: string;
 }
 
-/**
- * Capa de previsualización del polígono mientras se dibujan los vértices
- * de una nueva zona de alerta. Solo se muestra cuando hay puntos activos.
- */
+
 export function DrawingPreviewLayer({ points, color }: Props) {
   const polygonData = useMemo(() => {
     if (points.length < 2) return null;
