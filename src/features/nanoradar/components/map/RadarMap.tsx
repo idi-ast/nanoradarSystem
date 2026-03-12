@@ -88,6 +88,11 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     latitude: parseFloat(config.latitud),
   };
 
+  const defaultCenter = {
+    longitude: -72.9883559747647,
+    latitude: -41.46281337025373,
+  }
+
   const handleMapClick = (e: MapLayerMouseEvent) => {
     if (isDrawing) {
       addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
@@ -108,14 +113,14 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
-            latitude: initialCenter.latitude,
-            longitude: initialCenter.longitude,
+            latitude: defaultCenter.latitude || initialCenter.latitude,
+            longitude: defaultCenter.longitude || initialCenter.longitude,
             zoom: 19,
-            pitch: 50,
-            bearing: -70,
+            pitch: 60,
+            bearing: 0,
             
           }}
-         
+        //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapLayers[selectedLayer].style}
           style={{ width: "100%", height: "100%" }}

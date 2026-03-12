@@ -13,8 +13,14 @@ import { HistoryRangeBar, type HistoryRange } from "../components";
 function NanoPages() {
   const { isMobile } = useBreakpoint();
   const [isOpenRightBar, setOpenRightBar] = useState(false);
-  const [historyRange, setHistoryRange] = useState<HistoryRange>({ start: 0, end: 100 });
-  const handleRangeChange = useCallback((range: HistoryRange) => setHistoryRange(range), []);
+  const [historyRange, setHistoryRange] = useState<HistoryRange>({
+    start: 0,
+    end: 100,
+  });
+  const handleRangeChange = useCallback(
+    (range: HistoryRange) => setHistoryRange(range),
+    [],
+  );
 
   return (
     <RadarProvider>
