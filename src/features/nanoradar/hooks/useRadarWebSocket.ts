@@ -1,12 +1,42 @@
 import { useState, useEffect, useCallback } from "react";
-import type { RadarTarget, RawRadarMessage } from "../types";
+import type { RadarTarget, RawRadarPayload } from "../types";
 
 const WS_URL = import.meta.env.VITE_SOCKET_URL as string;
 const TARGET_TIMEOUT_MS = 120_000; // 2 minutos sin actualización = eliminar
 
+function processDeviceMessages(
+  next: Map<string, RadarTarget>,
+  messages: RawRadarPayload["nanoRadar"],
+  deviceType: "nanoRadar" | "spotter",
+  now: number
+) {
+  messages.forEach((raw) => {
+    // Prefijo por tipo para evitar colisiones entre dispositivos
+    const id = `${deviceType}_${raw.id}`;
+    const currentPos: [number, number, number] = [raw.lat, raw.lon, now];
+    const existing = next.get(id);
+
+    const history: [number, number, number][] = existing
+      ? [...existing.history, currentPos].slice(-500)
+      : [currentPos];
+
+    next.set(id, {
+      id,
+      lat: raw.lat,
+      lon: raw.lon,
+      nivel: raw.nivel,
+      zona: raw.zona,
+      deviceType,
+      lastUpdate: now,
+      history,
+    });
+  });
+}
+
 /**
  * Hook que conecta al WebSocket nativo del backend del radar
  * y mantiene el mapa de objetivos detectados en tiempo real.
+ * Soporta el nuevo formato: { nanoRadar: [...], spotter: [...] }
  */
 export function useRadarWebSocket(url: string = WS_URL) {
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(
@@ -23,31 +53,18 @@ export function useRadarWebSocket(url: string = WS_URL) {
 
     ws.onmessage = (event: MessageEvent) => {
       try {
-        const payload: RawRadarMessage[] = JSON.parse(event.data as string);
+        const parsed = JSON.parse(event.data as string);
         const now = Date.now();
 
         setTargetsMap((prev) => {
           const next = new Map(prev);
 
-          payload.forEach((raw) => {
-            const id = String(raw.id);
-            const currentPos: [number, number, number] = [raw.lat, raw.lon, now];
-            const existing = next.get(id);
-
-            const history: [number, number, number][] = existing
-              ? [...existing.history, currentPos].slice(-500)
-              : [currentPos];
-
-            next.set(id, {
-              id,
-              lat: raw.lat,
-              lon: raw.lon,
-              nivel: raw.nivel,
-              zona: raw.zona,
-              lastUpdate: now,
-              history,
-            });
-          });
+          // Nuevo formato: { nanoRadar: [], spotter: [] }
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const payload = parsed as RawRadarPayload;
+            processDeviceMessages(next, payload.nanoRadar ?? [], "nanoRadar", now);
+            processDeviceMessages(next, payload.spotter ?? [], "spotter", now);
+          }
 
           return next;
         });

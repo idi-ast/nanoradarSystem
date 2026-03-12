@@ -1,11 +1,25 @@
 import type { RadarTarget } from "../../types";
 
+const DEVICE_LABEL: Record<string, string> = {
+  nanoRadar: "NanoRadar",
+  spotter: "Spotter",
+};
+
+const DEVICE_COLOR: Record<string, string> = {
+  nanoRadar: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
+  spotter: "bg-violet-500/20 text-violet-300 border-violet-500/40",
+};
+
 interface Props {
   target: RadarTarget;
 }
 
 export function TargetCard({ target }: Props) {
   const isCritical = target.nivel === 4;
+  const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
+  const deviceColor = DEVICE_COLOR[target.deviceType] ?? "bg-slate-500/20 text-slate-300 border-slate-500/40";
+  // Mostrar solo los últimos 4 chars del id original (sin el prefijo deviceType_)
+  const rawId = target.id.replace(/^(nanoRadar|spotter)_/, "");
 
   return (
     <div
@@ -15,19 +29,24 @@ export function TargetCard({ target }: Props) {
           : "border-border-200 bg-bg-200"
       }`}
     >
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start gap-1">
         <span className="text-white font-bold text-xs">
-          OBJ_{target.id.slice(-4)}
+          OBJ_{rawId.slice(-4)}
         </span>
-        <span
-          className={`text-[9px] px-1 rounded ${
-            isCritical
-              ? "bg-brand-100 text-text-100"
-              : "bg-emerald-500 text-text-100 font-bold"
-          }`}
-        >
-          LVL {target.nivel}
-        </span>
+        <div className="flex gap-1">
+          <span className={`text-[9px] px-1.5 py-0.5 rounded border ${deviceColor}`}>
+            {deviceLabel}
+          </span>
+          <span
+            className={`text-[9px] px-1 rounded ${
+              isCritical
+                ? "bg-brand-100 text-text-100"
+                : "bg-emerald-500 text-text-100 font-bold"
+            }`}
+          >
+            LVL {target.nivel}
+          </span>
+        </div>
       </div>
       <p className="text-[10px] text-text-200 mt-1">
         Zona: {target.zona || "N/A"}

@@ -3,6 +3,11 @@ import { TargetCard } from "./TargetCard";
 import { ZoneCard } from "./ZoneCard";
 import { ZoneDrawingPanel } from "./ZoneDrawingPanel";
 
+const DEVICE_SECTION: { key: "nanoRadar" | "spotter"; label: string }[] = [
+  { key: "nanoRadar", label: "NanoRadar" },
+  { key: "spotter",   label: "Spotter" },
+];
+
 /**
  * Panel lateral derecho con controles, zonas activas y lista de detecciones.
  */
@@ -53,19 +58,38 @@ export function SidePanel() {
         ))}
       </div>
 
-      {/* Lista de detecciones */}
+      {/* Detecciones agrupadas por dispositivo */}
       <h3 className="text-emerald-500 text-xs font-bold uppercase tracking-widest border-b border-emerald-500/20 pb-2 mt-4">
         Últimas Detecciones
       </h3>
-      <div className="space-y-3">
-        {targets.length === 0 ? (
-          <p className="text-slate-500 text-[10px] italic">
-            No hay objetivos en el área...
-          </p>
-        ) : (
-          targets.map((t) => <TargetCard key={t.id} target={t} />)
-        )}
-      </div>
+
+      {DEVICE_SECTION.map(({ key, label }) => {
+        const group = targets.filter((t) => t.deviceType === key);
+        return (
+          <div key={key}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {label}
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-300">
+                {group.length}
+              </span>
+              {group.length === 0 && (
+                <span className="text-[9px] text-slate-600 italic">desconectado</span>
+              )}
+            </div>
+            <div className="space-y-2 mb-3">
+              {group.length === 0 ? (
+                <p className="text-slate-500 text-[10px] italic pl-1">
+                  Sin objetivos...
+                </p>
+              ) : (
+                group.map((t) => <TargetCard key={t.id} target={t} />)
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

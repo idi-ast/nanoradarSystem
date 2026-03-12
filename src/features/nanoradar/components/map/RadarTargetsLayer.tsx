@@ -208,8 +208,10 @@ export function RadarTargetsLayer({
         >
           <div className="font-mono text-[11px] text-emerald-100 bg-slate-900/90 border border-emerald-500/40 p-3 min-w-44 rounded-sm shadow-[0_0_14px_rgba(20,184,166,0.22)]">
             <b className="block border-b border-emerald-500/25 mb-1 pb-1 tracking-wide">
-              ID: {selected.id}
+              ID: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
             </b>
+            Radar: <span className="text-cyan-300">{selected.deviceType === "nanoRadar" ? "NanoRadar" : "Spotter"}</span>
+            <br />
             Zona: {selected.zona || "N/A"}
             <br />
             Nivel: {selected.nivel}

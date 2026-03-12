@@ -16,6 +16,7 @@ export interface RadarTarget {
   nivel: number;
   zona: string;
   lastUpdate: number;
+  deviceType: "nanoRadar" | "spotter";
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
 }
@@ -51,4 +52,9 @@ export interface RawRadarMessage {
   lon: number;
   nivel: number;
   zona: string;
+}
+
+export interface RawRadarPayload {
+  nanoRadar: RawRadarMessage[];
+  spotter: RawRadarMessage[];
 }
