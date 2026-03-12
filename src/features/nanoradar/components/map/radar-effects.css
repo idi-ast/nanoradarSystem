@@ -1,0 +1,56 @@
+.radar-shell {
+  position: relative;
+  background: radial-gradient(
+      circle at 18% 12%,
+      rgba(0, 196, 160, 0.1),
+      transparent 42%
+    ),
+    radial-gradient(circle at 82% 88%, rgba(27, 78, 224, 0.08), transparent 38%),
+    linear-gradient(160deg, rgba(3, 8, 18, 0.88), rgba(7, 15, 22, 0.94));
+}
+
+.radar-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: inset 0 0 24px rgba(52, 211, 153, 0.08);
+  pointer-events: none;
+}
+
+.radar-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.045) 0px,
+    rgba(255, 255, 255, 0.045) 1px,
+    transparent 3px,
+    transparent 6px
+  );
+  opacity: 0.22;
+  animation: radarScan 10s linear infinite;
+}
+
+.radar-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 45%, rgba(2, 6, 14, 0.38));
+}
+
+.radar-chip {
+  background: linear-gradient(180deg, rgba(5, 18, 26, 0.86), rgba(7, 15, 24, 0.78));
+  border: 1px solid rgba(80, 205, 174, 0.28);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+
+@keyframes radarScan {
+  from {
+    transform: translateY(-8px);
+  }
+  to {
+    transform: translateY(8px);
+  }
+}

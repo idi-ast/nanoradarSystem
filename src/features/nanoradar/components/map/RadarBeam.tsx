@@ -9,11 +9,11 @@ interface Props {
 }
 
 const TARGET_FPS = 60;
-const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const PULSE_CYCLE_MS = 3200;
-const WAVE_COUNT = 6;
-const WAVE_STEPS = 32;
-const PULSE_LINE_COLOR = "#ffffff";
+const FRAME_INTERVAL_MS = 100 / TARGET_FPS;
+const PULSE_CYCLE_MS = 9000;
+const WAVE_COUNT = 7;
+const WAVE_STEPS = 8;
+const PULSE_LINE_COLOR = "#67e8f9";
 
 function buildSectorPolygon(
   lat: number,
@@ -31,10 +31,38 @@ function buildSectorPolygon(
   return coords;
 }
 
-/**
- * Haz de detección del radar como polígono GeoJSON en Mapbox.
- * El sector angular se calcula a partir del azimut, radio y apertura.
- */
+function buildGradientPolygons(
+  lat: number,
+  lon: number,
+  startAngle: number,
+  endAngle: number,
+  radius: number,
+  steps = 5,
+) {
+  return Array.from({ length: steps }, (_, i) => {
+    const outerP = buildSectorPolygon(
+      lat,
+      lon,
+      startAngle,
+      endAngle,
+      radius - (radius / steps) * i,
+    );
+
+    return {
+      type: "Feature" as const,
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [outerP],
+      },
+      properties: {
+        kind: "main-gradient",
+        opacity: 0.2 - i * (0.1 / steps), // Fuerte en el centro, se desvanece
+      },
+    };
+  });
+}
+
+
 export function RadarBeam({ config }: Props) {
   const [phase, setPhase] = useState(0);
   const rafIdRef = useRef<number | null>(null);
@@ -78,31 +106,39 @@ export function RadarBeam({ config }: Props) {
     const startAngle = azimut - aperturaGrados / 2;
     const endAngle = azimut + aperturaGrados / 2;
 
-    const beamData = {
-      type: "FeatureCollection" as const,
-      features: [
-        {
-          type: "Feature" as const,
-          geometry: {
-            type: "Polygon" as const,
-            coordinates: [
-              buildSectorPolygon(lat, lon, startAngle, endAngle, radio),
-            ],
-          },
-          properties: { kind: "main" },
-        },
-      ],
+    const fillFeatures = buildGradientPolygons(
+      lat,
+      lon,
+      startAngle,
+      endAngle,
+      radio,
+      6,
+    );
+
+    // Feature solo para la línea del borde
+    const frameFeature = {
+      type: "Feature" as const,
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [
+          buildSectorPolygon(lat, lon, startAngle, endAngle, radio),
+        ],
+      },
+      properties: { kind: "main-line" },
     };
 
-    return beamData;
+    return {
+      type: "FeatureCollection" as const,
+      features: [...fillFeatures, frameFeature],
+    };
   }, [lat, lon, azimut, radio, aperturaGrados]);
 
   const pulseData = useMemo(() => {
     const pulseFeatures = Array.from({ length: WAVE_COUNT }, (_, i) => {
       const shifted = (phase + i / WAVE_COUNT) % 1;
       const radius = Math.max(1, shifted * radio);
-      const opacity = 0.34 * (1 - shifted);
-      const width = 2 - shifted * 0.8;
+      const opacity = 0.64 * (1 - shifted);
+      const width = 4 - shifted * 0.6;
 
       return {
         type: "Feature" as const,
@@ -163,35 +199,53 @@ export function RadarBeam({ config }: Props) {
     type: "fill" as const,
     filter: ["==", ["get", "kind"], "range"] as unknown as FilterSpecification,
     paint: {
-      "fill-color": "#065f46",
-      "fill-opacity": 0.09,
+      "fill-color": "#1f172a",
+      "fill-opacity": 0.3,
+      
+      
     },
   };
+  
 
   const rangeLimitLayer = {
     id: "radar-range-limits",
     type: "line" as const,
     filter: ["==", ["get", "kind"], "limits"] as unknown as FilterSpecification,
     paint: {
-      "line-color": "#34d399",
-      "line-width": 1.2,
-      "line-opacity": 0.35,
-      "line-dasharray": [2, 8],
+      "line-color": "#2dd4bf",
+      "line-width": 1,
+      "line-opacity": 0.48,
+      "line-dasharray": [2, 6],
     },
   };
 
   const fillLayer = {
     id: "radar-beam-fill",
     type: "fill" as const,
-    filter: ["==", ["get", "kind"], "main"] as unknown as FilterSpecification,
-    paint: { "fill-color": "#10b981", "fill-opacity": 0.32 },
+    filter: [
+      "==",
+      ["get", "kind"],
+      "main-gradient",
+    ] as unknown as FilterSpecification,
+    paint: {
+      "fill-color": "#14b8a6",
+      "fill-opacity": ["get", "opacity"] as unknown as number,
+    },
   };
 
   const lineLayer = {
     id: "radar-beam-line",
     type: "line" as const,
-    filter: ["==", ["get", "kind"], "main"] as unknown as FilterSpecification,
-    paint: { "line-color": "#34d399", "line-width": 1, "line-opacity": 1 },
+    filter: [
+      "==",
+      ["get", "kind"],
+      "main-line",
+    ] as unknown as FilterSpecification,
+    paint: {
+      "line-color": "#5eead4",
+      "line-width": 2,
+      "line-opacity": 0.92,
+    },
   };
 
   const pulseLayer = {

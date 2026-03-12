@@ -5,8 +5,8 @@ import type { RadarTarget } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
 
-const MOVING_COLOR = "#00bfff";
-const STOPPED_COLOR = "#ef4444";
+const MOVING_COLOR = "#22d3ee";
+const STOPPED_COLOR = "#f87171";
 const TRACKING_ACTIVE_MS = 4000;
 const COLOR_REFRESH_MS = 1000;
 
@@ -128,9 +128,10 @@ export function RadarTargetsLayer({
         MOVING_COLOR,
         STOPPED_COLOR,
       ] as unknown as string,
-      "line-width": 5,
-      "line-dasharray": [1, 2, 1, 2],
-      "line-opacity": 0.8,
+      "line-width": 4,
+      "line-dasharray": [1, 2],
+      "line-opacity": 0.72,
+      "line-blur": 0.65,
     },
   };
 
@@ -142,7 +143,7 @@ export function RadarTargetsLayer({
         "case",
         ["==", ["get", "nivel"], 3],
         4,
-        6,
+        5,
       ] as unknown as number,
       "circle-color": [
         "case",
@@ -150,14 +151,14 @@ export function RadarTargetsLayer({
         MOVING_COLOR,
         STOPPED_COLOR,
       ] as unknown as string,
-      "circle-stroke-width": 3,
+      "circle-stroke-width": 2,
       "circle-stroke-color": [
         "case",
         ["get", "isMoving"],
         "#7dd3fc",
         "#fca5a5",
       ] as unknown as string,
-      "circle-opacity": 0.8,
+      "circle-opacity": 0.9,
     },
   };
 
@@ -166,14 +167,14 @@ export function RadarTargetsLayer({
     type: "circle" as const,
     filter: ["==", ["get", "nivel"], 4] as unknown as FilterSpecification,
     paint: {
-      "circle-radius": 20,
+      "circle-radius": 16,
       "circle-color": [
         "case",
         ["get", "isMoving"],
         MOVING_COLOR,
         STOPPED_COLOR,
       ] as unknown as string,
-      "circle-opacity": 0.15,
+      "circle-opacity": 0.11,
       "circle-stroke-width": 1,
       "circle-stroke-color": [
         "case",
@@ -181,7 +182,7 @@ export function RadarTargetsLayer({
         MOVING_COLOR,
         STOPPED_COLOR,
       ] as unknown as string,
-      "circle-stroke-opacity": 0.4,
+      "circle-stroke-opacity": 0.3,
     },
   };
 
@@ -205,8 +206,8 @@ export function RadarTargetsLayer({
           closeButton
           onClose={() => onSelectTarget(null)}
         >
-          <div className="font-mono text-xs text-text-100 bg-bg-100 p-3 min-w-40">
-            <b className="block border-b border-border-200 mb-1 pb-1">
+          <div className="font-mono text-[11px] text-emerald-100 bg-slate-900/90 border border-emerald-500/40 p-3 min-w-44 rounded-sm shadow-[0_0_14px_rgba(20,184,166,0.22)]">
+            <b className="block border-b border-emerald-500/25 mb-1 pb-1 tracking-wide">
               ID: {selected.id}
             </b>
             Zona: {selected.zona || "N/A"}

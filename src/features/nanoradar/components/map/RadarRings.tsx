@@ -28,7 +28,7 @@ export function RadarRings({ config }: Props) {
         properties: { radius: (i + 1) * 100 },
       })),
     }),
-    [lat, lon, ringCount]
+    [lat, lon, ringCount],
   );
 
   const centerData = useMemo(
@@ -37,17 +37,17 @@ export function RadarRings({ config }: Props) {
       geometry: { type: "Point" as const, coordinates: [lon, lat] },
       properties: {},
     }),
-    [lat, lon]
+    [lat, lon],
   );
 
   const ringsLayer = {
     id: "radar-rings",
     type: "line" as const,
     paint: {
-      "line-color": "#10b981",
-      "line-width": 1,
-      "line-dasharray": [5, 10],
-      "line-opacity": 0.7,
+      "line-color": "#2dd4bf",
+      "line-width": 2,
+      "line-dasharray": [1, 2],
+      "line-opacity": 1,
     },
   };
 
@@ -55,11 +55,11 @@ export function RadarRings({ config }: Props) {
     id: "radar-center",
     type: "circle" as const,
     paint: {
-      "circle-radius": 7,
-      "circle-color": "#10b981",
+      "circle-radius": 10,
+      "circle-color": "#34d399",
       "circle-opacity": 0.9,
       "circle-stroke-width": 2,
-      "circle-stroke-color": "#ffffff",
+      "circle-stroke-color": "#a7f3d0",
     },
   };
 

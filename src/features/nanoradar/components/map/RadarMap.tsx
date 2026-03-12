@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import ReactMapGL from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "./radar-effects.css";
 import {
   IconMap,
   IconWorld,
@@ -102,7 +103,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
   };
 
   return (
-    <div className="grow h-full flex border-r border-emerald-500/20">
+    <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
         <ReactMapGL
           ref={mapRef}
@@ -111,7 +112,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
             longitude: initialCenter.longitude,
             zoom: 19,
             pitch: 50,
-            bearing: -40,
+            bearing: -70,
             
           }}
          
@@ -138,12 +139,14 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
         </ReactMapGL>
 
         {/* Overlay HTML con info del radar (posicionado sobre el mapa) */}
+        <div className="radar-scanlines" />
+        <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
       </div>
 
       {/* Panel de configuración del mapa */}
-      <div className="relative h-full z-50 bg-bg-100 flex flex-col gap-1 p-1">
-        <div className="flex flex-col p-0.5 gap-1 border border-border rounded py-1">
+      <div className="relative h-full z-50 bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
+        <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
           <LayerSelector
             selectedLayer={selectedLayer}
             onLayerChange={handleLayerChange}
@@ -158,7 +161,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
         </div>
 
         <div className="flex justify-center items-center h-full">
-          <span className="[writing-mode:vertical-rl] truncate rotate-180 text-base tracking-[0.3em] text-text-300 font-light">
+          <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
             Configuración Mapa
           </span>
         </div>
