@@ -96,6 +96,7 @@
     --border-100: #2a2c37;
     --border-200: #4e525e;
   }
+
   ˝ body {
     background-color: var(--bg-100);
     color: var(--text-100) !important;
@@ -150,6 +151,7 @@
   input {
     @apply transition-all duration-200 ease-in cursor-pointer;
   }
+
   section:not([aria-label]) {
     @apply w-full min-w-screen min-h-150;
   }
@@ -159,14 +161,14 @@ body {
   margin: 0;
   height: 100vh;
   overflow-x: hidden;
-  font-family: "Raleway", sans-serif;
+  /* font-family: "Raleway", sans-serif; */
   /* font-family: "Outfit", sans-serif; */
   /* font-family: "Libre Franklin", sans-serif; */
-  /* font-family: "Space Grotesk", sans-serif; */
+  font-family: "Space Grotesk", sans-serif;
 }
 
-.font-secondary{
-    font-family: "La Belle Aurore", cursive;
+.font-secondary {
+  font-family: "La Belle Aurore", cursive;
 
 }
 

@@ -31,9 +31,9 @@ function Header({
         </div>
         {!isMobile && (
           <div className="absolute left-[50%] -translate-x-1/2 text-white text-center">
-            <h2 className="bg-white to-100% font-black text-shadow-xs/40 text-shadow-gray-900 bg-clip-text text-clip text-transparent">
+            <h4 className="uppercase tracking-[0.25em] bg-white to-100% font-black text-shadow-xs/40 text-shadow-gray-900 bg-clip-text text-clip text-transparent">
               {useConfigApp.NAME_APP}
-            </h2>
+            </h4>
           </div>
         )}
         <div className="flex items-center gap-3">

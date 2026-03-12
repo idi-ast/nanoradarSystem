@@ -6,7 +6,7 @@ import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
 
 const MOVING_COLOR = "#22d3ee";
-const STOPPED_COLOR = "#f87171";
+const STOPPED_COLOR = "#7a7a7a";
 const TRACKING_ACTIVE_MS = 4000;
 const COLOR_REFRESH_MS = 1000;
 
@@ -156,7 +156,7 @@ export function RadarTargetsLayer({
         "case",
         ["get", "isMoving"],
         "#7dd3fc",
-        "#fca5a5",
+        "#9e9e9e",
       ] as unknown as string,
       "circle-opacity": 0.9,
     },
