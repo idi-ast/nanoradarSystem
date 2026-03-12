@@ -6,10 +6,10 @@ import Template from "./layouts/Template";
 import { ThemeProvider } from "./context/ThemeContext";
 import { configServer } from "@/config/ConfigServer";
 import {
-  AuthProvider,
   ProtectedRoute,
   PublicOnlyRoute,
 } from "@/libs/better-auth";
+import { BackdoorAuthProvider } from "@/template/auth/context";
 import { QueryProvider } from "@/libs/tanstack-query";
 import { ToastProvider } from "@/libs/sonner";
 import { LoginPage, RegisterPage, ForgotPasswordPage } from "@/template/auth";
@@ -20,7 +20,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <QueryProvider>
-        <AuthProvider>
+        <BackdoorAuthProvider>
           <ThemeProvider>
             <ToastProvider />
             <Routes>
@@ -77,7 +77,7 @@ createRoot(document.getElementById("root")!).render(
               </Route>
             </Routes>
           </ThemeProvider>
-        </AuthProvider>
+        </BackdoorAuthProvider>
         {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </QueryProvider>
     </BrowserRouter>

@@ -1,5 +1,4 @@
-import { apiClient } from "@/apis";
-import { configServer } from "@/config/ConfigServer";
+import { apiSystem } from "@/apis";
 import type {
   LoginFormData,
   RegisterFormData,
@@ -8,70 +7,100 @@ import type {
   AuthResponse,
 } from "../types";
 
-const { useAuthConfig } = configServer();
-
 export const authService = {
   async login(data: LoginFormData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/login`,
-      {
-        email: data.email,
+    try {
+      const response = await apiSystem.post<any>("/authenticated", {
+        username: data.email, // el backend requiere username
         password: data.password,
-        service_code: import.meta.env.VITE_APP_CODE,
+      });
+
+      // Validamos cómo viene el token (string directo o en data)
+      const tokenData = response.data;
+      const token = typeof tokenData === "string" ? tokenData : (tokenData?.token || String(tokenData));
+      const cleanToken = token.replace(/"/g, "");
+
+      if (cleanToken && cleanToken !== "undefined" && cleanToken !== "null") {
+        localStorage.setItem("access_token", cleanToken);
+        apiSystem.setHeader("Authorization", `Bearer ${cleanToken}`);
+
+        let user = null;
+        try {
+          // Obtener usuarios para buscar los datos del usuario actual
+          const usersResponse = await apiSystem.get<any>("/usuarios");
+          const users = usersResponse.data?.data || [];
+          user = users.find((u: any) => u.email === data.email);
+        } catch (error) {
+          console.warn("No se pudieron obtener los datos de usuario", error);
+        }
+
+        return {
+          success: true,
+          message: "Login exitoso",
+          user: user
+            ? {
+                id: String(user.id),
+                email: user.email,
+                name: `${user.nombre} ${user.apellido}`,
+              }
+            : {
+                id: "1",
+                email: data.email,
+                name: "Admin User",
+              },
+        };
       }
-    );
-    return response.data;
+
+      return {
+        success: false,
+        message: "No se recibió un token válido.",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Error al iniciar sesión",
+      };
+    }
   },
 
-  async register(data: RegisterFormData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/register`,
-      {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      }
-    );
-    return response.data;
+  async register(_data: RegisterFormData): Promise<AuthResponse> {
+    return { success: false, message: "Registro no disponible en este sistema." };
   },
 
-  async forgotPassword(data: ForgotPasswordFormData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/forgot-password`,
-      {
-        email: data.email,
-      }
-    );
-    return response.data;
+  async forgotPassword(_data: ForgotPasswordFormData): Promise<AuthResponse> {
+    return { success: false, message: "Recuperación de contraseña no disponible." };
   },
 
-  async resetPassword(data: ResetPasswordFormData): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/reset-password`,
-      {
-        password: data.password,
-        token: data.token,
-      }
-    );
-    return response.data;
+  async resetPassword(_data: ResetPasswordFormData): Promise<AuthResponse> {
+    return { success: false, message: "Restablecimiento de contraseña no disponible." };
   },
 
   async logout(): Promise<void> {
-    await apiClient.post(`${useAuthConfig.AUTH_ENDPOINT}/logout`);
+    localStorage.removeItem("access_token");
+    apiSystem.removeHeader("Authorization");
   },
 
   async verifySession(): Promise<AuthResponse> {
-    const response = await apiClient.get<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/session`
-    );
-    return response.data;
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      return { success: false, message: "No hay sesión activa." };
+    }
+
+    try {
+      apiSystem.setHeader("Authorization", `Bearer ${token}`);
+      await apiSystem.get<any>("/verify-token");
+      
+      // Podríamos obtener la info del usuario decodificando el token 
+      // o haciendo una petición a /usuarios similar a login, pero por ahora
+      // basta con saber que el token es válido:
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: "Token inválido." };
+    }
   },
 
- 
   async refreshToken(): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      `${useAuthConfig.AUTH_ENDPOINT}/refresh`
-    );
-    return response.data;
+    // Si no hay endpoint para refrescar token, simplemente lo verificamos.
+    return this.verifySession();
   },
 };

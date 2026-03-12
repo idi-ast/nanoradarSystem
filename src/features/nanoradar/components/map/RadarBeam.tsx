@@ -13,7 +13,7 @@ const FRAME_INTERVAL_MS = 100 / TARGET_FPS;
 const PULSE_CYCLE_MS = 9000;
 const WAVE_COUNT = 7;
 const WAVE_STEPS = 8;
-const PULSE_LINE_COLOR = "#67e8f9";
+const PULSE_LINE_COLOR = "#c5ff73";
 
 function buildSectorPolygon(
   lat: number,
@@ -61,7 +61,6 @@ function buildGradientPolygons(
     };
   });
 }
-
 
 export function RadarBeam({ config }: Props) {
   const [phase, setPhase] = useState(0);
@@ -199,13 +198,10 @@ export function RadarBeam({ config }: Props) {
     type: "fill" as const,
     filter: ["==", ["get", "kind"], "range"] as unknown as FilterSpecification,
     paint: {
-      "fill-color": "#1f172a",
+      "fill-color": "#504f6e",
       "fill-opacity": 0.3,
-      
-      
     },
   };
-  
 
   const rangeLimitLayer = {
     id: "radar-range-limits",
@@ -228,7 +224,7 @@ export function RadarBeam({ config }: Props) {
       "main-gradient",
     ] as unknown as FilterSpecification,
     paint: {
-      "fill-color": "#14b8a6",
+      "fill-color": "#b6fa16",
       "fill-opacity": ["get", "opacity"] as unknown as number,
     },
   };
@@ -242,7 +238,7 @@ export function RadarBeam({ config }: Props) {
       "main-line",
     ] as unknown as FilterSpecification,
     paint: {
-      "line-color": "#5eead4",
+      "line-color": "#b6fa16",
       "line-width": 2,
       "line-opacity": 0.92,
     },

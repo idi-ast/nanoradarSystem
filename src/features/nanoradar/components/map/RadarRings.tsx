@@ -44,7 +44,7 @@ export function RadarRings({ config }: Props) {
     id: "radar-rings",
     type: "line" as const,
     paint: {
-      "line-color": "#2dd4bf",
+      "line-color": "#c5ff73",
       "line-width": 2,
       "line-dasharray": [1, 2],
       "line-opacity": 1,
@@ -56,10 +56,10 @@ export function RadarRings({ config }: Props) {
     type: "circle" as const,
     paint: {
       "circle-radius": 10,
-      "circle-color": "#34d399",
+      "circle-color": "#b6fa16",
       "circle-opacity": 0.9,
       "circle-stroke-width": 2,
-      "circle-stroke-color": "#a7f3d0",
+      "circle-stroke-color": "#b6fa16",
     },
   };
 
