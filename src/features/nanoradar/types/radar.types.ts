@@ -45,6 +45,16 @@ export interface CreateZonePayload {
   };
 }
 
+export interface UpdateZonePayload {
+  nombre: string;
+  descripcion: string;
+  idTipoAlerta: number;
+  poligono: {
+    color: string;
+    vertices: [number, number][] | Record<string, [number, number]>;
+  };
+}
+
 
 export interface RawRadarMessage {
   id: string | number;

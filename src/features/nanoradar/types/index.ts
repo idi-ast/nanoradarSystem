@@ -3,6 +3,7 @@ export type {
   RadarTarget,
   RadarZone,
   CreateZonePayload,
+  UpdateZonePayload,
   RawRadarMessage,
   RawRadarPayload,
 } from "./radar.types";

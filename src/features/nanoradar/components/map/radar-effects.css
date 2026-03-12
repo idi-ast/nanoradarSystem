@@ -50,3 +50,12 @@
     transform: translateY(8px);
   }
 }
+
+@keyframes geofence-pulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}

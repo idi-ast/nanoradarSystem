@@ -131,7 +131,6 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           onClick={handleMapClick}
           cursor={isDrawing ? "crosshair" : undefined}
         >
-          {/* Capas del radar - orden importa: de fondo a frente */}
           <RadarBeam config={config} />
           <RadarRings config={config} />
           <RadarZonesLayer zones={zones} />
@@ -144,15 +143,11 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           />
         </ReactMapGL>
 
-        {/* Overlay HTML con info del radar (posicionado sobre el mapa) */}
         <div className="radar-scanlines" />
         <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
       </div>
-
       <Camera />
-
-      {/* Panel de configuración del mapa */}
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
         <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
           <LayerSelector
@@ -167,7 +162,6 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           />
           <CustomZoomControl mapRef={mapRef} />
         </div>
-
         <div className="flex justify-center items-center h-full">
           <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
             Configuración Mapa

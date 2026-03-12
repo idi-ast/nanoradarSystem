@@ -4,6 +4,7 @@ import type {
   RadarTarget,
   RadarZone,
   CreateZonePayload,
+  UpdateZonePayload,
 } from "../types";
 
 export interface RadarContextValue {
@@ -14,6 +15,8 @@ export interface RadarContextValue {
   error: string | null;
   refreshData: () => void;
   addZone: (payload: CreateZonePayload) => Promise<void>;
+  updateZone: (id: number, payload: UpdateZonePayload) => Promise<void>;
+  deleteZone: (id: number) => Promise<void>;
 
   // Objetivos en tiempo real (WebSocket)
   targets: RadarTarget[];
@@ -29,6 +32,7 @@ export interface RadarContextValue {
   startDrawing: () => void;
   cancelDrawing: () => void;
   addDrawingPoint: (lat: number, lng: number) => void;
+  removeLastDrawingPoint: () => void;
   setZoneName: (name: string) => void;
   setZoneColor: (color: string) => void;
   setAlertLevel: (level: 1 | 2 | 3 | 4) => void;

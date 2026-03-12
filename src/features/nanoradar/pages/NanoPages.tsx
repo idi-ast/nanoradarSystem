@@ -9,6 +9,7 @@ import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
+import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -24,6 +25,7 @@ function NanoPages() {
 
   return (
     <RadarProvider>
+      <GeofenceFlash />
       <div
         className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
       >
@@ -32,9 +34,7 @@ function NanoPages() {
             <RadarMap historyRange={historyRange} />
           </div>
           <HistoryRangeBar onChange={handleRangeChange} />
-          <BottomBar title="Estado del Radar"
-
-          >
+          <BottomBar title="Estado del Radar">
             <RadarStatusBar />
           </BottomBar>
         </div>
@@ -133,7 +133,6 @@ const RightBarNano = ({
         )}
       </div>
 
-      {/* Botones de acción */}
       <div className="shrink-0 px-3 py-3 border-b border-border flex gap-2">
         <button
           onClick={clearTargets}
@@ -152,7 +151,6 @@ const RightBarNano = ({
         </button>
       </div>
 
-      {/* Formulario de dibujo */}
       {isDrawing && (
         <div className="shrink-0">
           <ZoneDrawingPanel />
@@ -182,6 +180,28 @@ const RightBarNano = ({
 };
 
 export default NanoPages;
+
+/**
+ * Overlay de destello en el borde de la pantalla cuando un objetivo activo
+ * entra a una geocerca de nivel CRÍTICO (4).
+ */
+function GeofenceFlash() {
+  const { targets, zones } = useRadarContext();
+  const { maxLevel } = useGeofenceDetection(targets, zones);
+
+  if (maxLevel < 4) return null;
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-9999 animate-[geofence-pulse_1.2s_ease-in-out_infinite]"
+      style={{
+        boxShadow: "inset 0 0 80px 28px #ef4444",
+        border: "2px solid rgba(239,68,68,0.85)",
+      }}
+    />
+  );
+}
 
 type TabFilter = "all" | "nanoRadar" | "spotter";
 
@@ -233,7 +253,6 @@ function TargetsSection({
         })}
       </div>
 
-      {/* Lista filtrada */}
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
         {filtered.length === 0 ? (
           <p className="text-text-100/40 text-[10px] italic">

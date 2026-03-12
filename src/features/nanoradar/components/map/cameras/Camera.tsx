@@ -17,8 +17,6 @@ function Camera() {
                     {fullScreen ? <IconMinimize size={24} stroke={1.5} /> : <IconMaximize size={24} stroke={1.5} />}
                     <span>Pantalla Completa</span>
                 </button>}
-
-
             </div>
             <div className={`overflow-hidden  ${minimize ? "h-40 w-60" : fullScreen ? " h-screen w-full" : "h-full rounded-2xl"}`}>
                 {fullScreen && <button

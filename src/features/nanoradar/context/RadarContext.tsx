@@ -12,7 +12,7 @@ interface RadarProviderProps {
 
 export function RadarProvider({ children, wsUrl }: RadarProviderProps) {
   const { targets, clearTargets } = useRadarWebSocket(wsUrl);
-  const { config, zones, isLoading, error, refreshData, addZone } =
+  const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
 
@@ -29,6 +29,8 @@ export function RadarProvider({ children, wsUrl }: RadarProviderProps) {
     error,
     refreshData,
     addZone,
+    updateZone,
+    deleteZone,
 
     targets,
     clearTargets,
@@ -42,6 +44,7 @@ export function RadarProvider({ children, wsUrl }: RadarProviderProps) {
     startDrawing: drawing.startDrawing,
     cancelDrawing: drawing.cancelDrawing,
     addDrawingPoint: drawing.addPoint,
+    removeLastDrawingPoint: drawing.removeLastPoint,
     setZoneName: drawing.setName,
     setZoneColor: drawing.setColor,
     setAlertLevel: drawing.setAlertLevel,

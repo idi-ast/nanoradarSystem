@@ -22,13 +22,28 @@ export function ZoneDrawingPanel() {
     setZoneColor,
     setAlertLevel,
     saveZone,
+    removeLastDrawingPoint,
   } = useRadarContext();
 
   return (
-    <div className="p-4 bg-bg-200  border-b border-border space-y-4">
-      <h4 className="text-[10px] text-text-100 font-bold uppercase">
-        Configuración de Zona
-      </h4>
+    <div className="p-4 bg-bg-200 border-b border-border space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-[10px] text-text-100 font-bold uppercase">
+          Configuración de Zona
+        </h4>
+        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-2 py-0.5">
+          {drawingPoints.length} pts
+        </span>
+      </div>
+
+      {/* Instrucción contextual */}
+      <p className="text-[9px] text-text-100/40 italic leading-tight">
+        {drawingPoints.length === 0
+          ? "Haz clic en el mapa para agregar vértices."
+          : drawingPoints.length < 3
+            ? `Agrega al menos ${3 - drawingPoints.length} punto${3 - drawingPoints.length > 1 ? "s" : ""} más.`
+            : "Zona lista para guardar. Puedes seguir agregando puntos."}
+      </p>
 
       <input
         type="text"
@@ -40,12 +55,12 @@ export function ZoneDrawingPanel() {
 
       <div className="flex items-center justify-between bg-bg-100/30 p-2 rounded border border-border">
         <label className="text-[10px] text-text-200">COLOR DE ZONA:</label>
-        <div className="w-8 h-8 overflow-hidden rounded-full flex justify-center items-center ">
+        <div className="w-8 h-8 overflow-hidden rounded-full flex justify-center items-center">
           <input
             type="color"
             value={zoneColor}
             onChange={(e) => setZoneColor(e.target.value)}
-            className="min-w-20 min-h-15 bg-transparent cursor-pointer  rounded-full"
+            className="min-w-20 min-h-15 bg-transparent cursor-pointer rounded-full"
           />
         </div>
       </div>
@@ -69,13 +84,22 @@ export function ZoneDrawingPanel() {
         </select>
       </div>
 
-      <button
-        onClick={saveZone}
-        disabled={!canSave}
-        className="w-full bg-brand-100 text-text-100 font-bold text-xs py-2 rounded hover:bg-bg-100 disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        GUARDAR ZONA ({drawingPoints.length} Puntos)
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={removeLastDrawingPoint}
+          disabled={drawingPoints.length === 0}
+          className="flex-1 px-2 py-1.5 text-[10px] rounded border border-yellow-500/40 bg-yellow-900/20 text-yellow-300 hover:bg-yellow-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          ↩ DESHACER
+        </button>
+        <button
+          onClick={saveZone}
+          disabled={!canSave}
+          className="flex-1 bg-brand-100 text-text-100 font-bold text-xs py-1.5 rounded hover:bg-bg-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          GUARDAR
+        </button>
+      </div>
     </div>
   );
 }

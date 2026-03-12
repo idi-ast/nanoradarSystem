@@ -54,3 +54,26 @@ export function createCircleCoords(
 export function toGeoCoord(latLon: [number, number, ...number[]]): [number, number] {
   return [latLon[1], latLon[0]];
 }
+
+/**
+ * Ray-casting: determina si un punto (lat, lon) está dentro de un polígono
+ * cuyos vértices están en formato [lat, lon].
+ */
+export function isPointInPolygon(
+  pointLat: number,
+  pointLon: number,
+  vertices: [number, number][],
+): boolean {
+  if (vertices.length < 3) return false;
+  let inside = false;
+  const n = vertices.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [yi, xi] = vertices[i];
+    const [yj, xj] = vertices[j];
+    const intersects =
+      yi > pointLat !== yj > pointLat &&
+      pointLon < ((xj - xi) * (pointLat - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}

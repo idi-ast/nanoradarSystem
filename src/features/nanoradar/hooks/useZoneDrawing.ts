@@ -32,6 +32,10 @@ export function useZoneDrawing() {
     setPoints((prev) => [...prev, [lat, lng]]);
   }, []);
 
+  const removeLastPoint = useCallback(() => {
+    setPoints((prev) => prev.slice(0, -1));
+  }, []);
+
   const setMovementStatus = useCallback((isMoving: boolean) => {
     setColor(isMoving ? MOVING_COLOR : STOPPED_COLOR);
   }, []);
@@ -57,6 +61,7 @@ export function useZoneDrawing() {
     startDrawing,
     cancelDrawing,
     addPoint,
+    removeLastPoint,
     setName,
     setColor,
     setMovementStatus,

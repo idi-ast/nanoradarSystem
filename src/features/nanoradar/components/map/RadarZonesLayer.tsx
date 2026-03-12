@@ -7,22 +7,15 @@ interface Props {
   zones: RadarZone[];
 }
 
-/**
- * Zonas de alerta como polígonos GeoJSON con color por zona en Mapbox.
- * Usa data-driven styling para pintar cada zona con su color configurado.
- */
 export function RadarZonesLayer({ zones }: Props) {
   const data = useMemo(
     () => ({
       type: "FeatureCollection" as const,
       features: zones.map((zone, idx) => {
-        // La API puede devolver vertices como array [[lat,lon],...] u objeto {pt0:[lat,lon],...}
         const rawVertices = Array.isArray(zone.poligono.vertices)
           ? zone.poligono.vertices
           : Object.values(zone.poligono.vertices);
-        // Convertir de [lat, lon] a [lon, lat] (GeoJSON/Mapbox)
         const coords = rawVertices.map(toGeoCoord);
-        // Cerrar el polígono
         if (coords.length > 0) coords.push(coords[0]);
 
         return {
