@@ -1,52 +1,65 @@
 export interface ConfigServicesType {
-    data: Data;
-    message: string;
+  data: Data;
+  message: string;
 }
 
 export interface Data {
-    nanoradares: Nanoradares[];
-    camaras: Camaras[];
-    spotters: Spotters[];
+  nanoradares: Nanoradares[];
+  camaras: Camaras[];
+  spotters: Spotters[];
 }
 
 export interface Spotters {
-    serial: string;
-    id: number;
-    version: string;
-    latitude: string;
-    altitude: string;
-    bearing: string;
-    direccionIp: string;
-    nombre: string;
-    model: string;
-    timestamp: number;
-    longitude: string;
-    declination: string;
-    idEmpresa: number;
+  nombre: string;
+  direccionIp: string;
+  model: string;
+  timestamp: number;
+  longitude: string;
+  declination: string;
+  color: string;
+  serial: string;
+  id: number;
+  version: string;
+  latitude: string;
+  altitude: string;
+  bearing: string;
+  idEmpresa: number;
+  azimut: string;
+  grado: number;
+  radio: number;
+  apertura: number;
 }
 
 export interface Camaras {
-    id: number;
-    nombre: string;
-    ubicacion: Ubicacion;
-    url_stream: string;
-    tipo: string;
+  id: number;
+  nombre: string;
+  ubicacion: Ubicacion;
+  direccionIp: string;
+  channel: number;
+  subtype: number;
+  azimut: string;
+  usuario: string;
+  password: string;
+  color: string;
+  url_stream: string;
+  tipo: string;
 }
 
 export interface Ubicacion {
-    lat: string;
-    lng: string;
+  lat: string;
+  lng: string;
 }
 
 export interface Nanoradares {
-    latitud: string;
-    id: number;
-    azimut: string;
-    grado: number;
-    idEmpresa: number;
-    nombre: string;
-    direccionIp: string;
-    longitud: string;
-    radio: number;
-    apertura: number;
+  nombre: string;
+  direccionIp: string;
+  longitud: string;
+  radio: number;
+  apertura: number;
+  idEmpresa: number;
+  id: number;
+  latitud: string;
+  azimut: string;
+  grado: number;
+  color: string;
 }

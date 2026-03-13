@@ -246,7 +246,7 @@ export function DeviceSelector({ visibility, onChange }: DeviceSelectorProps) {
                       id={nr.id}
                       label={nr.nombre}
                       subtitle={`Az ${nr.azimut}° · R ${nr.radio}m`}
-                      accentColor={NR_PALETTE[idx % NR_PALETTE.length].primary}
+                      accentColor={nr.color || NR_PALETTE[idx % NR_PALETTE.length].primary}
                       isHidden={visibility.hiddenNanoradares.has(nr.id)}
                       onToggle={toggleNR}
                     />

@@ -102,7 +102,7 @@ export const GEOFENCE: GeofenceConfig = {
 };
 
 export const MAP_DEFAULTS: MapConfig = {
-  zoom: 19,
+  zoom: 18,
   pitch: 60,
   bearing: 0,
   fallbackCenter: {
@@ -190,17 +190,17 @@ export const RADAR_INSTANCES: RadarInstanceConfig[] = [
     wsUrl: import.meta.env.VITE_SOCKET_URL as string,
   },
   // Para agregar un segundo radar, descomenta y ajusta solo lo que difiera:
-    // {
-    //   id: "nanoradar-2",
-    //   label: "NanoRadar Secundario",
-    //   cameraUrl: "http://10.30.7.14:8888/camara_2/stream.m3u8",
-    //   wsUrl: import.meta.env.VITE_SOCKET_URL as string,
-    //   colors: { primary: "#fa7a16", pulse: "#ffb347" },
-    //   timing: { TARGET_TIMEOUT_MS: 60_000 },
-    //   geofence: { ACTIVE_MS: 2_000 },
-    //   targetColors: { moving: "#22d3ee", stopped: "#7a7a7a" },
-    //   beam: { WAVE_COUNT: 7, WAVE_STEPS: 8, GRADIENT_STEPS: 2 },
-    // },
+  // {
+  //   id: "nanoradar-2",
+  //   label: "NanoRadar Secundario",
+  //   cameraUrl: "http://10.30.7.14:8888/camara_2/stream.m3u8",
+  //   wsUrl: import.meta.env.VITE_SOCKET_URL as string,
+  //   colors: { primary: "#fa7a16", pulse: "#ffb347" },
+  //   timing: { TARGET_TIMEOUT_MS: 60_000 },
+  //   geofence: { ACTIVE_MS: 2_000 },
+  //   targetColors: { moving: "#22d3ee", stopped: "#7a7a7a" },
+  //   beam: { WAVE_COUNT: 7, WAVE_STEPS: 8, GRADIENT_STEPS: 2 },
+  // },
 ];
 
 /** Instancia activa por defecto (primer elemento de RADAR_INSTANCES) */

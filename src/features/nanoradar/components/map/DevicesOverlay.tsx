@@ -388,19 +388,19 @@ function buildArcCoords(
 
 interface CameraDeviceLayersProps {
   camera: Camaras;
-  bearingDeg?: number;
   fovDeg?: number;
   rangeM?: number;
 }
 
 function CameraDeviceLayers({
   camera,
-  bearingDeg = 0,
   fovDeg = CAM_FOV_DEG,
   rangeM = CAM_RANGE_M,
 }: CameraDeviceLayersProps) {
   const lat = Number(camera.ubicacion?.lat);
   const lon = Number(camera.ubicacion?.lng);
+  const bearingDeg = Number(camera.azimut) || 0;
+  const color = camera.color || "#f59e0b";
   const sid = `dev-cam-${camera.id}`;
 
   const halfFov = fovDeg / 2;
@@ -482,8 +482,8 @@ function CameraDeviceLayers({
           type="fill"
           filter={["==", ["get", "kind"], "fov"] as unknown as FilterSpecification}
           paint={{
-            "fill-color": "#f59e0b",
-            "fill-opacity": 0.65,
+            "fill-color": color,
+            "fill-opacity": 0.25,
           }}
         />
         {/* Líneas laterales del cono */}
@@ -492,7 +492,7 @@ function CameraDeviceLayers({
           type="line"
           filter={["==", ["get", "kind"], "side"] as unknown as FilterSpecification}
           paint={{
-            "line-color": "#f59e0b",
+            "line-color": color,
             "line-width": 1,
             "line-opacity": 0.7,
           }}
@@ -503,7 +503,7 @@ function CameraDeviceLayers({
           type="line"
           filter={["==", ["get", "kind"], "center"] as unknown as FilterSpecification}
           paint={{
-            "line-color": "#fcd34d",
+            "line-color": color,
             "line-width": 2,
             "line-opacity": 1,
             "line-dasharray": [4, 4],
@@ -515,7 +515,7 @@ function CameraDeviceLayers({
           type="line"
           filter={["==", ["get", "kind"], "arc"] as unknown as FilterSpecification}
           paint={{
-            "line-color": "#f59e0b",
+            "line-color": color,
             "line-width": 1.5,
             "line-opacity": 0.6,
             "line-dasharray": [2, 3],
@@ -536,27 +536,36 @@ function CameraDeviceLayers({
                 height: 0,
                 borderLeft: "4px solid transparent",
                 borderRight: "4px solid transparent",
-                borderBottom: "11px solid #f59e0b",
+                borderBottom: `11px solid ${color}`,
                 opacity: 0.8,
               }}
             />
           </div>
-          <div className="relative z-10 w-8 h-8 rounded-full bg-amber-500/20 border-2 border-amber-400/70 flex items-center justify-center hover:bg-amber-500/30 transition-colors">
-            <IconCamera size={15} className="text-amber-300" />
+          <div
+            className="relative z-10 w-8 h-8 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity border-2"
+            style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
+          >
+            <IconCamera size={15} style={{ color }} />
           </div>
 
           <div className="absolute bottom-full mb-2 left-1/3 -translate-x-1/2 hidden group-hover:flex flex-col items-center gap-0.5 z-50 pointer-events-none">
-            <div className="px-2 py-1 rounded-md text-[10px] font-bold bg-bg-100/95 text-amber-300 border border-amber-500/40 whitespace-nowrap shadow-lg">
+            <div
+              className="px-2 py-1 rounded-md text-[10px] font-bold bg-bg-100/95 border whitespace-nowrap shadow-lg"
+              style={{ color, borderColor: `${color}66` }}
+            >
               {camera.nombre}
             </div>
             <div className="flex gap-1">
               {camera.tipo && (
-                <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-900/60 text-amber-400/80 border border-amber-600/30 whitespace-nowrap">
+                <span
+                  className="px-1.5 py-0.5 rounded text-[9px] border whitespace-nowrap"
+                  style={{ backgroundColor: `${color}22`, color, borderColor: `${color}44` }}
+                >
                   {camera.tipo}
                 </span>
               )}
               <span className="px-1.5 py-0.5 rounded text-[9px] bg-bg-100/80 text-text-100/40 border border-border whitespace-nowrap">
-                {bearingDeg}° · {rangeM}m
+                {bearingDeg.toFixed(1)}° · {rangeM}m
               </span>
             </div>
           </div>
@@ -567,9 +576,9 @@ function CameraDeviceLayers({
         <div
           className="px-2 py-0.5 rounded text-[9px] font-semibold tracking-wider whitespace-nowrap pointer-events-none"
           style={{
-            backgroundColor: "#92400e33",
-            border: "1px solid #f59e0b44",
-            color: "#fcd34d",
+            backgroundColor: `${color}22`,
+            border: `1px solid ${color}44`,
+            color,
           }}
         >
           {camera.nombre}
@@ -615,13 +624,15 @@ export function DevicesOverlay({
         .filter((nr) => !visibility.hiddenNanoradares.has(nr.id))
         .map((nr, idx) => {
           const palette = NR_PALETTE[idx % NR_PALETTE.length];
+          const colorPrimary = nr.color || palette.primary;
+          const colorPulse = nr.color || palette.pulse;
           return (
             <NanoradarDeviceLayer
               key={nr.id}
               nr={nr}
               phase={phase}
-              colorPrimary={palette.primary}
-              colorPulse={palette.pulse}
+              colorPrimary={colorPrimary}
+              colorPulse={colorPulse}
             />
           );
         })}
@@ -635,7 +646,7 @@ export function DevicesOverlay({
       {camaras
         .filter((c) => !visibility.hiddenCamaras.has(c.id))
         .map((c) => (
-          <CameraDeviceLayers fovDeg={50} bearingDeg={242} rangeM={45} key={c.id} camera={c} />
+          <CameraDeviceLayers key={c.id} camera={c} />
         ))}
     </>
   );
