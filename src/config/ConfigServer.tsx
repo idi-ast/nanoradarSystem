@@ -11,6 +11,7 @@ import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
 import NanoPages from "@/features/nanoradar/pages/NanoPages";
+import ConfigDevices from "@/features/config-devices/components/ConfigDevices";
 
 const name = import.meta.env.VITE_COMPANY_NAME;
 const address = import.meta.env.VITE_COMPANY_ADDRESS;
@@ -103,6 +104,15 @@ export const configServer = () => {
       link: "/",
       icon: IconRadar2,
       component: NanoPages,
+      target: false,
+      state: true,
+    },
+    {
+      id: 2,
+      name: "Config Devices",
+      link: "/config-devices",
+      icon: IconRadar2,
+      component: ConfigDevices,
       target: false,
       state: true,
     }

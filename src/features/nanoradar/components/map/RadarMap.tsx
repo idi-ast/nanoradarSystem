@@ -19,12 +19,14 @@ import type { RadarInstanceConfig } from "../../config";
 import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { RadarBeam } from "./RadarBeam";
-import { RadarRings } from "./RadarRings";
 import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
+import { DevicesOverlay } from "./DevicesOverlay";
+import type { DeviceVisibility } from "./DevicesOverlay";
+import { ALL_VISIBLE } from "./devicesConfig";
+import { DeviceSelector } from "./DeviceSelector";
 import Camera from "./cameras/Camera";
 import ConfigZones from "./zones/ConfigZones";
 
@@ -37,20 +39,17 @@ const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
   (inst) => `targets-circles-${inst.id}`,
 );
 
-/** Renders beam + rings + zones + targets for a secondary radar instance inside the shared map. */
+/** Renderiza zonas y targets de un radar secundario (beam/rings vienen de DevicesOverlay). */
 function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) {
-  const { config, targets, zones } = useRadarContext();
-  if (!config) return null;
+  const { targets, zones } = useRadarContext();
   return (
     <>
-      <RadarBeam config={config} />
-      <RadarRings config={config} />
       <RadarZonesLayer zones={zones} />
       <RadarTargetsLayer
         targets={targets}
         historyRange={historyRange}
         selectedTargetId={null}
-        onSelectTarget={() => {}}
+        onSelectTarget={() => { }}
       />
     </>
   );
@@ -71,6 +70,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
   const mapRef = useRef<MapRef>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
+  const [deviceVisibility, setDeviceVisibility] = useState<DeviceVisibility>(ALL_VISIBLE);
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
     () => ({
@@ -156,8 +156,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           onClick={handleMapClick}
           cursor={isDrawing ? "crosshair" : undefined}
         >
-          <RadarBeam config={config} />
-          <RadarRings config={config} />
+          <DevicesOverlay visibility={deviceVisibility} />
           <RadarZonesLayer zones={zones} />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
           <RadarTargetsLayer
@@ -192,6 +191,10 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           />
           <CustomZoomControl mapRef={mapRef} />
           <ConfigZones />
+          <DeviceSelector
+            visibility={deviceVisibility}
+            onChange={setDeviceVisibility}
+          />
         </div>
         <div className="flex justify-center items-center h-full">
           <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
