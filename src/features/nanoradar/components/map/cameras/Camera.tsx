@@ -1,32 +1,103 @@
-import { IconMaximize, IconMinimize, IconX } from "@tabler/icons-react"
-import { useState } from "react"
+import { IconMaximize, IconMinimize, IconX } from "@tabler/icons-react";
+import Hls from "hls.js";
+import { useCallback, useRef, useState } from "react";
+
+const HLS_STREAM_URL = "http://10.30.7.14:8888/camara_dahua/video1_stream.m3u8";
 
 function Camera() {
-    const [minimize, setMinimize] = useState(false)
-    const [fullScreen, setFullScreen] = useState(false)
+    const [minimize, setMinimize] = useState(false);
+    const [fullScreen, setFullScreen] = useState(false);
+    const hlsRef = useRef<Hls | null>(null);
+
+    const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
+        if (!node) {
+            hlsRef.current?.destroy();
+            hlsRef.current = null;
+            return;
+        }
+
+        if (Hls.isSupported()) {
+            const hls = new Hls({
+                lowLatencyMode: true,
+                backBufferLength: 4,
+                maxBufferLength: 10,
+                liveSyncDurationCount: 2,
+            });
+            hlsRef.current = hls;
+            hls.loadSource(HLS_STREAM_URL);
+            hls.attachMedia(node);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                node.play().catch(() => {
+                    /* autoplay bloqueado por el navegador */
+                });
+            });
+            hls.on(Hls.Events.ERROR, (_, data) => {
+                if (data.fatal)
+                    console.error("[HLS] Error fatal:", data.type, data.details);
+            });
+        } else if (node.canPlayType("application/vnd.apple.mpegurl")) {
+            // Safari — HLS nativo
+            node.src = HLS_STREAM_URL;
+            node.addEventListener("loadedmetadata", () => {
+                node.play().catch(() => { });
+            });
+        }
+    }, []);
+
     return (
-        <div className={`absolute left-0 bottom-0 rounded-b-2xl px-2 ${fullScreen && "w-full h-full"}`}>
-            <div className="absolute flex justify-start gap-5 items-center left-0 top-0 bg-linear-to-r from-bg-100 to-bg-200/20 w-full">
-                <h2 className={`p-2 ${minimize ? "text-xs" : ""}`}>Camara NanoRadar</h2>
-                <button className={`rounded flex items-center gap-1 ${!minimize ? "hover:bg-brand-100/80" : "hover:bg-brand-200/80"} p-0.5`} onClick={() => setMinimize(!minimize)}>
-                    {minimize ? <IconMaximize size={24} stroke={1.5} /> : <IconMinimize size={24} stroke={1.5} />}
+        <div
+            className={`absolute left-0 bottom-0 rounded-b-2xl px-2 ${fullScreen ? "w-full h-full" : minimize ? "w-60" : "min-w-80"}`}
+        >
+            <div className="absolute flex justify-start gap-5 items-center left-0 top-0 bg-bg-100  z-10">
+                <small className={`p-2 ${minimize ? "text-xs" : ""}`}>Camara NanoRadar</small>
+                <button
+                    className={`rounded flex items-center gap-1 ${!minimize ? "hover:bg-brand-100/80" : "hover:bg-brand-200/80"} p-0.5`}
+                    onClick={() => setMinimize(!minimize)}
+                >
+                    {minimize ? (
+                        <IconMaximize size={24} stroke={1.5} />
+                    ) : (
+                        <IconMinimize size={24} stroke={1.5} />
+                    )}
                     {minimize ? <span>maximizar</span> : <span>minimizar</span>}
                 </button>
 
-                {!minimize && <button className="flex items-center gap-1 hover:bg-brand-200/80 p-0.5" onClick={() => setFullScreen(true)}>
-                    {fullScreen ? <IconMinimize size={24} stroke={1.5} /> : <IconMaximize size={24} stroke={1.5} />}
-                    <span>Pantalla Completa</span>
-                </button>}
+                {!minimize && (
+                    <button
+                        className="flex items-center text-nowrap gap-1 hover:bg-brand-200/80 p-0.5"
+                        onClick={() => setFullScreen(!fullScreen)}
+                    >
+                        {fullScreen ? (
+                            <IconMinimize size={24} stroke={1.5} />
+                        ) : (
+                            <IconMaximize size={24} stroke={1.5} />
+                        )}
+                        <span>{fullScreen ? "Salir" : "Pantalla Completa"}</span>
+                    </button>
+                )}
             </div>
-            <div className={`overflow-hidden  ${minimize ? "h-40 w-60" : fullScreen ? " h-screen w-full" : "h-full rounded-2xl"}`}>
-                {fullScreen && <button
-                    onClick={() => setFullScreen(false)}
-                    className="absolute top-1 right-15 bg-brand-100/80 text-text-100 rounded-full  ">
-                    <IconX size={35} stroke={1.5} />
-                </button>}
-                <img src="http://10.30.7.14:8001/api-system/video_feed" alt="" className={`w-full h-full ${fullScreen ? "w-full h-full" : "aspect-video"}`} />
+
+            <div
+                className={`overflow-hidden pt-9 ${minimize ? "h-50" : fullScreen ? "h-screen" : ""} rounded-2xl bg-black`}
+            >
+                {fullScreen && (
+                    <button
+                        onClick={() => setFullScreen(false)}
+                        className="absolute top-1 right-15 bg-brand-100/80 text-text-100 rounded-full z-10"
+                    >
+                        <IconX size={35} stroke={1.5} />
+                    </button>
+                )}
+                <video
+                    ref={videoCallbackRef}
+                    controls
+                    muted
+                    playsInline
+                    className="w-full h-full object-contain"
+                />
             </div>
-        </div>)
+        </div>
+    );
 }
 
-export default Camera
+export default Camera;
