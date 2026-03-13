@@ -23,6 +23,7 @@ import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
 import Camera from "./cameras/Camera";
+import ConfigZones from "./zones/ConfigZones";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -161,6 +162,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
             initialZoom={15}
           />
           <CustomZoomControl mapRef={mapRef} />
+          <ConfigZones />
         </div>
         <div className="flex justify-center items-center h-full">
           <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
