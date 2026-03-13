@@ -1,17 +1,3 @@
-/**
- * Configuración global del sistema de radar.
- * Todos los valores visuales, temporales y de conexión se centralizan aquí.
- *
- * Flujo:
- *   RADAR_INSTANCES → RadarProvider(instance) → resolveRadarConfig() → context.instanceConfig
- *
- * Para agregar un radar, agrega una entrada en RADAR_INSTANCES con solo los
- * valores que difieran de los defaults; el resto se hereda automáticamente.
- */
-
-// ─────────────────────────────────────────────
-// TIPOS DE CONFIGURACIÓN
-// ─────────────────────────────────────────────
 
 export interface BeamConfig {
   /** FPS objetivo de la animación del haz */
@@ -78,10 +64,6 @@ export interface MapConfig {
   fallbackCenter: { longitude: number; latitude: number };
 }
 
-// ─────────────────────────────────────────────
-// VALORES POR DEFECTO DEL SISTEMA
-// Usados como base cuando la instancia no los sobreescribe.
-// ─────────────────────────────────────────────
 
 export const BEAM_ANIMATION: BeamConfig = {
   TARGET_FPS: 60,
@@ -176,7 +158,9 @@ export interface ResolvedRadarConfig {
 }
 
 /** Aplica los defaults del sistema a una instancia de radar */
-export function resolveRadarConfig(instance: RadarInstanceConfig): ResolvedRadarConfig {
+export function resolveRadarConfig(
+  instance: RadarInstanceConfig,
+): ResolvedRadarConfig {
   return {
     id: instance.id,
     label: instance.label,
@@ -190,7 +174,10 @@ export function resolveRadarConfig(instance: RadarInstanceConfig): ResolvedRadar
     map: {
       ...MAP_DEFAULTS,
       ...instance.map,
-      fallbackCenter: { ...MAP_DEFAULTS.fallbackCenter, ...instance.map?.fallbackCenter },
+      fallbackCenter: {
+        ...MAP_DEFAULTS.fallbackCenter,
+        ...instance.map?.fallbackCenter,
+      },
     },
   };
 }
@@ -203,18 +190,17 @@ export const RADAR_INSTANCES: RadarInstanceConfig[] = [
     wsUrl: import.meta.env.VITE_SOCKET_URL as string,
   },
   // Para agregar un segundo radar, descomenta y ajusta solo lo que difiera:
-//   {
-//     id: "nanoradar-2",
-//     label: "NanoRadar Secundario",
-//     cameraUrl: "http://10.30.7.14:8888/camara_2/stream.m3u8",
-//     wsUrl: import.meta.env.VITE_SOCKET_URL as string,
-//     colors: { primary: "#fa7a16", pulse: "#ffb347" },
-//     timing: { TARGET_TIMEOUT_MS: 60_000 },
-//     geofence: { ACTIVE_MS: 2_000 },
-//     targetColors: { moving: "#22d3ee", stopped: "#7a7a7a" },
-//     beam: { WAVE_COUNT: 7, WAVE_STEPS: 8, GRADIENT_STEPS: 2 },
-    
-//   },
+    // {
+    //   id: "nanoradar-2",
+    //   label: "NanoRadar Secundario",
+    //   cameraUrl: "http://10.30.7.14:8888/camara_2/stream.m3u8",
+    //   wsUrl: import.meta.env.VITE_SOCKET_URL as string,
+    //   colors: { primary: "#fa7a16", pulse: "#ffb347" },
+    //   timing: { TARGET_TIMEOUT_MS: 60_000 },
+    //   geofence: { ACTIVE_MS: 2_000 },
+    //   targetColors: { moving: "#22d3ee", stopped: "#7a7a7a" },
+    //   beam: { WAVE_COUNT: 7, WAVE_STEPS: 8, GRADIENT_STEPS: 2 },
+    // },
 ];
 
 /** Instancia activa por defecto (primer elemento de RADAR_INSTANCES) */

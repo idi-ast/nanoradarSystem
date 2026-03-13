@@ -47,10 +47,9 @@ export function HistoryRangeBar({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Sincronizar rangeRef y notificar al padre cuando cambia el estado
+  // Mantener rangeRef sincronizado (para los event listeners sin re-registro)
   useEffect(() => {
     rangeRef.current = { start, end };
-    onChangeRef.current({ start, end });
   }, [start, end]);
 
   /** Convierte una posición X del cursor en porcentaje respecto a la barra */
@@ -68,9 +67,15 @@ export function HistoryRangeBar({
       const { start: s, end: en } = rangeRef.current;
 
       if (draggingRef.current === "start") {
-        setStart(Math.max(0, Math.min(pct, en - MIN_GAP)));
+        const newStart = Math.max(0, Math.min(pct, en - MIN_GAP));
+        rangeRef.current = { start: newStart, end: en };
+        setStart(newStart);
+        onChangeRef.current({ start: newStart, end: en });
       } else {
-        setEnd(Math.min(100, Math.max(pct, s + MIN_GAP)));
+        const newEnd = Math.min(100, Math.max(pct, s + MIN_GAP));
+        rangeRef.current = { start: s, end: newEnd };
+        setEnd(newEnd);
+        onChangeRef.current({ start: s, end: newEnd });
       }
     };
 
@@ -80,9 +85,15 @@ export function HistoryRangeBar({
       const { start: s, end: en } = rangeRef.current;
 
       if (draggingRef.current === "start") {
-        setStart(Math.max(0, Math.min(pct, en - MIN_GAP)));
+        const newStart = Math.max(0, Math.min(pct, en - MIN_GAP));
+        rangeRef.current = { start: newStart, end: en };
+        setStart(newStart);
+        onChangeRef.current({ start: newStart, end: en });
       } else {
-        setEnd(Math.min(100, Math.max(pct, s + MIN_GAP)));
+        const newEnd = Math.min(100, Math.max(pct, s + MIN_GAP));
+        rangeRef.current = { start: s, end: newEnd };
+        setEnd(newEnd);
+        onChangeRef.current({ start: s, end: newEnd });
       }
     };
 
