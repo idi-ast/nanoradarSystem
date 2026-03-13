@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { IconArrowNarrowLeft, IconX } from "@tabler/icons-react";
 import BottomBar from "@/components/bars/BottomBar";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
@@ -25,12 +25,12 @@ function NanoPages() {
 
   return (
     <RadarProvider>
-      <GeofenceFlash />
       <div
         className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
       >
         <div className="col-span-10 h-full flex flex-col w-full">
-          <div className="flex-1 min-h-0 w-full">
+          <div className="flex-1 min-h-0 w-full relative">
+            <GeofenceFlash />
             <RadarMap historyRange={historyRange} />
           </div>
           <HistoryRangeBar onChange={handleRangeChange} />
@@ -56,7 +56,7 @@ function NanoPages() {
   );
 }
 
-const RadarStatusBar = () => {
+const RadarStatusBar = memo(() => {
   const { targets, zones } = useRadarContext();
   const criticalCount = targets.filter((t) => t.nivel === 4).length;
 
@@ -85,23 +85,24 @@ const RadarStatusBar = () => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${criticalCount > 0
-            ? "text-red-500 animate-pulse"
-            : "text-text-100/30"
-            }`}
+          className={`font-bold text-xl leading-tight ${
+            criticalCount > 0
+              ? "text-red-500 animate-pulse"
+              : "text-text-100/30"
+          }`}
         >
           {criticalCount}
         </span>
       </div>
     </div>
   );
-};
+});
 
-const RightBarNano = ({
+const RightBarNano = memo(function RightBarNano({
   setOpenRightBar,
 }: {
   setOpenRightBar?: (isOpen: boolean) => void;
-}) => {
+}) {
   const {
     zones,
     targets,
@@ -135,10 +136,11 @@ const RightBarNano = ({
         </button>
         <button
           onClick={isDrawing ? cancelDrawing : startDrawing}
-          className={`px-3 py-1 text-[10px] rounded border text-white ${isDrawing
-            ? "bg-red-500 border-red-400"
-            : "bg-emerald-600 border-emerald-400"
-            }`}
+          className={`px-3 py-1 text-[10px] rounded border text-white ${
+            isDrawing
+              ? "bg-red-500 border-red-400"
+              : "bg-emerald-600 border-emerald-400"
+          }`}
         >
           {isDrawing ? "CANCELAR" : "+ NUEVA"}
         </button>
@@ -170,27 +172,27 @@ const RightBarNano = ({
       </div>
     </div>
   );
-};
+});
 
 export default NanoPages;
 
-function GeofenceFlash() {
+const GeofenceFlash = memo(function GeofenceFlash() {
   const { targets, zones } = useRadarContext();
-  const { maxLevel } = useGeofenceDetection(targets, zones);
+  const { hasAlert, color } = useGeofenceDetection(targets, zones);
 
-  if (maxLevel < 4) return null;
+  if (!hasAlert) return null;
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-9999 animate-[geofence-pulse_1.2s_ease-in-out_infinite]"
+      className="pointer-events-none absolute inset-0 z-9999 animate-[geofence-pulse_1.2s_ease-in-out_infinite]"
       style={{
-        boxShadow: "inset 0 0 80px 28px #ef4444",
-        border: "2px solid rgba(239,68,68,0.85)",
+        boxShadow: `inset 0 0 80px 28px ${color}`,
+        border: `2px solid ${color}CC`,
       }}
     />
   );
-}
+});
 
 type TabFilter = "all" | "nanoRadar" | "spotter";
 
@@ -200,7 +202,7 @@ const TABS: { key: TabFilter; label: string }[] = [
   { key: "spotter", label: "Spotter" },
 ];
 
-function TargetsSection({
+const TargetsSection = memo(function TargetsSection({
   targets,
 }: {
   targets: import("../types").RadarTarget[];
@@ -226,10 +228,11 @@ function TargetsSection({
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-text-100/40 hover:text-text-100/70"
-                }`}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
+                isActive
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+              }`}
             >
               {label}
               <span
@@ -255,4 +258,4 @@ function TargetsSection({
       </div>
     </>
   );
-}
+});

@@ -18,11 +18,9 @@ export interface RadarContextValue {
   updateZone: (id: number, payload: UpdateZonePayload) => Promise<void>;
   deleteZone: (id: number) => Promise<void>;
 
-  // Objetivos en tiempo real (WebSocket)
   targets: RadarTarget[];
   clearTargets: () => void;
 
-  // Estado del modo de dibujo de zona
   isDrawing: boolean;
   drawingPoints: [number, number][];
   zoneName: string;
