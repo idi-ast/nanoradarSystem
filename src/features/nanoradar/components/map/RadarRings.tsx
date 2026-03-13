@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { RadarConfig } from "../../types";
 import { createCircleCoords } from "./utils/geoHelpers";
+import { useRadarContext } from "../../context/useRadarContext";
 
 interface Props {
   config: RadarConfig;
@@ -11,6 +12,9 @@ interface Props {
  * Anillos concéntricos de distancia + punto central del radar en Mapbox.
  */
 export function RadarRings({ config }: Props) {
+  const { instanceConfig } = useRadarContext();
+  const { colors } = instanceConfig;
+  const id = instanceConfig.id;
   const lat = Number(config.latitud);
   const lon = Number(config.longitud);
   const radio = Number(config.radio);
@@ -41,10 +45,10 @@ export function RadarRings({ config }: Props) {
   );
 
   const ringsLayer = {
-    id: "radar-rings",
+    id: `radar-rings-${id}`,
     type: "line" as const,
     paint: {
-      "line-color": "#c5ff73",
+      "line-color": colors.pulse,
       "line-width": 2,
       "line-dasharray": [1, 2],
       "line-opacity": 1,
@@ -52,28 +56,28 @@ export function RadarRings({ config }: Props) {
   };
 
   const centerLayer = {
-    id: "radar-center",
+    id: `radar-center-${id}`,
     type: "circle" as const,
     paint: {
       "circle-radius": 15,
-      "circle-color": "#e6fa16",
+      "circle-color": colors.center,
       "circle-opacity": 0.2,
       "circle-stroke-width": 2,
-      "circle-stroke-color": "#b6fa16",
+      "circle-stroke-color": colors.primary,
     },
   };
 
   return (
     <>
-      <Source id="radar-rings" type="geojson" data={ringsData}>
+      <Source id={`radar-rings-${id}`} type="geojson" data={ringsData}>
         <Layer {...ringsLayer} />
       </Source>
       {/* Centro del radar con ícono SVG */}
       <Marker longitude={lon} latitude={lat} anchor="center">
         <div className="relative flex items-center justify-center">
           {/* Pulso animado */}
-          <span className="absolute w-10 h-10 rounded-full bg-[#b6fa16]/20 animate-ping" />
-          <span className="absolute w-7 h-7 rounded-full bg-[#b6fa16]/10 border border-[#b6fa16]/40" />
+          <span className="absolute w-10 h-10 rounded-full animate-ping" style={{ backgroundColor: `${colors.primary}33` }} />
+          <span className="absolute w-7 h-7 rounded-full" style={{ backgroundColor: `${colors.primary}1a`, border: `1px solid ${colors.primary}66` }} />
           {/* Ícono radar SVG */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -81,11 +85,11 @@ export function RadarRings({ config }: Props) {
             width="33"
             height="33"
             fill="none"
-            stroke="#b6fa16"
+            stroke={colors.primary}
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="relative z-10 drop-shadow-[0_0_4px_#b6fa16]"
+            className="relative z-10" style={{ filter: `drop-shadow(0 0 4px ${colors.primary})` }}
           >
             {/* Anillos estáticos */}
             <circle cx="12" cy="12" r="9" />
@@ -112,7 +116,7 @@ export function RadarRings({ config }: Props) {
         </div>
       </Marker>
       {/* Source vacía para no romper el layer anterior si existía */}
-      <Source id="radar-center" type="geojson" data={centerData}>
+      <Source id={`radar-center-${id}`} type="geojson" data={centerData}>
         <Layer {...centerLayer}  />
       </Source>
     </>

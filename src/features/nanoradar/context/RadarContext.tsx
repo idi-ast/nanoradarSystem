@@ -1,17 +1,20 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useRadarWebSocket } from "../hooks/useRadarWebSocket";
 import { useRadarData } from "../hooks/useRadarData";
 import { useZoneDrawing } from "../hooks/useZoneDrawing";
 import { RadarContext } from "./radarContextDef";
 import type { RadarContextValue } from "./radarContextDef";
+import { resolveRadarConfig, ACTIVE_RADAR } from "../config";
+import type { RadarInstanceConfig } from "../config";
 
 interface RadarProviderProps {
   children: ReactNode;
-  wsUrl?: string;
+  instance?: RadarInstanceConfig;
 }
 
-export function RadarProvider({ children, wsUrl }: RadarProviderProps) {
-  const { targets, clearTargets } = useRadarWebSocket(wsUrl);
+export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProviderProps) {
+  const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
+  const { targets, clearTargets } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -23,6 +26,7 @@ export function RadarProvider({ children, wsUrl }: RadarProviderProps) {
   };
 
   const value: RadarContextValue = {
+    instanceConfig: resolved,
     config,
     zones,
     isLoading,

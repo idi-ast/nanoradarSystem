@@ -1,11 +1,12 @@
 import { IconMaximize, IconMinimize, IconX } from "@tabler/icons-react";
 import Hls from "hls.js";
 import { useCallback, useRef, useState } from "react";
-
-const HLS_STREAM_URL = "http://10.30.7.14:8888/camara_dahua/video1_stream.m3u8";
+import { useRadarContext } from "../../../context/useRadarContext";
 
 function Camera() {
-    const [minimize, setMinimize] = useState(false);
+  const { instanceConfig } = useRadarContext();
+  const { cameraUrl } = instanceConfig;
+    const [minimize, setMinimize] = useState(true);
     const [fullScreen, setFullScreen] = useState(false);
     const hlsRef = useRef<Hls | null>(null);
 
@@ -24,7 +25,7 @@ function Camera() {
                 liveSyncDurationCount: 2,
             });
             hlsRef.current = hls;
-            hls.loadSource(HLS_STREAM_URL);
+            hls.loadSource(cameraUrl);
             hls.attachMedia(node);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 node.play().catch(() => {
@@ -37,12 +38,12 @@ function Camera() {
             });
         } else if (node.canPlayType("application/vnd.apple.mpegurl")) {
             // Safari — HLS nativo
-            node.src = HLS_STREAM_URL;
+            node.src = cameraUrl;
             node.addEventListener("loadedmetadata", () => {
                 node.play().catch(() => { });
             });
         }
-    }, []);
+    }, [cameraUrl]);
 
     return (
         <div

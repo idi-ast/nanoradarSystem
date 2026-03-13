@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import type { RadarTarget, RawRadarPayload } from "../types";
-
-const WS_URL = import.meta.env.VITE_SOCKET_URL as string;
-const TARGET_TIMEOUT_MS = 120_000; // 2 minutos sin actualización = eliminar
+import { TARGET_TIMING } from "../config";
+import type { TargetTimingConfig } from "../config";
 
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
   messages: RawRadarPayload["nanoRadar"],
   deviceType: "nanoRadar" | "spotter",
-  now: number
+  now: number,
+  historyMaxPoints: number
 ) {
   messages.forEach((raw) => {
     // Prefijo por tipo para evitar colisiones entre dispositivos
@@ -17,7 +17,7 @@ function processDeviceMessages(
     const existing = next.get(id);
 
     const history: [number, number, number][] = existing
-      ? [...existing.history, currentPos].slice(-500)
+      ? [...existing.history, currentPos].slice(-historyMaxPoints)
       : [currentPos];
 
     next.set(id, {
@@ -38,7 +38,10 @@ function processDeviceMessages(
  * y mantiene el mapa de objetivos detectados en tiempo real.
  * Soporta el nuevo formato: { nanoRadar: [...], spotter: [...] }
  */
-export function useRadarWebSocket(url: string = WS_URL) {
+export function useRadarWebSocket(
+  url: string,
+  timing: TargetTimingConfig = TARGET_TIMING
+) {
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(
     new Map()
   );
@@ -62,8 +65,8 @@ export function useRadarWebSocket(url: string = WS_URL) {
           // Nuevo formato: { nanoRadar: [], spotter: [] }
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
             const payload = parsed as RawRadarPayload;
-            processDeviceMessages(next, payload.nanoRadar ?? [], "nanoRadar", now);
-            processDeviceMessages(next, payload.spotter ?? [], "spotter", now);
+            processDeviceMessages(next, payload.nanoRadar ?? [], "nanoRadar", now, timing.HISTORY_MAX_POINTS);
+            processDeviceMessages(next, payload.spotter ?? [], "spotter", now, timing.HISTORY_MAX_POINTS);
           }
 
           return next;
@@ -85,7 +88,7 @@ export function useRadarWebSocket(url: string = WS_URL) {
         let changed = false;
 
         for (const [id, target] of next.entries()) {
-          if (now - target.lastUpdate > TARGET_TIMEOUT_MS) {
+          if (now - target.lastUpdate > timing.TARGET_TIMEOUT_MS) {
             next.delete(id);
             changed = true;
           }
@@ -93,7 +96,7 @@ export function useRadarWebSocket(url: string = WS_URL) {
 
         return changed ? next : prev;
       });
-    }, TARGET_TIMEOUT_MS);
+    }, timing.TARGET_TIMEOUT_MS);
 
     return () => {
       ws.close();

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Source, Layer } from "react-map-gl";
 import { toGeoCoord } from "./utils/geoHelpers";
+import { useRadarContext } from "../../context/useRadarContext";
 
 interface Props {
   points: [number, number][];
@@ -9,6 +10,8 @@ interface Props {
 
 
 export function DrawingPreviewLayer({ points, color }: Props) {
+  const { instanceConfig } = useRadarContext();
+  const id = instanceConfig.id;
   const polygonData = useMemo(() => {
     if (points.length < 2) return null;
     const geoCoords = points.map(toGeoCoord);
@@ -34,23 +37,23 @@ export function DrawingPreviewLayer({ points, color }: Props) {
   return (
     <>
       {polygonData && (
-        <Source id="drawing-preview-poly" type="geojson" data={polygonData}>
+        <Source id={`drawing-preview-poly-${id}`} type="geojson" data={polygonData}>
           <Layer
-            id="drawing-preview-fill"
+            id={`drawing-preview-fill-${id}`}
             type="fill"
             paint={{ "fill-color": color, "fill-opacity": 0.15 }}
           />
           <Layer
-            id="drawing-preview-line"
+            id={`drawing-preview-line-${id}`}
             type="line"
             paint={{ "line-color": color, "line-width": 2, "line-dasharray": [5, 4] }}
           />
         </Source>
       )}
-      <Source id="drawing-preview-vertices" type="geojson" data={verticesData}>
+      <Source id={`drawing-preview-vertices-${id}`} type="geojson" data={verticesData}>
         {/* Halo exterior del vértice */}
         <Layer
-          id="drawing-vertices-halo"
+          id={`drawing-vertices-halo-${id}`}
           type="circle"
           paint={{
             "circle-radius": 9,
@@ -60,7 +63,7 @@ export function DrawingPreviewLayer({ points, color }: Props) {
         />
         {/* Círculo del vértice con color de zona */}
         <Layer
-          id="drawing-vertices-circle"
+          id={`drawing-vertices-circle-${id}`}
           type="circle"
           paint={{
             "circle-radius": 6,
@@ -72,7 +75,7 @@ export function DrawingPreviewLayer({ points, color }: Props) {
         />
         {/* Número del vértice */}
         <Layer
-          id="drawing-vertices-label"
+          id={`drawing-vertices-label-${id}`}
           type="symbol"
           layout={{
             "text-field": ["to-string", ["get", "index"]],

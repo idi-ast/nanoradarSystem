@@ -10,6 +10,7 @@ import { ZoneCard } from "../components/panel/ZoneCard";
 import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
+import { RADAR_INSTANCES } from "../config";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -24,7 +25,7 @@ function NanoPages() {
   );
 
   return (
-    <RadarProvider>
+    <RadarProvider instance={RADAR_INSTANCES[0]}>
       <div
         className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
       >
@@ -177,8 +178,12 @@ const RightBarNano = memo(function RightBarNano({
 export default NanoPages;
 
 const GeofenceFlash = memo(function GeofenceFlash() {
-  const { targets, zones } = useRadarContext();
-  const { hasAlert, color } = useGeofenceDetection(targets, zones);
+  const { targets, zones, instanceConfig } = useRadarContext();
+  const { hasAlert, color } = useGeofenceDetection(
+    targets,
+    zones,
+    instanceConfig.geofence.ACTIVE_MS,
+  );
 
   if (!hasAlert) return null;
 

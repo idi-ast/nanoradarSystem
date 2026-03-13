@@ -6,8 +6,11 @@ import type {
   CreateZonePayload,
   UpdateZonePayload,
 } from "../types";
+import type { ResolvedRadarConfig } from "../config";
 
 export interface RadarContextValue {
+  /** Configuración resuelta de la instancia (visual, timing, mapa, etc.) */
+  instanceConfig: ResolvedRadarConfig;
   // Datos del servidor
   config: RadarConfig | null;
   zones: RadarZone[];

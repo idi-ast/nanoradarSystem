@@ -4,14 +4,10 @@ import type { FilterSpecification } from "mapbox-gl";
 import type { RadarTarget } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
+import { useRadarContext } from "../../context/useRadarContext";
 
-const MOVING_COLOR = "#22d3ee";
-const STOPPED_COLOR = "#7a7a7a";
-const TRACKING_ACTIVE_MS = 4000;
-const COLOR_REFRESH_MS = 1000;
-
-function isTargetMoving(target: RadarTarget, now: number): boolean {
-  return now - target.lastUpdate <= TRACKING_ACTIVE_MS;
+function isTargetMoving(target: RadarTarget, now: number, trackingActiveMs: number): boolean {
+  return now - target.lastUpdate <= trackingActiveMs;
 }
 
 interface Props {
@@ -27,6 +23,9 @@ export function RadarTargetsLayer({
   selectedTargetId,
   onSelectTarget,
 }: Props) {
+  const { instanceConfig } = useRadarContext();
+  const { targetColors, timing } = instanceConfig;
+  const id = instanceConfig.id;
   const slicedTargets = useMemo(() => {
     // Calcular el eje de tiempo global a partir de todos los puntos del historial
     let tMin = Infinity;
@@ -60,7 +59,7 @@ export function RadarTargetsLayer({
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
-    }, COLOR_REFRESH_MS);
+    }, timing.COLOR_REFRESH_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -88,12 +87,12 @@ export function RadarTargetsLayer({
               id: t.id,
               nivel: t.nivel,
               zona: t.zona,
-              isMoving: isTargetMoving(t, now),
+              isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
             },
           };
         }),
     }),
-    [slicedTargets, now],
+    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
   );
 
   const trailsData = useMemo(
@@ -111,22 +110,22 @@ export function RadarTargetsLayer({
           properties: {
             id: t.id,
             nivel: t.nivel,
-            isMoving: isTargetMoving(t, now),
+            isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
           },
         })),
     }),
-    [slicedTargets, now],
+    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
   );
 
   const trailLayer = {
-    id: "targets-trails",
+    id: `targets-trails-${id}`,
     type: "line" as const,
     paint: {
       "line-color": [
         "case",
         ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        targetColors.moving,
+        targetColors.stopped,
       ] as unknown as string,
       "line-width": 4,
       "line-dasharray": [1, 2],
@@ -136,7 +135,7 @@ export function RadarTargetsLayer({
   };
 
   const circleLayer = {
-    id: "targets-circles",
+    id: `targets-circles-${id}`,
     type: "circle" as const,
     paint: {
       "circle-radius": [
@@ -148,22 +147,22 @@ export function RadarTargetsLayer({
       "circle-color": [
         "case",
         ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        targetColors.moving,
+        targetColors.stopped,
       ] as unknown as string,
       "circle-stroke-width": 2,
       "circle-stroke-color": [
         "case",
         ["get", "isMoving"],
-        "#7dd3fc",
-        "#9e9e9e",
+        targetColors.movingStroke,
+        targetColors.stoppedStroke,
       ] as unknown as string,
       "circle-opacity": 0.9,
     },
   };
 
   const haloLayer = {
-    id: "targets-halo",
+    id: `targets-halo-${id}`,
     type: "circle" as const,
     filter: ["==", ["get", "nivel"], 4] as unknown as FilterSpecification,
     paint: {
@@ -171,16 +170,16 @@ export function RadarTargetsLayer({
       "circle-color": [
         "case",
         ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        targetColors.moving,
+        targetColors.stopped,
       ] as unknown as string,
       "circle-opacity": 0.11,
       "circle-stroke-width": 1,
       "circle-stroke-color": [
         "case",
         ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        targetColors.moving,
+        targetColors.stopped,
       ] as unknown as string,
       "circle-stroke-opacity": 0.3,
     },
@@ -188,11 +187,11 @@ export function RadarTargetsLayer({
 
   return (
     <>
-      <Source id="targets-trails" type="geojson" data={trailsData}>
+      <Source id={`targets-trails-${id}`} type="geojson" data={trailsData}>
         <Layer {...trailLayer} />
       </Source>
 
-      <Source id="targets-points" type="geojson" data={pointsData}>
+      <Source id={`targets-points-${id}`} type="geojson" data={pointsData}>
         <Layer {...haloLayer} />
         <Layer {...circleLayer} />
       </Source>

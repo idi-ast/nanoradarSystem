@@ -1,8 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import type { RadarTarget, RadarZone } from "../types";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
-
-const ACTIVE_MS = 4_000;
+import { GEOFENCE } from "../config";
 
 export interface GeofenceAlert {
   maxLevel: number;
@@ -14,6 +13,7 @@ export interface GeofenceAlert {
 export function useGeofenceDetection(
   targets: RadarTarget[],
   zones: RadarZone[],
+  activeMs = GEOFENCE.ACTIVE_MS,
 ): GeofenceAlert {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -26,7 +26,7 @@ export function useGeofenceDetection(
     let color = "#ff0000";
 
     const activeTargets = targets.filter(
-      (t) => now - t.lastUpdate <= ACTIVE_MS,
+      (t) => now - t.lastUpdate <= activeMs,
     );
 
     for (const target of activeTargets) {

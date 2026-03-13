@@ -3,17 +3,11 @@ import { Source, Layer } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { RadarConfig } from "../../types";
 import { createCircleCoords, getGeoPoint } from "./utils/geoHelpers";
+import { useRadarContext } from "../../context/useRadarContext";
 
 interface Props {
   config: RadarConfig;
 }
-
-const TARGET_FPS = 60;
-const FRAME_INTERVAL_MS = 100 / TARGET_FPS;
-const PULSE_CYCLE_MS = 9000;
-const WAVE_COUNT = 7;
-const WAVE_STEPS = 8;
-const PULSE_LINE_COLOR = "#c5ff73";
 
 function buildSectorPolygon(
   lat: number,
@@ -63,6 +57,11 @@ function buildGradientPolygons(
 }
 
 export function RadarBeam({ config }: Props) {
+  const { instanceConfig } = useRadarContext();
+  const { beam, colors } = instanceConfig;
+  const id = instanceConfig.id;
+  const frameIntervalMs = 1000 / beam.TARGET_FPS;
+
   const [phase, setPhase] = useState(0);
   const rafIdRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef(0);
@@ -75,17 +74,16 @@ export function RadarBeam({ config }: Props) {
 
   useEffect(() => {
     const animate = (now: number) => {
-      if (now - lastFrameTimeRef.current >= FRAME_INTERVAL_MS) {
-        setPhase((now % PULSE_CYCLE_MS) / PULSE_CYCLE_MS);
+      if (now - lastFrameTimeRef.current >= frameIntervalMs) {
+        setPhase((now % beam.PULSE_CYCLE_MS) / beam.PULSE_CYCLE_MS);
         lastFrameTimeRef.current = now;
       }
-
       rafIdRef.current = window.requestAnimationFrame(animate);
     };
 
     rafIdRef.current = window.requestAnimationFrame((now) => {
       lastFrameTimeRef.current = now;
-      setPhase((now % PULSE_CYCLE_MS) / PULSE_CYCLE_MS);
+      setPhase((now % beam.PULSE_CYCLE_MS) / beam.PULSE_CYCLE_MS);
       rafIdRef.current = window.requestAnimationFrame(animate);
     });
 
@@ -94,7 +92,7 @@ export function RadarBeam({ config }: Props) {
         window.cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, []);
+  }, [beam.PULSE_CYCLE_MS, frameIntervalMs]);
 
   const aperturaGrados = useMemo(
     () => 2 * Math.atan(apertura / 2 / radio) * (180 / Math.PI),
@@ -111,7 +109,7 @@ export function RadarBeam({ config }: Props) {
       startAngle,
       endAngle,
       radio,
-      6,
+      beam.GRADIENT_STEPS,
     );
 
     // Feature solo para la línea del borde
@@ -130,11 +128,11 @@ export function RadarBeam({ config }: Props) {
       type: "FeatureCollection" as const,
       features: [...fillFeatures, frameFeature],
     };
-  }, [lat, lon, azimut, radio, aperturaGrados]);
+  }, [lat, lon, azimut, radio, aperturaGrados, beam.GRADIENT_STEPS]);
 
   const pulseData = useMemo(() => {
-    const pulseFeatures = Array.from({ length: WAVE_COUNT }, (_, i) => {
-      const shifted = (phase + i / WAVE_COUNT) % 1;
+    const pulseFeatures = Array.from({ length: beam.WAVE_COUNT }, (_, i) => {
+      const shifted = (phase + i / beam.WAVE_COUNT) % 1;
       const radius = Math.max(1, shifted * radio);
       const opacity = 0.64 * (1 - shifted);
       const width = 4 - shifted * 0.6;
@@ -143,7 +141,7 @@ export function RadarBeam({ config }: Props) {
         type: "Feature" as const,
         geometry: {
           type: "LineString" as const,
-          coordinates: createCircleCoords(lat, lon, radius, WAVE_STEPS),
+          coordinates: createCircleCoords(lat, lon, radius, beam.WAVE_STEPS),
         },
         properties: {
           opacity,
@@ -156,7 +154,7 @@ export function RadarBeam({ config }: Props) {
       type: "FeatureCollection" as const,
       features: pulseFeatures,
     };
-  }, [lat, lon, radio, phase]);
+  }, [lat, lon, radio, phase, beam.WAVE_COUNT, beam.WAVE_STEPS]);
 
   const rangeData = useMemo(() => {
     const rangeCircle = createCircleCoords(lat, lon, radio);
@@ -194,21 +192,21 @@ export function RadarBeam({ config }: Props) {
   }, [lat, lon, azimut, radio, apertura]);
 
   const rangeFillLayer = {
-    id: "radar-range-fill",
+    id: `radar-range-fill-${id}`,
     type: "fill" as const,
     filter: ["==", ["get", "kind"], "range"] as unknown as FilterSpecification,
     paint: {
-      "fill-color": "#504f6e",
-      "fill-opacity": 0.3,
+      "fill-color": colors.rangeFill,
+      "fill-opacity": colors.rangeFillOpacity,
     },
   };
 
   const rangeLimitLayer = {
-    id: "radar-range-limits",
+    id: `radar-range-limits-${id}`,
     type: "line" as const,
     filter: ["==", ["get", "kind"], "limits"] as unknown as FilterSpecification,
     paint: {
-      "line-color": "#2dd4bf",
+      "line-color": colors.rangeLimits,
       "line-width": 1,
       "line-opacity": 0.48,
       "line-dasharray": [2, 6],
@@ -216,7 +214,7 @@ export function RadarBeam({ config }: Props) {
   };
 
   const fillLayer = {
-    id: "radar-beam-fill",
+    id: `radar-beam-fill-${id}`,
     type: "fill" as const,
     filter: [
       "==",
@@ -224,13 +222,13 @@ export function RadarBeam({ config }: Props) {
       "main-gradient",
     ] as unknown as FilterSpecification,
     paint: {
-      "fill-color": "#b6fa16",
+      "fill-color": colors.primary,
       "fill-opacity": ["get", "opacity"] as unknown as number,
     },
   };
 
   const lineLayer = {
-    id: "radar-beam-line",
+    id: `radar-beam-line-${id}`,
     type: "line" as const,
     filter: [
       "==",
@@ -238,17 +236,17 @@ export function RadarBeam({ config }: Props) {
       "main-line",
     ] as unknown as FilterSpecification,
     paint: {
-      "line-color": "#b6fa16",
+      "line-color": colors.primary,
       "line-width": 2,
-      "line-opacity": 0.92,
+      "line-opacity": colors.beamOpacity,
     },
   };
 
   const pulseLayer = {
-    id: "radar-pulse-line",
+    id: `radar-pulse-line-${id}`,
     type: "line" as const,
     paint: {
-      "line-color": PULSE_LINE_COLOR,
+      "line-color": colors.pulse,
       "line-width": ["get", "width"] as unknown as number,
       "line-opacity": ["get", "opacity"] as unknown as number,
       "line-blur": 1,
@@ -257,19 +255,20 @@ export function RadarBeam({ config }: Props) {
 
   return (
     <>
-      <Source id="radar-range" type="geojson" data={rangeData}>
+      <Source id={`radar-range-${id}`} type="geojson" data={rangeData}>
         <Layer {...rangeFillLayer} />
         <Layer {...rangeLimitLayer} />
       </Source>
 
-      <Source id="radar-beam" type="geojson" data={beamData}>
+      <Source id={`radar-beam-${id}`} type="geojson" data={beamData}>
         <Layer {...fillLayer} />
         <Layer {...lineLayer} />
       </Source>
 
-      <Source id="radar-pulse" type="geojson" data={pulseData}>
+      <Source id={`radar-pulse-${id}`} type="geojson" data={pulseData}>
         <Layer {...pulseLayer} />
       </Source>
     </>
   );
 }
+

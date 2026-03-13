@@ -14,6 +14,9 @@ import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
 import CustomZoomControl from "@/components/baseMap/components/CustomZoomControl";
 import ViewControls from "@/components/baseMap/components/ViewControls";
 import LayerSelector from "@/components/baseMap/components/LayerSelector";
+import { RADAR_INSTANCES } from "../../config";
+import type { RadarInstanceConfig } from "../../config";
+import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { RadarBeam } from "./RadarBeam";
@@ -27,6 +30,30 @@ import ConfigZones from "./zones/ConfigZones";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
+  radarInstance?: RadarInstanceConfig;
+}
+
+const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
+  (inst) => `targets-circles-${inst.id}`,
+);
+
+/** Renders beam + rings + zones + targets for a secondary radar instance inside the shared map. */
+function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) {
+  const { config, targets, zones } = useRadarContext();
+  if (!config) return null;
+  return (
+    <>
+      <RadarBeam config={config} />
+      <RadarRings config={config} />
+      <RadarZonesLayer zones={zones} />
+      <RadarTargetsLayer
+        targets={targets}
+        historyRange={historyRange}
+        selectedTargetId={null}
+        onSelectTarget={() => {}}
+      />
+    </>
+  );
 }
 
 export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
@@ -38,6 +65,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     drawingPoints,
     zoneColor,
     addDrawingPoint,
+    instanceConfig,
   } = useRadarContext();
 
   const mapRef = useRef<MapRef>(null);
@@ -90,10 +118,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     latitude: parseFloat(config.latitud),
   };
 
-  const defaultCenter = {
-    longitude: -72.9883559747647,
-    latitude: -41.46281337025373,
-  }
+  const defaultCenter = instanceConfig.map.fallbackCenter;
 
   const handleMapClick = (e: MapLayerMouseEvent) => {
     if (isDrawing) {
@@ -102,7 +127,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     }
 
     const feature = e.features?.[0];
-    if (feature?.layer?.id === "targets-circles") {
+    if (feature?.layer?.id && ALL_TARGET_LAYER_IDS.includes(feature.layer.id)) {
       setSelectedTargetId(String(feature.properties?.id ?? null));
     } else {
       setSelectedTargetId(null);
@@ -117,10 +142,9 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           initialViewState={{
             latitude: defaultCenter.latitude || initialCenter.latitude,
             longitude: defaultCenter.longitude || initialCenter.longitude,
-            zoom: 19,
-            pitch: 60,
-            bearing: 0,
-
+            zoom: instanceConfig.map.zoom,
+            pitch: instanceConfig.map.pitch,
+            bearing: instanceConfig.map.bearing,
           }}
           //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
@@ -128,7 +152,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
           reuseMaps
-          interactiveLayerIds={["targets-circles"]}
+          interactiveLayerIds={ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
           cursor={isDrawing ? "crosshair" : undefined}
         >
@@ -142,6 +166,11 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
+          {RADAR_INSTANCES.slice(1).map((instance) => (
+            <RadarProvider key={instance.id} instance={instance}>
+              <SecondaryRadarLayers historyRange={historyRange} />
+            </RadarProvider>
+          ))}
         </ReactMapGL>
 
         <div className="radar-scanlines" />
