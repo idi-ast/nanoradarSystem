@@ -93,7 +93,7 @@ export const TARGET_COLORS: TargetColorsConfig = {
 export const TARGET_TIMING: TargetTimingConfig = {
   TRACKING_ACTIVE_MS: 4_000,
   COLOR_REFRESH_MS: 1_000,
-  TARGET_TIMEOUT_MS: 120_000,
+  TARGET_TIMEOUT_MS: 70_000,
   HISTORY_MAX_POINTS: 500,
 };
 

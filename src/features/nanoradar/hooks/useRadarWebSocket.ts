@@ -33,11 +33,7 @@ function processDeviceMessages(
   });
 }
 
-/**
- * Hook que conecta al WebSocket nativo del backend del radar
- * y mantiene el mapa de objetivos detectados en tiempo real.
- * Soporta el nuevo formato: { nanoRadar: [...], spotter: [...] }
- */
+
 export function useRadarWebSocket(
   url: string,
   timing: TargetTimingConfig = TARGET_TIMING

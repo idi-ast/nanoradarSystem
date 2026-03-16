@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import {
   IconLayersSubtract,
   IconX,
@@ -106,7 +106,7 @@ function GroupHeader({
 }
 
 
-export function DeviceSelector({ visibility, onChange }: DeviceSelectorProps) {
+export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange }: DeviceSelectorProps) {
   const [open, setOpen] = useState(false);
   const { data, isLoading } = useConfigDevices();
 
@@ -325,4 +325,4 @@ export function DeviceSelector({ visibility, onChange }: DeviceSelectorProps) {
       )}
     </div>
   );
-}
+});

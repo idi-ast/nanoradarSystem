@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { IconPencil, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
@@ -14,7 +14,7 @@ interface Props {
   zone: RadarZone;
 }
 
-export function ZoneCard({ zone }: Props) {
+export const ZoneCard = memo(function ZoneCard({ zone }: Props) {
   const { updateZone, deleteZone } = useRadarContext();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -172,4 +172,4 @@ export function ZoneCard({ zone }: Props) {
       </div>
     </div>
   );
-}
+});

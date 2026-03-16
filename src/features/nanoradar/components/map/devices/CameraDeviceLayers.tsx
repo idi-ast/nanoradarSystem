@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import { IconCamera } from "@tabler/icons-react";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
 import { getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon, buildArcCoords } from "./geoUtils";
+import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
 
 const CAM_FOV_DEG = 20;  // ángulo de visión horizontal
 const CAM_RANGE_M = 100; // alcance estimado en metros
@@ -15,7 +16,7 @@ export interface CameraDeviceLayersProps {
   rangeM?: number;
 }
 
-export function CameraDeviceLayers({
+export const CameraDeviceLayers = memo(function CameraDeviceLayers({
   camera,
   fovDeg = CAM_FOV_DEG,
   rangeM = CAM_RANGE_M,
@@ -92,18 +93,21 @@ export function CameraDeviceLayers({
         <Layer
           id={`${sid}-fill`}
           type="fill"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={["==", ["get", "kind"], "fov"] as unknown as FilterSpecification}
           paint={{ "fill-color": color, "fill-opacity": 0.25 }}
         />
         <Layer
           id={`${sid}-sides`}
           type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={["==", ["get", "kind"], "side"] as unknown as FilterSpecification}
           paint={{ "line-color": color, "line-width": 1, "line-opacity": 0.7 }}
         />
         <Layer
           id={`${sid}-center`}
           type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={["==", ["get", "kind"], "center"] as unknown as FilterSpecification}
           paint={{
             "line-color": color,
@@ -115,6 +119,7 @@ export function CameraDeviceLayers({
         <Layer
           id={`${sid}-arc`}
           type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={["==", ["get", "kind"], "arc"] as unknown as FilterSpecification}
           paint={{
             "line-color": color,
@@ -186,4 +191,4 @@ export function CameraDeviceLayers({
       </Marker>
     </>
   );
-}
+});

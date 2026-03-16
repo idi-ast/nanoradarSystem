@@ -4,6 +4,8 @@ import BottomBar from "@/components/bars/BottomBar";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
 import { RadarProvider } from "../context";
 import { useRadarContext } from "../context/useRadarContext";
+import { useRadarTargets } from "../context/useRadarContext";
+import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
@@ -58,7 +60,8 @@ function NanoPages() {
 }
 
 const RadarStatusBar = memo(() => {
-  const { targets, zones } = useRadarContext();
+  const { zones } = useRadarContext();
+  const { targets } = useRadarTargets();
   const criticalCount = targets.filter((t) => t.nivel === 4).length;
 
   return (
@@ -105,9 +108,7 @@ const RightBarNano = memo(function RightBarNano({
 }) {
   const {
     zones,
-    targets,
     isDrawing,
-    clearTargets,
     startDrawing,
     cancelDrawing,
   } = useRadarContext();
@@ -128,12 +129,8 @@ const RightBarNano = memo(function RightBarNano({
       </div>
 
       <div className="shrink-0 px-3 py-3 border-b border-border flex gap-2">
-        <button
-          onClick={clearTargets}
-          className="flex-1 px-2 py-1 text-[10px] rounded border border-red-500/50 bg-red-950/50 text-text-100 hover:bg-red-500/20 transition-colors"
-        >
-          BORRAR CACHÉ
-        </button>
+        {/* Botón aislado — no arrastra a RightBarNano con cada mensaje WS */}
+        <ClearTargetsButton />
         <button
           onClick={isDrawing ? cancelDrawing : startDrawing}
           className={`px-3 py-1 text-[10px] rounded border text-white ${isDrawing
@@ -161,13 +158,12 @@ const RightBarNano = memo(function RightBarNano({
               Sin zonas configuradas
             </p>
           ) : (
-            zones.map((zone, i) => <ZoneCard key={i} zone={zone} />)
+            zones.map((zone) => <ZoneCard key={zone.id ?? zone.nombre} zone={zone} />)
           )}
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">
-          <TargetsSection targets={targets} />
-        </div>
+        {/* Panel dinámico aislado — es el único que re-renderiza con WS */}
+        <TargetsDynamicPanel />
       </div>
     </div>
   );
@@ -175,8 +171,40 @@ const RightBarNano = memo(function RightBarNano({
 
 export default NanoPages;
 
+/**
+ * Botón aislado para no contaminar RightBarNano con useRadarTargets.
+ * Ahora usa el contexto estático — clearTargets es estable (useCallback sin deps)
+ * y vive en RadarContext, por lo que NUNCA re-renderiza por mensajes WS.
+ */
+const ClearTargetsButton = memo(function ClearTargetsButton() {
+  const { clearTargets } = useRadarContext();
+  return (
+    <button
+      onClick={clearTargets}
+      className="flex-1 px-2 py-1 text-[10px] rounded border border-red-500/50 bg-red-950/50 text-text-100 hover:bg-red-500/20 transition-colors"
+    >
+      BORRAR CACHÉ
+    </button>
+  );
+});
+
+/**
+ * Panel dinámico aislado.
+ * Ahora usa useRadarStableTargets() — su referencia SOLO cambia cuando
+ * el conjunto de IDs cambia. Movimiento de marcadores NO dispara re-render.
+ */
+const TargetsDynamicPanel = memo(function TargetsDynamicPanel() {
+  const { stableTargets } = useRadarStableTargets();
+  return (
+    <div className="flex-1 min-h-0 flex flex-col">
+      <TargetsSection targets={stableTargets} />
+    </div>
+  );
+});
+
 const GeofenceFlash = memo(function GeofenceFlash() {
-  const { targets, zones, instanceConfig } = useRadarContext();
+  const { zones, instanceConfig } = useRadarContext();
+  const { targets } = useRadarTargets();
   const { hasAlert, color } = useGeofenceDetection(
     targets,
     zones,
@@ -205,6 +233,9 @@ const TABS: { key: TabFilter; label: string }[] = [
   { key: "spotter", label: "Spotter" },
 ];
 
+// El prop `targets` ya es una referencia estable (solo cambia cuando IDs cambian),
+// por lo que el comparador personalizado ya no es necesario. memo() por defecto
+// hace una comparación shallow que basta aquí.
 const TargetsSection = memo(function TargetsSection({
   targets,
 }: {

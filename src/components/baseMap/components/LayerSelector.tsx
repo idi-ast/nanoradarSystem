@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import { IconMapCog, IconRosetteDiscountCheck } from "@tabler/icons-react";
 import type { LayerSelectorProps, MapLayer } from "../types";
 import LineGradientWhite from "@/components/ui/LineGradientWhite";
 
-const LayerSelector: React.FC<LayerSelectorProps> = ({
+const LayerSelector: React.FC<LayerSelectorProps> = memo(function LayerSelector({
   selectedLayer,
   onLayerChange,
   mapLayers,
-}) => {
+}) {
   const [showMenu, setShowMenu] = useState(false);
 
   const handleLayerSelect = (layer: MapLayer) => {
@@ -65,6 +65,6 @@ const LayerSelector: React.FC<LayerSelectorProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default LayerSelector;

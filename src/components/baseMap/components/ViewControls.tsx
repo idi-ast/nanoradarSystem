@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { memo, useCallback } from "react";
 import {
   IconMap,
   Icon3dCubeSphere,
@@ -8,11 +8,11 @@ import {
 import type { ViewControlsProps } from "../types";
 import LineGradientWhite from "@/components/ui/LineGradientWhite";
 
-const ViewControls: React.FC<ViewControlsProps> = ({
+const ViewControls: React.FC<ViewControlsProps> = memo(function ViewControls({
   mapRef,
   initialCenter,
   initialZoom,
-}) => {
+}) {
   const setTopView = useCallback(() => {
     mapRef.current?.easeTo({
       pitch: 0,
@@ -89,6 +89,6 @@ const ViewControls: React.FC<ViewControlsProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ViewControls;

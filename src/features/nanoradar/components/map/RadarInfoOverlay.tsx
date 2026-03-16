@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { IconCaretRightFilled, IconChevronDown } from "@tabler/icons-react";
 import type { RadarConfig } from "../../types";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
@@ -7,7 +7,7 @@ interface Props {
   config: RadarConfig;
 }
 
-export function RadarInfoOverlay({ config }: Props) {
+export const RadarInfoOverlay = memo(function RadarInfoOverlay({ config }: Props) {
   const { data } = useConfigDevices();
   const nanoradares = data?.data?.nanoradares ?? [];
   const [open, setOpen] = useState(false);
@@ -102,4 +102,4 @@ export function RadarInfoOverlay({ config }: Props) {
       </div>
     </div>
   );
-}
+});

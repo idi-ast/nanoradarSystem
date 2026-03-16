@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import ReactMapGL from "react-map-gl";
+import ReactMapGL, { Source, Layer } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./radar-effects.css";
@@ -18,6 +18,7 @@ import { RADAR_INSTANCES } from "../../config";
 import type { RadarInstanceConfig } from "../../config";
 import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
+import { useRadarTargets } from "../../context/useRadarContext";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
@@ -25,7 +26,7 @@ import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
 import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
-import { ALL_VISIBLE } from "./devicesConfig";
+import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
 import Camera from "./cameras/Camera";
 import ConfigZones from "./zones/ConfigZones";
@@ -41,7 +42,8 @@ const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
 
 /** Renderiza zonas y targets de un radar secundario (beam/rings vienen de DevicesOverlay). */
 function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) {
-  const { targets, zones } = useRadarContext();
+  const { zones } = useRadarContext();
+  const { targets } = useRadarTargets();
   return (
     <>
       <RadarZonesLayer zones={zones} />
@@ -58,7 +60,6 @@ function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) 
 export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
   const {
     config,
-    targets,
     zones,
     isDrawing,
     drawingPoints,
@@ -66,6 +67,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     addDrawingPoint,
     instanceConfig,
   } = useRadarContext();
+  const { targets } = useRadarTargets();
 
   const mapRef = useRef<MapRef>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -102,6 +104,31 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     setSelectedLayer(layer);
   }, []);
 
+  const initialCenter = useMemo(
+    () => ({
+      longitude: parseFloat(config?.longitud ?? "0"),
+      latitude: parseFloat(config?.latitud ?? "0"),
+    }),
+    [config?.longitud, config?.latitud],
+  );
+
+  const handleMapClick = useCallback(
+    (e: MapLayerMouseEvent) => {
+      if (isDrawing) {
+        addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
+
+      const feature = e.features?.[0];
+      if (feature?.layer?.id && ALL_TARGET_LAYER_IDS.includes(feature.layer.id)) {
+        setSelectedTargetId(String(feature.properties?.id ?? null));
+      } else {
+        setSelectedTargetId(null);
+      }
+    },
+    [isDrawing, addDrawingPoint],
+  );
+
   if (!config) {
     return (
       <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
@@ -113,26 +140,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     );
   }
 
-  const initialCenter = {
-    longitude: parseFloat(config.longitud),
-    latitude: parseFloat(config.latitud),
-  };
-
   const defaultCenter = instanceConfig.map.fallbackCenter;
-
-  const handleMapClick = (e: MapLayerMouseEvent) => {
-    if (isDrawing) {
-      addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
-      return;
-    }
-
-    const feature = e.features?.[0];
-    if (feature?.layer?.id && ALL_TARGET_LAYER_IDS.includes(feature.layer.id)) {
-      setSelectedTargetId(String(feature.properties?.id ?? null));
-    } else {
-      setSelectedTargetId(null);
-    }
-  };
 
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
@@ -156,6 +164,18 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           onClick={handleMapClick}
           cursor={isDrawing ? "crosshair" : undefined}
         >
+          <Source
+            id="device-layers-upper-bound-src"
+            type="geojson"
+            data={{ type: "FeatureCollection", features: [] }}
+          >
+            <Layer
+              id={DEVICES_BELOW_LAYER_ID}
+              type="fill"
+              paint={{ "fill-opacity": 0 }}
+            />
+          </Source>
+
           <DevicesOverlay visibility={deviceVisibility} />
           <RadarZonesLayer zones={zones} />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />

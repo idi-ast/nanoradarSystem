@@ -10,13 +10,14 @@
  * Fuente de datos: GET /configuracion-general  (useConfigDevices)
  */
 
-import { useState, useEffect, useRef } from "react";
+import React, { memo } from "react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
-import { BEAM_ANIMATION } from "../../config";
 import { NR_PALETTE, ALL_VISIBLE } from "./devicesConfig";
 import {
   NanoradarDeviceLayer,
+  NanoradarPulseLayer,
   SpotterDeviceLayer,
+  SpotterPulseLayer,
   CameraDeviceLayers,
 } from "./devices";
 
@@ -26,33 +27,12 @@ export interface DeviceVisibility {
   hiddenCamaras: Set<number>;
 }
 
-export function DevicesOverlay({
+export const DevicesOverlay = memo(function DevicesOverlay({
   visibility = ALL_VISIBLE,
 }: {
   visibility?: DeviceVisibility;
 }) {
   const { data } = useConfigDevices();
-  const [phase, setPhase] = useState(0);
-  const rafIdRef = useRef<number | null>(null);
-  const lastFrameRef = useRef(0);
-  const frameIntervalMs = 1000 / BEAM_ANIMATION.TARGET_FPS;
-
-  useEffect(() => {
-    const animate = (now: number) => {
-      if (now - lastFrameRef.current >= frameIntervalMs) {
-        setPhase(
-          (now % BEAM_ANIMATION.PULSE_CYCLE_MS) / BEAM_ANIMATION.PULSE_CYCLE_MS,
-        );
-        lastFrameRef.current = now;
-      }
-      rafIdRef.current = window.requestAnimationFrame(animate);
-    };
-    rafIdRef.current = window.requestAnimationFrame(animate);
-    return () => {
-      if (rafIdRef.current !== null)
-        window.cancelAnimationFrame(rafIdRef.current);
-    };
-  }, [frameIntervalMs]);
 
   if (!data?.data) return null;
 
@@ -66,22 +46,51 @@ export function DevicesOverlay({
           const palette = NR_PALETTE[idx % NR_PALETTE.length];
           const colorPrimary = nr.color || palette.primary;
           const colorPulse = nr.color || palette.pulse;
+          const lat = Number(nr.latitud);
+          const lon = Number(nr.longitud);
+          const sid = `dev-nr-${nr.id}`;
           return (
-            <NanoradarDeviceLayer
-              key={nr.id}
-              nr={nr}
-              phase={phase}
-              colorPrimary={colorPrimary}
-              colorPulse={colorPulse}
-            />
+            <React.Fragment key={nr.id}>
+              {/* Capa estática: solo re-renderiza si cambia la config del dispositivo */}
+              <NanoradarDeviceLayer
+                nr={nr}
+                colorPrimary={colorPrimary}
+                colorPulse={colorPulse}
+              />
+              {/* Capa de pulso: recibe phase y re-renderiza a 30fps */}
+              <NanoradarPulseLayer
+                sid={sid}
+                lat={lat}
+                lon={lon}
+                radio={nr.radio}
+                colorPulse={colorPulse}
+              />
+            </React.Fragment>
           );
         })}
 
       {spotters
         .filter((s) => !visibility.hiddenSpotters.has(s.id))
-        .map((s) => (
-          <SpotterDeviceLayer key={s.id} spotter={s} phase={phase} />
-        ))}
+        .map((s) => {
+          const lat = Number(s.latitude);
+          const lon = Number(s.longitude);
+          const color = s.color || "#a855f7";
+          const sid = `dev-sp-${s.id}`;
+          return (
+            <React.Fragment key={s.id}>
+              {/* Capa estática: solo re-renderiza si cambia la config del dispositivo */}
+              <SpotterDeviceLayer spotter={s} />
+              {/* Capa de pulso: recibe phase y re-renderiza a 30fps */}
+              <SpotterPulseLayer
+                sid={sid}
+                lat={lat}
+                lon={lon}
+                radio={s.radio}
+                color={color}
+              />
+            </React.Fragment>
+          );
+        })}
 
       {camaras
         .filter((c) => !visibility.hiddenCamaras.has(c.id))
@@ -90,4 +99,4 @@ export function DevicesOverlay({
         ))}
     </>
   );
-}
+});

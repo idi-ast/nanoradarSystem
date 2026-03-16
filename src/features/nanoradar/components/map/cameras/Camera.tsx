@@ -1,9 +1,9 @@
 import { IconMaximize, IconMinimize, IconX } from "@tabler/icons-react";
 import Hls from "hls.js";
-import { useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { useRadarContext } from "../../../context/useRadarContext";
 
-function Camera() {
+const Camera = memo(function Camera() {
   const { instanceConfig } = useRadarContext();
   const { cameraUrl } = instanceConfig;
     const [minimize, setMinimize] = useState(true);
@@ -99,6 +99,6 @@ function Camera() {
             </div>
         </div>
     );
-}
+});
 
 export default Camera;

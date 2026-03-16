@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { Nanoradares } from "@/features/config-devices/types/ConfigServices.type";
@@ -6,17 +6,124 @@ import { BEAM_ANIMATION, RADAR_COLORS } from "../../../config";
 import { createCircleCoords, getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon } from "./geoUtils";
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
+import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
+import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
+
+// ---------------------------------------------------------------------------
+// Sub-componentes estáticos — NO reciben `phase`, no re-renderizan a 30fps
+// ---------------------------------------------------------------------------
+
+const NanoradarRingLabels = memo(function NanoradarRingLabels({
+  ringLabels,
+  colorPulse,
+}: {
+  ringLabels: { dist: number; lat: number; lon: number }[];
+  colorPulse: string;
+}) {
+  return (
+    <>
+      {ringLabels.map(({ dist, lat: lLat, lon: lLon }) => (
+        <Marker key={dist} longitude={lLon} latitude={lLat} anchor="bottom">
+          <div
+            className="px-1 py-px rounded text-[9px] font-mono leading-none pointer-events-none"
+            style={{
+              backgroundColor: `${colorPulse}18`,
+              border: `1px solid ${colorPulse}44`,
+            }}
+          >
+            {dist}m
+          </div>
+        </Marker>
+      ))}
+    </>
+  );
+});
+
+const NanoradarDeviceMarker = memo(function NanoradarDeviceMarker({
+  lon,
+  lat,
+  colorPrimary,
+  nombre,
+}: {
+  lon: number;
+  lat: number;
+  colorPrimary: string;
+  nombre: string;
+}) {
+  return (
+    <>
+      <Marker longitude={lon} latitude={lat} anchor="center">
+        <div className="relative flex items-center justify-center">
+          <span
+            className="absolute w-10 h-10 rounded-full animate-ping"
+            style={{ backgroundColor: `${colorPrimary}33` }}
+          />
+          <span
+            className="absolute w-7 h-7 rounded-full"
+            style={{
+              backgroundColor: `${colorPrimary}1a`,
+              border: `1px solid ${colorPrimary}66`,
+            }}
+          />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="33"
+            height="33"
+            fill="none"
+            stroke={colorPrimary}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="relative z-10"
+            style={{ filter: `drop-shadow(0 0 4px ${colorPrimary})` }}
+          >
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="5.5" strokeOpacity="0.6" />
+            <circle cx="12" cy="12" r="2" strokeOpacity="0.4" />
+            <g
+              style={{
+                transformOrigin: "12px 12px",
+                animation: "radar-spin 3s linear infinite",
+              }}
+            >
+              <path d="M12 12 L12 3" />
+              <path d="M12 12 L17.2 4.8" strokeOpacity="0.4" />
+            </g>
+            <circle cx="12" cy="12" r="1" fill={colorPrimary} stroke="none" />
+          </svg>
+          <style>{`
+            @keyframes radar-spin {
+              from { transform: rotate(0deg); }
+              to   { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </Marker>
+
+      <Marker longitude={lon} latitude={lat} anchor="bottom" offset={[0, -28]}>
+        <div
+          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider whitespace-nowrap pointer-events-none"
+          style={{
+            backgroundColor: `${colorPrimary}22`,
+            border: `1px solid ${colorPrimary}55`,
+          }}
+        >
+          {nombre}
+        </div>
+      </Marker>
+    </>
+  );
+});
 
 export interface NanoradarDeviceLayerProps {
   nr: Nanoradares;
-  phase: number;
   colorPrimary: string;
   colorPulse: string;
 }
 
-export function NanoradarDeviceLayer({
+export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
   nr,
-  phase,
   colorPrimary,
   colorPulse,
 }: NanoradarDeviceLayerProps) {
@@ -145,7 +252,119 @@ export function NanoradarDeviceLayer({
     [lat, lon, ringCount],
   );
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return (
+    <>
+      <Source id={`${sid}-range`} type="geojson" data={rangeData}>
+        <Layer
+          id={`${sid}-range-fill`}
+          type="fill"
+          beforeId={DEVICES_BELOW_LAYER_ID}
+          filter={["==", ["get", "kind"], "range"] as unknown as FilterSpecification}
+          paint={{
+            "fill-color": RADAR_COLORS.rangeFill,
+            "fill-opacity": RADAR_COLORS.rangeFillOpacity,
+          }}
+        />
+        <Layer
+          id={`${sid}-range-limits`}
+          type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
+          filter={["==", ["get", "kind"], "limits"] as unknown as FilterSpecification}
+          paint={{
+            "line-color": colorPrimary,
+            "line-width": 1,
+            "line-opacity": 0.48,
+            "line-dasharray": [2, 6],
+          }}
+        />
+      </Source>
+
+      {gradoData && (
+        <Source id={`${sid}-grado`} type="geojson" data={gradoData}>
+          <Layer
+            id={`${sid}-grado-fill`}
+            type="fill"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={["==", ["get", "kind"], "grado-fill"] as unknown as FilterSpecification}
+            paint={{ "fill-color": colorPrimary, "fill-opacity": 0.04 }}
+          />
+          <Layer
+            id={`${sid}-grado-limits`}
+            type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={["==", ["get", "kind"], "grado-limits"] as unknown as FilterSpecification}
+            paint={{
+              "line-color": colorPrimary,
+              "line-width": 1,
+              "line-opacity": 0.25,
+              "line-dasharray": [4, 8],
+            }}
+          />
+        </Source>
+      )}
+
+      {/* Rings se agrega ANTES que el beam para que exista como ancla */}
+      <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
+        <Layer
+          id={`${sid}-rings-layer`}
+          type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
+          paint={{
+            "line-color": colorPulse,
+            "line-width": 2,
+            "line-dasharray": [1, 2],
+            "line-opacity": 0.6,
+          }}
+        />
+      </Source>
+
+      {/* beam siempre DEBAJO de rings */}
+      <Source
+        id={`${sid}-beam`}
+        type="image"
+        url={beamImageUrl}
+        coordinates={beamCoords}
+      >
+        <Layer
+          id={`${sid}-beam-layer`}
+          type="raster"
+          beforeId={`${sid}-rings-layer`}
+          paint={{ "raster-opacity": 1, "raster-fade-duration": 0 }}
+        />
+      </Source>
+
+      <NanoradarRingLabels ringLabels={ringLabels} colorPulse={colorPulse} />
+      <NanoradarDeviceMarker
+        lon={lon}
+        lat={lat}
+        colorPrimary={colorPrimary}
+        nombre={nr.nombre}
+      />
+    </>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Capa de pulso animado — gestiona su propio RAF loop internamente.
+// DevicesOverlay NO necesita `phase` ni re-renderizar por animación.
+// ---------------------------------------------------------------------------
+
+export interface NanoradarPulseLayerProps {
+  sid: string;
+  lat: number;
+  lon: number;
+  radio: number;
+  colorPulse: string;
+}
+
+export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
+  sid,
+  lat,
+  lon,
+  radio,
+  colorPulse,
+}: NanoradarPulseLayerProps) {
+  const phase = useRadarAnimation();
   const pulseData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -169,168 +388,18 @@ export function NanoradarDeviceLayer({
   );
 
   return (
-    <>
-      <Source id={`${sid}-range`} type="geojson" data={rangeData}>
-        <Layer
-          id={`${sid}-range-fill`}
-          type="fill"
-          filter={["==", ["get", "kind"], "range"] as unknown as FilterSpecification}
-          paint={{
-            "fill-color": RADAR_COLORS.rangeFill,
-            "fill-opacity": RADAR_COLORS.rangeFillOpacity,
-          }}
-        />
-        <Layer
-          id={`${sid}-range-limits`}
-          type="line"
-          filter={["==", ["get", "kind"], "limits"] as unknown as FilterSpecification}
-          paint={{
-            "line-color": colorPrimary,
-            "line-width": 1,
-            "line-opacity": 0.48,
-            "line-dasharray": [2, 6],
-          }}
-        />
-      </Source>
-
-      {gradoData && (
-        <Source id={`${sid}-grado`} type="geojson" data={gradoData}>
-          <Layer
-            id={`${sid}-grado-fill`}
-            type="fill"
-            filter={["==", ["get", "kind"], "grado-fill"] as unknown as FilterSpecification}
-            paint={{ "fill-color": colorPrimary, "fill-opacity": 0.04 }}
-          />
-          <Layer
-            id={`${sid}-grado-limits`}
-            type="line"
-            filter={["==", ["get", "kind"], "grado-limits"] as unknown as FilterSpecification}
-            paint={{
-              "line-color": colorPrimary,
-              "line-width": 1,
-              "line-opacity": 0.25,
-              "line-dasharray": [4, 8],
-            }}
-          />
-        </Source>
-      )}
-
-      {/* Rings se agrega ANTES que el beam para que exista como ancla */}
-      <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
-        <Layer
-          id={`${sid}-rings-layer`}
-          type="line"
-          paint={{
-            "line-color": colorPulse,
-            "line-width": 2,
-            "line-dasharray": [1, 2],
-            "line-opacity": 0.6,
-          }}
-        />
-      </Source>
-
-      {/* beam se inserta siempre DEBAJO de rings (y por tanto debajo de targets) */}
-      <Source
-        id={`${sid}-beam`}
-        type="image"
-        url={beamImageUrl}
-        coordinates={beamCoords}
-      >
-        <Layer
-          id={`${sid}-beam-layer`}
-          type="raster"
-          beforeId={`${sid}-rings-layer`}
-          paint={{ "raster-opacity": 1, "raster-fade-duration": 0 }}
-        />
-      </Source>
-
-      <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-        <Layer
-          id={`${sid}-pulse-layer`}
-          type="line"
-          paint={{
-            "line-color": colorPulse,
-            "line-width": ["get", "width"] as unknown as number,
-            "line-opacity": ["get", "opacity"] as unknown as number,
-            "line-blur": 1,
-          }}
-        />
-      </Source>
-
-      {ringLabels.map(({ dist, lat: lLat, lon: lLon }) => (
-        <Marker key={dist} longitude={lLon} latitude={lLat} anchor="bottom">
-          <div
-            className="px-1 py-px rounded text-[9px] font-mono leading-none pointer-events-none"
-            style={{
-              backgroundColor: `${colorPulse}18`,
-              border: `1px solid ${colorPulse}44`,
-            }}
-          >
-            {dist}m
-          </div>
-        </Marker>
-      ))}
-
-      <Marker longitude={lon} latitude={lat} anchor="center">
-        <div className="relative flex items-center justify-center">
-          <span
-            className="absolute w-10 h-10 rounded-full animate-ping"
-            style={{ backgroundColor: `${colorPrimary}33` }}
-          />
-          <span
-            className="absolute w-7 h-7 rounded-full"
-            style={{
-              backgroundColor: `${colorPrimary}1a`,
-              border: `1px solid ${colorPrimary}66`,
-            }}
-          />
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="33"
-            height="33"
-            fill="none"
-            stroke={colorPrimary}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="relative z-10"
-            style={{ filter: `drop-shadow(0 0 4px ${colorPrimary})` }}
-          >
-            <circle cx="12" cy="12" r="9" />
-            <circle cx="12" cy="12" r="5.5" strokeOpacity="0.6" />
-            <circle cx="12" cy="12" r="2" strokeOpacity="0.4" />
-            <g
-              style={{
-                transformOrigin: "12px 12px",
-                animation: "radar-spin 3s linear infinite",
-              }}
-            >
-              <path d="M12 12 L12 3" />
-              <path d="M12 12 L17.2 4.8" strokeOpacity="0.4" />
-            </g>
-            <circle cx="12" cy="12" r="1" fill={colorPrimary} stroke="none" />
-          </svg>
-          <style>{`
-            @keyframes radar-spin {
-              from { transform: rotate(0deg); }
-              to   { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      </Marker>
-
-      <Marker longitude={lon} latitude={lat} anchor="bottom" offset={[0, -28]}>
-        <div
-          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider whitespace-nowrap pointer-events-none"
-          style={{
-            backgroundColor: `${colorPrimary}22`,
-            border: `1px solid ${colorPrimary}55`,
-          }}
-        >
-          {nr.nombre}
-        </div>
-      </Marker>
-    </>
+    <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
+      <Layer
+        id={`${sid}-pulse-layer`}
+        type="line"
+        beforeId={DEVICES_BELOW_LAYER_ID}
+        paint={{
+          "line-color": colorPulse,
+          "line-width": ["get", "width"] as unknown as number,
+          "line-opacity": ["get", "opacity"] as unknown as number,
+          "line-blur": 1,
+        }}
+      />
+    </Source>
   );
-}
+});

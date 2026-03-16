@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import { IconCurrentLocation } from "@tabler/icons-react";
@@ -7,15 +7,95 @@ import { BEAM_ANIMATION, RADAR_COLORS } from "../../../config";
 import { createCircleCoords, getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon } from "./geoUtils";
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
+import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
+import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
+
+// ---------------------------------------------------------------------------
+// Sub-componentes estáticos — NO reciben `phase`, no re-renderizan a 30fps
+// ---------------------------------------------------------------------------
+
+const SpotterRingLabels = memo(function SpotterRingLabels({
+  ringLabels,
+  color,
+}: {
+  ringLabels: { dist: number; lat: number; lon: number }[];
+  color: string;
+}) {
+  return (
+    <>
+      {ringLabels.map(({ dist, lat: lLat, lon: lLon }) => (
+        <Marker key={dist} longitude={lLon} latitude={lLat} anchor="bottom">
+          <div
+            className="px-1 py-px rounded text-[9px] font-mono leading-none pointer-events-none"
+            style={{
+              backgroundColor: `${color}18`,
+              border: `1px solid ${color}44`,
+            }}
+          >
+            {dist}m
+          </div>
+        </Marker>
+      ))}
+    </>
+  );
+});
+
+const SpotterDeviceMarker = memo(function SpotterDeviceMarker({
+  lon,
+  lat,
+  color,
+  nombre,
+}: {
+  lon: number;
+  lat: number;
+  color: string;
+  nombre: string;
+}) {
+  return (
+    <>
+      <Marker longitude={lon} latitude={lat} anchor="center">
+        <div className="relative flex items-center justify-center">
+          <span
+            className="absolute w-10 h-10 rounded-full animate-ping"
+            style={{ backgroundColor: `${color}33` }}
+          />
+          <span
+            className="absolute w-7 h-7 rounded-full"
+            style={{
+              backgroundColor: `${color}1a`,
+              border: `1px solid ${color}66`,
+            }}
+          />
+          <div
+            className="relative z-10 w-8 h-8 flex items-center justify-center"
+            style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+          >
+            <IconCurrentLocation size={22} style={{ color }} strokeWidth={1.5} />
+          </div>
+        </div>
+      </Marker>
+
+      <Marker longitude={lon} latitude={lat} anchor="bottom" offset={[0, -28]}>
+        <div
+          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider whitespace-nowrap pointer-events-none"
+          style={{
+            backgroundColor: `${color}22`,
+            border: `2px solid ${color}55`,
+          }}
+        >
+          {nombre}
+        </div>
+      </Marker>
+    </>
+  );
+});
 
 export interface SpotterDeviceLayerProps {
   spotter: Spotters;
-  phase: number;
 }
 
-export function SpotterDeviceLayer({
+export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
   spotter,
-  phase,
 }: SpotterDeviceLayerProps) {
   const sid = `dev-sp-${spotter.id}`;
   const lat = Number(spotter.latitude);
@@ -131,7 +211,6 @@ export function SpotterDeviceLayer({
     [lat, lon, ringCount],
   );
 
-  // Posiciones de etiquetas: punto Norte de cada anillo
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const ringLabels = useMemo(
     () =>
@@ -143,40 +222,13 @@ export function SpotterDeviceLayer({
     [lat, lon, ringCount],
   );
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const pulseData = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: Array.from({ length: BEAM_ANIMATION.WAVE_COUNT }, (_, i) => {
-        const shifted = (phase + i / BEAM_ANIMATION.WAVE_COUNT) % 1;
-        const r = Math.max(1, shifted * radio);
-        return {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: createCircleCoords(
-              lat,
-              lon,
-              r,
-              BEAM_ANIMATION.WAVE_STEPS,
-            ),
-          },
-          properties: {
-            opacity: 0.64 * (1 - shifted),
-            width: 4 - shifted * 0.6,
-          },
-        };
-      }),
-    }),
-    [lat, lon, radio, phase],
-  );
-
   return (
     <>
       <Source id={`${sid}-range`} type="geojson" data={rangeData}>
         <Layer
           id={`${sid}-range-fill`}
           type="fill"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={
             ["==", ["get", "kind"], "range"] as unknown as FilterSpecification
           }
@@ -188,6 +240,7 @@ export function SpotterDeviceLayer({
         <Layer
           id={`${sid}-range-limits`}
           type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           filter={
             ["==", ["get", "kind"], "limits"] as unknown as FilterSpecification
           }
@@ -205,6 +258,7 @@ export function SpotterDeviceLayer({
           <Layer
             id={`${sid}-grado-fill`}
             type="fill"
+            beforeId={DEVICES_BELOW_LAYER_ID}
             filter={
               [
                 "==",
@@ -217,6 +271,7 @@ export function SpotterDeviceLayer({
           <Layer
             id={`${sid}-grado-limits`}
             type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
             filter={
               [
                 "==",
@@ -238,6 +293,7 @@ export function SpotterDeviceLayer({
         <Layer
           id={`${sid}-rings-layer`}
           type="line"
+          beforeId={DEVICES_BELOW_LAYER_ID}
           paint={{
             "line-color": color,
             "line-width": 2,
@@ -261,70 +317,73 @@ export function SpotterDeviceLayer({
         />
       </Source>
 
-      <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-        <Layer
-          id={`${sid}-pulse-layer`}
-          type="line"
-          paint={{
-            "line-color": color,
-            "line-width": ["get", "width"] as unknown as number,
-            "line-opacity": ["get", "opacity"] as unknown as number,
-            "line-blur": 1,
-          }}
-        />
-      </Source>
-
-      {ringLabels.map(({ dist, lat: lLat, lon: lLon }) => (
-        <Marker key={dist} longitude={lLon} latitude={lLat} anchor="bottom">
-          <div
-            className="px-1 py-px rounded text-[9px] font-mono leading-none pointer-events-none"
-            style={{
-              backgroundColor: `${color}18`,
-              border: `1px solid ${color}44`,
-            }}
-          >
-            {dist}m
-          </div>
-        </Marker>
-      ))}
-
-      <Marker longitude={lon} latitude={lat} anchor="center">
-        <div className="relative flex items-center justify-center">
-          <span
-            className="absolute w-10 h-10 rounded-full animate-ping"
-            style={{ backgroundColor: `${color}33` }}
-          />
-          <span
-            className="absolute w-7 h-7 rounded-full"
-            style={{
-              backgroundColor: `${color}1a`,
-              border: `1px solid ${color}66`,
-            }}
-          />
-          <div
-            className="relative z-10 w-8 h-8 flex items-center justify-center"
-            style={{ filter: `drop-shadow(0 0 4px ${color})` }}
-          >
-            <IconCurrentLocation
-              size={22}
-              style={{ color }}
-              strokeWidth={1.5}
-            />
-          </div>
-        </div>
-      </Marker>
-
-      <Marker longitude={lon} latitude={lat} anchor="bottom" offset={[0, -28]}>
-        <div
-          className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider whitespace-nowrap pointer-events-none"
-          style={{
-            backgroundColor: `${color}22`,
-            border: `2px solid ${color}55`,
-          }}
-        >
-          {spotter.nombre}
-        </div>
-      </Marker>
+      <SpotterRingLabels ringLabels={ringLabels} color={color} />
+      <SpotterDeviceMarker
+        lon={lon}
+        lat={lat}
+        color={color}
+        nombre={spotter.nombre}
+      />
     </>
   );
+});
+
+// ---------------------------------------------------------------------------
+// Capa de pulso animado — gestiona su propio RAF loop internamente.
+// DevicesOverlay NO necesita `phase` ni re-renderizar por animación.
+// ---------------------------------------------------------------------------
+
+export interface SpotterPulseLayerProps {
+  sid: string;
+  lat: number;
+  lon: number;
+  radio: number;
+  color: string;
 }
+
+export const SpotterPulseLayer = memo(function SpotterPulseLayer({
+  sid,
+  lat,
+  lon,
+  radio,
+  color,
+}: SpotterPulseLayerProps) {
+  const phase = useRadarAnimation();
+  const pulseData = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: Array.from({ length: BEAM_ANIMATION.WAVE_COUNT }, (_, i) => {
+        const shifted = (phase + i / BEAM_ANIMATION.WAVE_COUNT) % 1;
+        const r = Math.max(1, shifted * radio);
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: createCircleCoords(lat, lon, r, BEAM_ANIMATION.WAVE_STEPS),
+          },
+          properties: {
+            opacity: 0.64 * (1 - shifted),
+            width: 4 - shifted * 0.6,
+          },
+        };
+      }),
+    }),
+    [lat, lon, radio, phase],
+  );
+
+  return (
+    <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
+      <Layer
+        id={`${sid}-pulse-layer`}
+        type="line"
+        beforeId={DEVICES_BELOW_LAYER_ID}
+        paint={{
+          "line-color": color,
+          "line-width": ["get", "width"] as unknown as number,
+          "line-opacity": ["get", "opacity"] as unknown as number,
+          "line-blur": 1,
+        }}
+      />
+    </Source>
+  );
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { RadarTarget } from "../../types";
 
 const DEVICE_LABEL: Record<string, string> = {
@@ -14,7 +15,7 @@ interface Props {
   target: RadarTarget;
 }
 
-export function TargetCard({ target }: Props) {
+export const TargetCard = memo(function TargetCard({ target }: Props) {
   const isCritical = target.nivel === 4;
   const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
   const deviceColor =
@@ -24,11 +25,7 @@ export function TargetCard({ target }: Props) {
 
   return (
     <div
-      className={`p-3 border rounded ${
-        isCritical
-          ? "border-brand-100 bg-brand-100/20"
-          : "border-border-200 bg-bg-200"
-      }`}
+      className={`p-3`}
     >
       <div className="flex justify-between items-start gap-1">
         <span className="text-white font-bold text-xs">
@@ -36,12 +33,12 @@ export function TargetCard({ target }: Props) {
         </span>
         <div className="flex gap-1">
           <span
-            className={`text-[9px] px-1.5 py-0.5 rounded border ${deviceColor}`}
+            className={`text-[9px] px-1.5 py-0.5  border ${deviceColor}`}
           >
             {deviceLabel}
           </span>
           <span
-            className={`text-[9px] px-1 rounded ${
+            className={`text-[9px] px-1  ${
               isCritical
                 ? "bg-brand-100 text-text-100"
                 : "bg-emerald-500 text-text-100 font-bold"
@@ -56,4 +53,4 @@ export function TargetCard({ target }: Props) {
       </p>
     </div>
   );
-}
+});

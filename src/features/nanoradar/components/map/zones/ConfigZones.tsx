@@ -1,7 +1,8 @@
+import { memo } from "react"
 import LineGradientWhite from "@/components/ui/LineGradientWhite"
 import { IconBrandZeit } from "@tabler/icons-react"
 
-function ConfigZones() {
+const ConfigZones = memo(function ConfigZones() {
     return (
         <div className="flex flex-col gap-1">
             <div className="relative">
@@ -14,7 +15,7 @@ function ConfigZones() {
                 </button>
             </div>
         </div>
-    )
-}
+    );
+});
 
 export default ConfigZones

@@ -1,4 +1,5 @@
 import { useRadarContext } from "../../context/useRadarContext";
+import { useRadarTargets } from "../../context/useRadarContext";
 import { TargetCard } from "./TargetCard";
 import { ZoneCard } from "./ZoneCard";
 import { ZoneDrawingPanel } from "./ZoneDrawingPanel";
@@ -14,12 +15,12 @@ const DEVICE_SECTION: { key: "nanoRadar" | "spotter"; label: string }[] = [
 export function SidePanel() {
   const {
     zones,
-    targets,
     isDrawing,
-    clearTargets,
     startDrawing,
     cancelDrawing,
   } = useRadarContext();
+  const { clearTargets } = useRadarContext();
+  const { targets } = useRadarTargets();
 
   return (
     <div className="w-80 bg-slate-900 p-4 flex flex-col gap-4 overflow-y-auto border-l border-emerald-500/30">
@@ -53,8 +54,8 @@ export function SidePanel() {
 
       {/* Lista de zonas */}
       <div className="space-y-2">
-        {zones.map((zone, i) => (
-          <ZoneCard key={i} zone={zone} />
+        {zones.map((zone) => (
+          <ZoneCard key={zone.id ?? zone.nombre} zone={zone} />
         ))}
       </div>
 
