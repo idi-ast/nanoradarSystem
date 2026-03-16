@@ -9,10 +9,6 @@ import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
 
-// ---------------------------------------------------------------------------
-// Sub-componentes estáticos — NO reciben `phase`, no re-renderizan a 30fps
-// ---------------------------------------------------------------------------
-
 const NanoradarRingLabels = memo(function NanoradarRingLabels({
   ringLabels,
   colorPulse,
@@ -188,7 +184,9 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [buildSectorPolygon(lat, lon, gradoStart, gradoEnd, radio)],
+            coordinates: [
+              buildSectorPolygon(lat, lon, gradoStart, gradoEnd, radio),
+            ],
           },
           properties: { kind: "grado-fill" },
         },
@@ -235,11 +233,9 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
         properties: {},
       })),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [lat, lon, ringCount],
   );
 
-  // Posiciones de etiquetas: punto Norte de cada anillo
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const ringLabels = useMemo(
     () =>
@@ -248,7 +244,6 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
         const [lngL, latL] = getGeoPoint(lat, lon, 0, dist);
         return { dist, lat: latL, lon: lngL };
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [lat, lon, ringCount],
   );
 
@@ -259,24 +254,28 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           id={`${sid}-range-fill`}
           type="fill"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "range"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "range"] as unknown as FilterSpecification
+          }
           paint={{
             "fill-color": RADAR_COLORS.rangeFill,
             "fill-opacity": RADAR_COLORS.rangeFillOpacity,
           }}
         />
-        <Layer
+        {/* <Layer
           id={`${sid}-range-limits`}
           type="line"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "limits"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "limits"] as unknown as FilterSpecification
+          }
           paint={{
             "line-color": colorPrimary,
             "line-width": 1,
             "line-opacity": 0.48,
             "line-dasharray": [2, 6],
           }}
-        />
+        /> */}
       </Source>
 
       {gradoData && (
@@ -285,14 +284,26 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             id={`${sid}-grado-fill`}
             type="fill"
             beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={["==", ["get", "kind"], "grado-fill"] as unknown as FilterSpecification}
+            filter={
+              [
+                "==",
+                ["get", "kind"],
+                "grado-fill",
+              ] as unknown as FilterSpecification
+            }
             paint={{ "fill-color": colorPrimary, "fill-opacity": 0.04 }}
           />
           <Layer
             id={`${sid}-grado-limits`}
             type="line"
             beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={["==", ["get", "kind"], "grado-limits"] as unknown as FilterSpecification}
+            filter={
+              [
+                "==",
+                ["get", "kind"],
+                "grado-limits",
+              ] as unknown as FilterSpecification
+            }
             paint={{
               "line-color": colorPrimary,
               "line-width": 1,
@@ -303,7 +314,6 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
         </Source>
       )}
 
-      {/* Rings se agrega ANTES que el beam para que exista como ancla */}
       <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
         <Layer
           id={`${sid}-rings-layer`}
@@ -318,7 +328,6 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
         />
       </Source>
 
-      {/* beam siempre DEBAJO de rings */}
       <Source
         id={`${sid}-beam`}
         type="image"
@@ -343,11 +352,6 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
     </>
   );
 });
-
-// ---------------------------------------------------------------------------
-// Capa de pulso animado — gestiona su propio RAF loop internamente.
-// DevicesOverlay NO necesita `phase` ni re-renderizar por animación.
-// ---------------------------------------------------------------------------
 
 export interface NanoradarPulseLayerProps {
   sid: string;
@@ -375,10 +379,15 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: createCircleCoords(lat, lon, r, BEAM_ANIMATION.WAVE_STEPS),
+            coordinates: createCircleCoords(
+              lat,
+              lon,
+              r,
+              BEAM_ANIMATION.WAVE_STEPS,
+            ),
           },
           properties: {
-            opacity: 0.64 * (1 - shifted),
+            opacity: 0.24 * (1 - shifted),
             width: 4 - shifted * 0.6,
           },
         };
@@ -389,7 +398,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-      {/* <Layer
+      <Layer
         id={`${sid}-pulse-layer`}
         type="line"
         beforeId={DEVICES_BELOW_LAYER_ID}
@@ -399,7 +408,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           "line-opacity": ["get", "opacity"] as unknown as number,
           "line-blur": 1,
         }}
-      /> */}
+      />
     </Source>
   );
 });

@@ -353,7 +353,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
             coordinates: createCircleCoords(lat, lon, r, BEAM_ANIMATION.WAVE_STEPS),
           },
           properties: {
-            opacity: 0.64 * (1 - shifted),
+            opacity: 0.24 * (1 - shifted),
             width: 4 - shifted * 0.6,
           },
         };
@@ -364,7 +364,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-      {/* <Layer
+      <Layer
         id={`${sid}-pulse-layer`}
         type="line"
         beforeId={DEVICES_BELOW_LAYER_ID}
@@ -374,7 +374,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
           "line-opacity": ["get", "opacity"] as unknown as number,
           "line-blur": 1,
         }}
-      /> */}
+      />
     </Source>
   );
 });

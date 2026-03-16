@@ -60,7 +60,7 @@ export function buildBeamCanvas(
   // Paso 3: máscara radial con destination-in — fade hacia el borde exterior
   const radial = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   radial.addColorStop(0,    "rgba(0,0,0,1)");
-  radial.addColorStop(0.72, "rgba(0,0,0,0.95)");
+  radial.addColorStop(0.82, "rgba(0,0,0,0.95)");
   radial.addColorStop(1,    "rgba(0,0,0,0)");
 
   ctx.globalCompositeOperation = "destination-in";

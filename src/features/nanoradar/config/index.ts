@@ -68,7 +68,7 @@ export interface MapConfig {
 export const BEAM_ANIMATION: BeamConfig = {
   TARGET_FPS: 60,
   PULSE_CYCLE_MS: 9_000,
-  WAVE_COUNT: 7,
+  WAVE_COUNT: 4,
   WAVE_STEPS: 8,
   GRADIENT_STEPS: 6,
 };
@@ -79,7 +79,7 @@ export const RADAR_COLORS: RadarColorsConfig = {
   center: "#e6fa16",
   rangeFill: "#504f6e",
   rangeLimits: "#2dd4bf",
-  rangeFillOpacity: 0.3,
+  rangeFillOpacity: 0.4,
   beamOpacity: 0.92,
 };
 
