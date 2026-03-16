@@ -29,8 +29,9 @@ import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
-// import Camera from "./cameras/Camera";
 import ConfigZones from "./zones/ConfigZones";
+import Camera from "./cameras/Camera";
+import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -41,7 +42,6 @@ const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
   (inst) => `targets-circles-${inst.id}`,
 );
 
-/** Renderiza zonas y targets de un radar secundario (beam/rings vienen de DevicesOverlay). */
 function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) {
   const { zones } = useRadarContext();
   const { targets } = useRadarTargets();
@@ -208,8 +208,8 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
         <div className="radar-scanlines" />
         <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
+        <CamerasOverlay />
       </div>
-      {/* <Camera /> */}
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
         <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
           <LayerSelector
@@ -236,5 +236,19 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
         </div>
       </div>
     </div>
+  );
+});
+
+/** Renderiza un reproductor Camera por cada cámara del endpoint /configuracion-general */
+const CamerasOverlay = memo(function CamerasOverlay() {
+  const { data } = useConfigDevices();
+  const camaras = data?.data?.camaras;
+  if (!camaras || camaras.length === 0) return null;
+  return (
+    <>
+      {camaras.map((cam) => (
+        <Camera key={cam.id} camera={cam} />
+      ))}
+    </>
   );
 });

@@ -123,8 +123,6 @@ export interface RadarInstanceConfig {
   id: string;
   /** Nombre visible en la UI */
   label: string;
-  /** URL del stream HLS de la cámara asociada (vacío string si no tiene cámara) */
-  cameraUrl: string;
   /** URL del WebSocket de datos del radar */
   wsUrl: string;
   /** Sobreescrituras de animación del haz */
@@ -147,7 +145,6 @@ export interface RadarInstanceConfig {
 export interface ResolvedRadarConfig {
   id: string;
   label: string;
-  cameraUrl: string;
   wsUrl: string;
   beam: BeamConfig;
   colors: RadarColorsConfig;
@@ -164,7 +161,6 @@ export function resolveRadarConfig(
   return {
     id: instance.id,
     label: instance.label,
-    cameraUrl: instance.cameraUrl,
     wsUrl: instance.wsUrl,
     beam: { ...BEAM_ANIMATION, ...instance.beam },
     colors: { ...RADAR_COLORS, ...instance.colors },
@@ -186,14 +182,12 @@ export const RADAR_INSTANCES: RadarInstanceConfig[] = [
   {
     id: "nanoradar-1",
     label: "NanoRadar Principal",
-    cameraUrl: "http://10.30.7.14:8888/camara_dahua/video1_stream.m3u8",
     wsUrl: import.meta.env.VITE_SOCKET_URL as string,
   },
   // Para agregar un segundo radar, descomenta y ajusta solo lo que difiera:
   // {
   //   id: "nanoradar-2",
   //   label: "NanoRadar Secundario",
-  //   cameraUrl: "http://10.30.7.14:8888/camara_2/stream.m3u8",
   //   wsUrl: import.meta.env.VITE_SOCKET_URL as string,
   //   colors: { primary: "#fa7a16", pulse: "#ffb347" },
   //   timing: { TARGET_TIMEOUT_MS: 60_000 },

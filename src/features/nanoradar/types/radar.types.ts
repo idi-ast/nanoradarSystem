@@ -1,4 +1,3 @@
-
 export interface RadarConfig {
   latitud: string;
   longitud: string;
@@ -7,7 +6,6 @@ export interface RadarConfig {
   grado: number;
   apertura: number;
 }
-
 
 export interface RadarTarget {
   id: string;
@@ -20,7 +18,6 @@ export interface RadarTarget {
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
 }
-
 
 export interface RadarZone {
   id?: number;
@@ -54,7 +51,6 @@ export interface UpdateZonePayload {
     vertices: [number, number][] | Record<string, [number, number]>;
   };
 }
-
 
 export interface RawRadarMessage {
   id: string | number;
