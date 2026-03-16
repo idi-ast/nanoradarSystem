@@ -12,7 +12,6 @@ export { RadarInfoOverlay } from "./map/RadarInfoOverlay";
 export { DrawingPreviewLayer } from "./map/DrawingPreviewLayer";
 
 // Componentes del panel lateral
-export { SidePanel } from "./panel/SidePanel";
 export { TargetCard } from "./panel/TargetCard";
 export { ZoneCard } from "./panel/ZoneCard";
 export { ZoneDrawingPanel } from "./panel/ZoneDrawingPanel";

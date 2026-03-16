@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
 import ReactMapGL, { Source, Layer } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -59,7 +59,7 @@ function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) 
   );
 }
 
-export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
+export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
   const {
     config,
     zones,
@@ -237,4 +237,4 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
       </div>
     </div>
   );
-}
+});

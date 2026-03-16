@@ -103,12 +103,12 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
    * TargetsDynamicPanel y similares se suscriben a esto para no re-renderizar
    * en cada actualización de coordenadas del WebSocket.
    */
-  const prevIdsKeyRef = useRef<string>("");
+  const prevIdsRef = useRef<Set<string>>(new Set());
   const [stableTargets, setStableTargets] = useState(() => targets);
   useEffect(() => {
-    const key = targets.map((t) => t.id).sort().join("|");
-    if (key !== prevIdsKeyRef.current) {
-      prevIdsKeyRef.current = key;
+    const prev = prevIdsRef.current;
+    if (targets.length !== prev.size || !targets.every((t) => prev.has(t.id))) {
+      prevIdsRef.current = new Set(targets.map((t) => t.id));
       setStableTargets(targets);
     }
   }, [targets]);

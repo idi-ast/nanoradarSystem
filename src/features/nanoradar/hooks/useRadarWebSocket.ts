@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { RadarTarget, RawRadarPayload } from "../types";
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
@@ -100,8 +100,10 @@ export function useRadarWebSocket(
     };
   }, [url]);
 
+  const targets = useMemo(() => Array.from(targetsMap.values()), [targetsMap]);
+
   return {
-    targets: Array.from(targetsMap.values()),
+    targets,
     clearTargets,
   };
 }

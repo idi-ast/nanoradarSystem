@@ -8,11 +8,11 @@ import { BEAM_ANIMATION } from "../config";
  * (NanoradarPulseLayer, SpotterPulseLayer) para que el resto del árbol
  * no re-renderice por la animación.
  */
-export function useRadarAnimation(): number {
+export function useRadarAnimation(targetFps?: number): number {
   const [phase, setPhase] = useState(0);
   const rafIdRef = useRef<number | null>(null);
   const lastFrameRef = useRef(0);
-  const frameIntervalMs = 1000 / BEAM_ANIMATION.TARGET_FPS;
+  const frameIntervalMs = 1000 / (targetFps ?? BEAM_ANIMATION.TARGET_FPS);
 
   useEffect(() => {
     const animate = (now: number) => {

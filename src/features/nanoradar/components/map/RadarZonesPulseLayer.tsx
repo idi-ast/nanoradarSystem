@@ -11,7 +11,7 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
   const { instanceConfig, zones } = useRadarContext();
   const { targets } = useRadarTargets();
   const id = instanceConfig.id;
-  const phase = useRadarAnimation();
+  const phase = useRadarAnimation(15);
   const { activeZoneIds } = useGeofenceDetection(targets, zones);
 
   const activeZones = useMemo(

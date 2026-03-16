@@ -191,6 +191,13 @@ const RightBarNano = memo(function RightBarNano({
       </div>
     </div>
   );
+}, (prev, next) => {
+  if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
+  if (prev.activeZoneIds.size !== next.activeZoneIds.size) return false;
+  for (const id of next.activeZoneIds) {
+    if (!prev.activeZoneIds.has(id)) return false;
+  }
+  return true;
 });
 
 export default NanoPages;
