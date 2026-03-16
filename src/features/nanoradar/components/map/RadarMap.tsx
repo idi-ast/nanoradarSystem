@@ -159,17 +159,18 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
           <DevicesOverlay visibility={deviceVisibility} />
           <RadarZonesLayer zones={zones} />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
+          
+          {RADAR_INSTANCES.slice(1).map((instance) => (
+            <RadarProvider key={instance.id} instance={instance}>
+              <SecondaryRadarLayers historyRange={historyRange} />
+            </RadarProvider>
+          ))}
           <RadarTargetsLayer
             targets={targets}
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
-          {RADAR_INSTANCES.slice(1).map((instance) => (
-            <RadarProvider key={instance.id} instance={instance}>
-              <SecondaryRadarLayers historyRange={historyRange} />
-            </RadarProvider>
-          ))}
         </ReactMapGL>
 
         <div className="radar-scanlines" />

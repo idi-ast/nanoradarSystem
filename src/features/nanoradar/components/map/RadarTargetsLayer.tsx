@@ -41,8 +41,8 @@ export function RadarTargetsLayer({
     if (!isFinite(tMin) || tMax === tMin) return targets;
 
     const tRange = tMax - tMin;
-    const tStart  = tMin + (historyRange.start / 100) * tRange;
-    const tEnd    = tMin + (historyRange.end   / 100) * tRange;
+    const tStart = tMin + (historyRange.start / 100) * tRange;
+    const tEnd = tMin + (historyRange.end / 100) * tRange;
 
     return targets
       .map((t) => ({
