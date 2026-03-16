@@ -1,7 +1,7 @@
 //  Configuración de empresa
 import logoWhite from "@/assets/company/AST-LOGO_BLANCO.png";
 import logoBlack from "@/assets/company/AST-LOGO_NEGRO.png";
-import { IconLayoutDashboard, IconRadar2 } from "@tabler/icons-react";
+import { IconDevices, IconLayoutDashboard, IconRadar2 } from "@tabler/icons-react";
 import React from "react";
 
 // Imports del template (rutas base de la plantilla)
@@ -111,7 +111,7 @@ export const configServer = () => {
       id: 2,
       name: "Config Devices",
       link: "/config-devices",
-      icon: IconRadar2,
+      icon: IconDevices,
       component: ConfigDevices,
       target: false,
       state: true,
