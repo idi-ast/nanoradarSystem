@@ -128,13 +128,37 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
 
   return (
     <div
-      className="relative bg-bg-200 overflow-hidden group cursor-pointer"
-      style={hasAlert ? { outline: `1px solid ${zone.poligono.color}`, outlineOffset: "1px" } : undefined}
+      className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-md"
+      style={
+        hasAlert
+          ? {
+              border: `1.5px solid ${zone.poligono.color}`,
+              "--zone-glow-color": zone.poligono.color,
+              animation: "zone-alert-glow 1.6s ease-in-out infinite",
+            } as React.CSSProperties
+          : undefined
+      }
       onClick={handleFlyTo}
       title="Clic para centrar en el mapa"
     >
+      {/* Sweep shimmer de izquierda a derecha */}
+      {hasAlert && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10"
+          style={{ overflow: "hidden" }}
+        >
+          <div
+            className="absolute inset-y-0 w-full"
+            style={{
+              background: `linear-gradient(90deg, transparent 0%, ${zone.poligono.color}66 30%, ${zone.poligono.color}CC 50%, ${zone.poligono.color}66 70%, transparent 100%)`,
+              animation: "zone-alert-sweep 1.8s ease-in-out infinite",
+            }}
+          />
+        </div>
+      )}
       <div
-        className={`absolute blur-xl left-0 top-0 w-full h-full ${hasAlert ? "animate-pulse" : ""}`}
+        className={`absolute blur-xl left-0 top-0 w-full h-full ${hasAlert ? "animate-pulse opacity-60" : "opacity-30"}`}
         style={{ backgroundColor: zone.poligono.color }}
       />
       <div className="relative bg-linear-to-r from-bg-200 from-25% to-bg-100/40 p-2 w-full h-full">
@@ -148,8 +172,11 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
           onClick={(e) => e.stopPropagation()}
         >
           <div
-            className={`w-3 h-3 rounded-sm shrink-0 ${hasAlert ? "animate-pulse" : ""}`}
-            style={{ backgroundColor: zone.poligono.color }}
+            className={`w-3 h-3 rounded-full shrink-0 ${hasAlert ? "animate-ping" : ""}`}
+            style={{
+              backgroundColor: zone.poligono.color,
+              boxShadow: hasAlert ? `0 0 8px 2px ${zone.poligono.color}` : undefined,
+            }}
           />
          
           <button
