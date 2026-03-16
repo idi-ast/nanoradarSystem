@@ -389,7 +389,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-      <Layer
+      {/* <Layer
         id={`${sid}-pulse-layer`}
         type="line"
         beforeId={DEVICES_BELOW_LAYER_ID}
@@ -399,7 +399,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           "line-opacity": ["get", "opacity"] as unknown as number,
           "line-blur": 1,
         }}
-      />
+      /> */}
     </Source>
   );
 });

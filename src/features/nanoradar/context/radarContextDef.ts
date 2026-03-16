@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import type { MutableRefObject } from "react";
 import type {
   RadarConfig,
   RadarTarget,
@@ -41,6 +42,11 @@ export interface RadarContextValue {
   saveZone: () => Promise<void>;
   /** Estable (useCallback sin deps) — vive en contexto estático para no arrastrar re-renders desde WS. */
   clearTargets: () => void;
+  /**
+   * Ref estable que RadarMap asigna para exponer flyTo al resto del árbol.
+   * El objeto ref nunca cambia → no dispara re-renders en componentes que lo lean.
+   */
+  flyToZoneFn: MutableRefObject<((lat: number, lon: number, zoom?: number) => void) | null>;
 }
 
 /**

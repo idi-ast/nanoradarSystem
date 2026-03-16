@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import ReactMapGL, { Source, Layer } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -21,6 +21,7 @@ import { useRadarContext } from "../../context/useRadarContext";
 import { useRadarTargets } from "../../context/useRadarContext";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { RadarZonesLayer } from "./RadarZonesLayer";
+import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
@@ -28,7 +29,7 @@ import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
-import Camera from "./cameras/Camera";
+// import Camera from "./cameras/Camera";
 import ConfigZones from "./zones/ConfigZones";
 
 interface RadarMapProps {
@@ -47,6 +48,7 @@ function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) 
   return (
     <>
       <RadarZonesLayer zones={zones} />
+      <RadarZonesPulseLayer />
       <RadarTargetsLayer
         targets={targets}
         historyRange={historyRange}
@@ -66,10 +68,19 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     zoneColor,
     addDrawingPoint,
     instanceConfig,
+    flyToZoneFn,
   } = useRadarContext();
   const { targets } = useRadarTargets();
 
   const mapRef = useRef<MapRef>(null);
+
+  useEffect(() => {
+    flyToZoneFn.current = (lat: number, lon: number, zoom = 16) => {
+      mapRef.current?.flyTo({ center: [lon, lat], zoom, duration: 1500, essential: true });
+    };
+    return () => { flyToZoneFn.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
   const [deviceVisibility, setDeviceVisibility] = useState<DeviceVisibility>(ALL_VISIBLE);
@@ -197,7 +208,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
         <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
       </div>
-      <Camera />
+      {/* <Camera /> */}
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
         <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
           <LayerSelector

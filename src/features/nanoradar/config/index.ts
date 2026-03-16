@@ -102,8 +102,8 @@ export const GEOFENCE: GeofenceConfig = {
 };
 
 export const MAP_DEFAULTS: MapConfig = {
-  zoom: 18,
-  pitch: 60,
+  zoom: 17,
+  pitch: 0,
   bearing: 0,
   fallbackCenter: {
     longitude: -72.9883559747647,

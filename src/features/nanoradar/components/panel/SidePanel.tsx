@@ -3,15 +3,14 @@ import { useRadarTargets } from "../../context/useRadarContext";
 import { TargetCard } from "./TargetCard";
 import { ZoneCard } from "./ZoneCard";
 import { ZoneDrawingPanel } from "./ZoneDrawingPanel";
+import { useActiveZoneIds } from "../../hooks/useActiveZoneIds";
 
 const DEVICE_SECTION: { key: "nanoRadar" | "spotter"; label: string }[] = [
   { key: "nanoRadar", label: "NanoRadar" },
   { key: "spotter",   label: "Spotter" },
 ];
 
-/**
- * Panel lateral derecho con controles, zonas activas y lista de detecciones.
- */
+
 export function SidePanel() {
   const {
     zones,
@@ -21,6 +20,7 @@ export function SidePanel() {
   } = useRadarContext();
   const { clearTargets } = useRadarContext();
   const { targets } = useRadarTargets();
+  const activeZoneIds = useActiveZoneIds(targets, zones);
 
   return (
     <div className="w-80 bg-slate-900 p-4 flex flex-col gap-4 overflow-y-auto border-l border-emerald-500/30">
@@ -34,7 +34,7 @@ export function SidePanel() {
             onClick={clearTargets}
             className="flex-1 px-2 py-1 text-[10px] rounded border border-red-500/50 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
           >
-            ⚠️ BORRAR CACHÉ RADAR
+             BORRAR CACHÉ RADAR
           </button>
           <button
             onClick={isDrawing ? cancelDrawing : startDrawing}
@@ -55,7 +55,11 @@ export function SidePanel() {
       {/* Lista de zonas */}
       <div className="space-y-2">
         {zones.map((zone) => (
-          <ZoneCard key={zone.id ?? zone.nombre} zone={zone} />
+          <ZoneCard
+            key={zone.id ?? zone.nombre}
+            zone={zone}
+            hasAlert={activeZoneIds.has(zone.id?.toString() ?? zone.nombre)}
+          />
         ))}
       </div>
 

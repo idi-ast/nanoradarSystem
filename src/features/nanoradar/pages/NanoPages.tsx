@@ -12,6 +12,7 @@ import { ZoneCard } from "../components/panel/ZoneCard";
 import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
+import { useActiveZoneIds } from "../hooks/useActiveZoneIds";
 import { RADAR_INSTANCES } from "../config";
 
 function NanoPages() {
@@ -112,6 +113,8 @@ const RightBarNano = memo(function RightBarNano({
     startDrawing,
     cancelDrawing,
   } = useRadarContext();
+  const { targets: rtTargets } = useRadarTargets();
+  const activeZoneIds = useActiveZoneIds(rtTargets, zones);
 
   return (
     <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
@@ -158,7 +161,13 @@ const RightBarNano = memo(function RightBarNano({
               Sin zonas configuradas
             </p>
           ) : (
-            zones.map((zone) => <ZoneCard key={zone.id ?? zone.nombre} zone={zone} />)
+            zones.map((zone) => (
+              <ZoneCard
+                key={zone.id ?? zone.nombre}
+                zone={zone}
+                hasAlert={activeZoneIds.has(zone.id?.toString() ?? zone.nombre)}
+              />
+            ))
           )}
         </div>
 
@@ -171,11 +180,6 @@ const RightBarNano = memo(function RightBarNano({
 
 export default NanoPages;
 
-/**
- * Botón aislado para no contaminar RightBarNano con useRadarTargets.
- * Ahora usa el contexto estático — clearTargets es estable (useCallback sin deps)
- * y vive en RadarContext, por lo que NUNCA re-renderiza por mensajes WS.
- */
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
   return (
@@ -188,11 +192,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
   );
 });
 
-/**
- * Panel dinámico aislado.
- * Ahora usa useRadarStableTargets() — su referencia SOLO cambia cuando
- * el conjunto de IDs cambia. Movimiento de marcadores NO dispara re-render.
- */
+
 const TargetsDynamicPanel = memo(function TargetsDynamicPanel() {
   const { stableTargets } = useRadarStableTargets();
   return (
@@ -233,9 +233,7 @@ const TABS: { key: TabFilter; label: string }[] = [
   { key: "spotter", label: "Spotter" },
 ];
 
-// El prop `targets` ya es una referencia estable (solo cambia cuando IDs cambian),
-// por lo que el comparador personalizado ya no es necesario. memo() por defecto
-// hace una comparación shallow que basta aquí.
+
 const TargetsSection = memo(function TargetsSection({
   targets,
 }: {

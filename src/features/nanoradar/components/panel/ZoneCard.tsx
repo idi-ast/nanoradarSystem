@@ -12,10 +12,11 @@ const ALERT_LEVELS = [
 
 interface Props {
   zone: RadarZone;
+  hasAlert?: boolean;
 }
 
-export const ZoneCard = memo(function ZoneCard({ zone }: Props) {
-  const { updateZone, deleteZone } = useRadarContext();
+export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props) {
+  const { updateZone, deleteZone, flyToZoneFn } = useRadarContext();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -59,6 +60,16 @@ export const ZoneCard = memo(function ZoneCard({ zone }: Props) {
       setIsDeleting(false);
       setConfirmDelete(false);
     }
+  };
+
+  const handleFlyTo = () => {
+    const rawVertices = Array.isArray(zone.poligono.vertices)
+      ? zone.poligono.vertices
+      : Object.values(zone.poligono.vertices);
+    if (rawVertices.length === 0) return;
+    const sumLat = rawVertices.reduce((acc, v) => acc + v[0], 0);
+    const sumLon = rawVertices.reduce((acc, v) => acc + v[1], 0);
+    flyToZoneFn.current?.(sumLat / rawVertices.length, sumLon / rawVertices.length, 16);
   };
 
   if (isEditing) {
@@ -116,9 +127,14 @@ export const ZoneCard = memo(function ZoneCard({ zone }: Props) {
   }
 
   return (
-    <div className="relative bg-bg-200 rounded-xl overflow-hidden group">
+    <div
+      className="relative bg-bg-200 overflow-hidden group cursor-pointer"
+      style={hasAlert ? { outline: `1px solid ${zone.poligono.color}`, outlineOffset: "1px" } : undefined}
+      onClick={handleFlyTo}
+      title="Clic para centrar en el mapa"
+    >
       <div
-        className="absolute blur-xl left-0 top-0 w-full h-full"
+        className={`absolute blur-xl left-0 top-0 w-full h-full ${hasAlert ? "animate-pulse" : ""}`}
         style={{ backgroundColor: zone.poligono.color }}
       />
       <div className="relative bg-linear-to-r from-bg-200 from-25% to-bg-100/40 p-2 w-full h-full">
@@ -127,11 +143,15 @@ export const ZoneCard = memo(function ZoneCard({ zone }: Props) {
         </p>
         <p className="text-[10px] text-text-200">{zone.descripcion}</p>
 
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        <div
+          className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div
-            className="w-3 h-3 rounded-sm shrink-0"
+            className={`w-3 h-3 rounded-sm shrink-0 ${hasAlert ? "animate-pulse" : ""}`}
             style={{ backgroundColor: zone.poligono.color }}
           />
+         
           <button
             onClick={handleEdit}
             className="p-1 rounded hover:bg-bg-300/80 text-text-100/40 hover:text-text-100 transition-colors opacity-0 group-hover:opacity-100"

@@ -10,10 +10,6 @@ import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
 
-// ---------------------------------------------------------------------------
-// Sub-componentes estáticos — NO reciben `phase`, no re-renderizan a 30fps
-// ---------------------------------------------------------------------------
-
 const SpotterRingLabels = memo(function SpotterRingLabels({
   ringLabels,
   color,
@@ -328,11 +324,6 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
   );
 });
 
-// ---------------------------------------------------------------------------
-// Capa de pulso animado — gestiona su propio RAF loop internamente.
-// DevicesOverlay NO necesita `phase` ni re-renderizar por animación.
-// ---------------------------------------------------------------------------
-
 export interface SpotterPulseLayerProps {
   sid: string;
   lat: number;
@@ -373,7 +364,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
-      <Layer
+      {/* <Layer
         id={`${sid}-pulse-layer`}
         type="line"
         beforeId={DEVICES_BELOW_LAYER_ID}
@@ -383,7 +374,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
           "line-opacity": ["get", "opacity"] as unknown as number,
           "line-blur": 1,
         }}
-      />
+      /> */}
     </Source>
   );
 });

@@ -18,6 +18,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
+  // Ref estable — RadarMap lo asigna para exponer flyTo sin causar re-renders
+  const flyToZoneFn = useRef<((lat: number, lon: number, zoom?: number) => void) | null>(null);
 
   const saveZone = useCallback(async () => {
     if (!drawing.canSave) return;
@@ -57,6 +59,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       setAlertLevel: drawing.setAlertLevel,
       saveZone,
       clearTargets,
+      flyToZoneFn,
     }),
     [
       resolved,
