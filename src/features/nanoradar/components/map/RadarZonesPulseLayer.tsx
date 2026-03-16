@@ -4,7 +4,7 @@ import { useRadarContext } from "../../context/useRadarContext";
 import { useRadarTargets } from "../../context/useRadarContext";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarAnimation } from "../../hooks/useRadarAnimation";
-import { useActiveZoneIds } from "../../hooks/useActiveZoneIds";
+import { useGeofenceDetection } from "../../hooks/useGeofenceDetection";
 
 
 export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
@@ -12,7 +12,7 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
   const { targets } = useRadarTargets();
   const id = instanceConfig.id;
   const phase = useRadarAnimation();
-  const activeZoneIds = useActiveZoneIds(targets, zones);
+  const { activeZoneIds } = useGeofenceDetection(targets, zones);
 
   const activeZones = useMemo(
     () => zones.filter((z) => activeZoneIds.has(z.id?.toString() ?? z.nombre)),

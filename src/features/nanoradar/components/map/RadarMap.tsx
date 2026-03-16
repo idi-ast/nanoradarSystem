@@ -189,6 +189,7 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
 
           <DevicesOverlay visibility={deviceVisibility} />
           <RadarZonesLayer zones={zones} />
+          <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
           
           {RADAR_INSTANCES.slice(1).map((instance) => (

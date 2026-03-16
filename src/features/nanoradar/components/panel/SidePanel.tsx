@@ -3,7 +3,7 @@ import { useRadarTargets } from "../../context/useRadarContext";
 import { TargetCard } from "./TargetCard";
 import { ZoneCard } from "./ZoneCard";
 import { ZoneDrawingPanel } from "./ZoneDrawingPanel";
-import { useActiveZoneIds } from "../../hooks/useActiveZoneIds";
+import { useGeofenceDetection } from "../../hooks/useGeofenceDetection";
 
 const DEVICE_SECTION: { key: "nanoRadar" | "spotter"; label: string }[] = [
   { key: "nanoRadar", label: "NanoRadar" },
@@ -20,7 +20,7 @@ export function SidePanel() {
   } = useRadarContext();
   const { clearTargets } = useRadarContext();
   const { targets } = useRadarTargets();
-  const activeZoneIds = useActiveZoneIds(targets, zones);
+  const { activeZoneIds } = useGeofenceDetection(targets, zones);
 
   return (
     <div className="w-80 bg-slate-900 p-4 flex flex-col gap-4 overflow-y-auto border-l border-emerald-500/30">

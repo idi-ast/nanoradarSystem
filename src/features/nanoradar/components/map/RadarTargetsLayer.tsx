@@ -26,8 +26,7 @@ export function RadarTargetsLayer({
   const { instanceConfig } = useRadarContext();
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
-  const slicedTargets = useMemo(() => {
-    // Calcular el eje de tiempo global a partir de todos los puntos del historial
+  const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
     for (const t of targets) {
@@ -36,13 +35,14 @@ export function RadarTargetsLayer({
         if (p[2] > tMax) tMax = p[2];
       }
     }
+    if (!isFinite(tMin) || tMax === tMin) return null;
+    return { tMin, tRange: tMax - tMin };
+  }, [targets]);
 
-    // Sin suficientes datos temporales → mostrar todo
-    if (!isFinite(tMin) || tMax === tMin) return targets;
-
-    const tRange = tMax - tMin;
-    const tStart = tMin + (historyRange.start / 100) * tRange;
-    const tEnd = tMin + (historyRange.end / 100) * tRange;
+  const slicedTargets = useMemo(() => {
+    if (!timeBounds) return targets;
+    const tStart = timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
+    const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
     return targets
       .map((t) => ({
@@ -50,7 +50,7 @@ export function RadarTargetsLayer({
         history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
-  }, [targets, historyRange]);
+  }, [targets, historyRange, timeBounds]);
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 

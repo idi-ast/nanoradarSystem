@@ -7,6 +7,7 @@ export interface GeofenceAlert {
   maxLevel: number;
   color: string;
   hasAlert: boolean;
+  activeZoneIds: Set<string>;
 }
 
 
@@ -24,6 +25,7 @@ export function useGeofenceDetection(
   return useMemo(() => {
     let maxLevel = 0;
     let color = "#ff0000";
+    const activeZoneIds = new Set<string>();
 
     const activeTargets = targets.filter(
       (t) => now - t.lastUpdate <= activeMs,
@@ -42,6 +44,7 @@ export function useGeofenceDetection(
         );
 
         if (inside) {
+          activeZoneIds.add(zone.id?.toString() ?? zone.nombre);
           const level = Math.max(
             Number(zone.idTipoAlerta ?? 1),
             Number(target.nivel ?? 1),
@@ -54,6 +57,6 @@ export function useGeofenceDetection(
       }
     }
 
-    return { maxLevel, color, hasAlert: maxLevel > 0 };
+    return { maxLevel, color, hasAlert: maxLevel > 0, activeZoneIds };
   }, [targets, zones, now]);
 }

@@ -12,11 +12,18 @@ import { ZoneCard } from "../components/panel/ZoneCard";
 import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
-import { useActiveZoneIds } from "../hooks/useActiveZoneIds";
 import { RADAR_INSTANCES } from "../config";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
+  return (
+    <RadarProvider instance={RADAR_INSTANCES[0]}>
+      <NanoPagesContent isMobile={isMobile} />
+    </RadarProvider>
+  );
+}
+
+function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const [isOpenRightBar, setOpenRightBar] = useState(false);
   const [historyRange, setHistoryRange] = useState<HistoryRange>({
     start: 0,
@@ -26,37 +33,45 @@ function NanoPages() {
     (range: HistoryRange) => setHistoryRange(range),
     [],
   );
+  const { zones, instanceConfig } = useRadarContext();
+  const { targets } = useRadarTargets();
+  const geofence = useGeofenceDetection(
+    targets,
+    zones,
+    instanceConfig.geofence.ACTIVE_MS,
+  );
 
   return (
-    <RadarProvider instance={RADAR_INSTANCES[0]}>
-      <div
-        className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
-      >
-        <div className="col-span-10 h-full flex flex-col w-full">
-          <div className="flex-1 min-h-0 w-full relative">
-            <GeofenceFlash />
-            <RadarMap historyRange={historyRange} />
-          </div>
-          <HistoryRangeBar onChange={handleRangeChange} />
-          <BottomBar title="Estado del Radar">
-            <RadarStatusBar />
-          </BottomBar>
+    <div
+      className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
+    >
+      <div className="col-span-10 h-full flex flex-col w-full">
+        <div className="flex-1 min-h-0 w-full relative">
+          <GeofenceFlash hasAlert={geofence.hasAlert} color={geofence.color} />
+          <RadarMap historyRange={historyRange} />
         </div>
-
-        {!isMobile ? (
-          <RightBarNano />
-        ) : isOpenRightBar ? (
-          <RightBarNano setOpenRightBar={setOpenRightBar} />
-        ) : (
-          <button
-            className="absolute right-0 z-50 top-[50%] rounded-s-sm bg-brand-100"
-            onClick={() => setOpenRightBar(true)}
-          >
-            <IconArrowNarrowLeft size={24} stroke={1.5} />
-          </button>
-        )}
+        <HistoryRangeBar onChange={handleRangeChange} />
+        <BottomBar title="Estado del Radar">
+          <RadarStatusBar />
+        </BottomBar>
       </div>
-    </RadarProvider>
+
+      {!isMobile ? (
+        <RightBarNano activeZoneIds={geofence.activeZoneIds} />
+      ) : isOpenRightBar ? (
+        <RightBarNano
+          setOpenRightBar={setOpenRightBar}
+          activeZoneIds={geofence.activeZoneIds}
+        />
+      ) : (
+        <button
+          className="absolute right-0 z-50 top-[50%] rounded-s-sm bg-brand-100"
+          onClick={() => setOpenRightBar(true)}
+        >
+          <IconArrowNarrowLeft size={24} stroke={1.5} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -104,8 +119,10 @@ const RadarStatusBar = memo(() => {
 
 const RightBarNano = memo(function RightBarNano({
   setOpenRightBar,
+  activeZoneIds,
 }: {
   setOpenRightBar?: (isOpen: boolean) => void;
+  activeZoneIds: Set<string>;
 }) {
   const {
     zones,
@@ -113,8 +130,6 @@ const RightBarNano = memo(function RightBarNano({
     startDrawing,
     cancelDrawing,
   } = useRadarContext();
-  const { targets: rtTargets } = useRadarTargets();
-  const activeZoneIds = useActiveZoneIds(rtTargets, zones);
 
   return (
     <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
@@ -202,15 +217,13 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel() {
   );
 });
 
-const GeofenceFlash = memo(function GeofenceFlash() {
-  const { zones, instanceConfig } = useRadarContext();
-  const { targets } = useRadarTargets();
-  const { hasAlert, color } = useGeofenceDetection(
-    targets,
-    zones,
-    instanceConfig.geofence.ACTIVE_MS,
-  );
-
+const GeofenceFlash = memo(function GeofenceFlash({
+  hasAlert,
+  color,
+}: {
+  hasAlert: boolean;
+  color: string;
+}) {
   if (!hasAlert) return null;
 
   return (
@@ -240,21 +253,26 @@ const TargetsSection = memo(function TargetsSection({
   targets: import("../types").RadarTarget[];
 }) {
   const [tab, setTab] = useState<TabFilter>("all");
-
-  const filtered = useMemo(
-    () =>
-      tab === "all" ? targets : targets.filter((t) => t.deviceType === tab),
-    [targets, tab],
-  );
+  const { counts, filtered } = useMemo(() => {
+    const nextCounts: Record<TabFilter, number> = {
+      all: targets.length,
+      nanoRadar: 0,
+      spotter: 0,
+    };
+    for (const t of targets) {
+      if (t.deviceType === "nanoRadar") nextCounts.nanoRadar += 1;
+      if (t.deviceType === "spotter") nextCounts.spotter += 1;
+    }
+    const nextFiltered =
+      tab === "all" ? targets : targets.filter((t) => t.deviceType === tab);
+    return { counts: nextCounts, filtered: nextFiltered };
+  }, [targets, tab]);
 
   return (
     <>
       <div className="shrink-0 flex border-b border-border-200 mb-2">
         {TABS.map(({ key, label }) => {
-          const count =
-            key === "all"
-              ? targets.length
-              : targets.filter((t) => t.deviceType === key).length;
+          const count = counts[key];
           const isActive = tab === key;
           return (
             <button
