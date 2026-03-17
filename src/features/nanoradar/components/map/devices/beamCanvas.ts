@@ -1,14 +1,13 @@
 import { getGeoPoint } from "../utils/geoHelpers";
 
 /** Grados extra de apertura para el degradado cónico (afecta la suavidad de los bordes laterales). */
-const BEAM_EXTRA_APERTURE = 50;
+const BEAM_EXTRA_APERTURE = 20;
 
 /** Opacidad máxima (pico) en el centro del haz, en porcentaje (0-100). */
-const BEAM_PEAK_OPACITY_PERCENT = 52;
+const BEAM_PEAK_OPACITY_PERCENT = 62;
 
 /** Punto (0-100%) donde el degradado radial comienza a desvanecerse hacia el borde exterior. */
-const BEAM_RADIAL_FADE_START_PERCENT = 65;
-
+const BEAM_RADIAL_FADE_START_PERCENT = 85;
 
 /**
  * Dibuja un sector con degradado suave (angular + radial) en un canvas offscreen
@@ -43,22 +42,18 @@ export function buildBeamCanvas(
   // Conversión: canvasRad = (geo - 90) * π/180
   const geoToRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
-  // Apertura real para la forma visible
-  const startA = geoToRad(azimut - apertura / 2);
-  const endA = geoToRad(azimut + apertura / 2);
-
-  // Apertura visual (más ancha) para el degradado
+  // Apertura visual (más ancha) para el degradado con bordes suaves
   const visualApertura = apertura + BEAM_EXTRA_APERTURE;
   const startAVisual = geoToRad(azimut - visualApertura / 2);
   const endAVisual = geoToRad(azimut + visualApertura / 2);
   const spanVisual = endAVisual - startAVisual;
 
-  // --- DIBUJADO ---
-
   // 1. Dibuja el degradado cónico ANCHO en todo el canvas
   ctx.save();
   const fraction = spanVisual / (2 * Math.PI);
-  const peakOpacityHex = Math.round((BEAM_PEAK_OPACITY_PERCENT / 100) * 255).toString(16).padStart(2, "0");
+  const peakOpacityHex = Math.round((BEAM_PEAK_OPACITY_PERCENT / 100) * 255)
+    .toString(16)
+    .padStart(2, "0");
   const conic = ctx.createConicGradient(startAVisual, cx, cy);
   conic.addColorStop(0, `${color}00`);
   conic.addColorStop(fraction * 0.5, `${color}${peakOpacityHex}`);
@@ -68,16 +63,7 @@ export function buildBeamCanvas(
   ctx.fillStyle = conic;
   ctx.fillRect(0, 0, size, size);
 
-  // 2. Recorta el degradado a la forma del sector REAL
-  ctx.globalCompositeOperation = "destination-in";
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.arc(cx, cy, r, startA, endA);
-  ctx.closePath();
-  ctx.fillStyle = "black"; // El color no importa, solo la forma
-  ctx.fill();
-
-  // 3. Aplica el degradado RADIAL para desvanecer hacia el borde exterior
+  // 2. Aplica el degradado RADIAL para desvanecer hacia el borde exterior
   const radial = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   radial.addColorStop(0, "rgba(0,0,0,1)");
   radial.addColorStop(BEAM_RADIAL_FADE_START_PERCENT / 100, "rgba(0,0,0,1)");
@@ -102,10 +88,10 @@ export function buildBeamImageCoords(
   lon: number,
   radio: number,
 ): [[number, number], [number, number], [number, number], [number, number]] {
-  const north = getGeoPoint(lat, lon, 0,   radio)[1];
-  const east  = getGeoPoint(lat, lon, 90,  radio)[0];
+  const north = getGeoPoint(lat, lon, 0, radio)[1];
+  const east = getGeoPoint(lat, lon, 90, radio)[0];
   const south = getGeoPoint(lat, lon, 180, radio)[1];
-  const west  = getGeoPoint(lat, lon, 270, radio)[0];
+  const west = getGeoPoint(lat, lon, 270, radio)[0];
 
   return [
     [west, north], // NW — top-left

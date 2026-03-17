@@ -3,10 +3,65 @@ import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { Nanoradares } from "@/features/config-devices/types/ConfigServices.type";
 import { BEAM_ANIMATION, RADAR_COLORS } from "../../../config";
-import { createArcCoords, createSectorCoords, getGeoPoint } from "../utils/geoHelpers";
+import {
+  createArcCoords,
+  createCircleCoords,
+  getGeoPoint,
+} from "../utils/geoHelpers";
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
+
+/** Relleno del área de cobertura (círculo completo) */
+const RANGE_FILL = {
+  opacity: 0.07,
+} as const;
+
+/** Circunferencia exterior del círculo de cobertura (perímetro, baja opacidad) */
+const RANGE_BORDER = {
+  show: true,
+  width: 1,
+  opacity: 0.01,
+} as const;
+
+/** Líneas de límite de apertura (los dos radios que marcan el ángulo) */
+const RANGE_LIMITS = {
+  show: true,
+  width: 1,
+  opacity: 0.1,
+  dasharray: [2, 6],
+} as const;
+
+/** Anillos concéntricos de distancia (círculos completos) */
+const RINGS = {
+  show: true,
+  width: 1.5,
+  opacity: 0.1, // arco fuera de la apertura
+  arcOpacity: 0.65, // arco dentro de la apertura (más visible)
+  dasharray: [1, 3],
+} as const;
+
+/** Línea de dirección principal (eje del grado) */
+const GRADO_LINE = {
+  show: true,
+  width: 2,
+  opacity: 0.6,
+  dasharray: [4, 4],
+} as const;
+
+/** Capa de haz canvas (degradado direccional) */
+const BEAM = {
+  show: true,
+  opacity: 1,
+} as const;
+
+/** Ondas de pulso animadas */
+const PULSE = {
+  show: true,
+  peakOpacity: 0.24,
+  peakWidth: 4,
+  blur: 1,
+} as const;
 
 const NanoradarRingLabels = memo(function NanoradarRingLabels({
   ringLabels,
@@ -147,7 +202,7 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [createSectorCoords(lat, lon, radio, startAngle, endAngle)],
+            coordinates: [createCircleCoords(lat, lon, radio)],
           },
           properties: { kind: "range" },
         },
@@ -163,6 +218,14 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             ],
           },
           properties: { kind: "limits" },
+        },
+        {
+          type: "Feature" as const,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: createCircleCoords(lat, lon, radio),
+          },
+          properties: { kind: "border" },
         },
       ],
     }),
@@ -181,10 +244,7 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [
-              [lon, lat],
-              getGeoPoint(lat, lon, grado, radio),
-            ],
+            coordinates: [[lon, lat], getGeoPoint(lat, lon, grado, radio)],
           },
           properties: {},
         },
@@ -208,14 +268,33 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
   const ringsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: Array.from({ length: ringCount }, (_, i) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "LineString" as const,
-          coordinates: createArcCoords(lat, lon, (i + 1) * RING_STEP, startAngle, endAngle),
-        },
-        properties: {},
-      })),
+      features: Array.from({ length: ringCount }, (_, i) => {
+        const r = (i + 1) * RING_STEP;
+        return [
+          {
+            type: "Feature" as const,
+            geometry: {
+              type: "LineString" as const,
+              coordinates: createArcCoords(lat, lon, r, startAngle, endAngle),
+            },
+            properties: { kind: "ring-arc" },
+          },
+          {
+            type: "Feature" as const,
+            geometry: {
+              type: "LineString" as const,
+              coordinates: createArcCoords(
+                lat,
+                lon,
+                r,
+                endAngle,
+                startAngle + 360,
+              ),
+            },
+            properties: { kind: "ring" },
+          },
+        ];
+      }).flat(),
     }),
     [lat, lon, ringCount, startAngle, endAngle],
   );
@@ -243,26 +322,51 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           }
           paint={{
             "fill-color": RADAR_COLORS.rangeFill,
-            "fill-opacity": RADAR_COLORS.rangeFillOpacity,
+            "fill-opacity": RANGE_FILL.opacity,
           }}
         />
-        <Layer
-          id={`${sid}-range-limits`}
-          type="line"
-          beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={
-            ["==", ["get", "kind"], "limits"] as unknown as FilterSpecification
-          }
-          paint={{
-            "line-color": colorPrimary,
-            "line-width": 1,
-            "line-opacity": 1,
-            "line-dasharray": [2, 6],
-          }}
-        />
+        {RANGE_BORDER.show && (
+          <Layer
+            id={`${sid}-range-border`}
+            type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={
+              [
+                "==",
+                ["get", "kind"],
+                "border",
+              ] as unknown as FilterSpecification
+            }
+            paint={{
+              "line-color": colorPrimary,
+              "line-width": RANGE_BORDER.width,
+              "line-opacity": RANGE_BORDER.opacity,
+            }}
+          />
+        )}
+        {RANGE_LIMITS.show && (
+          <Layer
+            id={`${sid}-range-limits`}
+            type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={
+              [
+                "==",
+                ["get", "kind"],
+                "limits",
+              ] as unknown as FilterSpecification
+            }
+            paint={{
+              "line-color": colorPrimary,
+              "line-width": RANGE_LIMITS.width,
+              "line-opacity": RANGE_LIMITS.opacity,
+              "line-dasharray": [...RANGE_LIMITS.dasharray],
+            }}
+          />
+        )}
       </Source>
 
-      {gradoLineData && (
+      {GRADO_LINE.show && gradoLineData && (
         <Source id={`${sid}-grado`} type="geojson" data={gradoLineData}>
           <Layer
             id={`${sid}-grado-dir`}
@@ -270,41 +374,71 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             beforeId={DEVICES_BELOW_LAYER_ID}
             paint={{
               "line-color": colorPrimary,
-              "line-width": 2,
-              "line-opacity": 0.6,
-              "line-dasharray": [1],
+              "line-width": GRADO_LINE.width,
+              "line-opacity": GRADO_LINE.opacity,
+              "line-dasharray": [...GRADO_LINE.dasharray],
             }}
           />
         </Source>
       )}
 
-      <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
-        <Layer
-          id={`${sid}-rings-layer`}
-          type="line"
-          beforeId={DEVICES_BELOW_LAYER_ID}
-          paint={{
-            "line-color": colorPulse,
-            "line-width": 2,
-            "line-dasharray": [1, 2],
-            "line-opacity": 0.6,
-          }}
-        />
-      </Source>
+      {RINGS.show && (
+        <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
+          <Layer
+            id={`${sid}-rings-layer`}
+            type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={
+              ["==", ["get", "kind"], "ring"] as unknown as FilterSpecification
+            }
+            paint={{
+              "line-color": colorPulse,
+              "line-width": RINGS.width,
+              "line-dasharray": [...RINGS.dasharray],
+              "line-opacity": RINGS.opacity,
+            }}
+          />
+          <Layer
+            id={`${sid}-rings-arc-layer`}
+            type="line"
+            beforeId={DEVICES_BELOW_LAYER_ID}
+            filter={
+              [
+                "==",
+                ["get", "kind"],
+                "ring-arc",
+              ] as unknown as FilterSpecification
+            }
+            paint={{
+              "line-color": colorPulse,
+              "line-width": RINGS.width,
+              "line-dasharray": [...RINGS.dasharray],
+              "line-opacity": RINGS.arcOpacity,
+            }}
+          />
+        </Source>
+      )}
 
-      <Source
-        id={`${sid}-beam`}
-        type="image"
-        url={beamImageUrl}
-        coordinates={beamCoords}
-      >
-        <Layer
-          id={`${sid}-beam-layer`}
-          type="raster"
-          beforeId={`${sid}-rings-layer`}
-          paint={{ "raster-opacity": 1, "raster-fade-duration": 0 }}
-        />
-      </Source>
+      {BEAM.show && (
+        <Source
+          id={`${sid}-beam`}
+          type="image"
+          url={beamImageUrl}
+          coordinates={beamCoords}
+        >
+          <Layer
+            id={`${sid}-beam-layer`}
+            type="raster"
+            beforeId={
+              RINGS.show ? `${sid}-rings-layer` : DEVICES_BELOW_LAYER_ID
+            }
+            paint={{
+              "raster-opacity": BEAM.opacity,
+              "raster-fade-duration": 0,
+            }}
+          />
+        </Source>
+      )}
 
       <NanoradarRingLabels ringLabels={ringLabels} colorPulse={colorPulse} />
       <NanoradarDeviceMarker
@@ -357,14 +491,16 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
             ),
           },
           properties: {
-            opacity: 0.24 * (1 - shifted),
-            width: 4 - shifted * 0.6,
+            opacity: PULSE.peakOpacity * (1 - shifted),
+            width: PULSE.peakWidth - shifted * 0.6,
           },
         };
       }),
     }),
     [lat, lon, radio, startAngle, endAngle, phase],
   );
+
+  if (!PULSE.show) return null;
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
@@ -376,7 +512,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           "line-color": colorPulse,
           "line-width": ["get", "width"] as unknown as number,
           "line-opacity": ["get", "opacity"] as unknown as number,
-          "line-blur": 1,
+          "line-blur": PULSE.blur,
         }}
       />
     </Source>
