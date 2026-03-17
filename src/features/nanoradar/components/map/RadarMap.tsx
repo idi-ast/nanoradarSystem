@@ -35,9 +35,12 @@ import ConfigZones from "./zones/ConfigZones";
 import Camera from "./cameras/Camera";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 
+import type { DeviceFilter } from "../../types";
+
 interface RadarMapProps {
   historyRange?: HistoryRange;
   radarInstance?: RadarInstanceConfig;
+  deviceFilter?: DeviceFilter;
 }
 
 const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
@@ -67,6 +70,7 @@ function SecondaryRadarLayers({
 
 export const RadarMap = memo(function RadarMap({
   historyRange = { start: 0, end: 100 },
+  deviceFilter = "all",
 }: RadarMapProps) {
   const {
     config,
@@ -79,6 +83,10 @@ export const RadarMap = memo(function RadarMap({
     flyToZoneFn,
   } = useRadarContext();
   const { targets } = useRadarTargets();
+  const filteredTargets = useMemo(
+    () => deviceFilter === "all" ? targets : targets.filter((t) => t.deviceType === deviceFilter),
+    [targets, deviceFilter],
+  );
 
   const mapRef = useRef<MapRef>(null);
 
@@ -209,7 +217,7 @@ export const RadarMap = memo(function RadarMap({
             />
           </Source>
 
-          <DevicesOverlay visibility={deviceVisibility} />
+          <DevicesOverlay visibility={deviceVisibility} deviceFilter={deviceFilter} />
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
@@ -220,7 +228,7 @@ export const RadarMap = memo(function RadarMap({
             </RadarProvider>
           ))}
           <RadarTargetsLayer
-            targets={targets}
+            targets={filteredTargets}
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
@@ -264,7 +272,7 @@ export const RadarMap = memo(function RadarMap({
             </span>
           </div>
         </div>
-        <div className="absolute  bg-bg-100 top-30 right-65 p-2 rounded-2xl z-9999">
+        <div className="absolute  bg-bg-100 top-30 right-6 rounded-2xl z-9999">
           {editingDevice && (
             <DeviceEditPanel
               editing={editingDevice}
@@ -277,7 +285,6 @@ export const RadarMap = memo(function RadarMap({
   );
 });
 
-/** Renderiza un reproductor Camera por cada cámara del endpoint /configuracion-general */
 const CamerasOverlay = memo(function CamerasOverlay() {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;

@@ -8,9 +8,7 @@ interface Props {
   config: RadarConfig;
 }
 
-/**
- * Anillos concéntricos de distancia + punto central del radar en Mapbox.
- */
+
 export function RadarRings({ config }: Props) {
   const { instanceConfig } = useRadarContext();
   const { colors } = instanceConfig;
@@ -72,13 +70,10 @@ export function RadarRings({ config }: Props) {
       <Source id={`radar-rings-${id}`} type="geojson" data={ringsData}>
         <Layer {...ringsLayer} />
       </Source>
-      {/* Centro del radar con ícono SVG */}
       <Marker longitude={lon} latitude={lat} anchor="center">
         <div className="relative flex items-center justify-center">
-          {/* Pulso animado */}
           <span className="absolute w-10 h-10 rounded-full animate-ping" style={{ backgroundColor: `${colors.primary}33` }} />
           <span className="absolute w-7 h-7 rounded-full" style={{ backgroundColor: `${colors.primary}1a`, border: `1px solid ${colors.primary}66` }} />
-          {/* Ícono radar SVG */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -91,20 +86,15 @@ export function RadarRings({ config }: Props) {
             strokeLinejoin="round"
             className="relative z-10" style={{ filter: `drop-shadow(0 0 4px ${colors.primary})` }}
           >
-            {/* Anillos estáticos */}
             <circle cx="12" cy="12" r="9" />
             <circle cx="12" cy="12" r="5.5" strokeOpacity="0.6" />
             <circle cx="12" cy="12" r="2" strokeOpacity="0.4" />
-            {/* Barrido giratorio */}
             <g style={{ transformOrigin: "12px 12px", animation: "radar-spin 3s linear infinite" }}>
               <path d="M12 12 L12 3" />
-              {/* Sector cónico de barrido */}
               <path d="M12 12 L17.2 4.8" strokeOpacity="0.4" />
               <path d="M12 12 L19.5 7.5" strokeOpacity="0.2" />
             </g>
-            {/* Punto central */}
             <circle cx="12" cy="12" r="1" fill="#b6fa16" stroke="none" />
-            {/* Blip de detección */}
             <circle cx="15.5" cy="7.5" r="1" fill="#b6fa16" stroke="none" />
           </svg>
           <style>{`
@@ -115,7 +105,6 @@ export function RadarRings({ config }: Props) {
           `}</style>
         </div>
       </Marker>
-      {/* Source vacía para no romper el layer anterior si existía */}
       <Source id={`radar-center-${id}`} type="geojson" data={centerData}>
         <Layer {...centerLayer}  />
       </Source>

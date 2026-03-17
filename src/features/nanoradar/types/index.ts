@@ -1,6 +1,7 @@
 export type {
   RadarConfig,
   RadarTarget,
+  DeviceFilter,
   RadarZone,
   CreateZonePayload,
   UpdateZonePayload,

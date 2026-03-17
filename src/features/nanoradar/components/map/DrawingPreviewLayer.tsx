@@ -51,7 +51,6 @@ export function DrawingPreviewLayer({ points, color }: Props) {
         </Source>
       )}
       <Source id={`drawing-preview-vertices-${id}`} type="geojson" data={verticesData}>
-        {/* Halo exterior del vértice */}
         <Layer
           id={`drawing-vertices-halo-${id}`}
           type="circle"
@@ -61,7 +60,6 @@ export function DrawingPreviewLayer({ points, color }: Props) {
             "circle-opacity": 0.5,
           }}
         />
-        {/* Círculo del vértice con color de zona */}
         <Layer
           id={`drawing-vertices-circle-${id}`}
           type="circle"
@@ -73,7 +71,6 @@ export function DrawingPreviewLayer({ points, color }: Props) {
             "circle-stroke-color": "#ffffff",
           }}
         />
-        {/* Número del vértice */}
         <Layer
           id={`drawing-vertices-label-${id}`}
           type="symbol"

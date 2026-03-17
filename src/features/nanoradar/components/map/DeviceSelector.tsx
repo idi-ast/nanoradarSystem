@@ -128,7 +128,6 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
 
-  // Recalculate panel position whenever it opens or window resizes
   useEffect(() => {
     if (!open || !triggerRef.current) return;
     const updatePos = () => {

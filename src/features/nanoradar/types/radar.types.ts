@@ -7,6 +7,8 @@ export interface RadarConfig {
   apertura: number;
 }
 
+export type DeviceFilter = "all" | "nanoRadar" | "spotter";
+
 export interface RadarTarget {
   id: string;
   lat: number;

@@ -54,8 +54,6 @@ export function RadarTargetsLayer({
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
-  // Fuerza refresco periódico para que el color pase de azul a rojo
-  // cuando un objetivo deja de recibir trackeo.
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
@@ -72,7 +70,6 @@ export function RadarTargetsLayer({
       features: slicedTargets
         .filter((t) => t.history.length > 0)
         .map((t) => {
-          // Usar el último punto del historial recortado como posición del círculo.
           // Si end=100 esto coincide con t.lat/t.lon (posición en vivo).
           const lastPoint = t.history[t.history.length - 1];
           const lat = lastPoint[0];

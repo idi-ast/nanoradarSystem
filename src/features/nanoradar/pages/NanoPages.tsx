@@ -13,6 +13,7 @@ import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { RADAR_INSTANCES } from "../config";
+import type { DeviceFilter } from "../types";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -25,6 +26,7 @@ function NanoPages() {
 
 function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const [isOpenRightBar, setOpenRightBar] = useState(false);
+  const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>("all");
   const [historyRange, setHistoryRange] = useState<HistoryRange>({
     start: 0,
     end: 100,
@@ -48,7 +50,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       <div className="col-span-10 h-full flex flex-col w-full">
         <div className="flex-1 min-h-0 w-full relative">
           <GeofenceFlash hasAlert={geofence.hasAlert} color={geofence.color} />
-          <RadarMap historyRange={historyRange} />
+          <RadarMap historyRange={historyRange} deviceFilter={deviceFilter} />
         </div>
         <HistoryRangeBar onChange={handleRangeChange} />
         <BottomBar title="Estado del Radar">
@@ -57,11 +59,13 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       </div>
 
       {!isMobile ? (
-        <RightBarNano activeZoneIds={geofence.activeZoneIds} />
+        <RightBarNano activeZoneIds={geofence.activeZoneIds} deviceFilter={deviceFilter} onDeviceFilterChange={setDeviceFilter} />
       ) : isOpenRightBar ? (
         <RightBarNano
           setOpenRightBar={setOpenRightBar}
           activeZoneIds={geofence.activeZoneIds}
+          deviceFilter={deviceFilter}
+          onDeviceFilterChange={setDeviceFilter}
         />
       ) : (
         <button
@@ -120,9 +124,13 @@ const RadarStatusBar = memo(() => {
 const RightBarNano = memo(function RightBarNano({
   setOpenRightBar,
   activeZoneIds,
+  deviceFilter,
+  onDeviceFilterChange,
 }: {
   setOpenRightBar?: (isOpen: boolean) => void;
   activeZoneIds: Set<string>;
+  deviceFilter: DeviceFilter;
+  onDeviceFilterChange: (f: DeviceFilter) => void;
 }) {
   const {
     zones,
@@ -147,7 +155,6 @@ const RightBarNano = memo(function RightBarNano({
       </div>
 
       <div className="shrink-0 px-3 py-3 border-b border-border flex gap-2">
-        {/* Botón aislado — no arrastra a RightBarNano con cada mensaje WS */}
         <ClearTargetsButton />
         <button
           onClick={isDrawing ? cancelDrawing : startDrawing}
@@ -186,13 +193,14 @@ const RightBarNano = memo(function RightBarNano({
           )}
         </div>
 
-        {/* Panel dinámico aislado — es el único que re-renderiza con WS */}
-        <TargetsDynamicPanel />
+        <TargetsDynamicPanel deviceFilter={deviceFilter} onDeviceFilterChange={onDeviceFilterChange} />
       </div>
     </div>
   );
 }, (prev, next) => {
   if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
+  if (prev.deviceFilter !== next.deviceFilter) return false;
+  if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
   if (prev.activeZoneIds.size !== next.activeZoneIds.size) return false;
   for (const id of next.activeZoneIds) {
     if (!prev.activeZoneIds.has(id)) return false;
@@ -215,11 +223,17 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
 });
 
 
-const TargetsDynamicPanel = memo(function TargetsDynamicPanel() {
+const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
+  deviceFilter,
+  onDeviceFilterChange,
+}: {
+  deviceFilter: DeviceFilter;
+  onDeviceFilterChange: (f: DeviceFilter) => void;
+}) {
   const { stableTargets } = useRadarStableTargets();
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <TargetsSection targets={stableTargets} />
+      <TargetsSection targets={stableTargets} deviceFilter={deviceFilter} onDeviceFilterChange={onDeviceFilterChange} />
     </div>
   );
 });
@@ -245,7 +259,7 @@ const GeofenceFlash = memo(function GeofenceFlash({
   );
 });
 
-type TabFilter = "all" | "nanoRadar" | "spotter";
+type TabFilter = DeviceFilter;
 
 const TABS: { key: TabFilter; label: string }[] = [
   { key: "all", label: "Todos" },
@@ -256,10 +270,13 @@ const TABS: { key: TabFilter; label: string }[] = [
 
 const TargetsSection = memo(function TargetsSection({
   targets,
+  deviceFilter,
+  onDeviceFilterChange,
 }: {
   targets: import("../types").RadarTarget[];
+  deviceFilter: DeviceFilter;
+  onDeviceFilterChange: (f: DeviceFilter) => void;
 }) {
-  const [tab, setTab] = useState<TabFilter>("all");
   const { counts, filtered } = useMemo(() => {
     const nextCounts: Record<TabFilter, number> = {
       all: targets.length,
@@ -271,24 +288,25 @@ const TargetsSection = memo(function TargetsSection({
       if (t.deviceType === "spotter") nextCounts.spotter += 1;
     }
     const nextFiltered =
-      tab === "all" ? targets : targets.filter((t) => t.deviceType === tab);
+      deviceFilter === "all" ? targets : targets.filter((t) => t.deviceType === deviceFilter);
     return { counts: nextCounts, filtered: nextFiltered };
-  }, [targets, tab]);
+  }, [targets, deviceFilter]);
 
   return (
     <>
       <div className="shrink-0 flex border-b border-border-200 mb-2">
         {TABS.map(({ key, label }) => {
           const count = counts[key];
-          const isActive = tab === key;
+          const isActive = deviceFilter === key;
           return (
             <button
               key={key}
-              onClick={() => setTab(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-text-100/40 hover:text-text-100/70"
-                }`}
+              onClick={() => onDeviceFilterChange(key)}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
+                isActive
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+              }`}
             >
               {label}
               <span
@@ -304,7 +322,7 @@ const TargetsSection = memo(function TargetsSection({
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
         {filtered.length === 0 ? (
           <p className="text-text-100/40 text-[10px] italic">
-            {tab === "spotter"
+            {deviceFilter === "spotter"
               ? "Spotter desconectado..."
               : "No hay objetivos en el área..."}
           </p>

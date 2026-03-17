@@ -1,18 +1,7 @@
-/**
- * DevicesOverlay
- *
- * Renderiza todos los dispositivos del sistema sobre el mapa Mapbox:
- *  - Nanoradares  → beam sectorial + anillos concéntricos + pulso animado
- *  - Spotters     → sector de cobertura + marcador con bearing
- *  - Cámaras      → cono FOV + ícono de cámara con tooltip
- *
- * La lógica visual de cada tipo de dispositivo vive en ./devices/
- * Fuente de datos: GET /configuracion-general  (useConfigDevices)
- */
-
 import React, { memo } from "react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { NR_PALETTE, ALL_VISIBLE } from "./devicesConfig";
+import type { DeviceFilter } from "../../types";
 import {
   NanoradarDeviceLayer,
   NanoradarPulseLayer,
@@ -29,8 +18,10 @@ export interface DeviceVisibility {
 
 export const DevicesOverlay = memo(function DevicesOverlay({
   visibility = ALL_VISIBLE,
+  deviceFilter = "all",
 }: {
   visibility?: DeviceVisibility;
+  deviceFilter?: DeviceFilter;
 }) {
   const { data } = useConfigDevices();
 
@@ -38,9 +29,12 @@ export const DevicesOverlay = memo(function DevicesOverlay({
 
   const { nanoradares, spotters, camaras } = data.data;
 
+  const showNanoradares = deviceFilter !== "spotter";
+  const showSpotters = deviceFilter !== "nanoRadar";
+
   return (
     <>
-      {nanoradares
+      {showNanoradares && nanoradares
         .filter((nr) => !visibility.hiddenNanoradares.has(nr.id))
         .map((nr, idx) => {
           const palette = NR_PALETTE[idx % NR_PALETTE.length];
@@ -51,13 +45,11 @@ export const DevicesOverlay = memo(function DevicesOverlay({
           const sid = `dev-nr-${nr.id}`;
           return (
             <React.Fragment key={nr.id}>
-              {/* Capa estática: solo re-renderiza si cambia la config del dispositivo */}
               <NanoradarDeviceLayer
                 nr={nr}
                 colorPrimary={colorPrimary}
                 colorPulse={colorPulse}
               />
-              {/* Capa de pulso: recibe phase y re-renderiza a 30fps */}
               <NanoradarPulseLayer
                 sid={sid}
                 lat={lat}
@@ -71,7 +63,7 @@ export const DevicesOverlay = memo(function DevicesOverlay({
           );
         })}
 
-      {spotters
+      {showSpotters && spotters
         .filter((s) => !visibility.hiddenSpotters.has(s.id))
         .map((s) => {
           const lat = Number(s.latitude);
@@ -80,9 +72,7 @@ export const DevicesOverlay = memo(function DevicesOverlay({
           const sid = `dev-sp-${s.id}`;
           return (
             <React.Fragment key={s.id}>
-              {/* Capa estática: solo re-renderiza si cambia la config del dispositivo */}
               <SpotterDeviceLayer spotter={s} />
-              {/* Capa de pulso: recibe phase y re-renderiza a 30fps */}
               <SpotterPulseLayer
                 sid={sid}
                 lat={lat}
