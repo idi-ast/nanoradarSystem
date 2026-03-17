@@ -3,8 +3,7 @@ import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { Nanoradares } from "@/features/config-devices/types/ConfigServices.type";
 import { BEAM_ANIMATION, RADAR_COLORS } from "../../../config";
-import { createCircleCoords, getGeoPoint } from "../utils/geoHelpers";
-import { buildSectorPolygon } from "./geoUtils";
+import { createArcCoords, createSectorCoords, getGeoPoint } from "../utils/geoHelpers";
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
@@ -126,7 +125,6 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
   const sid = `dev-nr-${nr.id}`;
   const lat = Number(nr.latitud);
   const lon = Number(nr.longitud);
-  const azimut = Number(nr.azimut);
   const radio = nr.radio;
   const apertura = nr.apertura;
   const grado = nr.grado;
@@ -137,10 +135,8 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
 
   const RING_STEP = 50;
   const ringCount = Math.floor(radio / RING_STEP);
-  const startAngle = azimut - apertura / 2;
-  const endAngle = azimut + apertura / 2;
-  const gradoStart = azimut - grado / 2;
-  const gradoEnd = azimut + grado / 2;
+  const startAngle = grado - apertura / 2;
+  const endAngle = grado + apertura / 2;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const rangeData = useMemo(
@@ -151,7 +147,7 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [createCircleCoords(lat, lon, radio)],
+            coordinates: [createSectorCoords(lat, lon, radio, startAngle, endAngle)],
           },
           properties: { kind: "range" },
         },
@@ -171,47 +167,35 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lat, lon, azimut, radio, apertura],
+    [lat, lon, grado, radio, apertura],
   );
 
+  // Línea de dirección: indica hacia dónde apunta el dispositivo (grado)
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const gradoData = useMemo(() => {
-    if (!grado) return null;
+  const gradoLineData = useMemo(() => {
+    if (!grado && grado !== 0) return null;
     return {
       type: "FeatureCollection" as const,
       features: [
         {
           type: "Feature" as const,
           geometry: {
-            type: "Polygon" as const,
-            coordinates: [
-              buildSectorPolygon(lat, lon, gradoStart, gradoEnd, radio),
-            ],
-          },
-          properties: { kind: "grado-fill" },
-        },
-        {
-          type: "Feature" as const,
-          geometry: {
             type: "LineString" as const,
             coordinates: [
               [lon, lat],
-              getGeoPoint(lat, lon, gradoStart, radio),
-              [lon, lat],
-              getGeoPoint(lat, lon, gradoEnd, radio),
+              getGeoPoint(lat, lon, grado, radio),
             ],
           },
-          properties: { kind: "grado-limits" },
+          properties: {},
         },
       ],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lat, lon, azimut, radio, grado]);
+  }, [lat, lon, radio, grado]);
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
-    () => buildBeamCanvas(azimut, apertura, colorPrimary),
-    [azimut, apertura, colorPrimary],
+    () => buildBeamCanvas(grado, apertura, colorPrimary),
+    [grado, apertura, colorPrimary],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -228,12 +212,12 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
         type: "Feature" as const,
         geometry: {
           type: "LineString" as const,
-          coordinates: createCircleCoords(lat, lon, (i + 1) * RING_STEP),
+          coordinates: createArcCoords(lat, lon, (i + 1) * RING_STEP, startAngle, endAngle),
         },
         properties: {},
       })),
     }),
-    [lat, lon, ringCount],
+    [lat, lon, ringCount, startAngle, endAngle],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -241,10 +225,10 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
     () =>
       Array.from({ length: ringCount }, (_, i) => {
         const dist = (i + 1) * RING_STEP;
-        const [lngL, latL] = getGeoPoint(lat, lon, 0, dist);
+        const [lngL, latL] = getGeoPoint(lat, lon, grado, dist);
         return { dist, lat: latL, lon: lngL };
       }),
-    [lat, lon, ringCount],
+    [lat, lon, ringCount, grado],
   );
 
   return (
@@ -262,7 +246,7 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             "fill-opacity": RADAR_COLORS.rangeFillOpacity,
           }}
         />
-        {/* <Layer
+        <Layer
           id={`${sid}-range-limits`}
           type="line"
           beforeId={DEVICES_BELOW_LAYER_ID}
@@ -272,43 +256,23 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           paint={{
             "line-color": colorPrimary,
             "line-width": 1,
-            "line-opacity": 0.48,
+            "line-opacity": 1,
             "line-dasharray": [2, 6],
           }}
-        /> */}
+        />
       </Source>
 
-      {gradoData && (
-        <Source id={`${sid}-grado`} type="geojson" data={gradoData}>
+      {gradoLineData && (
+        <Source id={`${sid}-grado`} type="geojson" data={gradoLineData}>
           <Layer
-            id={`${sid}-grado-fill`}
-            type="fill"
-            beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={
-              [
-                "==",
-                ["get", "kind"],
-                "grado-fill",
-              ] as unknown as FilterSpecification
-            }
-            paint={{ "fill-color": colorPrimary, "fill-opacity": 0.04 }}
-          />
-          <Layer
-            id={`${sid}-grado-limits`}
+            id={`${sid}-grado-dir`}
             type="line"
             beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={
-              [
-                "==",
-                ["get", "kind"],
-                "grado-limits",
-              ] as unknown as FilterSpecification
-            }
             paint={{
               "line-color": colorPrimary,
-              "line-width": 1,
-              "line-opacity": 0.25,
-              "line-dasharray": [4, 8],
+              "line-width": 2,
+              "line-opacity": 0.6,
+              "line-dasharray": [1],
             }}
           />
         </Source>
@@ -358,6 +322,8 @@ export interface NanoradarPulseLayerProps {
   lat: number;
   lon: number;
   radio: number;
+  startAngle: number;
+  endAngle: number;
   colorPulse: string;
 }
 
@@ -366,6 +332,8 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
   lat,
   lon,
   radio,
+  startAngle,
+  endAngle,
   colorPulse,
 }: NanoradarPulseLayerProps) {
   const phase = useRadarAnimation();
@@ -379,10 +347,12 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: createCircleCoords(
+            coordinates: createArcCoords(
               lat,
               lon,
               r,
+              startAngle,
+              endAngle,
               BEAM_ANIMATION.WAVE_STEPS,
             ),
           },
@@ -393,7 +363,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
         };
       }),
     }),
-    [lat, lon, radio, phase],
+    [lat, lon, radio, startAngle, endAngle, phase],
   );
 
   return (

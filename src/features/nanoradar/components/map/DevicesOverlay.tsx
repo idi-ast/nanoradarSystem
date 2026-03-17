@@ -63,6 +63,8 @@ export const DevicesOverlay = memo(function DevicesOverlay({
                 lat={lat}
                 lon={lon}
                 radio={nr.radio}
+                startAngle={nr.grado - nr.apertura / 2}
+                endAngle={nr.grado + nr.apertura / 2}
                 colorPulse={colorPulse}
               />
             </React.Fragment>
@@ -86,6 +88,8 @@ export const DevicesOverlay = memo(function DevicesOverlay({
                 lat={lat}
                 lon={lon}
                 radio={s.radio}
+                startAngle={Number(s.azimut) - s.apertura / 2}
+                endAngle={Number(s.azimut) + s.apertura / 2}
                 color={color}
               />
             </React.Fragment>

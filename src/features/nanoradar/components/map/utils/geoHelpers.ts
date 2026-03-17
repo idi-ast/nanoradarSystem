@@ -48,6 +48,47 @@ export function createCircleCoords(
 }
 
 /**
+ * Genera coordenadas de un arco (desde startAngle hasta endAngle) en grados.
+ * Retorna array de [longitud, latitud] para usar como LineString en GeoJSON.
+ */
+export function createArcCoords(
+  centerLat: number,
+  centerLon: number,
+  radiusM: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+  steps = 64
+): [number, number][] {
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = startAngleDeg + (i / steps) * (endAngleDeg - startAngleDeg);
+    coords.push(getGeoPoint(centerLat, centerLon, angle, radiusM));
+  }
+  return coords;
+}
+
+/**
+ * Genera coordenadas de un sector (trozo de pizza): centro → arco → centro.
+ * Retorna array de [longitud, latitud] para usar como Polygon en GeoJSON.
+ */
+export function createSectorCoords(
+  centerLat: number,
+  centerLon: number,
+  radiusM: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+  steps = 64
+): [number, number][] {
+  const coords: [number, number][] = [[centerLon, centerLat]];
+  for (let i = 0; i <= steps; i++) {
+    const angle = startAngleDeg + (i / steps) * (endAngleDeg - startAngleDeg);
+    coords.push(getGeoPoint(centerLat, centerLon, angle, radiusM));
+  }
+  coords.push([centerLon, centerLat]);
+  return coords;
+}
+
+/**
  * Convierte un par [latitud, longitud] (formato interno del sistema)
  * a [longitud, latitud] (formato GeoJSON/Mapbox).
  */

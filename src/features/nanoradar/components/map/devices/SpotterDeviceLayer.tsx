@@ -4,8 +4,7 @@ import type { FilterSpecification } from "mapbox-gl";
 import { IconCurrentLocation } from "@tabler/icons-react";
 import type { Spotters } from "@/features/config-devices/types/ConfigServices.type";
 import { BEAM_ANIMATION, RADAR_COLORS } from "../../../config";
-import { createCircleCoords, getGeoPoint } from "../utils/geoHelpers";
-import { buildSectorPolygon } from "./geoUtils";
+import { createArcCoords, createSectorCoords, getGeoPoint } from "../utils/geoHelpers";
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
@@ -66,7 +65,11 @@ const SpotterDeviceMarker = memo(function SpotterDeviceMarker({
             className="relative z-10 w-8 h-8 flex items-center justify-center"
             style={{ filter: `drop-shadow(0 0 4px ${color})` }}
           >
-            <IconCurrentLocation size={22} style={{ color }} strokeWidth={1.5} />
+            <IconCurrentLocation
+              size={22}
+              style={{ color }}
+              strokeWidth={1.5}
+            />
           </div>
         </div>
       </Marker>
@@ -106,12 +109,10 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
     return null;
   }
 
-  const RING_STEP = 50; 
+  const RING_STEP = 50;
   const ringCount = Math.floor(radio / RING_STEP);
   const startAngle = azimut - apertura / 2;
   const endAngle = azimut + apertura / 2;
-  const gradoStart = azimut - grado / 2;
-  const gradoEnd = azimut + grado / 2;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const rangeData = useMemo(
@@ -122,7 +123,7 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [createCircleCoords(lat, lon, radio)],
+            coordinates: [createSectorCoords(lat, lon, radio, startAngle, endAngle)],
           },
           properties: { kind: "range" },
         },
@@ -145,39 +146,24 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
     [lat, lon, azimut, radio, apertura],
   );
 
+  // Línea de dirección: indica hacia dónde apunta el dispositivo (grado)
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const gradoData = useMemo(() => {
-    if (!grado) return null;
+  const gradoLineData = useMemo(() => {
+    if (!grado && grado !== 0) return null;
     return {
       type: "FeatureCollection" as const,
       features: [
         {
           type: "Feature" as const,
           geometry: {
-            type: "Polygon" as const,
-            coordinates: [
-              buildSectorPolygon(lat, lon, gradoStart, gradoEnd, radio),
-            ],
-          },
-          properties: { kind: "grado-fill" },
-        },
-        {
-          type: "Feature" as const,
-          geometry: {
             type: "LineString" as const,
-            coordinates: [
-              [lon, lat],
-              getGeoPoint(lat, lon, gradoStart, radio),
-              [lon, lat],
-              getGeoPoint(lat, lon, gradoEnd, radio),
-            ],
+            coordinates: [[lon, lat], getGeoPoint(lat, lon, grado, radio)],
           },
-          properties: { kind: "grado-limits" },
+          properties: {},
         },
       ],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lat, lon, azimut, radio, grado]);
+  }, [lat, lon, radio, grado]);
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
@@ -199,12 +185,12 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
         type: "Feature" as const,
         geometry: {
           type: "LineString" as const,
-          coordinates: createCircleCoords(lat, lon, (i + 1) * RING_STEP),
+          coordinates: createArcCoords(lat, lon, (i + 1) * RING_STEP, startAngle, endAngle),
         },
         properties: {},
       })),
     }),
-    [lat, lon, ringCount],
+    [lat, lon, ringCount, startAngle, endAngle],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -212,10 +198,10 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
     () =>
       Array.from({ length: ringCount }, (_, i) => {
         const dist = (i + 1) * RING_STEP;
-        const [lngL, latL] = getGeoPoint(lat, lon, 0, dist);
+        const [lngL, latL] = getGeoPoint(lat, lon, azimut, dist);
         return { dist, lat: latL, lon: lngL };
       }),
-    [lat, lon, ringCount],
+    [lat, lon, ringCount, azimut],
   );
 
   return (
@@ -243,43 +229,23 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
           paint={{
             "line-color": color,
             "line-width": 2,
-            "line-opacity": 0.48,
-            "line-dasharray": [2, 6],
+            "line-opacity": 0.18,
+            "line-dasharray": [2, 7],
           }}
         />
       </Source>
 
-      {gradoData && (
-        <Source id={`${sid}-grado`} type="geojson" data={gradoData}>
+      {gradoLineData && (
+        <Source id={`${sid}-grado`} type="geojson" data={gradoLineData}>
           <Layer
-            id={`${sid}-grado-fill`}
-            type="fill"
-            beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={
-              [
-                "==",
-                ["get", "kind"],
-                "grado-fill",
-              ] as unknown as FilterSpecification
-            }
-            paint={{ "fill-color": color, "fill-opacity": 0.04 }}
-          />
-          <Layer
-            id={`${sid}-grado-limits`}
+            id={`${sid}-grado-dir`}
             type="line"
             beforeId={DEVICES_BELOW_LAYER_ID}
-            filter={
-              [
-                "==",
-                ["get", "kind"],
-                "grado-limits",
-              ] as unknown as FilterSpecification
-            }
             paint={{
               "line-color": color,
               "line-width": 2,
-              "line-opacity": 0.4,
-              "line-dasharray": [4, 8],
+              "line-opacity": 0.7,
+              "line-dasharray": [1],
             }}
           />
         </Source>
@@ -329,6 +295,8 @@ export interface SpotterPulseLayerProps {
   lat: number;
   lon: number;
   radio: number;
+  startAngle: number;
+  endAngle: number;
   color: string;
 }
 
@@ -337,6 +305,8 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
   lat,
   lon,
   radio,
+  startAngle,
+  endAngle,
   color,
 }: SpotterPulseLayerProps) {
   const phase = useRadarAnimation();
@@ -350,7 +320,14 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: createCircleCoords(lat, lon, r, BEAM_ANIMATION.WAVE_STEPS),
+            coordinates: createArcCoords(
+              lat,
+              lon,
+              r,
+              startAngle,
+              endAngle,
+              BEAM_ANIMATION.WAVE_STEPS,
+            ),
           },
           properties: {
             opacity: 0.24 * (1 - shifted),
@@ -359,7 +336,7 @@ export const SpotterPulseLayer = memo(function SpotterPulseLayer({
         };
       }),
     }),
-    [lat, lon, radio, phase],
+    [lat, lon, radio, startAngle, endAngle, phase],
   );
 
   return (
