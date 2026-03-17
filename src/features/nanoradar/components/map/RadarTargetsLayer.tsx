@@ -6,7 +6,11 @@ import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarContext } from "../../context/useRadarContext";
 
-function isTargetMoving(target: RadarTarget, now: number, trackingActiveMs: number): boolean {
+function isTargetMoving(
+  target: RadarTarget,
+  now: number,
+  trackingActiveMs: number,
+): boolean {
   return now - target.lastUpdate <= trackingActiveMs;
 }
 
@@ -41,7 +45,8 @@ export function RadarTargetsLayer({
 
   const slicedTargets = useMemo(() => {
     if (!timeBounds) return targets;
-    const tStart = timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
+    const tStart =
+      timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
     const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
     return targets
@@ -84,6 +89,7 @@ export function RadarTargetsLayer({
               id: t.id,
               nivel: t.nivel,
               zona: t.zona,
+              deviceType: t.deviceType,
               isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
             },
           };
@@ -107,6 +113,7 @@ export function RadarTargetsLayer({
           properties: {
             id: t.id,
             nivel: t.nivel,
+            deviceType: t.deviceType,
             isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
           },
         })),
@@ -120,9 +127,18 @@ export function RadarTargetsLayer({
     paint: {
       "line-color": [
         "case",
-        ["get", "isMoving"],
-        targetColors.moving,
-        targetColors.stopped,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "line-width": 4,
       "line-dasharray": [1, 2],
@@ -143,16 +159,34 @@ export function RadarTargetsLayer({
       ] as unknown as number,
       "circle-color": [
         "case",
-        ["get", "isMoving"],
-        targetColors.moving,
-        targetColors.stopped,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-stroke-width": 2,
       "circle-stroke-color": [
         "case",
-        ["get", "isMoving"],
-        targetColors.movingStroke,
-        targetColors.stoppedStroke,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#166534",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.movingStroke,
+          targetColors.stoppedStroke,
+        ],
       ] as unknown as string,
       "circle-opacity": 0.9,
     },
@@ -166,17 +200,35 @@ export function RadarTargetsLayer({
       "circle-radius": 16,
       "circle-color": [
         "case",
-        ["get", "isMoving"],
-        targetColors.moving,
-        targetColors.stopped,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-opacity": 0.11,
       "circle-stroke-width": 1,
       "circle-stroke-color": [
         "case",
-        ["get", "isMoving"],
-        targetColors.moving,
-        targetColors.stopped,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-stroke-opacity": 0.3,
     },
@@ -199,20 +251,38 @@ export function RadarTargetsLayer({
           latitude={selected.lat}
           anchor="bottom"
           offset={12}
-          closeButton
+          closeButton={false}
           onClose={() => onSelectTarget(null)}
         >
-          <div className="font-mono text-[11px] text-emerald-100 bg-slate-900/90 border border-emerald-500/40 p-3 min-w-44 rounded-sm shadow-[0_0_14px_rgba(20,184,166,0.22)]">
-            <b className="block border-b border-emerald-500/25 mb-1 pb-1 tracking-wide">
-              ID: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
-            </b>
-            Radar: <span className="text-cyan-300">{selected.deviceType === "nanoRadar" ? "NanoRadar" : "Spotter"}</span>
-            <br />
-            Zona: {selected.zona || "N/A"}
-            <br />
-            Nivel: {selected.nivel}
-            <br />
-            Pos: {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
+          <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow shadow-2xl p-5 min-w-64 rounded-lg">
+            <div>
+              <h4 className="pb-2">
+                Detección: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
+              </h4>
+              <ul className="tracking-[0.12rem]">
+                <li>
+                  Radar:{" "}
+                  <span className="text-brand-200 font-bold">
+                    {selected.deviceType === "nanoRadar"
+                      ? "NanoRadar"
+                      : "Spotter"}
+                  </span>
+                </li>
+                <li>
+                  Zona:{" "}
+                  <span className="font-bold">{selected.zona || "N/A"}</span>
+                </li>
+                <li>
+                  Nivel: <span className="font-bold">{selected.nivel}</span>
+                </li>
+                <li>
+                  Pos:{" "}
+                  <span className="font-bold">
+                    {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
+                  </span>
+                </li>
+              </ul>
+            </div>
           </div>
         </Popup>
       )}

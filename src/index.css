@@ -169,7 +169,6 @@ body {
 
 .font-secondary {
   font-family: "La Belle Aurore", cursive;
-
 }
 
 /* Estilo general para el scroll */
@@ -197,7 +196,8 @@ body {
 }
 
 @keyframes geofence-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.15;
   }
   50% {
@@ -220,12 +220,45 @@ body {
 }
 
 @keyframes zone-alert-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: inset 0 0 8px 1px var(--zone-glow-color, #ff0000);
     border-color: var(--zone-glow-color, #ff0000);
   }
   50% {
     box-shadow: inset 0 0 18px 4px var(--zone-glow-color, #ff0000);
-    border-color: color-mix(in srgb, var(--zone-glow-color, #ff0000) 80%, white);
+    border-color: color-mix(
+      in srgb,
+      var(--zone-glow-color, #ff0000) 80%,
+      white
+    );
   }
+}
+
+/* 1. Quitar el fondo blanco y la sombra del contenedor principal */
+.mapboxgl-popup-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0; /* Opcional: para que tu contenido mande sobre el espacio */
+}
+
+/* 2. Quitar el color a la "flecha" o punta del popup (según su posición) */
+/* .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: transparent !important;
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: transparent !important;
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: transparent !important;
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: transparent !important;
+} */
+
+/* 3. Opcional: Personalizar o quitar el botón de cerrar */
+.mapboxgl-popup-close-button {
+  background-color: transparent;
+  border: 0;
+  color: white; /* Cambia el color si el fondo ahora es oscuro */
 }

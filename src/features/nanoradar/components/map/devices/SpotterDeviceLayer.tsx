@@ -166,8 +166,8 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
 
   const RING_STEP = 50;
   const ringCount = Math.floor(radio / RING_STEP);
-  const startAngle = azimut - apertura / 2;
-  const endAngle = azimut + apertura / 2;
+  const startAngle = grado - apertura / 2;
+  const endAngle = grado + apertura / 2;
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const rangeData = useMemo(
@@ -206,7 +206,7 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lat, lon, azimut, radio, apertura],
+    [lat, lon, grado, radio, apertura],
   );
 
   // Línea de dirección: indica hacia dónde apunta el dispositivo (grado)
@@ -230,8 +230,8 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
-    () => buildBeamCanvas(azimut, apertura, color),
-    [azimut, apertura, color],
+    () => buildBeamCanvas(grado, apertura, color),
+    [grado, apertura, color],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
