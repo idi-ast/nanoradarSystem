@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, memo } from "react";
+import { createPortal } from "react-dom";
 import {
   IconLayersSubtract,
   IconX,
@@ -7,14 +8,18 @@ import {
   IconCamera,
   IconEye,
   IconEyeOff,
+  IconPencil,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
+import type { Nanoradares, Spotters } from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE } from "./devicesConfig";
 
 interface DeviceSelectorProps {
   visibility: DeviceVisibility;
   onChange: (v: DeviceVisibility) => void;
+  onEditNanoradar?: (device: Nanoradares) => void;
+  onEditSpotter?: (device: Spotters) => void;
 }
 
 
@@ -37,6 +42,7 @@ function DeviceRow({
   accentColor,
   isHidden,
   onToggle,
+  onEdit,
 }: {
   id: number;
   label: string;
@@ -44,33 +50,43 @@ function DeviceRow({
   accentColor: string;
   isHidden: boolean;
   onToggle: (id: number) => void;
+  onEdit?: () => void;
 }) {
   return (
-    <button
-      onClick={() => onToggle(id)}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-left ${isHidden
-        ? "opacity-40 hover:opacity-70"
-        : "hover:bg-bg-300/50"
-        }`}
+    <div
+      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-left ${isHidden ? "opacity-40" : ""}`}
     >
-      <span
-        className="shrink-0 w-2 h-2 rounded-full"
-        style={{ backgroundColor: isHidden ? "#555" : accentColor }}
-      />
-
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-medium text-text-100 truncate">{label}</p>
-        {subtitle && (
-          <p className="text-[9px] text-text-100/40 truncate">{subtitle}</p>
+      <button
+        onClick={() => onToggle(id)}
+        className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+      >
+        <span
+          className="shrink-0 w-2 h-2 rounded-full"
+          style={{ backgroundColor: isHidden ? "#555" : accentColor }}
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-medium text-text-100 truncate">{label}</p>
+          {subtitle && (
+            <p className="text-[9px] text-text-100/40 truncate">{subtitle}</p>
+          )}
+        </div>
+        {isHidden ? (
+          <IconEyeOff size={13} className="shrink-0 text-text-100/30" />
+        ) : (
+          <IconEye size={13} className="shrink-0 text-text-100/50" />
         )}
-      </div>
+      </button>
 
-      {isHidden ? (
-        <IconEyeOff size={13} className="shrink-0 text-text-100/30" />
-      ) : (
-        <IconEye size={13} className="shrink-0 text-text-100/50" />
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="shrink-0 p-1 rounded text-text-100/30 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors"
+          title="Editar"
+        >
+          <IconPencil size={12} />
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -106,9 +122,23 @@ function GroupHeader({
 }
 
 
-export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange }: DeviceSelectorProps) {
+export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange, onEditNanoradar, onEditSpotter }: DeviceSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
+
+  // Recalculate panel position whenever it opens or window resizes
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const updatePos = () => {
+      const rect = triggerRef.current!.getBoundingClientRect();
+      setPanelStyle({ top: rect.top, right: window.innerWidth - rect.left + 8 });
+    };
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    return () => window.removeEventListener("resize", updatePos);
+  }, [open]);
 
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
   const spotters = useMemo(() => data?.data?.spotters ?? [], [data]);
@@ -184,8 +214,9 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
   }, [onChange]);
 
   return (
-    <div className="relative">
+    <div>
       <button
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         title="Dispositivos en mapa"
         className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${open
@@ -194,16 +225,13 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
           }`}
       >
         <IconLayersSubtract size={16} />
-        {/* {totalHidden > 0 && (
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center">
-            {totalHidden}
-          </span>
-        )} */}
       </button>
 
-      {open && (
-        <div className="absolute right-full top-0 mr-2 w-52 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      {open && createPortal(
+        <div
+          style={{ position: "fixed", top: panelStyle.top, right: panelStyle.right }}
+          className="w-52 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden"
+        >          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <span className="text-[11px] font-bold uppercase tracking-widest text-text-100/70">
               Dispositivos
             </span>
@@ -249,6 +277,7 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
                       accentColor={nr.color || NR_PALETTE[idx % NR_PALETTE.length].primary}
                       isHidden={visibility.hiddenNanoradares.has(nr.id)}
                       onToggle={toggleNR}
+                      onEdit={onEditNanoradar ? () => onEditNanoradar(nr) : undefined}
                     />
                   ))}
                 </div>
@@ -276,6 +305,7 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
                       accentColor="#38bdf8"
                       isHidden={visibility.hiddenSpotters.has(s.id)}
                       onToggle={toggleSpotter}
+                      onEdit={onEditSpotter ? () => onEditSpotter(s) : undefined}
                     />
                   ))}
                 </div>
@@ -321,8 +351,10 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
+
     </div>
   );
 });

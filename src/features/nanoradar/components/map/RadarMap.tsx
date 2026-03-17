@@ -29,6 +29,8 @@ import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
+import { DeviceEditPanel } from "./DeviceEditPanel";
+import type { EditingDevice } from "./DeviceEditPanel";
 import ConfigZones from "./zones/ConfigZones";
 import Camera from "./cameras/Camera";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
@@ -42,7 +44,11 @@ const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
   (inst) => `targets-circles-${inst.id}`,
 );
 
-function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) {
+function SecondaryRadarLayers({
+  historyRange,
+}: {
+  historyRange: HistoryRange;
+}) {
   const { zones } = useRadarContext();
   const { targets } = useRadarTargets();
   return (
@@ -53,13 +59,15 @@ function SecondaryRadarLayers({ historyRange }: { historyRange: HistoryRange }) 
         targets={targets}
         historyRange={historyRange}
         selectedTargetId={null}
-        onSelectTarget={() => { }}
+        onSelectTarget={() => {}}
       />
     </>
   );
 }
 
-export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
+export const RadarMap = memo(function RadarMap({
+  historyRange = { start: 0, end: 100 },
+}: RadarMapProps) {
   const {
     config,
     zones,
@@ -76,14 +84,25 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
 
   useEffect(() => {
     flyToZoneFn.current = (lat: number, lon: number, zoom = 16) => {
-      mapRef.current?.flyTo({ center: [lon, lat], zoom, duration: 1500, essential: true });
+      mapRef.current?.flyTo({
+        center: [lon, lat],
+        zoom,
+        duration: 1500,
+        essential: true,
+      });
     };
-    return () => { flyToZoneFn.current = null; };
+    return () => {
+      flyToZoneFn.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
-  const [deviceVisibility, setDeviceVisibility] = useState<DeviceVisibility>(ALL_VISIBLE);
+  const [deviceVisibility, setDeviceVisibility] =
+    useState<DeviceVisibility>(ALL_VISIBLE);
+  const [editingDevice, setEditingDevice] = useState<EditingDevice | null>(
+    null,
+  );
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
     () => ({
@@ -131,7 +150,10 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
       }
 
       const feature = e.features?.[0];
-      if (feature?.layer?.id && ALL_TARGET_LAYER_IDS.includes(feature.layer.id)) {
+      if (
+        feature?.layer?.id &&
+        ALL_TARGET_LAYER_IDS.includes(feature.layer.id)
+      ) {
         setSelectedTargetId(String(feature.properties?.id ?? null));
       } else {
         setSelectedTargetId(null);
@@ -191,7 +213,7 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
-          
+
           {RADAR_INSTANCES.slice(1).map((instance) => (
             <RadarProvider key={instance.id} instance={instance}>
               <SecondaryRadarLayers historyRange={historyRange} />
@@ -210,29 +232,45 @@ export const RadarMap = memo(function RadarMap({ historyRange = { start: 0, end:
         <RadarInfoOverlay config={config} />
         <CamerasOverlay />
       </div>
-      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
-        <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
-          <LayerSelector
-            selectedLayer={selectedLayer}
-            onLayerChange={handleLayerChange}
-            mapLayers={mapLayers}
-          />
-          <ViewControls
-            mapRef={mapRef}
-            initialCenter={initialCenter}
-            initialZoom={15}
-          />
-          <CustomZoomControl mapRef={mapRef} />
-          <ConfigZones />
-          <DeviceSelector
-            visibility={deviceVisibility}
-            onChange={setDeviceVisibility}
-          />
+      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
+        <div className="flex flex-col gap-1 p-1.5">
+          <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
+            <LayerSelector
+              selectedLayer={selectedLayer}
+              onLayerChange={handleLayerChange}
+              mapLayers={mapLayers}
+            />
+            <ViewControls
+              mapRef={mapRef}
+              initialCenter={initialCenter}
+              initialZoom={15}
+            />
+            <CustomZoomControl mapRef={mapRef} />
+            <ConfigZones />
+            <DeviceSelector
+              visibility={deviceVisibility}
+              onChange={setDeviceVisibility}
+              onEditNanoradar={(device) =>
+                setEditingDevice({ kind: "nanoradar", device })
+              }
+              onEditSpotter={(device) =>
+                setEditingDevice({ kind: "spotter", device })
+              }
+            />
+          </div>
+          <div className="flex justify-center items-center flex-1">
+            <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
+              Configuración Mapa
+            </span>
+          </div>
         </div>
-        <div className="flex justify-center items-center h-full">
-          <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
-            Configuración Mapa
-          </span>
+        <div className="absolute  bg-bg-100 top-30 right-65 p-2 rounded-2xl z-9999">
+          {editingDevice && (
+            <DeviceEditPanel
+              editing={editingDevice}
+              onClose={() => setEditingDevice(null)}
+            />
+          )}
         </div>
       </div>
     </div>

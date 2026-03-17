@@ -1,13 +1,13 @@
 import { getGeoPoint } from "../utils/geoHelpers";
 
 /** Grados extra de apertura para el degradado cónico (afecta la suavidad de los bordes laterales). */
-const BEAM_EXTRA_APERTURE = 80;
+const BEAM_EXTRA_APERTURE = 50;
 
 /** Opacidad máxima (pico) en el centro del haz, en porcentaje (0-100). */
 const BEAM_PEAK_OPACITY_PERCENT = 52;
 
 /** Punto (0-100%) donde el degradado radial comienza a desvanecerse hacia el borde exterior. */
-const BEAM_RADIAL_FADE_START_PERCENT = 80;
+const BEAM_RADIAL_FADE_START_PERCENT = 65;
 
 
 /**
