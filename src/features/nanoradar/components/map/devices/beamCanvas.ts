@@ -1,5 +1,15 @@
 import { getGeoPoint } from "../utils/geoHelpers";
 
+/** Grados extra de apertura para el degradado cónico (afecta la suavidad de los bordes laterales). */
+const BEAM_EXTRA_APERTURE = 80;
+
+/** Opacidad máxima (pico) en el centro del haz, en porcentaje (0-100). */
+const BEAM_PEAK_OPACITY_PERCENT = 52;
+
+/** Punto (0-100%) donde el degradado radial comienza a desvanecerse hacia el borde exterior. */
+const BEAM_RADIAL_FADE_START_PERCENT = 80;
+
+
 /**
  * Dibuja un sector con degradado suave (angular + radial) en un canvas offscreen
  * y devuelve la data URL resultante, lista para usarse como ImageSource en Mapbox.
@@ -33,35 +43,45 @@ export function buildBeamCanvas(
   // Conversión: canvasRad = (geo - 90) * π/180
   const geoToRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
+  // Apertura real para la forma visible
   const startA = geoToRad(azimut - apertura / 2);
   const endA = geoToRad(azimut + apertura / 2);
-  const span = endA - startA; // radianes, siempre > 0
 
-  // Paso 1: recortar al sector
+  // Apertura visual (más ancha) para el degradado
+  const visualApertura = apertura + BEAM_EXTRA_APERTURE;
+  const startAVisual = geoToRad(azimut - visualApertura / 2);
+  const endAVisual = geoToRad(azimut + visualApertura / 2);
+  const spanVisual = endAVisual - startAVisual;
+
+  // --- DIBUJADO ---
+
+  // 1. Dibuja el degradado cónico ANCHO en todo el canvas
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.arc(cx, cy, r, startA, endA);
-  ctx.closePath();
-  ctx.clip();
-
-  // Paso 2: degradado angular cónico — transparente en los bordes, opaco en el centro
-  // createConicGradient(startAngle, cx, cy): stop 0 = startAngle, stop 1 = startAngle + 2π
-  const fraction = span / (2 * Math.PI);
-  const conic = ctx.createConicGradient(startA, cx, cy);
+  const fraction = spanVisual / (2 * Math.PI);
+  const peakOpacityHex = Math.round((BEAM_PEAK_OPACITY_PERCENT / 100) * 255).toString(16).padStart(2, "0");
+  const conic = ctx.createConicGradient(startAVisual, cx, cy);
   conic.addColorStop(0, `${color}00`);
-  conic.addColorStop(fraction * 0.5, `${color}b8`); // pico de opacidad en el eje central
+  conic.addColorStop(fraction * 0.5, `${color}${peakOpacityHex}`);
   conic.addColorStop(fraction, `${color}00`);
   if (fraction < 0.999) conic.addColorStop(1, `${color}00`);
 
   ctx.fillStyle = conic;
   ctx.fillRect(0, 0, size, size);
 
-  // Paso 3: máscara radial con destination-in — fade hacia el borde exterior
+  // 2. Recorta el degradado a la forma del sector REAL
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, startA, endA);
+  ctx.closePath();
+  ctx.fillStyle = "black"; // El color no importa, solo la forma
+  ctx.fill();
+
+  // 3. Aplica el degradado RADIAL para desvanecer hacia el borde exterior
   const radial = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  radial.addColorStop(0,    "rgba(0,0,0,1)");
-  radial.addColorStop(1, "rgba(0,0,0,0.95)");
-  radial.addColorStop(1,    "rgba(0,0,0,0)");
+  radial.addColorStop(0, "rgba(0,0,0,1)");
+  radial.addColorStop(BEAM_RADIAL_FADE_START_PERCENT / 100, "rgba(0,0,0,1)");
+  radial.addColorStop(1, "rgba(0,0,0,0)");
 
   ctx.globalCompositeOperation = "destination-in";
   ctx.fillStyle = radial;
