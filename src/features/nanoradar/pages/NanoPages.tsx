@@ -13,6 +13,8 @@ import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter } from "../types";
+import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
+import Camera from "../components/map/cameras/Camera";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -179,6 +181,7 @@ const RightBarNano = memo(
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
           />
+          <CamerasOverlay />
         </div>
       </div>
     );
@@ -310,5 +313,18 @@ const TargetsSection = memo(function TargetsSection({
         )}
       </div>
     </>
+  );
+});
+
+const CamerasOverlay = memo(function CamerasOverlay() {
+  const { data } = useConfigDevices();
+  const camaras = data?.data?.camaras;
+  if (!camaras || camaras.length === 0) return null;
+  return (
+    <div className=" flex flex-col items-center w-full gap-2 z-100">
+      {camaras.map((cam) => (
+        <Camera key={cam.id} camera={cam} />
+      ))}
+    </div>
   );
 });

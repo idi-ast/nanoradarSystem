@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
-import ReactMapGL, { Source, Layer } from "react-map-gl";
+import ReactMapGL, { Source, Layer, Marker } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./radar-effects.css";
@@ -28,10 +28,9 @@ import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
 import { DeviceEditPanel } from "./DeviceEditPanel";
-import type { EditingDevice } from "./DeviceEditPanel";
+import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
+import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
-import Camera from "./cameras/Camera";
-import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 
 import type { DeviceFilter } from "../../types";
 
@@ -112,6 +111,52 @@ export const RadarMap = memo(function RadarMap({
   const [editingDevice, setEditingDevice] = useState<EditingDevice | null>(
     null,
   );
+  const [liveEdit, setLiveEdit] = useState<LiveEditValues | null>(null);
+  const [liveEditPos, setLiveEditPos] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  function openEdit(ed: EditingDevice) {
+    setEditingDevice(ed);
+    if (ed.kind === "nanoradar") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#22c55e",
+      });
+      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+    } else if (ed.kind === "spotter") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#38bdf8",
+      });
+      setLiveEditPos({ lat: Number(d.latitude), lng: Number(d.longitude) });
+    } else if (ed.kind === "camara") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#f59e0b",
+      });
+      setLiveEditPos({
+        lat: Number(d.ubicacion.lat),
+        lng: Number(d.ubicacion.lng),
+      });
+    }
+  }
+
+  function closeEdit() {
+    setEditingDevice(null);
+    setLiveEdit(null);
+    setLiveEditPos(null);
+  }
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
     () => ({
@@ -202,9 +247,17 @@ export const RadarMap = memo(function RadarMap({
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
           reuseMaps
-          interactiveLayerIds={ALL_TARGET_LAYER_IDS}
+          interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
-          cursor={isDrawing ? "crosshair" : undefined}
+          cursor={
+            isDrawing ? "crosshair" : editingDevice ? "default" : undefined
+          }
+          scrollZoom={!editingDevice}
+          dragPan={!editingDevice}
+          dragRotate={!editingDevice}
+          touchPitch={!editingDevice}
+          doubleClickZoom={!editingDevice}
+          keyboard={!editingDevice}
         >
           <Source
             id="device-layers-upper-bound-src"
@@ -245,12 +298,38 @@ export const RadarMap = memo(function RadarMap({
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
+          {liveEdit && liveEditPos && (
+            <Marker
+              latitude={liveEditPos.lat}
+              longitude={liveEditPos.lng}
+              anchor="center"
+              style={{ zIndex: 9999 }}
+            >
+              <div
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RadarKnob
+                  grado={liveEdit.grado}
+                  apertura={liveEdit.apertura}
+                  radio={liveEdit.radio}
+                  maxRadio={10000}
+                  accentColor={liveEdit.color}
+                  onGradoChange={(v) =>
+                    setLiveEdit((p: LiveEditValues | null) =>
+                      p ? { ...p, grado: v } : null,
+                    )
+                  }
+                />
+              </div>
+            </Marker>
+          )}
         </ReactMapGL>
 
         <div className="radar-scanlines" />
         <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
-        <CamerasOverlay />
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
         <div className="flex flex-col gap-1 p-1.5">
@@ -258,14 +337,10 @@ export const RadarMap = memo(function RadarMap({
             visibility={deviceVisibility}
             onChange={setDeviceVisibility}
             onEditNanoradar={(device) =>
-              setEditingDevice({ kind: "nanoradar", device })
+              openEdit({ kind: "nanoradar", device })
             }
-            onEditSpotter={(device) =>
-              setEditingDevice({ kind: "spotter", device })
-            }
-            onEditCamara={(device) =>
-              setEditingDevice({ kind: "camara", device })
-            }
+            onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
+            onEditCamara={(device) => openEdit({ kind: "camara", device })}
           />
           <ZonesPanel />
           <div className="flex justify-center items-center flex-1">
@@ -275,27 +350,16 @@ export const RadarMap = memo(function RadarMap({
           </div>
         </div>
         <div className="absolute  bg-bg-100 top-30 right-66 rounded-2xl z-9999">
-          {editingDevice && (
+          {editingDevice && liveEdit && (
             <DeviceEditPanel
               editing={editingDevice}
-              onClose={() => setEditingDevice(null)}
+              onClose={closeEdit}
+              liveEdit={liveEdit}
+              onLiveEditChange={setLiveEdit}
             />
           )}
         </div>
       </div>
-    </div>
-  );
-});
-
-const CamerasOverlay = memo(function CamerasOverlay() {
-  const { data } = useConfigDevices();
-  const camaras = data?.data?.camaras;
-  if (!camaras || camaras.length === 0) return null;
-  return (
-    <div className="absolute bottom-0 left-0 flex flex-row items-end gap-2 z-100">
-      {camaras.map((cam) => (
-        <Camera key={cam.id} camera={cam} />
-      ))}
     </div>
   );
 });

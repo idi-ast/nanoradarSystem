@@ -13,47 +13,52 @@ const Camera = memo(function Camera({ camera }: CameraProps) {
   const [fullScreen, setFullScreen] = useState(false);
   const hlsRef = useRef<Hls | null>(null);
 
-  const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
-    if (!node) {
-      hlsRef.current?.destroy();
-      hlsRef.current = null;
-      return;
-    }
+  const videoCallbackRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      if (!node) {
+        hlsRef.current?.destroy();
+        hlsRef.current = null;
+        return;
+      }
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        lowLatencyMode: true,
-        backBufferLength: 4,
-        maxBufferLength: 10,
-        liveSyncDurationCount: 2,
-      });
-      hlsRef.current = hls;
-      hls.loadSource(streamUrl);
-      hls.attachMedia(node);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        node.play().catch(() => {
-          /* autoplay bloqueado por el navegador */
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          lowLatencyMode: true,
+          backBufferLength: 4,
+          maxBufferLength: 10,
+          liveSyncDurationCount: 2,
         });
-      });
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal)
-          console.error("[HLS] Error fatal:", data.type, data.details);
-      });
-    } else if (node.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari — HLS nativo
-      node.src = streamUrl;
-      node.addEventListener("loadedmetadata", () => {
-        node.play().catch(() => { });
-      });
-    }
-  }, [streamUrl]);
+        hlsRef.current = hls;
+        hls.loadSource(streamUrl);
+        hls.attachMedia(node);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          node.play().catch(() => {
+            /* autoplay bloqueado por el navegador */
+          });
+        });
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal)
+            console.error("[HLS] Error fatal:", data.type, data.details);
+        });
+      } else if (node.canPlayType("application/vnd.apple.mpegurl")) {
+        // Safari — HLS nativo
+        node.src = streamUrl;
+        node.addEventListener("loadedmetadata", () => {
+          node.play().catch(() => {});
+        });
+      }
+    },
+    [streamUrl],
+  );
 
   return (
     <div
-      className={`rounded-b-2xl px-2 ${fullScreen ? "absolute inset-0" : minimize ? "relative w-60" : "relative min-w-80"}`}
+      className={`rounded-b-2xl px-2 ${fullScreen ? "absolute inset-0" : minimize ? "relative w-full" : "relative min-w-80"}`}
     >
       <div className="absolute flex justify-start gap-5 items-center left-0 top-0 bg-bg-100  z-10">
-        <small className={`p-2 ${minimize ? "text-xs" : ""}`}>{camera.nombre}</small>
+        <small className={`p-2 ${minimize ? "text-xs" : ""}`}>
+          {camera.nombre}
+        </small>
         <button
           className={`rounded flex items-center gap-1 ${!minimize ? "hover:bg-brand-100/80" : "hover:bg-brand-200/80"} p-0.5`}
           onClick={() => setMinimize(!minimize)}

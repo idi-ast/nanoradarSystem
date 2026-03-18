@@ -8,6 +8,13 @@ import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
 
+export interface LiveEditValues {
+  grado: number;
+  apertura: number;
+  radio: number;
+  color: string;
+}
+
 export type EditingDevice =
   | { kind: "nanoradar"; device: Nanoradares }
   | { kind: "spotter"; device: Spotters }
@@ -183,18 +190,24 @@ function PanelWrapper({
 }
 
 
-function NanoradarForm({ device, onClose }: { device: Nanoradares; onClose: () => void }) {
+function NanoradarForm({
+  device,
+  onClose,
+  liveEdit,
+  onLiveEditChange,
+}: {
+  device: Nanoradares;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+}) {
   const { mutate, isPending, isError } = useUpdateNanoradar();
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
     latitud: device.latitud,
     longitud: device.longitud,
-    azimut: Number(device.azimut) || 0,
-    grado: device.grado ?? 0,
-    radio: device.radio ?? 0,
-    apertura: device.apertura ?? 0,
-    color: device.color,
+    azimut: device.azimut ?? "0",
   });
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -207,11 +220,11 @@ function NanoradarForm({ device, onClose }: { device: Nanoradares; onClose: () =
       direccionIp: form.direccionIp,
       latitud: form.latitud,
       longitud: form.longitud,
-      azimut: String(form.azimut),
-      grado: form.grado,
-      radio: form.radio,
-      apertura: form.apertura,
-      color: form.color,
+      azimut: form.azimut,
+      grado: liveEdit.grado,
+      radio: liveEdit.radio,
+      apertura: liveEdit.apertura,
+      color: liveEdit.color,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -229,48 +242,48 @@ function NanoradarForm({ device, onClose }: { device: Nanoradares; onClose: () =
       <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
       <RangeNumberField
         label="Grado"
-        value={form.grado}
-        onChange={(v) => set("grado", v)}
-        min={0} max={360} unit="°"
-      />
-      <RangeNumberField
-        label="Azimut"
-        value={form.azimut}
-        onChange={(v) => set("azimut", v)}
+        value={liveEdit.grado}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
         min={0} max={360} unit="°"
       />
       <RangeNumberField
         label="Apertura"
-        value={form.apertura}
-        onChange={(v) => set("apertura", v)}
+        value={liveEdit.apertura}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
         min={1} max={180} unit="°"
       />
       <RangeNumberField
         label="Radio"
-        value={form.radio}
-        onChange={(v) => set("radio", v)}
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
         min={0} max={10000} step={50} unit="m"
       />
       <TextField label="Latitud" value={form.latitud} onChange={(v) => set("latitud", v)} />
       <TextField label="Longitud" value={form.longitud} onChange={(v) => set("longitud", v)} />
-      <ColorField value={form.color} onChange={(v) => set("color", v)} />
+      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
     </PanelWrapper>
   );
 }
 
 
-function SpotterForm({ device, onClose }: { device: Spotters; onClose: () => void }) {
+function SpotterForm({
+  device,
+  onClose,
+  liveEdit,
+  onLiveEditChange,
+}: {
+  device: Spotters;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+}) {
   const { mutate, isPending, isError } = useUpdateSpotter();
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
     latitude: device.latitude,
     longitude: device.longitude,
-    azimut: Number(device.azimut) || 0,
-    grado: device.grado ?? 0,
-    radio: device.radio ?? 0,
-    apertura: device.apertura ?? 0,
-    color: device.color,
+    azimut: device.azimut ?? "0",
   });
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -283,11 +296,11 @@ function SpotterForm({ device, onClose }: { device: Spotters; onClose: () => voi
       direccionIp: form.direccionIp,
       latitude: form.latitude,
       longitude: form.longitude,
-      azimut: String(form.azimut),
-      grado: form.grado,
-      radio: form.radio,
-      apertura: form.apertura,
-      color: form.color,
+      azimut: form.azimut,
+      grado: liveEdit.grado,
+      radio: liveEdit.radio,
+      apertura: liveEdit.apertura,
+      color: liveEdit.color,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -305,50 +318,50 @@ function SpotterForm({ device, onClose }: { device: Spotters; onClose: () => voi
       <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
       <RangeNumberField
         label="Grado"
-        value={form.grado}
-        onChange={(v) => set("grado", v)}
-        min={0} max={360} unit="°"
-      />
-      <RangeNumberField
-        label="Azimut"
-        value={form.azimut}
-        onChange={(v) => set("azimut", v)}
+        value={liveEdit.grado}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
         min={0} max={360} unit="°"
       />
       <RangeNumberField
         label="Apertura"
-        value={form.apertura}
-        onChange={(v) => set("apertura", v)}
+        value={liveEdit.apertura}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
         min={1} max={180} unit="°"
       />
       <RangeNumberField
         label="Radio"
-        value={form.radio}
-        onChange={(v) => set("radio", v)}
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
         min={0} max={10000} step={50} unit="m"
       />
       <TextField label="Latitud" value={form.latitude} onChange={(v) => set("latitude", v)} />
       <TextField label="Longitud" value={form.longitude} onChange={(v) => set("longitude", v)} />
-      <ColorField value={form.color} onChange={(v) => set("color", v)} />
+      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
     </PanelWrapper>
   );
 }
 
 
-function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void }) {
+function CamaraForm({
+  device,
+  onClose,
+  liveEdit,
+  onLiveEditChange,
+}: {
+  device: Camaras;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+}) {
   const { mutate, isPending, isError } = useUpdateCamara();
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
     channel: device.channel ?? 1,
     subtype: device.subtype ?? 0,
-    azimut: Number(device.azimut) || 0,
-    grado: device.grado ?? 0,
-    radio: device.radio ?? 0,
-    apertura: device.apertura ?? 0,
+    azimut: device.azimut ?? "0",
     usuario: device.usuario,
     password: device.password,
-    color: device.color,
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
@@ -363,13 +376,13 @@ function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void 
       direccionIp: form.direccionIp,
       channel: form.channel,
       subtype: form.subtype,
-      azimut: String(form.azimut),
-      grado: form.grado,
-      radio: form.radio,
-      apertura: form.apertura,
+      azimut: form.azimut,
+      grado: liveEdit.grado,
+      radio: liveEdit.radio,
+      apertura: liveEdit.apertura,
       usuario: form.usuario,
       password: form.password,
-      color: form.color,
+      color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
     };
@@ -390,26 +403,20 @@ function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void 
       <TextField label="Tipo" value={form.tipo} onChange={(v) => set("tipo", v)} />
       <RangeNumberField
         label="Grado"
-        value={form.grado}
-        onChange={(v) => set("grado", v)}
-        min={0} max={360} unit="°"
-      />
-      <RangeNumberField
-        label="Azimut"
-        value={form.azimut}
-        onChange={(v) => set("azimut", v)}
+        value={liveEdit.grado}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
         min={0} max={360} unit="°"
       />
       <RangeNumberField
         label="Apertura"
-        value={form.apertura}
-        onChange={(v) => set("apertura", v)}
+        value={liveEdit.apertura}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
         min={1} max={180} unit="°"
       />
       <RangeNumberField
         label="Radio"
-        value={form.radio}
-        onChange={(v) => set("radio", v)}
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
         min={0} max={10000} step={50} unit="m"
       />
       <RangeNumberField
@@ -427,7 +434,7 @@ function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void 
       <TextField label="URL Stream" value={form.url_stream} onChange={(v) => set("url_stream", v)} />
       <TextField label="Usuario" value={form.usuario} onChange={(v) => set("usuario", v)} />
       <TextField label="Password" value={form.password} onChange={(v) => set("password", v)} />
-      <ColorField value={form.color} onChange={(v) => set("color", v)} />
+      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
     </PanelWrapper>
   );
 }
@@ -436,15 +443,19 @@ function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void 
 export function DeviceEditPanel({
   editing,
   onClose,
+  liveEdit,
+  onLiveEditChange,
 }: {
   editing: EditingDevice;
   onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
 }) {
   if (editing.kind === "nanoradar") {
-    return <NanoradarForm device={editing.device} onClose={onClose} />;
+    return <NanoradarForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
   }
   if (editing.kind === "camara") {
-    return <CamaraForm device={editing.device} onClose={onClose} />;
+    return <CamaraForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
   }
-  return <SpotterForm device={editing.device} onClose={onClose} />;
+  return <SpotterForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
 }
