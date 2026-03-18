@@ -31,7 +31,7 @@ import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
 import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice } from "./DeviceEditPanel";
-import ConfigZones from "./zones/ConfigZones";
+// import ConfigZones from "./zones/ConfigZones";
 import Camera from "./cameras/Camera";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 
@@ -84,7 +84,10 @@ export const RadarMap = memo(function RadarMap({
   } = useRadarContext();
   const { targets } = useRadarTargets();
   const filteredTargets = useMemo(
-    () => deviceFilter === "all" ? targets : targets.filter((t) => t.deviceType === deviceFilter),
+    () =>
+      deviceFilter === "all"
+        ? targets
+        : targets.filter((t) => t.deviceType === deviceFilter),
     [targets, deviceFilter],
   );
 
@@ -217,7 +220,23 @@ export const RadarMap = memo(function RadarMap({
             />
           </Source>
 
-          <DevicesOverlay visibility={deviceVisibility} deviceFilter={deviceFilter} />
+          <DevicesOverlay
+            visibility={deviceVisibility}
+            deviceFilter={deviceFilter}
+          />
+          <div className="flex absolute right-2 top-2 z-10  p-1  gap-1 radar-chip rounded-md">
+            <LayerSelector
+              selectedLayer={selectedLayer}
+              onLayerChange={handleLayerChange}
+              mapLayers={mapLayers}
+            />
+            <ViewControls
+              mapRef={mapRef}
+              initialCenter={initialCenter}
+              initialZoom={15}
+            />
+            <CustomZoomControl mapRef={mapRef} />
+          </div>
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
@@ -242,33 +261,20 @@ export const RadarMap = memo(function RadarMap({
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
         <div className="flex flex-col gap-1 p-1.5">
-          <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
-            <LayerSelector
-              selectedLayer={selectedLayer}
-              onLayerChange={handleLayerChange}
-              mapLayers={mapLayers}
-            />
-            <ViewControls
-              mapRef={mapRef}
-              initialCenter={initialCenter}
-              initialZoom={15}
-            />
-            <CustomZoomControl mapRef={mapRef} />
-            <ConfigZones />
-            <DeviceSelector
-              visibility={deviceVisibility}
-              onChange={setDeviceVisibility}
-              onEditNanoradar={(device) =>
-                setEditingDevice({ kind: "nanoradar", device })
-              }
-              onEditSpotter={(device) =>
-                setEditingDevice({ kind: "spotter", device })
-              }
-              onEditCamara={(device) =>
-                setEditingDevice({ kind: "camara", device })
-              }
-            />
-          </div>
+          {/* <ConfigZones /> */}
+          <DeviceSelector
+            visibility={deviceVisibility}
+            onChange={setDeviceVisibility}
+            onEditNanoradar={(device) =>
+              setEditingDevice({ kind: "nanoradar", device })
+            }
+            onEditSpotter={(device) =>
+              setEditingDevice({ kind: "spotter", device })
+            }
+            onEditCamara={(device) =>
+              setEditingDevice({ kind: "camara", device })
+            }
+          />
           <div className="flex justify-center items-center flex-1">
             <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
               Configuración Mapa

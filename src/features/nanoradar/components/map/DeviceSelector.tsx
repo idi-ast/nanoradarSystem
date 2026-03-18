@@ -9,6 +9,7 @@ import {
   IconEye,
   IconEyeOff,
   IconPencil,
+  IconDevicesCog,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import type { Nanoradares, Spotters, Camaras } from "@/features/config-devices/types/ConfigServices.type";
@@ -221,10 +222,10 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
         title="Dispositivos en mapa"
         className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${open
           ? "bg-brand-200/20 text-brand-200"
-          : "text-text-100/60 hover:text-text-100 hover:bg-bg-300"
+          : "text-text-100/60 bg-bg-300 hover:text-text-100 hover:bg-bg-300"
           }`}
       >
-        <IconLayersSubtract size={16} />
+        <IconDevicesCog size={16} />
       </button>
 
       {open && createPortal(
