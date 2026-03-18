@@ -11,9 +11,7 @@ import {
 } from "@tabler/icons-react";
 import { MAPBOX_TOKEN, MAP_STYLES } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
-import CustomZoomControl from "@/components/baseMap/components/CustomZoomControl";
-import ViewControls from "@/components/baseMap/components/ViewControls";
-import LayerSelector from "@/components/baseMap/components/LayerSelector";
+import MapControls from "@/components/baseMap/components/MapControls";
 import { RADAR_INSTANCES } from "../../config";
 import type { RadarInstanceConfig } from "../../config";
 import { RadarProvider } from "../../context";
@@ -224,19 +222,14 @@ export const RadarMap = memo(function RadarMap({
             visibility={deviceVisibility}
             deviceFilter={deviceFilter}
           />
-          <div className="flex absolute right-2 top-2 z-10  p-1  gap-1 radar-chip rounded-md">
-            <LayerSelector
-              selectedLayer={selectedLayer}
-              onLayerChange={handleLayerChange}
-              mapLayers={mapLayers}
-            />
-            <ViewControls
-              mapRef={mapRef}
-              initialCenter={initialCenter}
-              initialZoom={15}
-            />
-            <CustomZoomControl mapRef={mapRef} />
-          </div>
+          <MapControls
+            mapRef={mapRef}
+            selectedLayer={selectedLayer}
+            onLayerChange={handleLayerChange}
+            mapLayers={mapLayers}
+            initialCenter={initialCenter}
+            initialZoom={15}
+          />
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
@@ -261,7 +254,9 @@ export const RadarMap = memo(function RadarMap({
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
         <div className="flex flex-col gap-1 p-1.5">
-          {/* <ConfigZones /> */}
+          {/* 
+            Configuracion y creacioin de zonas, borrar cache, editar etc
+             */}
           <DeviceSelector
             visibility={deviceVisibility}
             onChange={setDeviceVisibility}
@@ -275,9 +270,10 @@ export const RadarMap = memo(function RadarMap({
               setEditingDevice({ kind: "camara", device })
             }
           />
+
           <div className="flex justify-center items-center flex-1">
             <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
-              Configuración Mapa
+              Configuraciones de dispositivos
             </span>
           </div>
         </div>

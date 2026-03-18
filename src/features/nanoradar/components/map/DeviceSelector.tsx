@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import {
-  IconLayersSubtract,
   IconX,
   IconRadar,
   IconCurrentLocation,
@@ -12,7 +11,11 @@ import {
   IconDevicesCog,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
-import type { Nanoradares, Spotters, Camaras } from "@/features/config-devices/types/ConfigServices.type";
+import type {
+  Nanoradares,
+  Spotters,
+  Camaras,
+} from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE } from "./devicesConfig";
 
@@ -24,7 +27,6 @@ interface DeviceSelectorProps {
   onEditCamara?: (device: Camaras) => void;
 }
 
-
 function toggleId(set: Set<number>, id: number): Set<number> {
   const next = new Set(set);
   if (next.has(id)) next.delete(id);
@@ -35,7 +37,6 @@ function toggleId(set: Set<number>, id: number): Set<number> {
 function allHidden(ids: number[], hidden: Set<number>) {
   return ids.length > 0 && ids.every((id) => hidden.has(id));
 }
-
 
 function DeviceRow({
   id,
@@ -67,7 +68,9 @@ function DeviceRow({
           style={{ backgroundColor: isHidden ? "#555" : accentColor }}
         />
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-medium text-text-100 truncate">{label}</p>
+          <p className="text-[11px] font-medium text-text-100 truncate">
+            {label}
+          </p>
           {subtitle && (
             <p className="text-[9px] text-text-100/40 truncate">{subtitle}</p>
           )}
@@ -91,7 +94,6 @@ function DeviceRow({
     </div>
   );
 }
-
 
 function GroupHeader({
   icon,
@@ -123,10 +125,18 @@ function GroupHeader({
   );
 }
 
-
-export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange, onEditNanoradar, onEditSpotter, onEditCamara }: DeviceSelectorProps) {
+export const DeviceSelector = memo(function DeviceSelector({
+  visibility,
+  onChange,
+  onEditNanoradar,
+  onEditSpotter,
+  onEditCamara,
+}: DeviceSelectorProps) {
   const [open, setOpen] = useState(false);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
+    top: 0,
+    right: 0,
+  });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
 
@@ -134,7 +144,10 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
     if (!open || !triggerRef.current) return;
     const updatePos = () => {
       const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({ top: rect.top, right: window.innerWidth - rect.left + 8 });
+      setPanelStyle({
+        top: rect.top,
+        right: window.innerWidth - rect.left + 8,
+      });
     };
     updatePos();
     window.addEventListener("resize", updatePos);
@@ -150,7 +163,6 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
     visibility.hiddenNanoradares.size +
     visibility.hiddenSpotters.size +
     visibility.hiddenCamaras.size;
-
 
   const toggleNR = useCallback(
     (id: number) =>
@@ -220,143 +232,158 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         title="Dispositivos en mapa"
-        className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${open
-          ? "bg-brand-200/20 text-brand-200"
-          : "text-text-100/60 bg-bg-300 hover:text-text-100 hover:bg-bg-300"
-          }`}
+        className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+          open
+            ? "bg-brand-200/20 text-brand-200"
+            : "text-text-100/60 bg-bg-300 hover:text-text-100 hover:bg-bg-300"
+        }`}
       >
         <IconDevicesCog size={16} />
       </button>
 
-      {open && createPortal(
-        <div
-          style={{ position: "fixed", top: panelStyle.top, right: panelStyle.right }}
-          className="w-52 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden"
-        >          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-text-100/70">
-              Dispositivos
-            </span>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-text-100/30">
-                {totalDevices - totalHidden}/{totalDevices}
+      {open &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: panelStyle.top,
+              right: panelStyle.right,
+            }}
+            className="w-52 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden"
+          >
+            {" "}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-text-100/70">
+                Dispositivos
               </span>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-text-100/30 hover:text-text-100/70 ml-1"
-              >
-                <IconX size={13} />
-              </button>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-text-100/30">
+                  {totalDevices - totalHidden}/{totalDevices}
+                </span>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="text-text-100/30 hover:text-text-100/70 ml-1"
+                >
+                  <IconX size={13} />
+                </button>
+              </div>
             </div>
-          </div>
-
-          {isLoading ? (
-            <div className="px-3 py-4 text-center text-[10px] text-text-100/40">
-              Cargando...
-            </div>
-          ) : (
-            <div className="p-2 space-y-3 max-h-72 overflow-y-auto">
-
-              {/* Nanoradares */}
-              {nanoradares.length > 0 && (
-                <div>
-                  <GroupHeader
-                    icon={<IconRadar size={11} />}
-                    title="Nanoradares"
-                    count={nanoradares.length}
-                    allGroupHidden={allHidden(
-                      nanoradares.map((nr) => nr.id),
-                      visibility.hiddenNanoradares,
-                    )}
-                    onToggleAll={toggleAllNR}
-                  />
-                  {nanoradares.map((nr, idx) => (
-                    <DeviceRow
-                      key={nr.id}
-                      id={nr.id}
-                      label={nr.nombre}
-                      subtitle={`Az ${nr.azimut}° · R ${nr.radio}m`}
-                      accentColor={nr.color || NR_PALETTE[idx % NR_PALETTE.length].primary}
-                      isHidden={visibility.hiddenNanoradares.has(nr.id)}
-                      onToggle={toggleNR}
-                      onEdit={onEditNanoradar ? () => onEditNanoradar(nr) : undefined}
+            {isLoading ? (
+              <div className="px-3 py-4 text-center text-[10px] text-text-100/40">
+                Cargando...
+              </div>
+            ) : (
+              <div className="p-2 space-y-3 max-h-72 overflow-y-auto">
+                {/* Nanoradares */}
+                {nanoradares.length > 0 && (
+                  <div>
+                    <GroupHeader
+                      icon={<IconRadar size={11} />}
+                      title="Nanoradares"
+                      count={nanoradares.length}
+                      allGroupHidden={allHidden(
+                        nanoradares.map((nr) => nr.id),
+                        visibility.hiddenNanoradares,
+                      )}
+                      onToggleAll={toggleAllNR}
                     />
-                  ))}
-                </div>
-              )}
+                    {nanoradares.map((nr, idx) => (
+                      <DeviceRow
+                        key={nr.id}
+                        id={nr.id}
+                        label={nr.nombre}
+                        subtitle={`Az ${nr.azimut}° · R ${nr.radio}m`}
+                        accentColor={
+                          nr.color ||
+                          NR_PALETTE[idx % NR_PALETTE.length].primary
+                        }
+                        isHidden={visibility.hiddenNanoradares.has(nr.id)}
+                        onToggle={toggleNR}
+                        onEdit={
+                          onEditNanoradar
+                            ? () => onEditNanoradar(nr)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
 
-              {/* Spotters */}
-              {spotters.length > 0 && (
-                <div>
-                  <GroupHeader
-                    icon={<IconCurrentLocation size={11} />}
-                    title="Spotters"
-                    count={spotters.length}
-                    allGroupHidden={allHidden(
-                      spotters.map((s) => s.id),
-                      visibility.hiddenSpotters,
-                    )}
-                    onToggleAll={toggleAllSpotters}
-                  />
-                  {spotters.map((s) => (
-                    <DeviceRow
-                      key={s.id}
-                      id={s.id}
-                      label={s.nombre}
-                      subtitle={`${Number(s.bearing).toFixed(1)}° · ${s.model}`}
-                      accentColor="#38bdf8"
-                      isHidden={visibility.hiddenSpotters.has(s.id)}
-                      onToggle={toggleSpotter}
-                      onEdit={onEditSpotter ? () => onEditSpotter(s) : undefined}
+                {/* Spotters */}
+                {spotters.length > 0 && (
+                  <div>
+                    <GroupHeader
+                      icon={<IconCurrentLocation size={11} />}
+                      title="Spotters"
+                      count={spotters.length}
+                      allGroupHidden={allHidden(
+                        spotters.map((s) => s.id),
+                        visibility.hiddenSpotters,
+                      )}
+                      onToggleAll={toggleAllSpotters}
                     />
-                  ))}
-                </div>
-              )}
+                    {spotters.map((s) => (
+                      <DeviceRow
+                        key={s.id}
+                        id={s.id}
+                        label={s.nombre}
+                        subtitle={`${Number(s.bearing).toFixed(1)}° · ${s.model}`}
+                        accentColor="#38bdf8"
+                        isHidden={visibility.hiddenSpotters.has(s.id)}
+                        onToggle={toggleSpotter}
+                        onEdit={
+                          onEditSpotter ? () => onEditSpotter(s) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
 
-              {/* Cámaras */}
-              {camaras.length > 0 && (
-                <div>
-                  <GroupHeader
-                    icon={<IconCamera size={11} />}
-                    title="Cámaras"
-                    count={camaras.length}
-                    allGroupHidden={allHidden(
-                      camaras.map((c) => c.id),
-                      visibility.hiddenCamaras,
-                    )}
-                    onToggleAll={toggleAllCamaras}
-                  />
-                  {camaras.map((c) => (
-                    <DeviceRow
-                      key={c.id}
-                      id={c.id}
-                      label={c.nombre}
-                      subtitle={c.tipo}
-                      accentColor={c.color || "#f59e0b"}
-                      isHidden={visibility.hiddenCamaras.has(c.id)}
-                      onToggle={toggleCamera}
-                      onEdit={onEditCamara ? () => onEditCamara(c) : undefined}
+                {/* Cámaras */}
+                {camaras.length > 0 && (
+                  <div>
+                    <GroupHeader
+                      icon={<IconCamera size={11} />}
+                      title="Cámaras"
+                      count={camaras.length}
+                      allGroupHidden={allHidden(
+                        camaras.map((c) => c.id),
+                        visibility.hiddenCamaras,
+                      )}
+                      onToggleAll={toggleAllCamaras}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Footer */}
-          {totalHidden > 0 && (
-            <div className="border-t border-border px-2 py-1.5">
-              <button
-                onClick={showAll}
-                className="w-full text-[10px] text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
-              >
-                Mostrar todos
-              </button>
-            </div>
-          )}
-        </div>,
-        document.body,
-      )}
-
+                    {camaras.map((c) => (
+                      <DeviceRow
+                        key={c.id}
+                        id={c.id}
+                        label={c.nombre}
+                        subtitle={c.tipo}
+                        accentColor={c.color || "#f59e0b"}
+                        isHidden={visibility.hiddenCamaras.has(c.id)}
+                        onToggle={toggleCamera}
+                        onEdit={
+                          onEditCamara ? () => onEditCamara(c) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Footer */}
+            {totalHidden > 0 && (
+              <div className="border-t border-border px-2 py-1.5">
+                <button
+                  onClick={showAll}
+                  className="w-full text-[10px] text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
+                >
+                  Mostrar todos
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 });
