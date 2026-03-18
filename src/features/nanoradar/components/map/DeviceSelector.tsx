@@ -111,7 +111,7 @@ function GroupHeader({
   return (
     <div className="flex items-center gap-1.5 px-1 mb-0.5">
       <span className="text-text-100/40">{icon}</span>
-      <span className="flex-1 text-[10px] font-bold uppercase tracking-widest text-text-100/50">
+      <span className="flex-1 text-xs font-bold uppercase tracking-widest text-text-100/50">
         {title}
       </span>
       <span className="text-[9px] text-text-100/30 mr-1">{count}</span>
@@ -253,11 +253,11 @@ export const DeviceSelector = memo(function DeviceSelector({
           >
             {" "}
             <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-text-100/70">
+              <span className="text-xs font-bold uppercase tracking-widest text-text-100/70">
                 Dispositivos
               </span>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-text-100/30">
+                <span className="text-xs text-text-100/30">
                   {totalDevices - totalHidden}/{totalDevices}
                 </span>
                 <button
@@ -269,7 +269,7 @@ export const DeviceSelector = memo(function DeviceSelector({
               </div>
             </div>
             {isLoading ? (
-              <div className="px-3 py-4 text-center text-[10px] text-text-100/40">
+              <div className="px-3 py-4 text-center text-xs text-text-100/40">
                 Cargando...
               </div>
             ) : (
@@ -375,7 +375,7 @@ export const DeviceSelector = memo(function DeviceSelector({
               <div className="border-t border-border px-2 py-1.5">
                 <button
                   onClick={showAll}
-                  className="w-full text-[10px] text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
+                  className="w-full text-xs text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
                 >
                   Mostrar todos
                 </button>

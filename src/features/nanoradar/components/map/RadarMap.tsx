@@ -29,7 +29,7 @@ import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
 import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice } from "./DeviceEditPanel";
-// import ConfigZones from "./zones/ConfigZones";
+import { ZonesPanel } from "./zones/ZonesPanel";
 import Camera from "./cameras/Camera";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 
@@ -254,9 +254,6 @@ export const RadarMap = memo(function RadarMap({
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
         <div className="flex flex-col gap-1 p-1.5">
-          {/* 
-            Configuracion y creacioin de zonas, borrar cache, editar etc
-             */}
           <DeviceSelector
             visibility={deviceVisibility}
             onChange={setDeviceVisibility}
@@ -270,7 +267,7 @@ export const RadarMap = memo(function RadarMap({
               setEditingDevice({ kind: "camara", device })
             }
           />
-
+          <ZonesPanel />
           <div className="flex justify-center items-center flex-1">
             <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
               Configuraciones de dispositivos

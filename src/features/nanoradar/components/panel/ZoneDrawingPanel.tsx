@@ -1,3 +1,4 @@
+import { IconArrowBackUp, IconHexagon } from "@tabler/icons-react";
 import { useRadarContext } from "../../context/useRadarContext";
 
 const ALERT_LEVELS = [
@@ -7,10 +8,7 @@ const ALERT_LEVELS = [
   { value: 4, label: "Nivel 4: CRÍTICO" },
 ] as const;
 
-/**
- * Panel de formulario para configurar y guardar una nueva zona.
- * Solo se muestra cuando el modo de dibujo está activo.
- */
+
 export function ZoneDrawingPanel() {
   const {
     drawingPoints,
@@ -26,17 +24,16 @@ export function ZoneDrawingPanel() {
   } = useRadarContext();
 
   return (
-    <div className="p-4 bg-bg-200 border-b border-border space-y-3">
+    <div className="absolute right-11 top-19 p-5 min-w-80 bg-bg-100 border border-border rounded-lg space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-[10px] text-text-100 font-bold uppercase">
+        <h4 className="text-xs text-text-100 font-bold uppercase">
           Configuración de Zona
         </h4>
-        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-2 py-0.5">
+        <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-2 py-0.5">
           {drawingPoints.length} pts
         </span>
       </div>
 
-      {/* Instrucción contextual */}
       <p className="text-[9px] text-text-100/40 italic leading-tight">
         {drawingPoints.length === 0
           ? "Haz clic en el mapa para agregar vértices."
@@ -54,7 +51,7 @@ export function ZoneDrawingPanel() {
       />
 
       <div className="flex items-center justify-between bg-bg-100/30 p-2 rounded border border-border">
-        <label className="text-[10px] text-text-200">COLOR DE ZONA:</label>
+        <label className="text-xs text-text-200">Color de zona:</label>
         <div className="w-8 h-8 overflow-hidden rounded-full flex justify-center items-center">
           <input
             type="color"
@@ -66,8 +63,8 @@ export function ZoneDrawingPanel() {
       </div>
 
       <div>
-        <label className="text-[10px] text-text-200 block mb-1">
-          TIPO DE ALERTA:
+        <label className="text-xs text-text-200 block mb-1">
+          Tipo de alerta:
         </label>
         <select
           className="w-full bg-bg-100 border border-border text-text-100 text-xs p-2 rounded"
@@ -88,16 +85,16 @@ export function ZoneDrawingPanel() {
         <button
           onClick={removeLastDrawingPoint}
           disabled={drawingPoints.length === 0}
-          className="flex-1 px-2 py-1.5 text-[10px] rounded border border-yellow-500/40 bg-yellow-900/20 text-yellow-300 hover:bg-yellow-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-1/2  px-2 py-1.5 flex items-center justify-center gap-2 text-xs rounded border border-yellow-500/40 bg-yellow-900/20 text-yellow-300 hover:bg-yellow-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          ↩ DESHACER
+          <IconArrowBackUp size={16} stroke={2} /> Deshacer
         </button>
         <button
           onClick={saveZone}
           disabled={!canSave}
-          className="flex-1 bg-brand-100 text-text-100 font-bold text-xs py-1.5 rounded hover:bg-bg-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center w-1/2 justify-center gap-2 bg-brand-100 text-text-100 font-bold text-xs py-1.5 rounded hover:bg-bg-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          GUARDAR
+          <IconHexagon size={16} stroke={2} /> Crear
         </button>
       </div>
     </div>

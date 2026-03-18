@@ -9,7 +9,6 @@ import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
-import { ZoneDrawingPanel } from "../components/panel/ZoneDrawingPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { RADAR_INSTANCES } from "../config";
@@ -59,7 +58,11 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       </div>
 
       {!isMobile ? (
-        <RightBarNano activeZoneIds={geofence.activeZoneIds} deviceFilter={deviceFilter} onDeviceFilterChange={setDeviceFilter} />
+        <RightBarNano
+          activeZoneIds={geofence.activeZoneIds}
+          deviceFilter={deviceFilter}
+          onDeviceFilterChange={setDeviceFilter}
+        />
       ) : isOpenRightBar ? (
         <RightBarNano
           setOpenRightBar={setOpenRightBar}
@@ -109,10 +112,11 @@ const RadarStatusBar = memo(() => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${criticalCount > 0
-            ? "text-red-500 animate-pulse"
-            : "text-text-100/30"
-            }`}
+          className={`font-bold text-xl leading-tight ${
+            criticalCount > 0
+              ? "text-red-500 animate-pulse"
+              : "text-text-100/30"
+          }`}
         >
           {criticalCount}
         </span>
@@ -121,107 +125,77 @@ const RadarStatusBar = memo(() => {
   );
 });
 
-const RightBarNano = memo(function RightBarNano({
-  setOpenRightBar,
-  activeZoneIds,
-  deviceFilter,
-  onDeviceFilterChange,
-}: {
-  setOpenRightBar?: (isOpen: boolean) => void;
-  activeZoneIds: Set<string>;
-  deviceFilter: DeviceFilter;
-  onDeviceFilterChange: (f: DeviceFilter) => void;
-}) {
-  const {
-    zones,
-    isDrawing,
-    startDrawing,
-    cancelDrawing,
-  } = useRadarContext();
+const RightBarNano = memo(
+  function RightBarNano({
+    setOpenRightBar,
+    activeZoneIds,
+    deviceFilter,
+    onDeviceFilterChange,
+  }: {
+    setOpenRightBar?: (isOpen: boolean) => void;
+    activeZoneIds: Set<string>;
+    deviceFilter: DeviceFilter;
+    onDeviceFilterChange: (f: DeviceFilter) => void;
+  }) {
+    const { zones } = useRadarContext();
 
-  return (
-    <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
-      <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
-        <h3>Control Radar</h3>
-        <h5>Zonas y Detecciones</h5>
-        {setOpenRightBar && (
-          <button
-            onClick={() => setOpenRightBar(false)}
-            className="absolute top-3 right-3 z-50"
-          >
-            <IconX size={20} stroke={1.5} />
-          </button>
-        )}
-      </div>
-
-      <div className="shrink-0 px-3 py-3 border-b border-border flex gap-2">
-        <ClearTargetsButton />
-        <button
-          onClick={isDrawing ? cancelDrawing : startDrawing}
-          className={`px-3 py-1 text-[10px] rounded border text-white ${isDrawing
-            ? "bg-red-500 border-red-400"
-            : "bg-emerald-600 border-emerald-400"
-            }`}
-        >
-          {isDrawing ? "CANCELAR" : "+ NUEVA"}
-        </button>
-      </div>
-
-      {isDrawing && (
-        <div className="shrink-0">
-          <ZoneDrawingPanel />
-        </div>
-      )}
-
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 gap-3">
-        <div className="shrink-0 space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1">
-            Zonas Activas ({zones.length > 0 ? zones.length : "0"})
-          </h4>
-          {zones.length === 0 ? (
-            <p className="text-text-100/40 text-[10px] italic">
-              Sin zonas configuradas
-            </p>
-          ) : (
-            zones.map((zone) => (
-              <ZoneCard
-                key={zone.id ?? zone.nombre}
-                zone={zone}
-                hasAlert={activeZoneIds.has(zone.id?.toString() ?? zone.nombre)}
-              />
-            ))
+    return (
+      <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
+        <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
+          <h3>Control Radar</h3>
+          <h5>Zonas y Detecciones</h5>
+          {setOpenRightBar && (
+            <button
+              onClick={() => setOpenRightBar(false)}
+              className="absolute top-3 right-3 z-50"
+            >
+              <IconX size={20} stroke={1.5} />
+            </button>
           )}
         </div>
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 gap-3">
+          <div className="shrink-0 space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1">
+              Zonas Activas ({zones.length > 0 ? zones.length : "0"})
+            </h4>
+            {zones.length === 0 ? (
+              <p className="text-text-100/40 text-[10px] italic">
+                Sin zonas configuradas
+              </p>
+            ) : (
+              zones.map((zone) => (
+                <ZoneCard
+                  key={zone.id ?? zone.nombre}
+                  zone={zone}
+                  hasAlert={activeZoneIds.has(
+                    zone.id?.toString() ?? zone.nombre,
+                  )}
+                />
+              ))
+            )}
+          </div>
 
-        <TargetsDynamicPanel deviceFilter={deviceFilter} onDeviceFilterChange={onDeviceFilterChange} />
+          <TargetsDynamicPanel
+            deviceFilter={deviceFilter}
+            onDeviceFilterChange={onDeviceFilterChange}
+          />
+        </div>
       </div>
-    </div>
-  );
-}, (prev, next) => {
-  if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
-  if (prev.deviceFilter !== next.deviceFilter) return false;
-  if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
-  if (prev.activeZoneIds.size !== next.activeZoneIds.size) return false;
-  for (const id of next.activeZoneIds) {
-    if (!prev.activeZoneIds.has(id)) return false;
-  }
-  return true;
-});
+    );
+  },
+  (prev, next) => {
+    if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
+    if (prev.deviceFilter !== next.deviceFilter) return false;
+    if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
+    if (prev.activeZoneIds.size !== next.activeZoneIds.size) return false;
+    for (const id of next.activeZoneIds) {
+      if (!prev.activeZoneIds.has(id)) return false;
+    }
+    return true;
+  },
+);
 
 export default NanoPages;
-
-const ClearTargetsButton = memo(function ClearTargetsButton() {
-  const { clearTargets } = useRadarContext();
-  return (
-    <button
-      onClick={clearTargets}
-      className="flex-1 px-2 py-1 text-[10px] rounded border border-red-500/50 bg-red-950/50 text-text-100 hover:bg-red-500/20 transition-colors"
-    >
-      BORRAR CACHÉ
-    </button>
-  );
-});
-
 
 const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   deviceFilter,
@@ -233,7 +207,11 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   const { stableTargets } = useRadarStableTargets();
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <TargetsSection targets={stableTargets} deviceFilter={deviceFilter} onDeviceFilterChange={onDeviceFilterChange} />
+      <TargetsSection
+        targets={stableTargets}
+        deviceFilter={deviceFilter}
+        onDeviceFilterChange={onDeviceFilterChange}
+      />
     </div>
   );
 });
@@ -267,7 +245,6 @@ const TABS: { key: TabFilter; label: string }[] = [
   { key: "spotter", label: "Spotter" },
 ];
 
-
 const TargetsSection = memo(function TargetsSection({
   targets,
   deviceFilter,
@@ -288,7 +265,9 @@ const TargetsSection = memo(function TargetsSection({
       if (t.deviceType === "spotter") nextCounts.spotter += 1;
     }
     const nextFiltered =
-      deviceFilter === "all" ? targets : targets.filter((t) => t.deviceType === deviceFilter);
+      deviceFilter === "all"
+        ? targets
+        : targets.filter((t) => t.deviceType === deviceFilter);
     return { counts: nextCounts, filtered: nextFiltered };
   }, [targets, deviceFilter]);
 
