@@ -264,6 +264,9 @@ export const RadarMap = memo(function RadarMap({
               onEditSpotter={(device) =>
                 setEditingDevice({ kind: "spotter", device })
               }
+              onEditCamara={(device) =>
+                setEditingDevice({ kind: "camara", device })
+              }
             />
           </div>
           <div className="flex justify-center items-center flex-1">
@@ -272,7 +275,7 @@ export const RadarMap = memo(function RadarMap({
             </span>
           </div>
         </div>
-        <div className="absolute  bg-bg-100 top-30 right-6 rounded-2xl z-9999">
+        <div className="absolute  bg-bg-100 top-30 right-66 rounded-2xl z-9999">
           {editingDevice && (
             <DeviceEditPanel
               editing={editingDevice}
@@ -290,10 +293,10 @@ const CamerasOverlay = memo(function CamerasOverlay() {
   const camaras = data?.data?.camaras;
   if (!camaras || camaras.length === 0) return null;
   return (
-    <>
+    <div className="absolute bottom-0 left-0 flex flex-row items-end gap-2 z-100">
       {camaras.map((cam) => (
         <Camera key={cam.id} camera={cam} />
       ))}
-    </>
+    </div>
   );
 });

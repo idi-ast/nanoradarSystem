@@ -11,7 +11,7 @@ import {
   IconPencil,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
-import type { Nanoradares, Spotters } from "@/features/config-devices/types/ConfigServices.type";
+import type { Nanoradares, Spotters, Camaras } from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE } from "./devicesConfig";
 
@@ -20,6 +20,7 @@ interface DeviceSelectorProps {
   onChange: (v: DeviceVisibility) => void;
   onEditNanoradar?: (device: Nanoradares) => void;
   onEditSpotter?: (device: Spotters) => void;
+  onEditCamara?: (device: Camaras) => void;
 }
 
 
@@ -122,7 +123,7 @@ function GroupHeader({
 }
 
 
-export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange, onEditNanoradar, onEditSpotter }: DeviceSelectorProps) {
+export const DeviceSelector = memo(function DeviceSelector({ visibility, onChange, onEditNanoradar, onEditSpotter, onEditCamara }: DeviceSelectorProps) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -329,9 +330,10 @@ export const DeviceSelector = memo(function DeviceSelector({ visibility, onChang
                       id={c.id}
                       label={c.nombre}
                       subtitle={c.tipo}
-                      accentColor="#f59e0b"
+                      accentColor={c.color || "#f59e0b"}
                       isHidden={visibility.hiddenCamaras.has(c.id)}
                       onToggle={toggleCamera}
+                      onEdit={onEditCamara ? () => onEditCamara(c) : undefined}
                     />
                   ))}
                 </div>

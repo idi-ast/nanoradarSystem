@@ -7,9 +7,6 @@ import { getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon, buildArcCoords } from "./geoUtils";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
 
-const CAM_FOV_DEG = 20;  // ángulo de visión horizontal
-const CAM_RANGE_M = 100; // alcance estimado en metros
-
 export interface CameraDeviceLayersProps {
   camera: Camaras;
   fovDeg?: number;
@@ -18,16 +15,18 @@ export interface CameraDeviceLayersProps {
 
 export const CameraDeviceLayers = memo(function CameraDeviceLayers({
   camera,
-  fovDeg = CAM_FOV_DEG,
-  rangeM = CAM_RANGE_M,
+  fovDeg,
+  rangeM,
 }: CameraDeviceLayersProps) {
   const lat = Number(camera.ubicacion?.lat);
   const lon = Number(camera.ubicacion?.lng);
-  const bearingDeg = Number(camera.azimut) || 0;
+  const bearingDeg = camera.grado ?? (Number(camera.azimut) || 0);
+  const resolvedFov = fovDeg ?? camera.apertura ?? 20;
+  const resolvedRange = rangeM ?? (camera.radio > 0 ? camera.radio : 100);
   const color = camera.color || "#f59e0b";
   const sid = `dev-cam-${camera.id}`;
 
-  const halfFov = fovDeg / 2;
+  const halfFov = resolvedFov / 2;
   const startAngle = bearingDeg - halfFov;
   const endAngle = bearingDeg + halfFov;
 
@@ -41,7 +40,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [buildSectorPolygon(lat, lon, startAngle, endAngle, rangeM)],
+            coordinates: [buildSectorPolygon(lat, lon, startAngle, endAngle, resolvedRange)],
           },
           properties: { kind: "fov" },
         },
@@ -50,7 +49,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, startAngle, rangeM)],
+            coordinates: [[lon, lat], getGeoPoint(lat, lon, startAngle, resolvedRange)],
           },
           properties: { kind: "side" },
         },
@@ -58,7 +57,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, endAngle, rangeM)],
+            coordinates: [[lon, lat], getGeoPoint(lat, lon, endAngle, resolvedRange)],
           },
           properties: { kind: "side" },
         },
@@ -67,7 +66,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, bearingDeg, rangeM)],
+            coordinates: [[lon, lat], getGeoPoint(lat, lon, bearingDeg, resolvedRange)],
           },
           properties: { kind: "center" },
         },
@@ -76,14 +75,14 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: buildArcCoords(lat, lon, startAngle, endAngle, rangeM),
+            coordinates: buildArcCoords(lat, lon, startAngle, endAngle, resolvedRange),
           },
           properties: { kind: "arc" },
         },
       ],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lat, lon, bearingDeg, fovDeg, rangeM]);
+  }, [lat, lon, bearingDeg, resolvedFov, resolvedRange]);
 
   if (!fovData) return null;
 

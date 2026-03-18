@@ -50,7 +50,7 @@ const Camera = memo(function Camera({ camera }: CameraProps) {
 
   return (
     <div
-      className={`absolute left-0 bottom-0 rounded-b-2xl px-2 ${fullScreen ? "w-full h-full" : minimize ? "w-60" : "min-w-80"}`}
+      className={`rounded-b-2xl px-2 ${fullScreen ? "absolute inset-0" : minimize ? "relative w-60" : "relative min-w-80"}`}
     >
       <div className="absolute flex justify-start gap-5 items-center left-0 top-0 bg-bg-100  z-10">
         <small className={`p-2 ${minimize ? "text-xs" : ""}`}>{camera.nombre}</small>

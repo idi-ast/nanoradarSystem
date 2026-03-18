@@ -41,6 +41,9 @@ export interface Camaras {
   usuario: string;
   password: string;
   color: string;
+  grado: number;
+  radio: number;
+  apertura: number;
   url_stream: string;
   tipo: string;
 }

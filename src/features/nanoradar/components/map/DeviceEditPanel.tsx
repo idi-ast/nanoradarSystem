@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { IconX, IconDeviceFloppy } from "@tabler/icons-react";
-import type { Nanoradares, Spotters } from "@/features/config-devices/types/ConfigServices.type";
+import type { Nanoradares, Spotters, Camaras } from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
 import { useUpdateSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
+import { useUpdateCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
+import type { CamaraPayload } from "@/features/config-devices/camara/service";
 
 export type EditingDevice =
   | { kind: "nanoradar"; device: Nanoradares }
-  | { kind: "spotter"; device: Spotters };
+  | { kind: "spotter"; device: Spotters }
+  | { kind: "camara"; device: Camaras };
 
 
 function RangeNumberField({
@@ -332,6 +335,104 @@ function SpotterForm({ device, onClose }: { device: Spotters; onClose: () => voi
 }
 
 
+function CamaraForm({ device, onClose }: { device: Camaras; onClose: () => void }) {
+  const { mutate, isPending, isError } = useUpdateCamara();
+  const [form, setForm] = useState({
+    nombre: device.nombre,
+    direccionIp: device.direccionIp,
+    channel: device.channel ?? 1,
+    subtype: device.subtype ?? 0,
+    azimut: Number(device.azimut) || 0,
+    grado: device.grado ?? 0,
+    radio: device.radio ?? 0,
+    apertura: device.apertura ?? 0,
+    usuario: device.usuario,
+    password: device.password,
+    color: device.color,
+    url_stream: device.url_stream,
+    tipo: device.tipo,
+  });
+
+  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  function save() {
+    const payload: CamaraPayload = {
+      nombre: form.nombre,
+      direccionIp: form.direccionIp,
+      channel: form.channel,
+      subtype: form.subtype,
+      azimut: String(form.azimut),
+      grado: form.grado,
+      radio: form.radio,
+      apertura: form.apertura,
+      usuario: form.usuario,
+      password: form.password,
+      color: form.color,
+      url_stream: form.url_stream,
+      tipo: form.tipo,
+    };
+    mutate({ id: device.id, payload }, { onSuccess: onClose });
+  }
+
+  return (
+    <PanelWrapper
+      title="Cámara"
+      subtitle={form.nombre}
+      onClose={onClose}
+      onSave={save}
+      isPending={isPending}
+      isError={isError}
+    >
+      <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
+      <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
+      <TextField label="Tipo" value={form.tipo} onChange={(v) => set("tipo", v)} />
+      <RangeNumberField
+        label="Grado"
+        value={form.grado}
+        onChange={(v) => set("grado", v)}
+        min={0} max={360} unit="°"
+      />
+      <RangeNumberField
+        label="Azimut"
+        value={form.azimut}
+        onChange={(v) => set("azimut", v)}
+        min={0} max={360} unit="°"
+      />
+      <RangeNumberField
+        label="Apertura"
+        value={form.apertura}
+        onChange={(v) => set("apertura", v)}
+        min={1} max={180} unit="°"
+      />
+      <RangeNumberField
+        label="Radio"
+        value={form.radio}
+        onChange={(v) => set("radio", v)}
+        min={0} max={10000} step={50} unit="m"
+      />
+      <RangeNumberField
+        label="Channel"
+        value={form.channel}
+        onChange={(v) => set("channel", v)}
+        min={1} max={64}
+      />
+      <RangeNumberField
+        label="Subtype"
+        value={form.subtype}
+        onChange={(v) => set("subtype", v)}
+        min={0} max={10}
+      />
+      <TextField label="URL Stream" value={form.url_stream} onChange={(v) => set("url_stream", v)} />
+      <TextField label="Usuario" value={form.usuario} onChange={(v) => set("usuario", v)} />
+      <TextField label="Password" value={form.password} onChange={(v) => set("password", v)} />
+      <ColorField value={form.color} onChange={(v) => set("color", v)} />
+    </PanelWrapper>
+  );
+}
+
+
 export function DeviceEditPanel({
   editing,
   onClose,
@@ -341,6 +442,9 @@ export function DeviceEditPanel({
 }) {
   if (editing.kind === "nanoradar") {
     return <NanoradarForm device={editing.device} onClose={onClose} />;
+  }
+  if (editing.kind === "camara") {
+    return <CamaraForm device={editing.device} onClose={onClose} />;
   }
   return <SpotterForm device={editing.device} onClose={onClose} />;
 }
