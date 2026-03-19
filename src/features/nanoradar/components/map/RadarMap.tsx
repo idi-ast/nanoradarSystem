@@ -30,6 +30,7 @@ import { DeviceSelector } from "./DeviceSelector";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
+import { CameraActivityOverlay } from "./CameraActivityOverlay";
 
 import type { DeviceFilter } from "../../types";
 import { PageLoader } from "@/components/ui";
@@ -311,6 +312,7 @@ export const RadarMap = memo(function RadarMap({
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
+          <CameraActivityOverlay mapRef={mapRef} />
           {liveEdit && liveEditPos && (
             <Marker
               latitude={liveEditPos.lat}

@@ -319,6 +319,7 @@ const TargetsSection = memo(function TargetsSection({
 const CamerasOverlay = memo(function CamerasOverlay() {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;
+  const { cameraActivities } = useRadarTargets();
   const [maximizedIds, setMaximizedIds] = useState<number[]>([]);
 
   const handleMaximize = useCallback((id: number) => {
@@ -346,6 +347,7 @@ const CamerasOverlay = memo(function CamerasOverlay() {
       </h4>
       {camaras.map((cam) => {
         const stackIndex = maximizedIds.indexOf(cam.id);
+        const activity = cameraActivities.find((a) => a.ip === cam.direccionIp);
         return (
           <Camera
             key={cam.id}
@@ -353,6 +355,7 @@ const CamerasOverlay = memo(function CamerasOverlay() {
             stackIndex={stackIndex >= 0 ? stackIndex : 0}
             onBecomeMaximized={() => handleMaximize(cam.id)}
             onBecomeMinimized={() => handleMinimize(cam.id)}
+            activity={activity}
           />
         );
       })}

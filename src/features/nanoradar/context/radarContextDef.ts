@@ -6,6 +6,7 @@ import type {
   RadarZone,
   CreateZonePayload,
   UpdateZonePayload,
+  CamaraActividad,
 } from "../types";
 import type { ResolvedRadarConfig } from "../config";
 
@@ -56,6 +57,8 @@ export interface RadarContextValue {
  */
 export interface RadarTargetsContextValue {
   targets: RadarTarget[];
+  /** Actividades recientes de cámaras recibidas desde el WebSocket */
+  cameraActivities: CamaraActividad[];
 }
 
 /**

@@ -62,7 +62,26 @@ export interface RawRadarMessage {
   zona: string;
 }
 
+/** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */
+export interface CamaraActividad {
+  /** IP de la cámara que detectó el evento */
+  ip: string;
+  /** Tipo de evento, ej: "CrossLineDetection", "FaceDetection" */
+  tipo_evento: string;
+  /** Bounding box en píxeles del frame: [x1, y1, x2, y2] — puede ser undefined si el servidor no lo envía */
+  bbox?: [number, number, number, number];
+  /** Tipo de objeto detectado, ej: "Vehicle", "Human" */
+  objeto_tipo: string;
+  /** Timestamp interno (asignado al recibir el mensaje) */
+  timestamp?: number;
+}
+
+export interface ActividadPayload {
+  camaras: CamaraActividad[];
+}
+
 export interface RawRadarPayload {
   nanoRadar: RawRadarMessage[];
   spotter: RawRadarMessage[];
+  actividad?: ActividadPayload;
 }

@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { RadarTarget, RawRadarPayload } from "../types";
+import type { RadarTarget, RawRadarPayload, CamaraActividad } from "../types";
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
+
+/** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
+const ACTIVITY_TIMEOUT_MS = 15_000;
 
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
@@ -41,6 +44,7 @@ export function useRadarWebSocket(
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(
     new Map()
   );
+  const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
 
   const clearTargets = useCallback(() => {
     setTargetsMap(new Map());
@@ -58,7 +62,7 @@ export function useRadarWebSocket(
         setTargetsMap((prev) => {
           const next = new Map(prev);
 
-          // Nuevo formato: { nanoRadar: [], spotter: [] }
+          // Nuevo formato: { nanoRadar: [], spotter: [], actividad?: {...} }
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
             const payload = parsed as RawRadarPayload;
             processDeviceMessages(next, payload.nanoRadar ?? [], "nanoRadar", now, timing.HISTORY_MAX_POINTS);
@@ -67,6 +71,15 @@ export function useRadarWebSocket(
 
           return next;
         });
+
+        // Procesar actividades de cámara
+        if (parsed?.actividad?.camaras && Array.isArray(parsed.actividad.camaras)) {
+          const now = Date.now();
+          const activities: CamaraActividad[] = (parsed.actividad.camaras as CamaraActividad[]).map(
+            (a) => ({ ...a, timestamp: now })
+          );
+          setCameraActivities(activities);
+        }
       } catch (err) {
         console.error("[useRadarWebSocket] Error procesando mensaje:", err);
       }
@@ -79,6 +92,7 @@ export function useRadarWebSocket(
     // Limpiar objetivos que ya no son reportados por el radar
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
+
       setTargetsMap((prev) => {
         const next = new Map(prev);
         let changed = false;
@@ -91,6 +105,13 @@ export function useRadarWebSocket(
         }
 
         return changed ? next : prev;
+      });
+
+      // Expirar actividades de cámara
+      setCameraActivities((prev) => {
+        if (prev.length === 0) return prev;
+        const active = prev.filter((a) => now - (a.timestamp ?? 0) < ACTIVITY_TIMEOUT_MS);
+        return active.length === prev.length ? prev : active;
       });
     }, timing.TARGET_TIMEOUT_MS);
 
@@ -105,5 +126,6 @@ export function useRadarWebSocket(
   return {
     targets,
     clearTargets,
+    cameraActivities,
   };
 }

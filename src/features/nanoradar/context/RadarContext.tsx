@@ -14,7 +14,7 @@ interface RadarProviderProps {
 
 export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProviderProps) {
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
-  const { targets, clearTargets } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
+  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -94,8 +94,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
    * Solo los componentes que llamen a useRadarTargets() re-renderizarán.
    */
   const targetsValue = useMemo<RadarTargetsContextValue>(
-    () => ({ targets }),
-    [targets],
+    () => ({ targets, cameraActivities }),
+    [targets, cameraActivities],
   );
 
   /**
