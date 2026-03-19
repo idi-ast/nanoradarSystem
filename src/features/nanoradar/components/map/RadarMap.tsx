@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useMemo } from "react";
-import ReactMapGL from "react-map-gl";
+import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
+import ReactMapGL, { Source, Layer, Marker } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./radar-effects.css";
@@ -11,36 +11,162 @@ import {
 } from "@tabler/icons-react";
 import { MAPBOX_TOKEN, MAP_STYLES } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
-import CustomZoomControl from "@/components/baseMap/components/CustomZoomControl";
-import ViewControls from "@/components/baseMap/components/ViewControls";
-import LayerSelector from "@/components/baseMap/components/LayerSelector";
+import MapControls from "@/components/baseMap/components/MapControls";
+import { RADAR_INSTANCES } from "../../config";
+import type { RadarInstanceConfig } from "../../config";
+import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
+import { useRadarTargets } from "../../context/useRadarContext";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { RadarBeam } from "./RadarBeam";
-import { RadarRings } from "./RadarRings";
 import { RadarZonesLayer } from "./RadarZonesLayer";
+import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
+import { DevicesOverlay } from "./DevicesOverlay";
+import type { DeviceVisibility } from "./DevicesOverlay";
+import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
+import { DeviceSelector } from "./DeviceSelector";
+import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
+import { RadarKnob } from "./RadarKnob";
+import { ZonesPanel } from "./zones/ZonesPanel";
+
+import type { DeviceFilter } from "../../types";
+import { PageLoader } from "@/components/ui";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
+  radarInstance?: RadarInstanceConfig;
+  deviceFilter?: DeviceFilter;
 }
 
-export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProps) {
+const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
+  (inst) => `targets-circles-${inst.id}`,
+);
+
+function SecondaryRadarLayers({
+  historyRange,
+}: {
+  historyRange: HistoryRange;
+}) {
+  const { zones } = useRadarContext();
+  const { targets } = useRadarTargets();
+  return (
+    <>
+      <RadarZonesLayer zones={zones} />
+      <RadarZonesPulseLayer />
+      <RadarTargetsLayer
+        targets={targets}
+        historyRange={historyRange}
+        selectedTargetId={null}
+        onSelectTarget={() => {}}
+      />
+    </>
+  );
+}
+
+export const RadarMap = memo(function RadarMap({
+  historyRange = { start: 0, end: 100 },
+  deviceFilter = "all",
+}: RadarMapProps) {
   const {
     config,
-    targets,
     zones,
     isDrawing,
     drawingPoints,
     zoneColor,
     addDrawingPoint,
+    instanceConfig,
+    flyToZoneFn,
   } = useRadarContext();
+  const { targets } = useRadarTargets();
+  const filteredTargets = useMemo(
+    () =>
+      deviceFilter === "all"
+        ? targets
+        : targets.filter((t) => t.deviceType === deviceFilter),
+    [targets, deviceFilter],
+  );
 
   const mapRef = useRef<MapRef>(null);
+
+  useEffect(() => {
+    flyToZoneFn.current = (lat: number, lon: number, zoom = 16) => {
+      mapRef.current?.flyTo({
+        center: [lon, lat],
+        zoom,
+        duration: 1500,
+        essential: true,
+      });
+    };
+    return () => {
+      flyToZoneFn.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
+  const [deviceVisibility, setDeviceVisibility] =
+    useState<DeviceVisibility>(ALL_VISIBLE);
+  const [editingDevice, setEditingDevice] = useState<EditingDevice | null>(
+    null,
+  );
+  const [liveEdit, setLiveEdit] = useState<LiveEditValues | null>(null);
+  const [liveEditPos, setLiveEditPos] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapCenter, setMapCenter] = useState(() => ({
+    lat: parseFloat(config?.latitud ?? "0"),
+    lng: parseFloat(config?.longitud ?? "0"),
+  }));
+
+  const handleMoveEnd = useCallback(() => {
+    const center = mapRef.current?.getCenter();
+    if (center) setMapCenter({ lat: center.lat, lng: center.lng });
+  }, []);
+
+  function openEdit(ed: EditingDevice) {
+    setEditingDevice(ed);
+    if (ed.kind === "nanoradar") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#22c55e",
+      });
+      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+    } else if (ed.kind === "spotter") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#38bdf8",
+      });
+      setLiveEditPos({ lat: Number(d.latitude), lng: Number(d.longitude) });
+    } else if (ed.kind === "camara") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#f59e0b",
+      });
+      setLiveEditPos({
+        lat: Number(d.ubicacion.lat),
+        lng: Number(d.ubicacion.lng),
+      });
+    }
+  }
+
+  function closeEdit() {
+    setEditingDevice(null);
+    setLiveEdit(null);
+    setLiveEditPos(null);
+  }
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
     () => ({
@@ -72,6 +198,34 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     setSelectedLayer(layer);
   }, []);
 
+  const initialCenter = useMemo(
+    () => ({
+      longitude: parseFloat(config?.longitud ?? "0"),
+      latitude: parseFloat(config?.latitud ?? "0"),
+    }),
+    [config?.longitud, config?.latitud],
+  );
+
+  const handleMapClick = useCallback(
+    (e: MapLayerMouseEvent) => {
+      if (isDrawing) {
+        addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
+
+      const feature = e.features?.[0];
+      if (
+        feature?.layer?.id &&
+        ALL_TARGET_LAYER_IDS.includes(feature.layer.id)
+      ) {
+        setSelectedTargetId(String(feature.properties?.id ?? null));
+      } else {
+        setSelectedTargetId(null);
+      }
+    },
+    [isDrawing, addDrawingPoint],
+  );
+
   if (!config) {
     return (
       <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
@@ -83,94 +237,136 @@ export function RadarMap({ historyRange = { start: 0, end: 100 } }: RadarMapProp
     );
   }
 
-  const initialCenter = {
-    longitude: parseFloat(config.longitud),
-    latitude: parseFloat(config.latitud),
-  };
-
-  const defaultCenter = {
-    longitude: -72.9883559747647,
-    latitude: -41.46281337025373,
-  }
-
-  const handleMapClick = (e: MapLayerMouseEvent) => {
-    if (isDrawing) {
-      addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
-      return;
-    }
-
-    const feature = e.features?.[0];
-    if (feature?.layer?.id === "targets-circles") {
-      setSelectedTargetId(String(feature.properties?.id ?? null));
-    } else {
-      setSelectedTargetId(null);
-    }
-  };
+  const defaultCenter = instanceConfig.map.fallbackCenter;
 
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
+        {!mapLoaded && <PageLoader />}
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
             latitude: defaultCenter.latitude || initialCenter.latitude,
             longitude: defaultCenter.longitude || initialCenter.longitude,
-            zoom: 19,
-            pitch: 60,
-            bearing: 0,
-            
+            zoom: instanceConfig.map.zoom,
+            pitch: instanceConfig.map.pitch,
+            bearing: instanceConfig.map.bearing,
           }}
-        //  -41.46239837025373, -72.9882059747647
+          //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapLayers[selectedLayer].style}
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
           reuseMaps
-          interactiveLayerIds={["targets-circles"]}
+          interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
-          cursor={isDrawing ? "crosshair" : undefined}
+          onMoveEnd={handleMoveEnd}
+          onLoad={() => setMapLoaded(true)}
+          cursor={
+            isDrawing ? "crosshair" : editingDevice ? "default" : undefined
+          }
+          scrollZoom={!editingDevice}
+          dragPan={!editingDevice}
+          dragRotate={!editingDevice}
+          touchPitch={!editingDevice}
+          doubleClickZoom={!editingDevice}
+          keyboard={!editingDevice}
         >
-          {/* Capas del radar - orden importa: de fondo a frente */}
-          <RadarBeam config={config} />
-          <RadarRings config={config} />
+          <Source
+            id="device-layers-upper-bound-src"
+            type="geojson"
+            data={{ type: "FeatureCollection", features: [] }}
+          >
+            <Layer
+              id={DEVICES_BELOW_LAYER_ID}
+              type="fill"
+              paint={{ "fill-opacity": 0 }}
+            />
+          </Source>
+
+          <DevicesOverlay
+            visibility={deviceVisibility}
+            deviceFilter={deviceFilter}
+          />
+          <MapControls
+            mapRef={mapRef}
+            selectedLayer={selectedLayer}
+            onLayerChange={handleLayerChange}
+            mapLayers={mapLayers}
+            initialCenter={initialCenter}
+            initialZoom={15}
+          />
           <RadarZonesLayer zones={zones} />
+          <RadarZonesPulseLayer />
           <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
+
+          {RADAR_INSTANCES.slice(1).map((instance) => (
+            <RadarProvider key={instance.id} instance={instance}>
+              <SecondaryRadarLayers historyRange={historyRange} />
+            </RadarProvider>
+          ))}
           <RadarTargetsLayer
-            targets={targets}
+            targets={filteredTargets}
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
+          {liveEdit && liveEditPos && (
+            <Marker
+              latitude={liveEditPos.lat}
+              longitude={liveEditPos.lng}
+              anchor="center"
+              style={{ zIndex: 9999 }}
+            >
+              <div
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RadarKnob
+                  grado={liveEdit.grado}
+                  apertura={liveEdit.apertura}
+                  radio={liveEdit.radio}
+                  maxRadio={10000}
+                  accentColor={liveEdit.color}
+                  onGradoChange={(v) =>
+                    setLiveEdit((p: LiveEditValues | null) =>
+                      p ? { ...p, grado: v } : null,
+                    )
+                  }
+                />
+              </div>
+            </Marker>
+          )}
         </ReactMapGL>
 
-        {/* Overlay HTML con info del radar (posicionado sobre el mapa) */}
         <div className="radar-scanlines" />
         <div className="radar-vignette" />
-        <RadarInfoOverlay config={config} />
+        <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
-
-      {/* Panel de configuración del mapa */}
-      <div className="relative h-full z-50 bg-bg-100/85 backdrop-blur-sm flex flex-col gap-1 p-1.5 border-l border-emerald-500/20">
-        <div className="flex flex-col p-1 gap-1 radar-chip rounded-md">
-          <LayerSelector
-            selectedLayer={selectedLayer}
-            onLayerChange={handleLayerChange}
-            mapLayers={mapLayers}
+      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex ">
+        <div className="flex flex-col gap-1 p-1.5">
+          <ZonesPanel />
+          <DeviceSelector
+            visibility={deviceVisibility}
+            onChange={setDeviceVisibility}
+            onEditNanoradar={(device) =>
+              openEdit({ kind: "nanoradar", device })
+            }
+            onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
+            onEditCamara={(device) => openEdit({ kind: "camara", device })}
+            editingDevice={editingDevice}
+            liveEdit={liveEdit}
+            onLiveEditChange={setLiveEdit}
+            onEditClose={closeEdit}
           />
-          <ViewControls
-            mapRef={mapRef}
-            initialCenter={initialCenter}
-            initialZoom={15}
-          />
-          <CustomZoomControl mapRef={mapRef} />
-        </div>
-
-        <div className="flex justify-center items-center h-full">
-          <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
-            Configuración Mapa
-          </span>
+          <div className="flex justify-center items-center flex-1">
+            <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
+              Configuraciones de dispositivos
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+});

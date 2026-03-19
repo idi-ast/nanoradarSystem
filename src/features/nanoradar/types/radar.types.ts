@@ -1,4 +1,3 @@
-
 export interface RadarConfig {
   latitud: string;
   longitud: string;
@@ -8,6 +7,7 @@ export interface RadarConfig {
   apertura: number;
 }
 
+export type DeviceFilter = "all" | "nanoRadar" | "spotter";
 
 export interface RadarTarget {
   id: string;
@@ -16,10 +16,10 @@ export interface RadarTarget {
   nivel: number;
   zona: string;
   lastUpdate: number;
+  deviceType: "nanoRadar" | "spotter";
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
 }
-
 
 export interface RadarZone {
   id?: number;
@@ -44,6 +44,15 @@ export interface CreateZonePayload {
   };
 }
 
+export interface UpdateZonePayload {
+  nombre: string;
+  descripcion: string;
+  idTipoAlerta: number;
+  poligono: {
+    color: string;
+    vertices: [number, number][] | Record<string, [number, number]>;
+  };
+}
 
 export interface RawRadarMessage {
   id: string | number;
@@ -51,4 +60,9 @@ export interface RawRadarMessage {
   lon: number;
   nivel: number;
   zona: string;
+}
+
+export interface RawRadarPayload {
+  nanoRadar: RawRadarMessage[];
+  spotter: RawRadarMessage[];
 }

@@ -1,3 +1,3 @@
 export { RadarProvider } from "./RadarContext";
-export { useRadarContext } from "./useRadarContext";
-export type { RadarContextValue } from "./radarContextDef";
+export { useRadarContext, useRadarTargets, useRadarStableTargets } from "./useRadarContext";
+export type { RadarContextValue, RadarTargetsContextValue, RadarStableTargetsContextValue } from "./radarContextDef";

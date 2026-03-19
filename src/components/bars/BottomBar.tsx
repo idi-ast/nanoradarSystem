@@ -16,7 +16,7 @@ function BottomBar({
         <h3>{title}</h3>
         {overlays}
       </div>
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 flex gap-5">{children}</div>
     </div>
   );
 }

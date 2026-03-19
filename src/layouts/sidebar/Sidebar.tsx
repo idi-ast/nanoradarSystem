@@ -116,36 +116,38 @@ const MenuNavigation = ({
     <div
       className={` ${_isCollapsed ? "mt-4  p-1 " : "mt-4 p-1 mx-1 bg-bg-100 rounded-lg"} `}
     >
-      <div className="p-1">
+      <div className="p-1 pb-5">
         <h4 className="text-text-300 text-xs tracking-wider ">MENU</h4>
       </div>
-      {_useConfigApp.NAVIGATION_APP.map((item) => {
-        const Icon = item.icon;
-        return (
-          <div key={item.id} className="relative">
-            <div className="absolute w-3 h-3 bg-blue-500 -right-1 top-1/2 -translate-y-1/2 rounded-full blur-xs"></div>
-            <div className="absolute w-3 h-3 bg-blue-600 right-0 top-1/2 -translate-y-1/2 rounded-full "></div>
-            <LineGradientWhite color="#fffaf0a4" />
-            <NavLink
-              to={item.link}
-              className={({ isActive }: { isActive: boolean }) => `
+      <div className="flex flex-col gap-5">
+        {_useConfigApp.NAVIGATION_APP.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.id} className="relative">
+              <div className="absolute w-3 h-3 bg-blue-500 -right-1 top-1/2 -translate-y-1/2 rounded-full blur-xs"></div>
+              <div className="absolute w-3 h-3 bg-blue-600 right-0 top-1/2 -translate-y-1/2 rounded-full "></div>
+              <LineGradientWhite color="#fffaf0a4" />
+              <NavLink
+                to={item.link}
+                className={({ isActive }: { isActive: boolean }) => `
                relative flex  items-center text-text-200  py-1 px-2 rounded-xl hover:bg-bg-200 transition-all duration-300
               ${_isCollapsed ? "justify-center" : "justify-start"}
               ${isActive ? "bg-linear-to-r backdrop-blur from-bg-300 hover:bg-bg-200" : "text-text-100 bg-bg-100"}
             `}
-              target={item.target ? "_blank" : "_self"}
-              rel="noreferrer"
-            >
-              <span>
-                <Icon size={22} stroke={2} />
-              </span>
-              {!_isCollapsed && (
-                <span className="ml-2 truncate">{item.name}</span>
-              )}
-            </NavLink>
-          </div>
-        );
-      })}
+                target={item.target ? "_blank" : "_self"}
+                rel="noreferrer"
+              >
+                <span>
+                  <Icon size={22} stroke={2} />
+                </span>
+                {!_isCollapsed && (
+                  <span className="ml-2 truncate">{item.name}</span>
+                )}
+              </NavLink>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

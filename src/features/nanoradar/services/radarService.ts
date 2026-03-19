@@ -1,5 +1,5 @@
 import { apiSystem } from "@/apis/apiSystem";
-import type { RadarConfig, RadarZone, CreateZonePayload } from "../types";
+import type { RadarConfig, RadarZone, CreateZonePayload, UpdateZonePayload } from "../types";
 
 interface ListResponse<T> {
   data: T[];
@@ -23,4 +23,16 @@ export async function createRadarZone(
 ): Promise<RadarZone> {
   const res = await apiSystem.post<RadarZone>("/zonas", payload);
   return res.data;
+}
+
+export async function updateRadarZone(
+  id: number,
+  payload: UpdateZonePayload,
+): Promise<RadarZone> {
+  const res = await apiSystem.put<RadarZone>(`/zonas/${id}`, payload);
+  return res.data;
+}
+
+export async function deleteRadarZone(id: number): Promise<void> {
+  await apiSystem.delete(`/zonas/${id}`);
 }

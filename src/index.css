@@ -31,6 +31,7 @@
   --color-bg-200: var(--bg-200);
   --color-bg-300: var(--bg-300);
   --color-bg-400: var(--bg-400);
+  --color-bg-450: var(--bg-450);
   --color-bg-hover: var(--bg-hover);
 
   /* Colores de Marca y Acción */
@@ -54,6 +55,7 @@
     --bg-200: #e7e7e7;
     --bg-300: #ffffff;
     --bg-400: #000000;
+    --bg-450: #292929;
 
     /* Interacción */
     --bg-hover: #e2e8f0;
@@ -79,6 +81,7 @@
     --bg-200: #1f2127;
     --bg-300: #373a42;
     --bg-400: #dce0e4;
+    --bg-450: #ffffff;
 
     /* Interacción */
 
@@ -96,6 +99,7 @@
     --border-100: #2a2c37;
     --border-200: #4e525e;
   }
+
   ˝ body {
     background-color: var(--bg-100);
     color: var(--text-100) !important;
@@ -150,6 +154,7 @@
   input {
     @apply transition-all duration-200 ease-in cursor-pointer;
   }
+
   section:not([aria-label]) {
     @apply w-full min-w-screen min-h-150;
   }
@@ -159,15 +164,14 @@ body {
   margin: 0;
   height: 100vh;
   overflow-x: hidden;
-  font-family: "Raleway", sans-serif;
+  /* font-family: "Raleway", sans-serif; */
   /* font-family: "Outfit", sans-serif; */
   /* font-family: "Libre Franklin", sans-serif; */
-  /* font-family: "Space Grotesk", sans-serif; */
+  font-family: "Space Grotesk", sans-serif;
 }
 
-.font-secondary{
-    font-family: "La Belle Aurore", cursive;
-
+.font-secondary {
+  font-family: "La Belle Aurore", cursive;
 }
 
 /* Estilo general para el scroll */
@@ -192,4 +196,72 @@ body {
 /* Thumb al pasar el mouse */
 ::-webkit-scrollbar-thumb:hover {
   background: #ff0000;
+}
+
+@keyframes geofence-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes zone-alert-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes zone-alert-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 8px 1px var(--zone-glow-color, #ff0000);
+    border-color: var(--zone-glow-color, #ff0000);
+  }
+  50% {
+    box-shadow: inset 0 0 18px 4px var(--zone-glow-color, #ff0000);
+    border-color: color-mix(
+      in srgb,
+      var(--zone-glow-color, #ff0000) 80%,
+      white
+    );
+  }
+}
+
+/* 1. Quitar el fondo blanco y la sombra del contenedor principal */
+.mapboxgl-popup-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0; /* Opcional: para que tu contenido mande sobre el espacio */
+}
+
+/* 2. Quitar el color a la "flecha" o punta del popup (según su posición) */
+/* .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: transparent !important;
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: transparent !important;
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: transparent !important;
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: transparent !important;
+} */
+
+/* 3. Opcional: Personalizar o quitar el botón de cerrar */
+.mapboxgl-popup-close-button {
+  background-color: transparent;
+  border: 0;
+  color: white; /* Cambia el color si el fondo ahora es oscuro */
 }

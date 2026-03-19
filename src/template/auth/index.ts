@@ -1,4 +1,5 @@
 export { LoginPage, RegisterPage, ForgotPasswordPage } from "./pages";
+export { BackdoorAuthProvider } from "./context";
 
 export { LoginForm, RegisterForm, ForgotPasswordForm, AuthCard } from "./components";
 

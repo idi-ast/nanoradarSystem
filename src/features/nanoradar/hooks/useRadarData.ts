@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchRadarConfig, fetchRadarZones, createRadarZone } from "../services";
-import type { RadarConfig, RadarZone, CreateZonePayload } from "../types";
+import { fetchRadarConfig, fetchRadarZones, createRadarZone, updateRadarZone, deleteRadarZone } from "../services";
+import type { RadarConfig, RadarZone, CreateZonePayload, UpdateZonePayload } from "../types";
 
 /**
  * Hook que centraliza la carga y sincronización de los datos
@@ -32,9 +32,19 @@ export function useRadarData() {
 
   const addZone = useCallback(async (payload: CreateZonePayload) => {
     await createRadarZone(payload);
-    // Recargar las zonas después de crear una
     const updated = await fetchRadarZones();
     setZones(updated);
+  }, []);
+
+  const updateZone = useCallback(async (id: number, payload: UpdateZonePayload) => {
+    await updateRadarZone(id, payload);
+    const updated = await fetchRadarZones();
+    setZones(updated);
+  }, []);
+
+  const deleteZone = useCallback(async (id: number) => {
+    await deleteRadarZone(id);
+    setZones((prev) => prev.filter((z) => z.id !== id));
   }, []);
 
   useEffect(() => {
@@ -48,5 +58,7 @@ export function useRadarData() {
     error,
     refreshData: loadData,
     addZone,
+    updateZone,
+    deleteZone,
   };
 }

@@ -1,18 +1,18 @@
-import React, { useCallback } from "react";
+import React, { memo, useCallback } from "react";
 import {
-  IconMap,
   Icon3dCubeSphere,
   IconCompass,
   IconRefresh,
+  IconMapMinus,
 } from "@tabler/icons-react";
 import type { ViewControlsProps } from "../types";
 import LineGradientWhite from "@/components/ui/LineGradientWhite";
 
-const ViewControls: React.FC<ViewControlsProps> = ({
+const ViewControls: React.FC<ViewControlsProps> = memo(function ViewControls({
   mapRef,
   initialCenter,
   initialZoom,
-}) => {
+}) {
   const setTopView = useCallback(() => {
     mapRef.current?.easeTo({
       pitch: 0,
@@ -46,42 +46,42 @@ const ViewControls: React.FC<ViewControlsProps> = ({
   }, [mapRef, initialCenter, initialZoom]);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex gap-1">
       <div className="relative ">
-        <LineGradientWhite top="-0.05rem" height="1.5rem" color={"green"} />
+        <LineGradientWhite top="-0.01rem" height="0.5rem" color={"white"} />
         <button
           onClick={setTopView}
-          className="relative text-text-200 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-200  shadow-lg shadow-bg-100 h-8 w-8 flex justify-center items-center transition-all"
+          className="relative text-text-400 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-400 to-bg-450  rounded-lg shadow shadow-bg-400 h-8 w-8 flex justify-center items-center transition-all"
           title="Vista superior (2D)"
         >
-          <IconMap size={20} />
+          <IconMapMinus size={20} />
         </button>
       </div>
       <div className="relative ">
-        <LineGradientWhite top="-0.05rem" height="1.5rem" color={"green"} />
+        <LineGradientWhite top="-0.01rem" height="0.5rem" color={"white"} />
         <button
           onClick={set3DView}
-          className="relative text-text-200 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-200  shadow-lg shadow-bg-100 h-8 w-8 flex justify-center items-center transition-all"
+          className="relative text-text-400 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-400 to-bg-450  rounded-lg shadow shadow-bg-400 h-8 w-8 flex justify-center items-center transition-all"
           title="Vista 3D"
         >
           <Icon3dCubeSphere size={20} />
         </button>
       </div>
       <div className="relative ">
-        <LineGradientWhite top="-0.05rem" height="1.5rem" color={"green"} />
+        <LineGradientWhite top="-0.01rem" height="0.5rem" color={"white"} />
         <button
           onClick={resetNorth}
-          className="relative text-text-200 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-200  shadow-lg shadow-bg-100 h-8 w-8 flex justify-center items-center transition-all"
+          className="relative text-text-400 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-400 to-bg-450  rounded-lg shadow shadow-bg-400 h-8 w-8 flex justify-center items-center transition-all"
           title="Orientar al norte"
         >
           <IconCompass size={20} />
         </button>
       </div>
       <div className="relative ">
-        <LineGradientWhite top="-0.05rem" height="1.5rem" color={"green"} />
+        <LineGradientWhite top="-0.01rem" height="0.5rem" color={"white"} />
         <button
           onClick={resetView}
-          className="relative text-text-200 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-200  shadow-lg shadow-bg-100 h-8 w-8 flex justify-center items-center transition-all"
+          className="relative text-text-400 hover:text-text-100 outline outline-transparent p-0.5 bg-linear-to-b from-bg-400 to-bg-450  rounded-lg shadow shadow-bg-400 h-8 w-8 flex justify-center items-center transition-all"
           title="Resetear vista"
         >
           <IconRefresh size={20} />
@@ -89,6 +89,6 @@ const ViewControls: React.FC<ViewControlsProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ViewControls;

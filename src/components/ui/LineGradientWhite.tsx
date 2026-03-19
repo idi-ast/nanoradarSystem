@@ -1,4 +1,6 @@
-function LineGradientWhite({
+import { memo } from "react";
+
+const LineGradientWhite = memo(function LineGradientWhite({
   top = "-0.05rem",
   height = "0.5rem",
   color = "white",
@@ -17,6 +19,6 @@ function LineGradientWhite({
       }}
     ></div>
   );
-}
+});
 
 export default LineGradientWhite;

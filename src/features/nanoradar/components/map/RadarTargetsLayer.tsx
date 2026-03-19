@@ -4,14 +4,14 @@ import type { FilterSpecification } from "mapbox-gl";
 import type { RadarTarget } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
+import { useRadarContext } from "../../context/useRadarContext";
 
-const MOVING_COLOR = "#22d3ee";
-const STOPPED_COLOR = "#f87171";
-const TRACKING_ACTIVE_MS = 4000;
-const COLOR_REFRESH_MS = 1000;
-
-function isTargetMoving(target: RadarTarget, now: number): boolean {
-  return now - target.lastUpdate <= TRACKING_ACTIVE_MS;
+function isTargetMoving(
+  target: RadarTarget,
+  now: number,
+  trackingActiveMs: number,
+): boolean {
+  return now - target.lastUpdate <= trackingActiveMs;
 }
 
 interface Props {
@@ -27,8 +27,10 @@ export function RadarTargetsLayer({
   selectedTargetId,
   onSelectTarget,
 }: Props) {
-  const slicedTargets = useMemo(() => {
-    // Calcular el eje de tiempo global a partir de todos los puntos del historial
+  const { instanceConfig } = useRadarContext();
+  const { targetColors, timing } = instanceConfig;
+  const id = instanceConfig.id;
+  const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
     for (const t of targets) {
@@ -37,13 +39,15 @@ export function RadarTargetsLayer({
         if (p[2] > tMax) tMax = p[2];
       }
     }
+    if (!isFinite(tMin) || tMax === tMin) return null;
+    return { tMin, tRange: tMax - tMin };
+  }, [targets]);
 
-    // Sin suficientes datos temporales → mostrar todo
-    if (!isFinite(tMin) || tMax === tMin) return targets;
-
-    const tRange = tMax - tMin;
-    const tStart  = tMin + (historyRange.start / 100) * tRange;
-    const tEnd    = tMin + (historyRange.end   / 100) * tRange;
+  const slicedTargets = useMemo(() => {
+    if (!timeBounds) return targets;
+    const tStart =
+      timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
+    const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
     return targets
       .map((t) => ({
@@ -51,16 +55,14 @@ export function RadarTargetsLayer({
         history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
-  }, [targets, historyRange]);
+  }, [targets, historyRange, timeBounds]);
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
-  // Fuerza refresco periódico para que el color pase de azul a rojo
-  // cuando un objetivo deja de recibir trackeo.
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
-    }, COLOR_REFRESH_MS);
+    }, timing.COLOR_REFRESH_MS);
 
     return () => {
       window.clearInterval(intervalId);
@@ -73,7 +75,6 @@ export function RadarTargetsLayer({
       features: slicedTargets
         .filter((t) => t.history.length > 0)
         .map((t) => {
-          // Usar el último punto del historial recortado como posición del círculo.
           // Si end=100 esto coincide con t.lat/t.lon (posición en vivo).
           const lastPoint = t.history[t.history.length - 1];
           const lat = lastPoint[0];
@@ -88,12 +89,13 @@ export function RadarTargetsLayer({
               id: t.id,
               nivel: t.nivel,
               zona: t.zona,
-              isMoving: isTargetMoving(t, now),
+              deviceType: t.deviceType,
+              isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
             },
           };
         }),
     }),
-    [slicedTargets, now],
+    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
   );
 
   const trailsData = useMemo(
@@ -111,22 +113,32 @@ export function RadarTargetsLayer({
           properties: {
             id: t.id,
             nivel: t.nivel,
-            isMoving: isTargetMoving(t, now),
+            deviceType: t.deviceType,
+            isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
           },
         })),
     }),
-    [slicedTargets, now],
+    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
   );
 
   const trailLayer = {
-    id: "targets-trails",
+    id: `targets-trails-${id}`,
     type: "line" as const,
     paint: {
       "line-color": [
         "case",
-        ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "line-width": 4,
       "line-dasharray": [1, 2],
@@ -136,7 +148,7 @@ export function RadarTargetsLayer({
   };
 
   const circleLayer = {
-    id: "targets-circles",
+    id: `targets-circles-${id}`,
     type: "circle" as const,
     paint: {
       "circle-radius": [
@@ -147,40 +159,76 @@ export function RadarTargetsLayer({
       ] as unknown as number,
       "circle-color": [
         "case",
-        ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-stroke-width": 2,
       "circle-stroke-color": [
         "case",
-        ["get", "isMoving"],
-        "#7dd3fc",
-        "#fca5a5",
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#166534",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.movingStroke,
+          targetColors.stoppedStroke,
+        ],
       ] as unknown as string,
       "circle-opacity": 0.9,
     },
   };
 
   const haloLayer = {
-    id: "targets-halo",
+    id: `targets-halo-${id}`,
     type: "circle" as const,
     filter: ["==", ["get", "nivel"], 4] as unknown as FilterSpecification,
     paint: {
       "circle-radius": 16,
       "circle-color": [
         "case",
-        ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-opacity": 0.11,
       "circle-stroke-width": 1,
       "circle-stroke-color": [
         "case",
-        ["get", "isMoving"],
-        MOVING_COLOR,
-        STOPPED_COLOR,
+        [
+          "all",
+          ["==", ["get", "deviceType"], "nanoRadar"],
+          ["get", "isMoving"],
+        ],
+        "#4ade80",
+        [
+          "case",
+          ["get", "isMoving"],
+          targetColors.moving,
+          targetColors.stopped,
+        ],
       ] as unknown as string,
       "circle-stroke-opacity": 0.3,
     },
@@ -188,11 +236,11 @@ export function RadarTargetsLayer({
 
   return (
     <>
-      <Source id="targets-trails" type="geojson" data={trailsData}>
+      <Source id={`targets-trails-${id}`} type="geojson" data={trailsData}>
         <Layer {...trailLayer} />
       </Source>
 
-      <Source id="targets-points" type="geojson" data={pointsData}>
+      <Source id={`targets-points-${id}`} type="geojson" data={pointsData}>
         <Layer {...haloLayer} />
         <Layer {...circleLayer} />
       </Source>
@@ -203,18 +251,38 @@ export function RadarTargetsLayer({
           latitude={selected.lat}
           anchor="bottom"
           offset={12}
-          closeButton
+          closeButton={false}
           onClose={() => onSelectTarget(null)}
         >
-          <div className="font-mono text-[11px] text-emerald-100 bg-slate-900/90 border border-emerald-500/40 p-3 min-w-44 rounded-sm shadow-[0_0_14px_rgba(20,184,166,0.22)]">
-            <b className="block border-b border-emerald-500/25 mb-1 pb-1 tracking-wide">
-              ID: {selected.id}
-            </b>
-            Zona: {selected.zona || "N/A"}
-            <br />
-            Nivel: {selected.nivel}
-            <br />
-            Pos: {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
+          <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow shadow-2xl p-5 min-w-64 rounded-lg">
+            <div>
+              <h4 className="pb-2">
+                Detección: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
+              </h4>
+              <ul className="tracking-[0.12rem]">
+                <li>
+                  Radar:{" "}
+                  <span className="text-brand-200 font-bold">
+                    {selected.deviceType === "nanoRadar"
+                      ? "NanoRadar"
+                      : "Spotter"}
+                  </span>
+                </li>
+                <li>
+                  Zona:{" "}
+                  <span className="font-bold">{selected.zona || "N/A"}</span>
+                </li>
+                <li>
+                  Nivel: <span className="font-bold">{selected.nivel}</span>
+                </li>
+                <li>
+                  Pos:{" "}
+                  <span className="font-bold">
+                    {selected.lat.toFixed(5)}, {selected.lon.toFixed(5)}
+                  </span>
+                </li>
+              </ul>
+            </div>
           </div>
         </Popup>
       )}
