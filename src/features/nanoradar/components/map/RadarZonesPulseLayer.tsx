@@ -5,6 +5,7 @@ import { useRadarTargets } from "../../context/useRadarContext";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarAnimation } from "../../hooks/useRadarAnimation";
 import { useGeofenceDetection } from "../../hooks/useGeofenceDetection";
+import { useZoneStyleStore } from "../../stores/zoneStyleStore";
 
 
 export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
@@ -13,6 +14,7 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
   const id = instanceConfig.id;
   const phase = useRadarAnimation(15);
   const { activeZoneIds } = useGeofenceDetection(targets, zones);
+  const { visible, lineWidth } = useZoneStyleStore();
 
   const activeZones = useMemo(
     () => zones.filter((z) => activeZoneIds.has(z.id?.toString() ?? z.nombre)),
@@ -38,11 +40,11 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
     [activeZones],
   );
 
-  if (activeZones.length === 0) return null;
+  if (!visible || activeZones.length === 0) return null;
 
   const sin = Math.abs(Math.sin(phase * Math.PI * 2));
   const fillOpacity = 0.15 + 0.45 * sin;
-  const lineWidth = 2 + 3 * sin;
+  const pulseLineWidth = lineWidth + 3 * sin;
 
   return (
     <Source id={`alert-zones-pulse-${id}`} type="geojson" data={data}>
@@ -59,7 +61,7 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
         type="line"
         paint={{
           "line-color": ["get", "color"] as unknown as string,
-          "line-width": lineWidth,
+          "line-width": pulseLineWidth,
           "line-blur": 2,
         }}
       />

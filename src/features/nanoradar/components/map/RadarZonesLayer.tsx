@@ -3,6 +3,7 @@ import { Source, Layer } from "react-map-gl";
 import type { RadarZone } from "../../types";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarContext } from "../../context/useRadarContext";
+import { useZoneStyleStore } from "../../stores/zoneStyleStore";
 
 interface Props {
   zones: RadarZone[];
@@ -11,6 +12,7 @@ interface Props {
 export function RadarZonesLayer({ zones }: Props) {
   const { instanceConfig } = useRadarContext();
   const id = instanceConfig.id;
+  const { fillOpacity, lineOpacity, lineWidth, visible } = useZoneStyleStore();
   const data = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -43,7 +45,7 @@ export function RadarZonesLayer({ zones }: Props) {
     type: "fill" as const,
     paint: {
       "fill-color": ["get", "color"] as unknown as string,
-      "fill-opacity": 0.3,
+      "fill-opacity": fillOpacity,
     },
   };
 
@@ -52,11 +54,12 @@ export function RadarZonesLayer({ zones }: Props) {
     type: "line" as const,
     paint: {
       "line-color": ["get", "color"] as unknown as string,
-      "line-width": 2,
+      "line-width": lineWidth,
+      "line-opacity": lineOpacity,
     },
   };
 
-  if (zones.length === 0) return null;
+  if (!visible || zones.length === 0) return null;
 
   return (
     <Source id={`alert-zones-${id}`} type="geojson" data={data}>

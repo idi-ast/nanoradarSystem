@@ -182,7 +182,7 @@ const RightBarNano = memo(
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
           />
-          <CamerasOverlay />
+          {/* <CamerasOverlay /> */}
         </div>
       </div>
     );

@@ -11,57 +11,14 @@ import {
 import { buildBeamCanvas, buildBeamImageCoords } from "./beamCanvas";
 import { useRadarAnimation } from "../../../hooks/useRadarAnimation";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
+import { useRadarVisualStore } from "../../../stores/radarVisualStore";
 
 /** Relleno del área de cobertura (círculo completo) */
-const RANGE_FILL = {
-  opacity: 0.07,
-} as const;
-
-/** Circunferencia exterior del círculo de cobertura (perímetro, baja opacidad) */
-const RANGE_BORDER = {
-  show: true,
-  width: 1,
-  opacity: 0.01,
-} as const;
-
-/** Líneas de límite de apertura (los dos radios que marcan el ángulo) */
-const RANGE_LIMITS = {
-  show: true,
-  width: 1,
-  opacity: 0.1,
-  dasharray: [2, 6],
-} as const;
-
-/** Anillos concéntricos de distancia (círculos completos) */
-const RINGS = {
-  show: true,
-  width: 1.5,
-  opacity: 0.1, // arco fuera de la apertura
-  arcOpacity: 0.65, // arco dentro de la apertura (más visible)
-  dasharray: [1, 3],
-} as const;
-
-/** Línea de dirección principal (eje del grado) */
-const GRADO_LINE = {
-  show: true,
-  width: 2,
-  opacity: 0.6,
-  dasharray: [4, 4],
-} as const;
-
-/** Capa de haz canvas (degradado direccional) */
-const BEAM = {
-  show: true,
-  opacity: 1,
-} as const;
-
-/** Ondas de pulso animadas */
-const PULSE = {
-  show: true,
-  peakOpacity: 0.24,
-  peakWidth: 4,
-  blur: 1,
-} as const;
+const RINGS_DASHARRAY = [1, 3] as const;
+/** Líneas de límite de apertura */
+const LIMITS_DASHARRAY = [2, 6] as const;
+/** Línea de dirección */
+const GRADO_DASHARRAY = [4, 4] as const;
 
 const NanoradarRingLabels = memo(function NanoradarRingLabels({
   ringLabels,
@@ -177,6 +134,8 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
   colorPrimary,
   colorPulse,
 }: NanoradarDeviceLayerProps) {
+  // Store visual — antes del early return para respetar Rules of Hooks
+  const vs = useRadarVisualStore();
   const sid = `dev-nr-${nr.id}`;
   const lat = Number(nr.latitud);
   const lon = Number(nr.longitud);
@@ -254,8 +213,9 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
-    () => buildBeamCanvas(grado, apertura, colorPrimary),
-    [grado, apertura, colorPrimary],
+    () => buildBeamCanvas(grado, apertura, colorPrimary, 512, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [grado, apertura, colorPrimary, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -322,10 +282,10 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
           }
           paint={{
             "fill-color": RADAR_COLORS.rangeFill,
-            "fill-opacity": RANGE_FILL.opacity,
+            "fill-opacity": vs.rangeFillOpacity,
           }}
         />
-        {RANGE_BORDER.show && (
+        {vs.rangeBorderShow && (
           <Layer
             id={`${sid}-range-border`}
             type="line"
@@ -339,12 +299,12 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             }
             paint={{
               "line-color": colorPrimary,
-              "line-width": RANGE_BORDER.width,
-              "line-opacity": RANGE_BORDER.opacity,
+              "line-width": vs.rangeBorderWidth,
+              "line-opacity": vs.rangeBorderOpacity,
             }}
           />
         )}
-        {RANGE_LIMITS.show && (
+        {vs.rangeLimitsShow && (
           <Layer
             id={`${sid}-range-limits`}
             type="line"
@@ -358,15 +318,15 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             }
             paint={{
               "line-color": colorPrimary,
-              "line-width": RANGE_LIMITS.width,
-              "line-opacity": RANGE_LIMITS.opacity,
-              "line-dasharray": [...RANGE_LIMITS.dasharray],
+              "line-width": vs.rangeLimitsWidth,
+              "line-opacity": vs.rangeLimitsOpacity,
+              "line-dasharray": [...LIMITS_DASHARRAY],
             }}
           />
         )}
       </Source>
 
-      {GRADO_LINE.show && gradoLineData && (
+      {vs.gradoLineShow && gradoLineData && (
         <Source id={`${sid}-grado`} type="geojson" data={gradoLineData}>
           <Layer
             id={`${sid}-grado-dir`}
@@ -374,15 +334,15 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             beforeId={DEVICES_BELOW_LAYER_ID}
             paint={{
               "line-color": colorPrimary,
-              "line-width": GRADO_LINE.width,
-              "line-opacity": GRADO_LINE.opacity,
-              "line-dasharray": [...GRADO_LINE.dasharray],
+              "line-width": vs.gradoLineWidth,
+              "line-opacity": vs.gradoLineOpacity,
+              "line-dasharray": [...GRADO_DASHARRAY],
             }}
           />
         </Source>
       )}
 
-      {RINGS.show && (
+      {vs.ringsShow && (
         <Source id={`${sid}-rings`} type="geojson" data={ringsData}>
           <Layer
             id={`${sid}-rings-layer`}
@@ -393,9 +353,9 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             }
             paint={{
               "line-color": colorPulse,
-              "line-width": RINGS.width,
-              "line-dasharray": [...RINGS.dasharray],
-              "line-opacity": RINGS.opacity,
+              "line-width": vs.ringsWidth,
+              "line-dasharray": [...RINGS_DASHARRAY],
+              "line-opacity": vs.ringsOpacity,
             }}
           />
           <Layer
@@ -411,15 +371,15 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             }
             paint={{
               "line-color": colorPulse,
-              "line-width": RINGS.width,
-              "line-dasharray": [...RINGS.dasharray],
-              "line-opacity": RINGS.arcOpacity,
+              "line-width": vs.ringsWidth,
+              "line-dasharray": [...RINGS_DASHARRAY],
+              "line-opacity": vs.ringsArcOpacity,
             }}
           />
         </Source>
       )}
 
-      {BEAM.show && (
+      {vs.beamShow && (
         <Source
           id={`${sid}-beam`}
           type="image"
@@ -430,10 +390,10 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
             id={`${sid}-beam-layer`}
             type="raster"
             beforeId={
-              RINGS.show ? `${sid}-rings-layer` : DEVICES_BELOW_LAYER_ID
+              vs.ringsShow ? `${sid}-rings-layer` : DEVICES_BELOW_LAYER_ID
             }
             paint={{
-              "raster-opacity": BEAM.opacity,
+              "raster-opacity": vs.beamOpacity,
               "raster-fade-duration": 0,
             }}
           />
@@ -471,11 +431,12 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
   colorPulse,
 }: NanoradarPulseLayerProps) {
   const phase = useRadarAnimation();
+  const vs = useRadarVisualStore();
   const pulseData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: Array.from({ length: BEAM_ANIMATION.WAVE_COUNT }, (_, i) => {
-        const shifted = (phase + i / BEAM_ANIMATION.WAVE_COUNT) % 1;
+      features: Array.from({ length: vs.pulseWaveCount }, (_, i) => {
+        const shifted = (phase + i / vs.pulseWaveCount) % 1;
         const r = Math.max(1, shifted * radio);
         return {
           type: "Feature" as const,
@@ -491,16 +452,17 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
             ),
           },
           properties: {
-            opacity: PULSE.peakOpacity * (1 - shifted),
-            width: PULSE.peakWidth - shifted * 0.6,
+            opacity: vs.pulsePeakOpacity * (1 - shifted),
+            width: vs.pulsePeakWidth - shifted * 0.6,
           },
         };
       }),
     }),
-    [lat, lon, radio, startAngle, endAngle, phase],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lat, lon, radio, startAngle, endAngle, phase, vs.pulseWaveCount, vs.pulsePeakOpacity, vs.pulsePeakWidth],
   );
 
-  if (!PULSE.show) return null;
+  if (!vs.pulseShow) return null;
 
   return (
     <Source id={`${sid}-pulse`} type="geojson" data={pulseData}>
@@ -512,7 +474,7 @@ export const NanoradarPulseLayer = memo(function NanoradarPulseLayer({
           "line-color": colorPulse,
           "line-width": ["get", "width"] as unknown as number,
           "line-opacity": ["get", "opacity"] as unknown as number,
-          "line-blur": PULSE.blur,
+          "line-blur": vs.pulseBlur,
         }}
       />
     </Source>

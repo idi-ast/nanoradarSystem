@@ -1,14 +1,5 @@
 import { getGeoPoint } from "../utils/geoHelpers";
 
-/** Grados extra de apertura para el degradado cónico (afecta la suavidad de los bordes laterales). */
-const BEAM_EXTRA_APERTURE = 0;
-
-/** Opacidad máxima (pico) en el centro del haz, en porcentaje (0-100). */
-const BEAM_PEAK_OPACITY_PERCENT = 40;
-
-/** Punto (0-100%) donde el degradado radial comienza a desvanecerse hacia el borde exterior. */
-const BEAM_RADIAL_FADE_START_PERCENT = 95;
-
 /**
  * Dibuja un sector con degradado suave (angular + radial) en un canvas offscreen
  * y devuelve la data URL resultante, lista para usarse como ImageSource en Mapbox.
@@ -16,16 +7,22 @@ const BEAM_RADIAL_FADE_START_PERCENT = 95;
  * - Degradado angular (cónico): opaco en el centro del beam, transparente en los bordes.
  * - Degradado radial (máscara): fade hacia el borde exterior del arco.
  *
- * @param azimut   Dirección central del beam (°, Norte-clockwise)
- * @param apertura Amplitud angular total del beam (°)
- * @param color    Color hex del beam (ej: "#a855f7")
- * @param size     Resolución del canvas en píxeles (defecto 512)
+ * @param azimut              Dirección central del beam (°, Norte-clockwise)
+ * @param apertura            Amplitud angular total del beam (°)
+ * @param color               Color hex del beam (ej: "#a855f7")
+ * @param size                Resolución del canvas en píxeles (defecto 512)
+ * @param extraAperture       Grados extra de apertura para suavizar bordes del gradiente
+ * @param peakOpacityPercent  Opacidad pico del centro en % (0-100)
+ * @param radialFadeStart     % del radio donde empieza el desvanecimiento radial (0-100)
  */
 export function buildBeamCanvas(
   azimut: number,
   apertura: number,
   color: string,
   size = 512,
+  extraAperture = 0,
+  peakOpacityPercent = 40,
+  radialFadeStart = 95,
 ): string {
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -43,7 +40,7 @@ export function buildBeamCanvas(
   const geoToRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
   // Apertura visual (más ancha) para el degradado con bordes suaves
-  const visualApertura = apertura + BEAM_EXTRA_APERTURE;
+  const visualApertura = apertura + extraAperture;
   const startAVisual = geoToRad(azimut - visualApertura / 2);
   const endAVisual = geoToRad(azimut + visualApertura / 2);
   const spanVisual = endAVisual - startAVisual;
@@ -51,7 +48,7 @@ export function buildBeamCanvas(
   // 1. Dibuja el degradado cónico ANCHO en todo el canvas
   ctx.save();
   const fraction = spanVisual / (2 * Math.PI);
-  const peakOpacityHex = Math.round((BEAM_PEAK_OPACITY_PERCENT / 100) * 255)
+  const peakOpacityHex = Math.round((peakOpacityPercent / 100) * 255)
     .toString(16)
     .padStart(2, "0");
   const conic = ctx.createConicGradient(startAVisual, cx, cy);
@@ -66,7 +63,7 @@ export function buildBeamCanvas(
   // 2. Aplica el degradado RADIAL para desvanecer hacia el borde exterior
   const radial = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   radial.addColorStop(0, "rgba(0,0,0,1)");
-  radial.addColorStop(BEAM_RADIAL_FADE_START_PERCENT / 100, "rgba(0,0,0,1)");
+  radial.addColorStop(radialFadeStart / 100, "rgba(0,0,0,1)");
   radial.addColorStop(1, "rgba(0,0,0,0)");
 
   ctx.globalCompositeOperation = "destination-in";
