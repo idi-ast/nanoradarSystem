@@ -22,7 +22,7 @@ interface MapControlsProps {
 }
 
 const BTN =
-  "relative text-text-400 hover:text-text-100 outline outline-transparent p-0.5 bg-bg-450 rounded-full shadow shadow-bg-400 h-10 w-10 flex justify-center items-center transition-all";
+  "relative text-text-100 hover:text-text-200 outline outline-transparent p-0.5 bg-bg-100 rounded h-10 w-10 flex justify-center items-center transition-all";
 
 function MapBtn({
   onClick,
@@ -84,7 +84,7 @@ const MapControls = memo(function MapControls({
       <div className="relative z-50">
         <button
           onClick={() => setShowLayers((v) => !v)}
-          className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "bg-bg-450 text-text-400 "} relative hover:text-text-300 outline outline-transparent p-0.5 rounded-full shadow shadow-bg-400 h-10 w-10 flex justify-center items-center transition-all`}
+          className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "bg-bg-450 text-text-400 "} relative hover:text-text-300 outline outline-transparent p-0.5  rounded h-10 w-10 flex justify-center items-center transition-all`}
         >
           <IconMapCog size={20} />
         </button>

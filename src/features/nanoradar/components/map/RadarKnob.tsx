@@ -69,7 +69,9 @@ export function RadarKnob({
       isDragging.current = true;
       e.currentTarget.setPointerCapture(e.pointerId);
       if (svgRef.current) {
-        onGradoChange(getAngleFromPointer(svgRef.current, e.clientX, e.clientY));
+        onGradoChange(
+          getAngleFromPointer(svgRef.current, e.clientX, e.clientY),
+        );
       }
     },
     [onGradoChange],
@@ -116,7 +118,8 @@ export function RadarKnob({
   ];
 
   // Scale radio to fit inside content circle
-  const radioFrac = maxRadio > 0 ? Math.min(Math.max(radio / maxRadio, 0), 1) : 0.5;
+  const radioFrac =
+    maxRadio > 0 ? Math.min(Math.max(radio / maxRadio, 0), 1) : 0.5;
   const radioR = Math.max(12, CONTENT_R * radioFrac);
 
   const sectorD = makeSectorPath(radioR, grado, apertura);
@@ -128,7 +131,6 @@ export function RadarKnob({
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      {/* Label row */}
       <div className="flex w-full justify-center px-1 text-[9px] font-semibold uppercase tracking-widest text-text-10">
         <span>Radio</span>
       </div>
@@ -140,17 +142,15 @@ export function RadarKnob({
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         style={{ userSelect: "none" }}
       >
-        {/* Dark background fill */}
         <circle
           cx={CX}
           cy={CY}
           r={OUTER_R}
           fill="rgba(0,15,8,0.9)"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth={1.5}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth={0.5}
         />
 
-        {/* Range indicator rings at 1/3, 2/3 */}
         {([0.33, 0.66] as const).map((f) => {
           const r = CONTENT_R * f;
           const rangeVal = Math.round(maxRadio * f);
@@ -162,7 +162,7 @@ export function RadarKnob({
                 cy={CY}
                 r={r}
                 fill="none"
-                stroke="rgba(255,255,255,0.06)"
+                stroke="rgba(255,255,255,0.8)"
                 strokeWidth={1}
                 strokeDasharray="2 3"
               />
@@ -171,7 +171,7 @@ export function RadarKnob({
                 y={lp.y.toFixed(1)}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill="rgba(255,255,255,0.18)"
+                fill="rgba(255,255,255,1)"
                 fontSize={5.5}
                 fontFamily="monospace"
               >
@@ -183,17 +183,15 @@ export function RadarKnob({
           );
         })}
 
-        {/* Max range ring */}
         <circle
           cx={CX}
           cy={CY}
           r={CONTENT_R}
           fill="none"
-          stroke="rgba(255,255,255,0.07)"
+          stroke="rgba(255,255,255,0.6)"
           strokeWidth={1}
         />
 
-        {/* Radar cone / sector */}
         <path
           d={sectorD}
           fill={accentColor + "22"}
@@ -201,7 +199,6 @@ export function RadarKnob({
           strokeWidth={1}
         />
 
-        {/* Direction line from center to edge of radio ring */}
         <line
           x1={CX}
           y1={CY}
@@ -212,10 +209,8 @@ export function RadarKnob({
           strokeOpacity={0.88}
         />
 
-        {/* Tick marks */}
         {ticks}
 
-        {/* Cardinal direction labels (inside the tick band) */}
         {cardinalLabels.map(({ deg, label }) => {
           const pos = polarToXY(OUTER_R - 15, deg);
           return (
@@ -234,7 +229,6 @@ export function RadarKnob({
           );
         })}
 
-        {/* Drag handle — glowing dot on the outer rim at the azimut angle */}
         <circle
           cx={handle.x.toFixed(2)}
           cy={handle.y.toFixed(2)}
@@ -250,7 +244,6 @@ export function RadarKnob({
           strokeWidth={1.2}
         />
 
-        {/* Centre hub */}
         <circle
           cx={CX}
           cy={CY}
@@ -260,34 +253,31 @@ export function RadarKnob({
           strokeWidth={1}
         />
 
-        {/* Azimut value inside hub */}
         <text
           x={CX}
           y={CY - 4}
           textAnchor="middle"
           dominantBaseline="middle"
           fill="rgba(255,255,255,0.92)"
-          fontSize={10}
+          fontSize={12}
           fontFamily="monospace"
           fontWeight="bold"
         >
           {grado}°
         </text>
 
-        {/* Radio value inside hub */}
         <text
           x={CX}
-          y={CY + 7}
+          y={CY + 30}
           textAnchor="middle"
           dominantBaseline="middle"
           fill={accentColor + "99"}
-          fontSize={6.5}
-          fontFamily="monospace"
+          fontSize={9.5}
+          fontWeight="bold"
         >
           {radioLabel}
         </text>
 
-        {/* Transparent interaction overlay — captures all pointer events */}
         <rect
           x={0}
           y={0}
@@ -304,7 +294,6 @@ export function RadarKnob({
       <p className="text-xs text-text-100/22 italic select-none">
         arrastra para girar · apertura {apertura}°
       </p>
-
     </div>
   );
 }

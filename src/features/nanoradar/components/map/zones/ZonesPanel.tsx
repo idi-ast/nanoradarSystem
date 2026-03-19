@@ -12,7 +12,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
   return (
     <button
       onClick={clearTargets}
-      className="h-8 w-8 flex justify-center items-center   rounded bg-brand-100 transition-colors"
+      className="h-8 w-8 flex justify-center items-center   rounded bg-bg-300 text-text-100 hover:bg-brand-100 transition-colors"
     >
       <IconMapPinX size={20} stroke={1.5} />
     </button>
@@ -23,7 +23,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
   const { isDrawing, startDrawing, cancelDrawing } = useRadarContext();
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col  overflow-hidden">
       <div className=" border-b border-border flex flex-col gap-1">
         <ClearTargetsButton />
         <button
@@ -31,7 +31,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
           className={`h-8 w-8 flex justify-center items-center  rounded  text-white transition-colors ${
             isDrawing
               ? "border border-brand-100 hover:border-red-600"
-              : "border border-transparent bg-emerald-600 hover:bg-emerald-700"
+              : "border border-transparent bg-bg-300 hover:bg-emerald-700"
           }`}
         >
           {isDrawing ? (

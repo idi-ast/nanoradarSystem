@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { IconX, IconDeviceFloppy } from "@tabler/icons-react";
-import type { Nanoradares, Spotters, Camaras } from "@/features/config-devices/types/ConfigServices.type";
+import type {
+  Nanoradares,
+  Spotters,
+  Camaras,
+} from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
 import { useUpdateSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
@@ -19,7 +23,6 @@ export type EditingDevice =
   | { kind: "nanoradar"; device: Nanoradares }
   | { kind: "spotter"; device: Spotters }
   | { kind: "camara"; device: Camaras };
-
 
 function RangeNumberField({
   label,
@@ -76,10 +79,12 @@ function RangeNumberField({
 function TextField({
   label,
   value,
+  type,
   onChange,
 }: {
   label: string;
   value: string;
+  type?: string;
   onChange: (v: string) => void;
 }) {
   return (
@@ -88,7 +93,7 @@ function TextField({
         {label}
       </span>
       <input
-        type="text"
+        type={type || "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
@@ -131,7 +136,6 @@ function ColorField({
   );
 }
 
-
 function PanelWrapper({
   title,
   subtitle,
@@ -140,6 +144,7 @@ function PanelWrapper({
   isPending,
   isError,
   children,
+  mode = "sidebar",
 }: {
   title: string;
   subtitle: string;
@@ -148,15 +153,22 @@ function PanelWrapper({
   isPending: boolean;
   isError: boolean;
   children: React.ReactNode;
+  mode?: "sidebar" | "floating";
 }) {
+  const rootCls =
+    mode === "floating"
+      ? "flex flex-col w-60 max-h-[calc(100vh-6rem)]"
+      : "flex flex-col h-full w-60 border-r border-emerald-500";
   return (
-    <div className="flex flex-col h-full w-60 border-r border-emerald-500/20">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
+    <div className={rootCls}>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 ">
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
             {title}
           </p>
-          <p className="text-[11px] font-semibold text-text-100 truncate">{subtitle}</p>
+          <p className="text-[11px] font-semibold text-text-100 truncate">
+            {subtitle}
+          </p>
         </div>
         <button
           onClick={onClose}
@@ -189,17 +201,18 @@ function PanelWrapper({
   );
 }
 
-
 function NanoradarForm({
   device,
   onClose,
   liveEdit,
   onLiveEditChange,
+  mode = "sidebar",
 }: {
   device: Nanoradares;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateNanoradar();
   const [form, setForm] = useState({
@@ -237,45 +250,73 @@ function NanoradarForm({
       onSave={save}
       isPending={isPending}
       isError={isError}
+      mode={mode}
     >
-      <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
-      <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
+      <TextField
+        label="Nombre"
+        value={form.nombre}
+        onChange={(v) => set("nombre", v)}
+      />
+      <TextField
+        label="Dirección IP"
+        value={form.direccionIp}
+        onChange={(v) => set("direccionIp", v)}
+      />
       <RangeNumberField
         label="Grado"
         value={liveEdit.grado}
         onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
-        min={0} max={360} unit="°"
+        min={0}
+        max={360}
+        unit="°"
       />
       <RangeNumberField
         label="Apertura"
         value={liveEdit.apertura}
         onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
-        min={1} max={180} unit="°"
+        min={1}
+        max={180}
+        unit="°"
       />
       <RangeNumberField
         label="Radio"
         value={liveEdit.radio}
         onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
-        min={0} max={10000} step={50} unit="m"
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
       />
-      <TextField label="Latitud" value={form.latitud} onChange={(v) => set("latitud", v)} />
-      <TextField label="Longitud" value={form.longitud} onChange={(v) => set("longitud", v)} />
-      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
+      <TextField
+        label="Latitud"
+        value={form.latitud}
+        onChange={(v) => set("latitud", v)}
+      />
+      <TextField
+        label="Longitud"
+        value={form.longitud}
+        onChange={(v) => set("longitud", v)}
+      />
+      <ColorField
+        value={liveEdit.color}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+      />
     </PanelWrapper>
   );
 }
-
 
 function SpotterForm({
   device,
   onClose,
   liveEdit,
   onLiveEditChange,
+  mode = "sidebar",
 }: {
   device: Spotters;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateSpotter();
   const [form, setForm] = useState({
@@ -313,45 +354,73 @@ function SpotterForm({
       onSave={save}
       isPending={isPending}
       isError={isError}
+      mode={mode}
     >
-      <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
-      <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
+      <TextField
+        label="Nombre"
+        value={form.nombre}
+        onChange={(v) => set("nombre", v)}
+      />
+      <TextField
+        label="Dirección IP"
+        value={form.direccionIp}
+        onChange={(v) => set("direccionIp", v)}
+      />
       <RangeNumberField
         label="Grado"
         value={liveEdit.grado}
         onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
-        min={0} max={360} unit="°"
+        min={0}
+        max={360}
+        unit="°"
       />
       <RangeNumberField
         label="Apertura"
         value={liveEdit.apertura}
         onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
-        min={1} max={180} unit="°"
+        min={1}
+        max={180}
+        unit="°"
       />
       <RangeNumberField
         label="Radio"
         value={liveEdit.radio}
         onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
-        min={0} max={10000} step={50} unit="m"
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
       />
-      <TextField label="Latitud" value={form.latitude} onChange={(v) => set("latitude", v)} />
-      <TextField label="Longitud" value={form.longitude} onChange={(v) => set("longitude", v)} />
-      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
+      <TextField
+        label="Latitud"
+        value={form.latitude}
+        onChange={(v) => set("latitude", v)}
+      />
+      <TextField
+        label="Longitud"
+        value={form.longitude}
+        onChange={(v) => set("longitude", v)}
+      />
+      <ColorField
+        value={liveEdit.color}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+      />
     </PanelWrapper>
   );
 }
-
 
 function CamaraForm({
   device,
   onClose,
   liveEdit,
   onLiveEditChange,
+  mode = "sidebar",
 }: {
   device: Camaras;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateCamara();
   const [form, setForm] = useState({
@@ -397,65 +466,128 @@ function CamaraForm({
       onSave={save}
       isPending={isPending}
       isError={isError}
+      mode={mode}
     >
-      <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
-      <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
-      <TextField label="Tipo" value={form.tipo} onChange={(v) => set("tipo", v)} />
+      <TextField
+        label="Nombre"
+        value={form.nombre}
+        onChange={(v) => set("nombre", v)}
+      />
+      <TextField
+        label="Dirección IP"
+        value={form.direccionIp}
+        onChange={(v) => set("direccionIp", v)}
+      />
+      {/* <TextField
+        label="Tipo"
+        value={form.tipo}
+        onChange={(v) => set("tipo", v)}
+      /> */}
       <RangeNumberField
         label="Grado"
         value={liveEdit.grado}
         onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
-        min={0} max={360} unit="°"
+        min={0}
+        max={360}
+        unit="°"
       />
       <RangeNumberField
         label="Apertura"
         value={liveEdit.apertura}
         onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
-        min={1} max={180} unit="°"
+        min={1}
+        max={180}
+        unit="°"
       />
       <RangeNumberField
         label="Radio"
         value={liveEdit.radio}
         onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
-        min={0} max={10000} step={50} unit="m"
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
       />
-      <RangeNumberField
+      {/* <RangeNumberField
         label="Channel"
         value={form.channel}
         onChange={(v) => set("channel", v)}
-        min={1} max={64}
+        min={1}
+        max={64}
       />
       <RangeNumberField
         label="Subtype"
         value={form.subtype}
         onChange={(v) => set("subtype", v)}
-        min={0} max={10}
+        min={0}
+        max={10}
+      /> */}
+      <TextField
+        label="URL Stream"
+        value={form.url_stream}
+        onChange={(v) => set("url_stream", v)}
       />
-      <TextField label="URL Stream" value={form.url_stream} onChange={(v) => set("url_stream", v)} />
-      <TextField label="Usuario" value={form.usuario} onChange={(v) => set("usuario", v)} />
-      <TextField label="Password" value={form.password} onChange={(v) => set("password", v)} />
-      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
+      <TextField
+        label="Usuario"
+        value={form.usuario}
+        onChange={(v) => set("usuario", v)}
+      />
+      <TextField
+        label="Password"
+        type="password"
+        value={form.password}
+        onChange={(v) => set("password", v)}
+      />
+      <ColorField
+        value={liveEdit.color}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+      />
     </PanelWrapper>
   );
 }
-
 
 export function DeviceEditPanel({
   editing,
   onClose,
   liveEdit,
   onLiveEditChange,
+  mode = "sidebar",
 }: {
   editing: EditingDevice;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  mode?: "sidebar" | "floating";
 }) {
   if (editing.kind === "nanoradar") {
-    return <NanoradarForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
+    return (
+      <NanoradarForm
+        device={editing.device}
+        onClose={onClose}
+        liveEdit={liveEdit}
+        onLiveEditChange={onLiveEditChange}
+        mode={mode}
+      />
+    );
   }
   if (editing.kind === "camara") {
-    return <CamaraForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
+    return (
+      <CamaraForm
+        device={editing.device}
+        onClose={onClose}
+        liveEdit={liveEdit}
+        onLiveEditChange={onLiveEditChange}
+        mode={mode}
+      />
+    );
   }
-  return <SpotterForm device={editing.device} onClose={onClose} liveEdit={liveEdit} onLiveEditChange={onLiveEditChange} />;
+  return (
+    <SpotterForm
+      device={editing.device}
+      onClose={onClose}
+      liveEdit={liveEdit}
+      onLiveEditChange={onLiveEditChange}
+      mode={mode}
+    />
+  );
 }

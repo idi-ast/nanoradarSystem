@@ -27,7 +27,6 @@ import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
-import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
@@ -333,6 +332,7 @@ export const RadarMap = memo(function RadarMap({
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
         <div className="flex flex-col gap-1 p-1.5">
+          <ZonesPanel />
           <DeviceSelector
             visibility={deviceVisibility}
             onChange={setDeviceVisibility}
@@ -341,23 +341,16 @@ export const RadarMap = memo(function RadarMap({
             }
             onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
             onEditCamara={(device) => openEdit({ kind: "camara", device })}
+            editingDevice={editingDevice}
+            liveEdit={liveEdit}
+            onLiveEditChange={setLiveEdit}
+            onEditClose={closeEdit}
           />
-          <ZonesPanel />
           <div className="flex justify-center items-center flex-1">
             <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
               Configuraciones de dispositivos
             </span>
           </div>
-        </div>
-        <div className="absolute  bg-bg-100 top-30 right-66 rounded-2xl z-9999">
-          {editingDevice && liveEdit && (
-            <DeviceEditPanel
-              editing={editingDevice}
-              onClose={closeEdit}
-              liveEdit={liveEdit}
-              onLiveEditChange={setLiveEdit}
-            />
-          )}
         </div>
       </div>
     </div>

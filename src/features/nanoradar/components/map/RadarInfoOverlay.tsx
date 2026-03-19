@@ -36,7 +36,7 @@ export const RadarInfoOverlay = memo(function RadarInfoOverlay({
   const canSwitch = nanoradares.length > 1;
 
   return (
-    <div className="absolute top-1 left-1 z-1000 pointer-events-none w-full max-w-7xl">
+    <div className="absolute top-1 left-1 z-10 pointer-events-none w-full max-w-5xl">
       <div className="bg-bg-400 flex items-center justify-around font-semibold text-[10px] text-text-400 p-3 rounded-md w-full">
         <div className="pointer-events-auto relative">
           <button
