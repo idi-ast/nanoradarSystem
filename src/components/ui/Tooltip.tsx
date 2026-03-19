@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useState } from "react";
+import { memo, type ReactNode, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface TooltipProps {
@@ -40,7 +40,7 @@ function getTooltipStyle(
   }
 }
 
-export function Tooltip({ text, children, side = "left" }: TooltipProps) {
+export const Tooltip = memo(function Tooltip({ text, children, side = "left" }: TooltipProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties>({});
@@ -71,4 +71,4 @@ export function Tooltip({ text, children, side = "left" }: TooltipProps) {
         )}
     </div>
   );
-}
+});

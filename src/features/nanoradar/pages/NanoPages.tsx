@@ -37,21 +37,13 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     (range: HistoryRange) => setHistoryRange(range),
     [],
   );
-  const { zones, instanceConfig } = useRadarContext();
-  const { targets } = useRadarTargets();
-  const geofence = useGeofenceDetection(
-    targets,
-    zones,
-    instanceConfig.geofence.ACTIVE_MS,
-  );
-
   return (
     <div
       className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
     >
       <div className="col-span-10 h-full flex flex-col w-full">
         <div className="flex-1 min-h-0 w-full relative">
-          <GeofenceFlash hasAlert={geofence.hasAlert} color={geofence.color} />
+          <GeofenceFlash />
           <RadarMap historyRange={historyRange} deviceFilter={deviceFilter} />
         </div>
         <HistoryRangeBar onChange={handleRangeChange} />
@@ -62,14 +54,12 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
 
       {!isMobile ? (
         <RightBarNano
-          activeZoneIds={geofence.activeZoneIds}
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
         />
       ) : isOpenRightBar ? (
         <RightBarNano
           setOpenRightBar={setOpenRightBar}
-          activeZoneIds={geofence.activeZoneIds}
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
         />
@@ -131,16 +121,20 @@ const RadarStatusBar = memo(() => {
 const RightBarNano = memo(
   function RightBarNano({
     setOpenRightBar,
-    activeZoneIds,
     deviceFilter,
     onDeviceFilterChange,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
-    activeZoneIds: Set<string>;
     deviceFilter: DeviceFilter;
     onDeviceFilterChange: (f: DeviceFilter) => void;
   }) {
-    const { zones } = useRadarContext();
+    const { zones, instanceConfig } = useRadarContext();
+    const { targets } = useRadarTargets();
+    const { activeZoneIds } = useGeofenceDetection(
+      targets,
+      zones,
+      instanceConfig.geofence.ACTIVE_MS,
+    );
 
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
@@ -191,10 +185,6 @@ const RightBarNano = memo(
     if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
     if (prev.deviceFilter !== next.deviceFilter) return false;
     if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
-    if (prev.activeZoneIds.size !== next.activeZoneIds.size) return false;
-    for (const id of next.activeZoneIds) {
-      if (!prev.activeZoneIds.has(id)) return false;
-    }
     return true;
   },
 );
@@ -220,13 +210,14 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   );
 });
 
-const GeofenceFlash = memo(function GeofenceFlash({
-  hasAlert,
-  color,
-}: {
-  hasAlert: boolean;
-  color: string;
-}) {
+const GeofenceFlash = memo(function GeofenceFlash() {
+  const { zones, instanceConfig } = useRadarContext();
+  const { targets } = useRadarTargets();
+  const { hasAlert, color } = useGeofenceDetection(
+    targets,
+    zones,
+    instanceConfig.geofence.ACTIVE_MS,
+  );
   if (!hasAlert) return null;
 
   return (

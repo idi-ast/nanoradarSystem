@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 interface BottomBarProps {
   overlays?: React.ReactNode;
   title?: string;
@@ -5,7 +7,7 @@ interface BottomBarProps {
   children?: React.ReactNode;
 }
 
-function BottomBar({
+const BottomBar = memo(function BottomBar({
   overlays,
   title = "Título por defecto",
   children,
@@ -19,6 +21,6 @@ function BottomBar({
       <div className="flex-1 flex gap-5">{children}</div>
     </div>
   );
-}
+});
 
 export default BottomBar;
