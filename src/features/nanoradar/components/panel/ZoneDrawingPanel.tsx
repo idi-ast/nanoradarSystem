@@ -24,7 +24,7 @@ export function ZoneDrawingPanel() {
   } = useRadarContext();
 
   return (
-    <div className="absolute right-11 top-19 p-5 min-w-80 bg-bg-100 border border-border rounded-lg space-y-3">
+    <div className="p-5 min-w-80 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs text-text-100 font-bold uppercase">
           Configuración de Zona

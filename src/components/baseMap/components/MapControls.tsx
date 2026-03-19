@@ -22,7 +22,7 @@ interface MapControlsProps {
 }
 
 const BTN =
-  "relative text-text-100 hover:text-text-200 outline outline-transparent p-0.5 bg-bg-100 rounded h-10 w-10 flex justify-center items-center transition-all";
+  "relative text-text-100 hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 bg-bg-100 rounded h-10 w-10 flex justify-center items-center transition-all";
 
 function MapBtn({
   onClick,
@@ -79,7 +79,7 @@ const MapControls = memo(function MapControls({
   const zoomOut = useCallback(() => mapRef.current?.zoomOut(), [mapRef]);
 
   return (
-    <div className="flex absolute right-5 top-1 z-10 p-1 gap-1 radar-chip rounded-md">
+    <div className="flex absolute right-5 top-1 z-1 p-1 gap-1 radar-chip rounded-md">
       {/* Layer selector */}
       <div className="relative z-50">
         <button

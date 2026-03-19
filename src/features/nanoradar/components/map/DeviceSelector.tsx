@@ -20,6 +20,7 @@ import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE } from "./devicesConfig";
 import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
+import { Tooltip } from "@/components/ui";
 
 interface DeviceSelectorProps {
   visibility: DeviceVisibility;
@@ -239,18 +240,19 @@ export const DeviceSelector = memo(function DeviceSelector({
 
   return (
     <div>
-      <button
-        ref={triggerRef}
-        onClick={() => setOpen((v) => !v)}
-        title="Dispositivos en mapa"
-        className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
-          open
-            ? "bg-brand-200/20 text-brand-200"
-            : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
-        }`}
+      <Tooltip text="Dispositivos en mapa">
+        <button
+          ref={triggerRef}
+          onClick={() => setOpen((v) => !v)}
+          className={`relative w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+            open
+              ? "bg-brand-200/20 text-brand-200"
+              : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
+          }`}
       >
         <IconDevicesCog size={20} />
       </button>
+      </Tooltip>
 
       {open &&
         createPortal(
