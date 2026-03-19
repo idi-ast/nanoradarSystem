@@ -15,6 +15,7 @@ import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter } from "../types";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
+import { useCameraActivityStore } from "../stores/cameraActivityStore";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -320,6 +321,7 @@ const CamerasOverlay = memo(function CamerasOverlay() {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;
   const { cameraActivities } = useRadarTargets();
+  const { isEnabled } = useCameraActivityStore();
   const [maximizedIds, setMaximizedIds] = useState<number[]>([]);
 
   const handleMaximize = useCallback((id: number) => {
@@ -347,7 +349,9 @@ const CamerasOverlay = memo(function CamerasOverlay() {
       </h4>
       {camaras.map((cam) => {
         const stackIndex = maximizedIds.indexOf(cam.id);
-        const activity = cameraActivities.find((a) => a.ip === cam.direccionIp);
+        const activity = isEnabled(cam.id)
+          ? cameraActivities.find((a) => a.ip === cam.direccionIp)
+          : undefined;
         return (
           <Camera
             key={cam.id}

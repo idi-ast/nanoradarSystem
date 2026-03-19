@@ -3,6 +3,7 @@ import { Marker } from "react-map-gl";
 import type { MapRef } from "react-map-gl";
 import { useRadarTargets } from "../../context/useRadarContext";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
+import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraActividad } from "../../types";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
 
@@ -108,25 +109,52 @@ const CameraActivityMarker = memo(function CameraActivityMarker({
 
 export interface CameraActivityOverlayProps {
   mapRef: React.RefObject<MapRef | null>;
+  defaultCenter: { longitude: number; latitude: number };
+  defaultZoom: number;
 }
 
 export const CameraActivityOverlay = memo(function CameraActivityOverlay({
   mapRef,
+  defaultCenter,
+  defaultZoom,
 }: CameraActivityOverlayProps) {
   const { cameraActivities } = useRadarTargets();
   const { data: configData } = useConfigDevices();
   const camaras = useMemo(() => configData?.data?.camaras ?? [], [configData]);
+  const { isEnabled } = useCameraActivityStore();
+
+  // Solo actividades de cámaras que tienen la opción habilitada
+  const activeActivities = useMemo(
+    () =>
+      cameraActivities.filter((a) => {
+        const cam = camaras.find((c) => c.direccionIp === a.ip);
+        return cam ? isEnabled(cam.id) : false;
+      }),
+    [cameraActivities, camaras, isEnabled],
+  );
 
   const lastFlownIpsRef = useRef<string>("");
 
   useEffect(() => {
-    if (!cameraActivities.length || !camaras.length) return;
+    const ipsKey = activeActivities.map((a) => a.ip).join(",");
 
-    const ipsKey = cameraActivities.map((a) => a.ip).join(",");
+    // Sin actividades habilitadas → volver al centro por defecto
+    if (!activeActivities.length) {
+      if (lastFlownIpsRef.current === "") return;
+      lastFlownIpsRef.current = "";
+      mapRef.current?.flyTo({
+        center: [defaultCenter.longitude, defaultCenter.latitude],
+        zoom: defaultZoom,
+        duration: 1800,
+        essential: true,
+      });
+      return;
+    }
+
     if (ipsKey === lastFlownIpsRef.current) return;
     lastFlownIpsRef.current = ipsKey;
 
-    for (const activity of cameraActivities) {
+    for (const activity of activeActivities) {
       const cam = camaras.find((c) => c.direccionIp === activity.ip);
       if (!cam) continue;
       const lat = Number(cam.ubicacion.lat);
@@ -141,13 +169,13 @@ export const CameraActivityOverlay = memo(function CameraActivityOverlay({
       });
       break;
     }
-  }, [cameraActivities, camaras, mapRef]);
+  }, [activeActivities, camaras, mapRef, defaultCenter, defaultZoom]);
 
-  if (!cameraActivities.length || !camaras.length) return null;
+  if (!activeActivities.length || !camaras.length) return null;
 
   return (
     <>
-      {cameraActivities.map((activity, idx) => {
+      {activeActivities.map((activity, idx) => {
         const cam = camaras.find((c) => c.direccionIp === activity.ip);
         if (!cam) return null;
         return (

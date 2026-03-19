@@ -10,6 +10,7 @@ import type { NanoradarPayload } from "@/features/config-devices/nanoradar/servi
 import { useUpdateSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
+import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
 
 export interface LiveEditValues {
@@ -132,6 +133,46 @@ function ColorField({
           style={{ backgroundColor: value }}
         />
       </div>
+    </div>
+  );
+}
+
+function ToggleField({
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-1">
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest leading-tight">
+          {label}
+        </span>
+        {description && (
+          <span className="text-[9px] text-text-100/30 leading-tight mt-0.5">
+            {description}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={`relative shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+          value ? "bg-emerald-500" : "bg-bg-400"
+        }`}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+            value ? "translate-x-4" : "translate-x-1"
+          }`}
+        />
+      </button>
     </div>
   );
 }
@@ -423,6 +464,8 @@ function CamaraForm({
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateCamara();
+  const { isEnabled, setEnabled } = useCameraActivityStore();
+  const activityEnabled = isEnabled(device.id);
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
@@ -542,6 +585,14 @@ function CamaraForm({
         value={liveEdit.color}
         onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
       />
+      <div className="border-t border-border/40 pt-3">
+        <ToggleField
+          label="Actividad automática"
+          description="Zoom y fly-to al detectar eventos"
+          value={activityEnabled}
+          onChange={(v) => setEnabled(device.id, v)}
+        />
+      </div>
     </PanelWrapper>
   );
 }

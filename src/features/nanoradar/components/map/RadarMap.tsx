@@ -312,7 +312,14 @@ export const RadarMap = memo(function RadarMap({
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
-          <CameraActivityOverlay mapRef={mapRef} />
+          <CameraActivityOverlay
+            mapRef={mapRef}
+            defaultCenter={{
+              longitude: defaultCenter.longitude || initialCenter.longitude,
+              latitude: defaultCenter.latitude || initialCenter.latitude,
+            }}
+            defaultZoom={instanceConfig.map.zoom}
+          />
           {liveEdit && liveEditPos && (
             <Marker
               latitude={liveEditPos.lat}
