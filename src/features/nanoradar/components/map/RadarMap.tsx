@@ -32,6 +32,7 @@ import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 
 import type { DeviceFilter } from "../../types";
+import { PageLoader } from "@/components/ui";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -115,6 +116,7 @@ export const RadarMap = memo(function RadarMap({
     lat: number;
     lng: number;
   } | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(() => ({
     lat: parseFloat(config?.latitud ?? "0"),
     lng: parseFloat(config?.longitud ?? "0"),
@@ -240,6 +242,7 @@ export const RadarMap = memo(function RadarMap({
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
+        {!mapLoaded && <PageLoader />}
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
@@ -258,6 +261,7 @@ export const RadarMap = memo(function RadarMap({
           interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
           onMoveEnd={handleMoveEnd}
+          onLoad={() => setMapLoaded(true)}
           cursor={
             isDrawing ? "crosshair" : editingDevice ? "default" : undefined
           }

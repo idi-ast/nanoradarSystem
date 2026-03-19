@@ -3,6 +3,7 @@ import Header from "./header/Header";
 import Sidebar from "./sidebar/Sidebar";
 import { configServer } from "@/config/ConfigServer";
 import { DropdownProvider } from "@/components/ui/Dropdown";
+import { PageLoader } from "@/components/ui/PageLoader";
 import { useState } from "react";
 
 function Template() {
@@ -10,6 +11,7 @@ function Template() {
   const [isOpenSidebar, setOpenSidebar] = useState(false);
   return (
     <DropdownProvider>
+      <PageLoader />
       <div className="h-screen w-screen flex overflow-hidden">
         <Sidebar
           useCompany={useCompany}
