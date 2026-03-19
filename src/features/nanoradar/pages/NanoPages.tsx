@@ -319,12 +319,31 @@ const TargetsSection = memo(function TargetsSection({
 const CamerasOverlay = memo(function CamerasOverlay() {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;
+  const [maximizedIds, setMaximizedIds] = useState<number[]>([]);
+
+  const handleMaximize = useCallback((id: number) => {
+    setMaximizedIds((prev) => [...prev, id]);
+  }, []);
+
+  const handleMinimize = useCallback((id: number) => {
+    setMaximizedIds((prev) => prev.filter((x) => x !== id));
+  }, []);
+
   if (!camaras || camaras.length === 0) return null;
   return (
     <div className=" flex flex-col items-center w-full gap-2 z-100">
-      {camaras.map((cam) => (
-        <Camera key={cam.id} camera={cam} />
-      ))}
+      {camaras.map((cam) => {
+        const stackIndex = maximizedIds.indexOf(cam.id);
+        return (
+          <Camera
+            key={cam.id}
+            camera={cam}
+            stackIndex={stackIndex >= 0 ? stackIndex : 0}
+            onBecomeMaximized={() => handleMaximize(cam.id)}
+            onBecomeMinimized={() => handleMinimize(cam.id)}
+          />
+        );
+      })}
     </div>
   );
 });

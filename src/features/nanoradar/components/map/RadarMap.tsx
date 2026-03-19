@@ -330,7 +330,7 @@ export const RadarMap = memo(function RadarMap({
         <div className="radar-vignette" />
         <RadarInfoOverlay config={config} />
       </div>
-      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex border-l border-emerald-500/20">
+      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex ">
         <div className="flex flex-col gap-1 p-1.5">
           <ZonesPanel />
           <DeviceSelector

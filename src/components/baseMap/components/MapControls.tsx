@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react";
 import type { MapRef } from "react-map-gl";
 import type { MapLayer, MapLayerConfig, MapCenter } from "../types";
+import { Tooltip } from "@/components/ui";
 
 interface MapControlsProps {
   mapRef: React.RefObject<MapRef | null>;
@@ -34,11 +35,11 @@ function MapBtn({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative">
-      <button onClick={onClick} className={BTN} title={title}>
+    <Tooltip text={title} side="bottom">
+      <button onClick={onClick} className={BTN}>
         {children}
       </button>
-    </div>
+    </Tooltip>
   );
 }
 
@@ -82,12 +83,14 @@ const MapControls = memo(function MapControls({
     <div className="flex absolute right-5 top-1 z-1 p-1 gap-1 radar-chip rounded-md">
       {/* Layer selector */}
       <div className="relative z-50">
-        <button
-          onClick={() => setShowLayers((v) => !v)}
-          className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "bg-bg-450 text-text-400 "} relative hover:text-text-300 outline outline-transparent p-0.5  rounded h-10 w-10 flex justify-center items-center transition-all`}
-        >
-          <IconMapCog size={20} />
-        </button>
+        <Tooltip text="Capas del mapa" side="bottom">
+          <button
+            onClick={() => setShowLayers((v) => !v)}
+            className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "bg-bg-450 text-text-400 "} relative hover:text-text-300 outline outline-transparent p-0.5  rounded h-10 w-10 flex justify-center items-center transition-all`}
+          >
+            <IconMapCog size={20} />
+          </button>
+        </Tooltip>
 
         {showLayers && (
           <>

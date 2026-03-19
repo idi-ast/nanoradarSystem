@@ -15,9 +15,9 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
     <Tooltip text="Limpiar Tracks">
       <button
         onClick={clearTargets}
-        className="h-8 w-8 flex justify-center items-center rounded bg-bg-300 text-text-100 hover:bg-brand-100 transition-colors"
+        className="h-10 w-10 flex justify-center items-center rounded bg-bg-300 text-text-100 hover:bg-brand-100 transition-colors"
       >
-        <IconMapPinX size={20} stroke={1.5} />
+        <IconMapPinX size={20} stroke={2} />
       </button>
     </Tooltip>
   );
@@ -37,7 +37,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
       const rect = triggerRef.current!.getBoundingClientRect();
       setPanelStyle({
         top: rect.top,
-        right: window.innerWidth - rect.left + 8,
+        right: window.innerWidth - rect.left + 10,
       });
     };
     updatePos();
@@ -52,16 +52,16 @@ export const ZonesPanel = memo(function ZonesPanel() {
         <button
           ref={triggerRef}
           onClick={isDrawing ? cancelDrawing : startDrawing}
-          className={`h-8 w-8 flex justify-center items-center rounded text-white transition-colors ${
+          className={`h-10 w-10 flex justify-center items-center rounded text-white transition-colors ${
             isDrawing
               ? "border border-brand-100 hover:border-red-600"
               : "border border-transparent bg-bg-300 hover:bg-emerald-700"
           }`}
         >
           {isDrawing ? (
-            <IconCircleX size={20} stroke={1.5} className="text-red-600" />
+            <IconCircleX size={20} stroke={2} className="text-red-600" />
           ) : (
-            <IconHexagonLetterZ size={20} stroke={1.5} />
+            <IconHexagonLetterZ size={20} stroke={2} />
           )}
         </button>
       </Tooltip>
