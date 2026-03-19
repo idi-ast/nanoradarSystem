@@ -329,9 +329,21 @@ const CamerasOverlay = memo(function CamerasOverlay() {
     setMaximizedIds((prev) => prev.filter((x) => x !== id));
   }, []);
 
-  if (!camaras || camaras.length === 0) return null;
+  if (!camaras || camaras.length === 0)
+    return (
+      <div className="h-40 w-full flex justify-center items-center border border-border rounded-lg ">
+        <div>
+          <p className="text-text-200">
+            No hay <span className="font-bold">cámaras</span> ingresadas
+          </p>
+        </div>
+      </div>
+    );
   return (
-    <div className=" flex flex-col items-center w-full gap-2 z-100">
+    <div className=" flex flex-col items-start w-full gap-2 z-100 border-t border-border pt-5">
+      <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1 w-full">
+        Cámaras({camaras.length > 0 ? camaras.length : "0"})
+      </h4>
       {camaras.map((cam) => {
         const stackIndex = maximizedIds.indexOf(cam.id);
         return (

@@ -115,6 +115,15 @@ export const RadarMap = memo(function RadarMap({
     lat: number;
     lng: number;
   } | null>(null);
+  const [mapCenter, setMapCenter] = useState(() => ({
+    lat: parseFloat(config?.latitud ?? "0"),
+    lng: parseFloat(config?.longitud ?? "0"),
+  }));
+
+  const handleMoveEnd = useCallback(() => {
+    const center = mapRef.current?.getCenter();
+    if (center) setMapCenter({ lat: center.lat, lng: center.lng });
+  }, []);
 
   function openEdit(ed: EditingDevice) {
     setEditingDevice(ed);
@@ -248,6 +257,7 @@ export const RadarMap = memo(function RadarMap({
           reuseMaps
           interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
+          onMoveEnd={handleMoveEnd}
           cursor={
             isDrawing ? "crosshair" : editingDevice ? "default" : undefined
           }
@@ -328,7 +338,7 @@ export const RadarMap = memo(function RadarMap({
 
         <div className="radar-scanlines" />
         <div className="radar-vignette" />
-        <RadarInfoOverlay config={config} />
+        <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
       <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex ">
         <div className="flex flex-col gap-1 p-1.5">
