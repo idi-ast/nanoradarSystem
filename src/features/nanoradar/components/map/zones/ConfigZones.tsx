@@ -72,7 +72,7 @@ function ToggleRow({ label, value, onChange }: ToggleRowProps) {
       >
         <span
           className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-200 ${
-            value ? "translate-x-4" : "translate-x-0.5"
+            value ? "translate-x-0.5" : "-translate-x-4"
           }`}
         />
       </button>

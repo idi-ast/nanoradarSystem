@@ -32,12 +32,14 @@ export interface RadarZone {
     // La API puede devolver los vértices como array o como objeto indexado
     vertices: [number, number][] | Record<string, [number, number]>;
   };
+  sonido: number | null;
 }
 
 export interface CreateZonePayload {
   nombre: string;
   descripcion: string;
   idTipoAlerta: number;
+  sonido?: number | null;
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -48,6 +50,7 @@ export interface UpdateZonePayload {
   nombre: string;
   descripcion: string;
   idTipoAlerta: number;
+  sonido?: number | null;
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;

@@ -14,6 +14,7 @@ export function useZoneDrawing() {
   const [name, setName] = useState("");
   const [color, setColor] = useState(STOPPED_COLOR);
   const [alertLevel, setAlertLevel] = useState<1 | 2 | 3 | 4>(1);
+  const [zoneSound, setZoneSound] = useState<number | null>(null);
 
   const startDrawing = useCallback(() => {
     setIsDrawing(true);
@@ -21,6 +22,7 @@ export function useZoneDrawing() {
     setName("");
     setColor(STOPPED_COLOR);
     setAlertLevel(1);
+    setZoneSound(null);
   }, []);
 
   const cancelDrawing = useCallback(() => {
@@ -45,12 +47,13 @@ export function useZoneDrawing() {
       nombre: name || "Nueva Zona",
       descripcion: `Zona con alerta nivel ${alertLevel}`,
       idTipoAlerta: alertLevel,
+      sonido: zoneSound,
       poligono: {
         color,
         vertices: points,
       },
     };
-  }, [name, color, alertLevel, points]);
+  }, [name, color, alertLevel, zoneSound, points]);
 
   return {
     isDrawing,
@@ -58,6 +61,7 @@ export function useZoneDrawing() {
     name,
     color,
     alertLevel,
+    zoneSound,
     startDrawing,
     cancelDrawing,
     addPoint,
@@ -66,6 +70,7 @@ export function useZoneDrawing() {
     setColor,
     setMovementStatus,
     setAlertLevel,
+    setZoneSound,
     buildPayload,
     canSave: points.length >= 3,
   };

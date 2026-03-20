@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { IconPencil, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
+import { ZONE_SOUNDS } from "../../config";
 
 const ALERT_LEVELS = [
   { value: 1, label: "Nivel 1: Informativa" },
@@ -15,7 +16,10 @@ interface Props {
   hasAlert?: boolean;
 }
 
-export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props) {
+export const ZoneCard = memo(function ZoneCard({
+  zone,
+  hasAlert = false,
+}: Props) {
   const { updateZone, deleteZone, flyToZoneFn } = useRadarContext();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -27,11 +31,15 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
   const [editLevel, setEditLevel] = useState<1 | 2 | 3 | 4>(
     (zone.idTipoAlerta as 1 | 2 | 3 | 4) ?? 1,
   );
+  const [editSonido, setEditSonido] = useState<number | null>(
+    zone.sonido ?? null,
+  );
 
   const handleEdit = () => {
     setEditName(zone.nombre);
     setEditColor(zone.poligono.color);
     setEditLevel((zone.idTipoAlerta as 1 | 2 | 3 | 4) ?? 1);
+    setEditSonido(zone.sonido ?? null);
     setIsEditing(true);
   };
 
@@ -43,6 +51,7 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
         nombre: editName || zone.nombre,
         descripcion: `Zona con alerta nivel ${editLevel}`,
         idTipoAlerta: editLevel,
+        sonido: editSonido,
         poligono: { color: editColor, vertices: zone.poligono.vertices },
       });
       setIsEditing(false);
@@ -69,7 +78,11 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
     if (rawVertices.length === 0) return;
     const sumLat = rawVertices.reduce((acc, v) => acc + v[0], 0);
     const sumLon = rawVertices.reduce((acc, v) => acc + v[1], 0);
-    flyToZoneFn.current?.(sumLat / rawVertices.length, sumLon / rawVertices.length, 16);
+    flyToZoneFn.current?.(
+      sumLat / rawVertices.length,
+      sumLon / rawVertices.length,
+      18,
+    );
   };
 
   if (isEditing) {
@@ -96,12 +109,35 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
           </div>
           <select
             value={editLevel}
-            onChange={(e) => setEditLevel(Number(e.target.value) as 1 | 2 | 3 | 4)}
+            onChange={(e) =>
+              setEditLevel(Number(e.target.value) as 1 | 2 | 3 | 4)
+            }
             className="flex-1 bg-bg-100 border border-border text-text-100 text-[10px] p-1.5 rounded"
           >
             {ALERT_LEVELS.map((lvl) => (
               <option key={lvl.value} value={lvl.value}>
                 {lvl.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[9px] text-text-200 uppercase block mb-1">
+            Sonido:
+          </label>
+          <select
+            value={editSonido ?? ""}
+            onChange={(e) =>
+              setEditSonido(
+                e.target.value === "" ? null : Number(e.target.value),
+              )
+            }
+            className="w-full bg-bg-100 border border-border text-text-100 text-[10px] p-1.5 rounded"
+          >
+            <option value="">Sin sonido</option>
+            {ZONE_SOUNDS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.id} — {s.label}
               </option>
             ))}
           </select>
@@ -131,17 +167,16 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
       className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-md"
       style={
         hasAlert
-          ? {
+          ? ({
               border: `1.5px solid ${zone.poligono.color}`,
               "--zone-glow-color": zone.poligono.color,
               animation: "zone-alert-glow 1.6s ease-in-out infinite",
-            } as React.CSSProperties
+            } as React.CSSProperties)
           : undefined
       }
       onClick={handleFlyTo}
       title="Clic para centrar en el mapa"
     >
-      {/* Sweep shimmer de izquierda a derecha */}
       {hasAlert && (
         <div
           aria-hidden
@@ -175,10 +210,12 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
             className={`w-3 h-3 rounded-full shrink-0 ${hasAlert ? "animate-ping" : ""}`}
             style={{
               backgroundColor: zone.poligono.color,
-              boxShadow: hasAlert ? `0 0 8px 2px ${zone.poligono.color}` : undefined,
+              boxShadow: hasAlert
+                ? `0 0 8px 2px ${zone.poligono.color}`
+                : undefined,
             }}
           />
-         
+
           <button
             onClick={handleEdit}
             className="p-1 rounded hover:bg-bg-300/80 text-text-100/40 hover:text-text-100 transition-colors opacity-0 group-hover:opacity-100"
@@ -188,7 +225,9 @@ export const ZoneCard = memo(function ZoneCard({ zone, hasAlert = false }: Props
           </button>
           {confirmDelete ? (
             <>
-              <span className="text-[9px] text-red-400 font-semibold whitespace-nowrap">¿Eliminar?</span>
+              <span className="text-[9px] text-red-400 font-semibold whitespace-nowrap">
+                ¿Eliminar?
+              </span>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}

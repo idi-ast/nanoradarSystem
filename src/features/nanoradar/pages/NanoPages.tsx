@@ -11,6 +11,7 @@ import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
+import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
 import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter } from "../types";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
@@ -135,6 +136,8 @@ const RightBarNano = memo(
       zones,
       instanceConfig.geofence.ACTIVE_MS,
     );
+
+    useZoneAlertSound(zones, activeZoneIds);
 
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">

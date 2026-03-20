@@ -73,7 +73,7 @@ function ToggleRow({ label, value, onChange }: ToggleRowProps) {
       >
         <span
           className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-200 ${
-            value ? "translate-x-4" : "translate-x-0.5"
+            value ? "translate-x-0" : "-translate-x-2.5"
           }`}
         />
       </button>
@@ -126,7 +126,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
     <div className="w-72 max-h-[85vh] overflow-y-auto bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-3 scrollbar-thin scrollbar-track-bg-300 scrollbar-thumb-bg-400">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <IconRadar size={14} className="text-emerald-400" stroke={1.8} />
+          <IconRadar size={14} className="text-emerald-400" stroke={1.8} /> 
           <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
             Visual del Radar
           </h4>
@@ -138,7 +138,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
           ✕
         </button>
       </div>
-      <Section title="Haz (Beam)" accent="text-emerald-400" defaultOpen>
+      <Section title="Haz (Beam)" accent="text-text-100" defaultOpen>
         <ToggleRow label="Mostrar haz" value={vs.beamShow} onChange={s("beamShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.beamShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Opacidad del haz" value={vs.beamOpacity} min={0} max={1} step={0.05} format={pct} onChange={s("beamOpacity")} />
@@ -148,7 +148,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Pulso animado" accent="text-cyan-400">
+      <Section title="Pulso animado" accent="text-text-100">
         <ToggleRow label="Mostrar pulso" value={vs.pulseShow} onChange={s("pulseShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.pulseShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Ondas simultáneas" value={vs.pulseWaveCount} min={1} max={10} step={1} format={String} onChange={s("pulseWaveCount")} accent="accent-cyan-500" />
@@ -159,11 +159,11 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Relleno de cobertura" accent="text-violet-400">
+      <Section title="Relleno de cobertura" accent="text-text-100">
         <SliderRow label="Opacidad del relleno" value={vs.rangeFillOpacity} min={0} max={0.5} step={0.01} format={pct} onChange={s("rangeFillOpacity")} accent="accent-violet-500" />
       </Section>
 
-      <Section title="Borde de cobertura" accent="text-violet-400">
+      <Section title="Borde de cobertura" accent="text-text-100">
         <ToggleRow label="Mostrar borde" value={vs.rangeBorderShow} onChange={s("rangeBorderShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.rangeBorderShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Grosor" value={vs.rangeBorderWidth} min={0.5} max={4} step={0.5} format={px} onChange={s("rangeBorderWidth")} accent="accent-violet-500" />
@@ -171,7 +171,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Líneas de apertura" accent="text-yellow-400">
+      <Section title="Líneas de apertura" accent="text-text-100">
         <ToggleRow label="Mostrar límites" value={vs.rangeLimitsShow} onChange={s("rangeLimitsShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.rangeLimitsShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Grosor" value={vs.rangeLimitsWidth} min={0.5} max={4} step={0.5} format={px} onChange={s("rangeLimitsWidth")} accent="accent-yellow-500" />
@@ -179,7 +179,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Anillos concéntricos" accent="text-sky-400">
+      <Section title="Anillos concéntricos" accent="text-text-100">
         <ToggleRow label="Mostrar anillos" value={vs.ringsShow} onChange={s("ringsShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.ringsShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Grosor" value={vs.ringsWidth} min={0.5} max={5} step={0.5} format={px} onChange={s("ringsWidth")} accent="accent-sky-500" />
@@ -188,7 +188,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Línea de dirección" accent="text-orange-400">
+      <Section title="Línea de dirección" accent="text-text-100">
         <ToggleRow label="Mostrar línea" value={vs.gradoLineShow} onChange={s("gradoLineShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.gradoLineShow ? "opacity-40 pointer-events-none" : ""}`}>
           <SliderRow label="Grosor" value={vs.gradoLineWidth} min={0.5} max={5} step={0.5} format={px} onChange={s("gradoLineWidth")} accent="accent-orange-500" />
