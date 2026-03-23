@@ -7,8 +7,8 @@ const DEVICE_LABEL: Record<string, string> = {
 };
 
 const DEVICE_COLOR: Record<string, string> = {
-  nanoRadar: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-  spotter: "bg-violet-500/20 text-violet-300 border-violet-500/40",
+  nanoRadar: "bg-cyan-500/20 text-text-100 border-cyan-500/40",
+  spotter: "bg-violet-500/10 text-text-100 border-violet-500/40",
 };
 
 interface Props {
@@ -24,21 +24,17 @@ export const TargetCard = memo(function TargetCard({ target }: Props) {
   const rawId = target.id.replace(/^(nanoRadar|spotter)_/, "");
 
   return (
-    <div
-      className={`p-3`}
-    >
+    <div className={`p-3`}>
       <div className="flex justify-between items-start gap-1">
-        <span className="text-white font-bold text-xs">
+        <span className="text-text-100 font-bold text-xs">
           Detección id: {rawId.slice(-4)}
         </span>
         <div className="flex gap-1">
-          <span
-            className={`text-[9px] px-1.5 py-0.5  border ${deviceColor}`}
-          >
+          <span className={`text-[9px] px-1.5 py-0.5  border ${deviceColor}`}>
             {deviceLabel}
           </span>
           <span
-            className={`text-[9px] px-1  ${
+            className={`text-[9px] px-2 py-0.5  ${
               isCritical
                 ? "bg-brand-100 text-text-100"
                 : "bg-emerald-500 text-text-100 font-bold"

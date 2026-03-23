@@ -625,7 +625,7 @@ function CamaraForm({
         step={50}
         unit="m"
       />
-      {/* <RangeNumberField
+      <RangeNumberField
         label="Channel"
         value={form.channel}
         onChange={(v) => set("channel", v)}
@@ -638,7 +638,7 @@ function CamaraForm({
         onChange={(v) => set("subtype", v)}
         min={0}
         max={10}
-      /> */}
+      />
       <TextField
         label="URL Stream"
         value={form.url_stream}

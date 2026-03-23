@@ -64,10 +64,10 @@ export interface MapConfig {
 }
 
 export const BEAM_ANIMATION: BeamConfig = {
-  TARGET_FPS: 60,
+  TARGET_FPS: 20,
   PULSE_CYCLE_MS: 9_000,
   WAVE_COUNT: 4,
-  WAVE_STEPS: 8,
+  WAVE_STEPS: 6,
   GRADIENT_STEPS: 6,
 };
 

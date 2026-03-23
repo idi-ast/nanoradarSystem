@@ -418,7 +418,7 @@ const Camera = memo(
     <>
       {mode === "minimized" && (
         <div
-          className="w-full rounded-xl overflow-hidden border shadow-xl bg-bg-100 flex flex-col transition-all duration-500"
+          className="w-full rounded-xl overflow-hidden border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500"
           style={{
             borderColor: isActive ? `${glowColor}99` : undefined,
             boxShadow: isActive ? `0 0 16px 2px ${glowColor}44` : undefined,

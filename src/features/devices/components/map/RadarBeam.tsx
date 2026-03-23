@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Source, Layer } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import type { RadarConfig } from "../../types";
 import { createCircleCoords, getGeoPoint } from "./utils/geoHelpers";
 import { useRadarContext } from "../../context/useRadarContext";
+import { useRadarAnimation } from "../../hooks/useRadarAnimation";
 
 interface Props {
   config: RadarConfig;
@@ -60,39 +61,15 @@ export function RadarBeam({ config }: Props) {
   const { instanceConfig } = useRadarContext();
   const { beam, colors } = instanceConfig;
   const id = instanceConfig.id;
-  const frameIntervalMs = 1000 / beam.TARGET_FPS;
 
-  const [phase, setPhase] = useState(0);
-  const rafIdRef = useRef<number | null>(null);
-  const lastFrameTimeRef = useRef(0);
+  // Usa el singleton RAF compartido en lugar de un bucle propio
+  const phase = useRadarAnimation(beam.TARGET_FPS);
 
   const lat = Number(config.latitud);
   const lon = Number(config.longitud);
   const azimut = Number(config.azimut);
   const radio = Number(config.radio);
   const apertura = Number(config.apertura);
-
-  useEffect(() => {
-    const animate = (now: number) => {
-      if (now - lastFrameTimeRef.current >= frameIntervalMs) {
-        setPhase((now % beam.PULSE_CYCLE_MS) / beam.PULSE_CYCLE_MS);
-        lastFrameTimeRef.current = now;
-      }
-      rafIdRef.current = window.requestAnimationFrame(animate);
-    };
-
-    rafIdRef.current = window.requestAnimationFrame((now) => {
-      lastFrameTimeRef.current = now;
-      setPhase((now % beam.PULSE_CYCLE_MS) / beam.PULSE_CYCLE_MS);
-      rafIdRef.current = window.requestAnimationFrame(animate);
-    });
-
-    return () => {
-      if (rafIdRef.current !== null) {
-        window.cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, [beam.PULSE_CYCLE_MS, frameIntervalMs]);
 
   const aperturaGrados = useMemo(
     () => 2 * Math.atan(apertura / 2 / radio) * (180 / Math.PI),
