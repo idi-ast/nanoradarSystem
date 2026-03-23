@@ -41,9 +41,13 @@ function getWhepBaseUrl(urlStream: string): string {
  * Hook WebRTC WHEP para MediaMTX.
  * Flujo correcto WHEP: enviar el offer SDP sin esperar a ICE gathering;
  * MediaMTX responde con el answer completo (incluye sus candidatos ICE).
+ *
+ * Expone `streamRef` para que otros elementos <video> puedan reutilizar
+ * el mismo MediaStream sin abrir una segunda conexión WebRTC.
  */
 function useWebRtcPlayer(streamUrl: string) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -70,6 +74,7 @@ function useWebRtcPlayer(streamUrl: string) {
       pcRef.current = pc;
 
       pc.ontrack = (event) => {
+        streamRef.current = event.streams[0];
         if (node.srcObject !== event.streams[0]) {
           node.srcObject = event.streams[0];
         }
@@ -126,6 +131,7 @@ function useWebRtcPlayer(streamUrl: string) {
         destroyed = true;
         pc.close();
         pcRef.current = null;
+        streamRef.current = null;
       };
     },
     // retryCount hace que el callback-ref se recree al presionar Reintentar
@@ -133,7 +139,7 @@ function useWebRtcPlayer(streamUrl: string) {
     [streamUrl, retryCount],
   );
 
-  return { videoRef, connectionError, retry };
+  return { videoRef, streamRef, connectionError, retry };
 }
 
 function CameraToolbar({
@@ -202,7 +208,6 @@ function CameraVideo({
       <video
         ref={videoRef}
         autoPlay
-        controls
         muted
         playsInline
         className="w-full h-full object-contain"
@@ -284,15 +289,19 @@ const EVENT_SHORT: Record<string, string> = {
   RegionExiting: "Salida",
 };
 
+/**
+ * Reutiliza el MediaStream ya establecido para evitar abrir una segunda
+ * conexión WebRTC solo por entrar a pantalla completa.
+ */
 function FullscreenModal({
   name,
-  videoRef,
+  streamRef,
   connectionError,
   onRetry,
   onClose,
 }: {
   name: string;
-  videoRef: (node: HTMLVideoElement | null) => void;
+  streamRef: React.RefObject<MediaStream | null>;
   connectionError?: string | null;
   onRetry?: () => void;
   onClose: () => void;
@@ -304,6 +313,18 @@ function FullscreenModal({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Asigna el stream existente al elemento <video> del modal sin nueva conexión
+  const attachRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      if (!node) return;
+      if (streamRef.current) {
+        node.srcObject = streamRef.current;
+        node.play().catch(() => {});
+      }
+    },
+    [streamRef],
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-99999 bg-black flex flex-col">
@@ -318,25 +339,25 @@ function FullscreenModal({
         </button>
       </div>
       <div className="flex-1 bg-black">
-        <CameraVideo videoRef={videoRef} connectionError={connectionError} onRetry={onRetry} />
+        <CameraVideo videoRef={attachRef} connectionError={connectionError} onRetry={onRetry} />
       </div>
     </div>,
     document.body,
   );
 }
 
-const Camera = memo(function Camera({
-  camera,
-  position,
-  stackIndex = 0,
-  onBecomeMaximized,
-  onBecomeMinimized,
-  activity,
-}: CameraProps) {
+const Camera = memo(
+  function Camera({
+    camera,
+    position,
+    stackIndex = 0,
+    onBecomeMaximized,
+    onBecomeMinimized,
+    activity,
+  }: CameraProps) {
   const [mode, setMode] = useState<CameraMode>("minimized");
   const streamUrl = getWhepBaseUrl(camera.url_stream);
-  const { videoRef, connectionError, retry } = useWebRtcPlayer(streamUrl);
-  const { videoRef: fullscreenVideoRef, connectionError: fsError, retry: fsRetry } = useWebRtcPlayer(streamUrl);
+  const { videoRef, streamRef, connectionError, retry } = useWebRtcPlayer(streamUrl);
   const isActive = !!activity;
   const glowColor = OBJECT_GLOW[activity?.objeto_tipo ?? ""] ?? "#ef4444";
 
@@ -418,14 +439,33 @@ const Camera = memo(function Camera({
       {mode === "fullscreen" && (
         <FullscreenModal
           name={camera.nombre}
-          videoRef={fullscreenVideoRef}
-          connectionError={fsError}
-          onRetry={fsRetry}
+          streamRef={streamRef}
+          connectionError={connectionError}
+          onRetry={retry}
           onClose={closeFullscreen}
         />
       )}
     </>
   );
-});
+  },
+  (prev, next) => {
+    if (prev.camera !== next.camera) return false;
+    if (prev.stackIndex !== next.stackIndex) return false;
+    if (prev.onBecomeMaximized !== next.onBecomeMaximized) return false;
+    if (prev.onBecomeMinimized !== next.onBecomeMinimized) return false;
+    if (prev.position !== next.position) return false;
+    // Compara activity por valor para ignorar cambios de referencia sin datos nuevos
+    const pa = prev.activity;
+    const na = next.activity;
+    if (pa === na) return true;
+    if (!pa || !na) return false;
+    return (
+      pa.ip === na.ip &&
+      pa.objeto_tipo === na.objeto_tipo &&
+      pa.tipo_evento === na.tipo_evento &&
+      JSON.stringify(pa.bbox) === JSON.stringify(na.bbox)
+    );
+  },
+);
 
 export default Camera;

@@ -9,6 +9,7 @@ import {
   IconEyeOff,
   IconPencil,
   IconDevicesCog,
+  IconPlus,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import type {
@@ -21,6 +22,7 @@ import { NR_PALETTE } from "./devicesConfig";
 import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { Tooltip } from "@/components/ui";
+import { AddDeviceModal } from "@/features/config-devices/components/AddDeviceModal";
 
 interface DeviceSelectorProps {
   visibility: DeviceVisibility;
@@ -145,6 +147,7 @@ export const DeviceSelector = memo(function DeviceSelector({
   onEditClose,
 }: DeviceSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
     right: 0,
@@ -278,7 +281,7 @@ export const DeviceSelector = memo(function DeviceSelector({
             )}
 
             {/* Panel principal de dispositivos */}
-            <div className="w-52 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+            <div className="w-62 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
                 <span className="text-xs font-bold uppercase tracking-widest text-text-100/70">
                   Dispositivos
@@ -287,6 +290,14 @@ export const DeviceSelector = memo(function DeviceSelector({
                   <span className="text-xs text-text-100/30">
                     {totalDevices - totalHidden}/{totalDevices}
                   </span>
+                  <Tooltip text="Agregar dispositivo">
+                    <button
+                      onClick={() => setAddModalOpen(true)}
+                      className="text-text-100/30 hover:text-text-100/70 hover:bg-bg-300/60 p-0.5 rounded transition-colors"
+                    >
+                      <IconPlus size={13} stroke={1.5} />
+                    </button>
+                  </Tooltip>
                   <button
                     onClick={() => {
                       setOpen(false);
@@ -415,6 +426,9 @@ export const DeviceSelector = memo(function DeviceSelector({
           </div>,
           document.body,
         )}
+      {addModalOpen && (
+        <AddDeviceModal onClose={() => setAddModalOpen(false)} />
+      )}
     </div>
   );
 });

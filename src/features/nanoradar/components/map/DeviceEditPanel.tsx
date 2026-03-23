@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { IconX, IconDeviceFloppy } from "@tabler/icons-react";
+import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle } from "@tabler/icons-react";
 import type {
   Nanoradares,
   Spotters,
   Camaras,
 } from "@/features/config-devices/types/ConfigServices.type";
-import { useUpdateNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
+import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
-import { useUpdateSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
+import { useUpdateSpotter, useDeleteSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
-import { useUpdateCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
+import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
 import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
 
@@ -182,7 +182,9 @@ function PanelWrapper({
   subtitle,
   onClose,
   onSave,
+  onDelete,
   isPending,
+  isDeleting,
   isError,
   children,
   mode = "sidebar",
@@ -191,11 +193,14 @@ function PanelWrapper({
   subtitle: string;
   onClose: () => void;
   onSave: () => void;
+  onDelete: () => void;
   isPending: boolean;
+  isDeleting: boolean;
   isError: boolean;
   children: React.ReactNode;
   mode?: "sidebar" | "floating";
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const rootCls =
     mode === "floating"
       ? "flex flex-col w-60 max-h-[calc(100vh-6rem)]"
@@ -228,15 +233,51 @@ function PanelWrapper({
         {children}
       </div>
 
-      <div className="px-3 py-2 border-t border-border/60 shrink-0">
+      <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
         <button
           onClick={onSave}
-          disabled={isPending}
+          disabled={isPending || isDeleting}
           className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition-colors disabled:opacity-50"
         >
           <IconDeviceFloppy size={13} />
           {isPending ? "Guardando..." : "Guardar cambios"}
         </button>
+
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={isPending || isDeleting}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+          >
+            <IconTrash size={12} />
+            Quitar dispositivo
+          </button>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 px-1 py-1 rounded-md bg-red-500/10 border border-red-500/20">
+              <IconAlertTriangle size={11} className="text-red-400 shrink-0" />
+              <span className="text-[10px] text-red-300 leading-tight">
+                ¿Confirmar eliminación?
+              </span>
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold text-text-100/50 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onDelete}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "Quitando..." : "Sí, quitar"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -256,6 +297,7 @@ function NanoradarForm({
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateNanoradar();
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeleteNanoradar();
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
@@ -283,13 +325,19 @@ function NanoradarForm({
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
 
+  function remove() {
+    deleteMutate(device.id, { onSuccess: onClose });
+  }
+
   return (
     <PanelWrapper
       title="NanoRadar"
       subtitle={form.nombre}
       onClose={onClose}
       onSave={save}
+      onDelete={remove}
       isPending={isPending}
+      isDeleting={isDeleting}
       isError={isError}
       mode={mode}
     >
@@ -360,6 +408,7 @@ function SpotterForm({
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateSpotter();
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeleteSpotter();
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
@@ -387,13 +436,19 @@ function SpotterForm({
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
 
+  function remove() {
+    deleteMutate(device.id, { onSuccess: onClose });
+  }
+
   return (
     <PanelWrapper
       title="Spotter"
       subtitle={form.nombre}
       onClose={onClose}
       onSave={save}
+      onDelete={remove}
       isPending={isPending}
+      isDeleting={isDeleting}
       isError={isError}
       mode={mode}
     >
@@ -476,6 +531,7 @@ function CamaraForm({
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateCamara();
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeleteCamara();
   const { isEnabled, setEnabled } = useCameraActivityStore();
   const activityEnabled = isEnabled(device.id);
   const [form, setForm] = useState({
@@ -513,13 +569,19 @@ function CamaraForm({
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
 
+  function remove() {
+    deleteMutate(device.id, { onSuccess: onClose });
+  }
+
   return (
     <PanelWrapper
       title="Cámara"
       subtitle={form.nombre}
       onClose={onClose}
       onSave={save}
+      onDelete={remove}
       isPending={isPending}
+      isDeleting={isDeleting}
       isError={isError}
       mode={mode}
     >

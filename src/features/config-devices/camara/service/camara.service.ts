@@ -23,4 +23,13 @@ export const camaraService = {
     const res = await apiSystem.put<Camaras>(`/camaras/${id}`, payload);
     return res.data;
   },
+
+  createCamara: async (payload: CamaraPayload): Promise<Camaras> => {
+    const res = await apiSystem.post<Camaras>("/camaras", payload);
+    return res.data;
+  },
+
+  deleteCamara: async (id: number): Promise<void> => {
+    await apiSystem.delete(`/camaras/${id}`);
+  },
 };

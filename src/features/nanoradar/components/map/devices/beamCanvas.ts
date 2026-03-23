@@ -41,8 +41,9 @@ export function buildBeamCanvas(
   // Conversión: canvasRad = (geo - 90) * π/180
   const geoToRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
-  // Apertura visual (más ancha) para el degradado con bordes suaves
-  const visualApertura = apertura + extraAperture;
+  // Apertura visual (más ancha) para el degradado con bordes suaves.
+  // Se clampea a [0, 360] para que fraction nunca exceda 1.0.
+  const visualApertura = Math.min(apertura + extraAperture, 360);
   const startAVisual = geoToRad(azimut - visualApertura / 2);
   const endAVisual = geoToRad(azimut + visualApertura / 2);
   const spanVisual = endAVisual - startAVisual;
@@ -64,8 +65,8 @@ export function buildBeamCanvas(
   const conic = ctx.createConicGradient(startAVisual, cx, cy);
   conic.addColorStop(0, `${color}00`);
   conic.addColorStop(Math.min(peakStart, fraction * 0.49), `${color}${peakOpacityHex}`);
-  conic.addColorStop(Math.max(peakEnd, fraction * 0.51), `${color}${peakOpacityHex}`);
-  conic.addColorStop(fraction, `${color}00`);
+  conic.addColorStop(Math.min(Math.max(peakEnd, fraction * 0.51), 1), `${color}${peakOpacityHex}`);
+  conic.addColorStop(Math.min(fraction, 1), `${color}00`);
   if (fraction < 0.999) conic.addColorStop(1, `${color}00`);
 
   ctx.fillStyle = conic;

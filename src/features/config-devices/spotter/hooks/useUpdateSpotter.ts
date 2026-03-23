@@ -11,3 +11,24 @@ export function useUpdateSpotter() {
     },
   });
 }
+
+export function useCreateSpotter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SpotterPayload) =>
+      spotterService.createSpotter(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config-devices"] });
+    },
+  });
+}
+
+export function useDeleteSpotter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => spotterService.deleteSpotter(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config-devices"] });
+    },
+  });
+}
