@@ -14,6 +14,8 @@ import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
 import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter } from "../types";
+import type { DeviceVisibility } from "../components/map/DevicesOverlay";
+import { ALL_VISIBLE } from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
@@ -34,6 +36,8 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     start: 0,
     end: 100,
   });
+  const [deviceVisibility, setDeviceVisibility] =
+    useState<DeviceVisibility>(ALL_VISIBLE);
   const handleRangeChange = useCallback(
     (range: HistoryRange) => setHistoryRange(range),
     [],
@@ -45,7 +49,11 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       <div className="col-span-10 h-full flex flex-col w-full">
         <div className="flex-1 min-h-0 w-full relative">
           <GeofenceFlash />
-          <RadarMap historyRange={historyRange} deviceFilter={deviceFilter} />
+          <RadarMap
+            historyRange={historyRange}
+            deviceFilter={deviceFilter}
+            onVisibilityChange={setDeviceVisibility}
+          />
         </div>
         <HistoryRangeBar onChange={handleRangeChange} />
         <BottomBar title="Estado del Radar">
@@ -57,12 +65,14 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
         <RightBarNano
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
+          hiddenCamaras={deviceVisibility.hiddenCamaras}
         />
       ) : isOpenRightBar ? (
         <RightBarNano
           setOpenRightBar={setOpenRightBar}
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
+          hiddenCamaras={deviceVisibility.hiddenCamaras}
         />
       ) : (
         <button
@@ -124,10 +134,12 @@ const RightBarNano = memo(
     setOpenRightBar,
     deviceFilter,
     onDeviceFilterChange,
+    hiddenCamaras,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
     onDeviceFilterChange: (f: DeviceFilter) => void;
+    hiddenCamaras: Set<number>;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -179,7 +191,7 @@ const RightBarNano = memo(
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
           />
-          <CamerasOverlay />
+          <CamerasOverlay hiddenCamaras={hiddenCamaras} />
         </div>
       </div>
     );
@@ -188,6 +200,7 @@ const RightBarNano = memo(
     if (prev.setOpenRightBar !== next.setOpenRightBar) return false;
     if (prev.deviceFilter !== next.deviceFilter) return false;
     if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
+    if (prev.hiddenCamaras !== next.hiddenCamaras) return false;
     return true;
   },
 );
@@ -311,7 +324,11 @@ const TargetsSection = memo(function TargetsSection({
   );
 });
 
-const CamerasOverlay = memo(function CamerasOverlay() {
+const CamerasOverlay = memo(function CamerasOverlay({
+  hiddenCamaras,
+}: {
+  hiddenCamaras: Set<number>;
+}) {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;
   const { cameraActivities } = useRadarTargets();
@@ -341,7 +358,7 @@ const CamerasOverlay = memo(function CamerasOverlay() {
       <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1 w-full">
         Cámaras({camaras.length > 0 ? camaras.length : "0"})
       </h4>
-      {camaras.map((cam) => {
+      {camaras.filter((cam) => !hiddenCamaras.has(cam.id)).map((cam) => {
         const stackIndex = maximizedIds.indexOf(cam.id);
         const activity = isEnabled(cam.id)
           ? cameraActivities.find((a) => a.ip === cam.direccionIp)

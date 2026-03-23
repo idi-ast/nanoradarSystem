@@ -5,8 +5,10 @@ import type { TargetTimingConfig } from "../config";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 15_000;
-/** Intervalo de actualización de la UI (10 segundos según tu requerimiento) */
+/** Intervalo de actualización de la UI */
 const SET_TIME_INTERVAL_MS = 3000;
+/** Backoff de reconexión: [1s, 2s, 4s, 8s, 16s, 30s] */
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
@@ -37,14 +39,16 @@ function processDeviceMessages(
   });
 }
 
+export type WsStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+
 export function useRadarWebSocket(
   url: string,
   timing: TargetTimingConfig = TARGET_TIMING,
 ) {
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(new Map());
   const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
+  const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
 
-  // Buffer para acumular datos del WebSocket sin disparar re-renders constantes
   const bufferRef = useRef<{
     nanoRadar: RawRadarPayload["nanoRadar"];
     spotter: RawRadarPayload["spotter"];
@@ -63,32 +67,15 @@ export function useRadarWebSocket(
   useEffect(() => {
     if (!url || !url.startsWith("ws")) return;
 
-    const ws = new WebSocket(url);
+    let destroyed = false;
+    let retryCount = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let ws: WebSocket | null = null;
 
-    // 1. Escuchar el WebSocket y llenar el buffer
-    ws.onmessage = (event: MessageEvent) => {
-      try {
-        const parsed = JSON.parse(event.data as string) as RawRadarPayload;
-        
-        if (parsed && typeof parsed === "object") {
-          // Acumulamos o reemplazamos los datos en el buffer
-          if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
-          if (parsed.spotter) bufferRef.current.spotter = parsed.spotter;
-          if (parsed.actividad?.camaras) {
-            bufferRef.current.camaras = parsed.actividad.camaras as CamaraActividad[];
-          }
-        }
-      } catch (err) {
-        console.error("[useRadarWebSocket] Error parseando mensaje:", err);
-      }
-    };
-
-    // 2. Intervalo de Procesamiento: Actualiza el estado de React cada X tiempo
     const processingInterval = setInterval(() => {
       const { nanoRadar, spotter, camaras } = bufferRef.current;
       const now = Date.now();
 
-      // Si no hay datos nuevos, no forzamos el render
       if (nanoRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
 
       setTargetsMap((prev) => {
@@ -102,18 +89,15 @@ export function useRadarWebSocket(
         setCameraActivities(camaras.map((a) => ({ ...a, timestamp: now })));
       }
 
-      // Limpiamos el buffer tras procesar para no duplicar en el siguiente ciclo
       bufferRef.current = { nanoRadar: [], spotter: [], camaras: [] };
     }, SET_TIME_INTERVAL_MS);
 
-    // 3. Intervalo de Limpieza: Elimina targets inactivos
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
 
       setTargetsMap((prev) => {
         const next = new Map(prev);
         let changed = false;
-
         for (const [id, target] of next.entries()) {
           if (now - target.lastUpdate > timing.TARGET_TIMEOUT_MS) {
             next.delete(id);
@@ -131,11 +115,58 @@ export function useRadarWebSocket(
       });
     }, timing.TARGET_TIMEOUT_MS);
 
-    ws.onerror = (err) => console.error("[useRadarWebSocket] Error de conexión:", err);
+    function connect() {
+      if (destroyed) return;
+      setWsStatus(retryCount === 0 ? "connecting" : "reconnecting");
 
-    // Limpieza al desmontar el componente
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        if (destroyed) { ws?.close(); return; }
+        retryCount = 0;
+        setWsStatus("connected");
+      };
+
+      ws.onmessage = (event: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(event.data as string) as RawRadarPayload;
+          if (parsed && typeof parsed === "object") {
+            if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
+            if (parsed.spotter) bufferRef.current.spotter = parsed.spotter;
+            if (parsed.actividad?.camaras) {
+              bufferRef.current.camaras = parsed.actividad.camaras as CamaraActividad[];
+            }
+          }
+        } catch (err) {
+          console.error("[useRadarWebSocket] Error parseando mensaje:", err);
+        }
+      };
+
+      ws.onerror = () => {
+        // El error ya dispara onclose; solo logueamos en desarrollo
+        if (import.meta.env.DEV) {
+          console.warn("[useRadarWebSocket] Error de conexión con", url);
+        }
+      };
+
+      ws.onclose = () => {
+        if (destroyed) return;
+        setWsStatus("disconnected");
+        const delay = RECONNECT_DELAYS_MS[Math.min(retryCount, RECONNECT_DELAYS_MS.length - 1)];
+        retryCount += 1;
+        if (import.meta.env.DEV) {
+          console.info(`[useRadarWebSocket] Reconectando en ${delay / 1000}s (intento ${retryCount})…`);
+        }
+        retryTimer = setTimeout(connect, delay);
+      };
+    }
+
+    connect();
+
     return () => {
-      ws.close();
+      destroyed = true;
+      if (retryTimer !== null) clearTimeout(retryTimer);
+      ws?.close();
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };
@@ -147,5 +178,6 @@ export function useRadarWebSocket(
     targets,
     clearTargets,
     cameraActivities,
+    wsStatus,
   };
 }

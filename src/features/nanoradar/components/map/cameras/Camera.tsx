@@ -154,7 +154,7 @@ function CameraToolbar({
   onToggleFullscreen: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-2 py-1 bg-bg-100/90 backdrop-blur-sm border-b border-border">
+    <div className="flex items-center gap-3 px-2 py-1  border-b border-border">
       <span className="text-[11px] font-medium text-text-100 flex-1 truncate">
         {name}
       </span>
@@ -402,7 +402,7 @@ const Camera = memo(
         boxShadow: isActive ? `0 0 24px 4px ${glowColor}66` : undefined,
         border: isActive ? `1.5px solid ${glowColor}99` : undefined,
       }}
-      className="z-9000 rounded-xl overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
+      className="z-9000  overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
     >
       <CameraToolbar
         name={camera.nombre}

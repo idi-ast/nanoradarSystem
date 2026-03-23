@@ -38,6 +38,7 @@ interface RadarMapProps {
   historyRange?: HistoryRange;
   radarInstance?: RadarInstanceConfig;
   deviceFilter?: DeviceFilter;
+  onVisibilityChange?: (v: DeviceVisibility) => void;
 }
 
 const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
@@ -66,6 +67,7 @@ function SecondaryRadarLayers({
 export const RadarMap = memo(function RadarMap({
   historyRange = { start: 0, end: 100 },
   deviceFilter = "all",
+  onVisibilityChange,
 }: RadarMapProps) {
   const {
     config,
@@ -97,6 +99,13 @@ export const RadarMap = memo(function RadarMap({
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  const handleVisibilityChange = useCallback(
+    (v: DeviceVisibility) => {
+      setDeviceVisibility(v);
+      onVisibilityChange?.(v);
+    },
+    [onVisibilityChange],
+  );
   const [editingDevice, setEditingDevice] = useState<EditingDevice | null>(
     null,
   );
@@ -346,7 +355,7 @@ export const RadarMap = memo(function RadarMap({
           <ZonesPanel />
           <DeviceSelector
             visibility={deviceVisibility}
-            onChange={setDeviceVisibility}
+            onChange={handleVisibilityChange}
             onEditNanoradar={(device) =>
               openEdit({ kind: "nanoradar", device })
             }
