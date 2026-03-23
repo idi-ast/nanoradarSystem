@@ -7,4 +7,6 @@ export type {
   UpdateZonePayload,
   RawRadarMessage,
   RawRadarPayload,
+  CamaraActividad,
+  ActividadPayload,
 } from "./radar.types";

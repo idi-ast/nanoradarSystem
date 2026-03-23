@@ -40,7 +40,9 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [buildSectorPolygon(lat, lon, startAngle, endAngle, resolvedRange)],
+            coordinates: [
+              buildSectorPolygon(lat, lon, startAngle, endAngle, resolvedRange),
+            ],
           },
           properties: { kind: "fov" },
         },
@@ -49,7 +51,10 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, startAngle, resolvedRange)],
+            coordinates: [
+              [lon, lat],
+              getGeoPoint(lat, lon, startAngle, resolvedRange),
+            ],
           },
           properties: { kind: "side" },
         },
@@ -57,7 +62,10 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, endAngle, resolvedRange)],
+            coordinates: [
+              [lon, lat],
+              getGeoPoint(lat, lon, endAngle, resolvedRange),
+            ],
           },
           properties: { kind: "side" },
         },
@@ -66,7 +74,10 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [[lon, lat], getGeoPoint(lat, lon, bearingDeg, resolvedRange)],
+            coordinates: [
+              [lon, lat],
+              getGeoPoint(lat, lon, bearingDeg, resolvedRange),
+            ],
           },
           properties: { kind: "center" },
         },
@@ -75,7 +86,13 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: buildArcCoords(lat, lon, startAngle, endAngle, resolvedRange),
+            coordinates: buildArcCoords(
+              lat,
+              lon,
+              startAngle,
+              endAngle,
+              resolvedRange,
+            ),
           },
           properties: { kind: "arc" },
         },
@@ -93,21 +110,27 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           id={`${sid}-fill`}
           type="fill"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "fov"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "fov"] as unknown as FilterSpecification
+          }
           paint={{ "fill-color": color, "fill-opacity": 0.25 }}
         />
         <Layer
           id={`${sid}-sides`}
           type="line"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "side"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "side"] as unknown as FilterSpecification
+          }
           paint={{ "line-color": color, "line-width": 1, "line-opacity": 0.7 }}
         />
         <Layer
           id={`${sid}-center`}
           type="line"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "center"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "center"] as unknown as FilterSpecification
+          }
           paint={{
             "line-color": color,
             "line-width": 2,
@@ -119,7 +142,9 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           id={`${sid}-arc`}
           type="line"
           beforeId={DEVICES_BELOW_LAYER_ID}
-          filter={["==", ["get", "kind"], "arc"] as unknown as FilterSpecification}
+          filter={
+            ["==", ["get", "kind"], "arc"] as unknown as FilterSpecification
+          }
           paint={{
             "line-color": color,
             "line-width": 1.5,
@@ -164,7 +189,11 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
               {camera.tipo && (
                 <span
                   className="px-1.5 py-0.5 rounded text-[9px] border whitespace-nowrap"
-                  style={{ backgroundColor: `${color}22`, color, borderColor: `${color}44` }}
+                  style={{
+                    backgroundColor: `${color}22`,
+                    color,
+                    borderColor: `${color}44`,
+                  }}
                 >
                   {camera.tipo}
                 </span>

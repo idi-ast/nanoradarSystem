@@ -1,5 +1,6 @@
 import { IconArrowBackUp, IconHexagon } from "@tabler/icons-react";
 import { useRadarContext } from "../../context/useRadarContext";
+import { ZONE_SOUNDS } from "../../config";
 
 const ALERT_LEVELS = [
   { value: 1, label: "Nivel 1: Informativa" },
@@ -15,10 +16,12 @@ export function ZoneDrawingPanel() {
     zoneName,
     zoneColor,
     alertLevel,
+    zoneSound,
     canSave,
     setZoneName,
     setZoneColor,
     setAlertLevel,
+    setZoneSound,
     saveZone,
     removeLastDrawingPoint,
   } = useRadarContext();
@@ -76,6 +79,26 @@ export function ZoneDrawingPanel() {
           {ALERT_LEVELS.map((lvl) => (
             <option key={lvl.value} value={lvl.value}>
               {lvl.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs text-text-200 block mb-1">
+          Sonido de alerta:
+        </label>
+        <select
+          className="w-full bg-bg-100 border border-border text-text-100 text-xs p-2 rounded"
+          value={zoneSound ?? ""}
+          onChange={(e) =>
+            setZoneSound(e.target.value === "" ? null : Number(e.target.value))
+          }
+        >
+          <option value="">Sin sonido</option>
+          {ZONE_SOUNDS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.id} — {s.label}
             </option>
           ))}
         </select>

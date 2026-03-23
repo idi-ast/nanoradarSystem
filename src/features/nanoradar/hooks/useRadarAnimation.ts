@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { BEAM_ANIMATION } from "../config";
+import { useRadarVisualStore } from "../stores/radarVisualStore";
 
 /**
  * Devuelve `phase` [0, 1) actualizado al TARGET_FPS configurado mediante
@@ -9,6 +10,7 @@ import { BEAM_ANIMATION } from "../config";
  * no re-renderice por la animación.
  */
 export function useRadarAnimation(targetFps?: number): number {
+  const pulseCycleMs = useRadarVisualStore((s) => s.pulseCycleMs);
   const [phase, setPhase] = useState(0);
   const rafIdRef = useRef<number | null>(null);
   const lastFrameRef = useRef(0);
@@ -17,7 +19,7 @@ export function useRadarAnimation(targetFps?: number): number {
   useEffect(() => {
     const animate = (now: number) => {
       if (now - lastFrameRef.current >= frameIntervalMs) {
-        setPhase((now % BEAM_ANIMATION.PULSE_CYCLE_MS) / BEAM_ANIMATION.PULSE_CYCLE_MS);
+        setPhase((now % pulseCycleMs) / pulseCycleMs);
         lastFrameRef.current = now;
       }
       rafIdRef.current = window.requestAnimationFrame(animate);
@@ -26,7 +28,7 @@ export function useRadarAnimation(targetFps?: number): number {
     return () => {
       if (rafIdRef.current !== null) window.cancelAnimationFrame(rafIdRef.current);
     };
-  }, [frameIntervalMs]);
+  }, [frameIntervalMs, pulseCycleMs]);
 
   return phase;
 }

@@ -8,6 +8,8 @@ import {
   IconMapPinX,
 } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
+import ConfigZones from "./ConfigZones";
+import ConfigRadar from "./ConfigRadar";
 
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
@@ -48,6 +50,8 @@ export const ZonesPanel = memo(function ZonesPanel() {
   return (
     <div className="flex flex-col border-b border-border gap-1 pb-1">
       <ClearTargetsButton />
+      <ConfigZones />
+      <ConfigRadar />
       <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}

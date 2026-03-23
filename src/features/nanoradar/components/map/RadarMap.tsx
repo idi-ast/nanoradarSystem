@@ -16,8 +16,6 @@ import { RADAR_INSTANCES } from "../../config";
 import type { RadarInstanceConfig } from "../../config";
 import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
-import { useRadarTargets } from "../../context/useRadarContext";
-import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
@@ -30,8 +28,10 @@ import { DeviceSelector } from "./DeviceSelector";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
+import { CameraActivityOverlay } from "./CameraActivityOverlay";
 
 import type { DeviceFilter } from "../../types";
+import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { PageLoader } from "@/components/ui";
 
 interface RadarMapProps {
@@ -50,13 +50,11 @@ function SecondaryRadarLayers({
   historyRange: HistoryRange;
 }) {
   const { zones } = useRadarContext();
-  const { targets } = useRadarTargets();
   return (
     <>
       <RadarZonesLayer zones={zones} />
       <RadarZonesPulseLayer />
       <RadarTargetsLayer
-        targets={targets}
         historyRange={historyRange}
         selectedTargetId={null}
         onSelectTarget={() => {}}
@@ -79,15 +77,6 @@ export const RadarMap = memo(function RadarMap({
     instanceConfig,
     flyToZoneFn,
   } = useRadarContext();
-  const { targets } = useRadarTargets();
-  const filteredTargets = useMemo(
-    () =>
-      deviceFilter === "all"
-        ? targets
-        : targets.filter((t) => t.deviceType === deviceFilter),
-    [targets, deviceFilter],
-  );
-
   const mapRef = useRef<MapRef>(null);
 
   useEffect(() => {
@@ -306,10 +295,18 @@ export const RadarMap = memo(function RadarMap({
             </RadarProvider>
           ))}
           <RadarTargetsLayer
-            targets={filteredTargets}
+            deviceFilter={deviceFilter}
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
+          />
+          <CameraActivityOverlay
+            mapRef={mapRef}
+            defaultCenter={{
+              longitude: defaultCenter.longitude || initialCenter.longitude,
+              latitude: defaultCenter.latitude || initialCenter.latitude,
+            }}
+            defaultZoom={instanceConfig.map.zoom}
           />
           {liveEdit && liveEditPos && (
             <Marker

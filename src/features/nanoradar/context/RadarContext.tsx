@@ -14,7 +14,7 @@ interface RadarProviderProps {
 
 export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProviderProps) {
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
-  const { targets, clearTargets } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
+  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -49,6 +49,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       zoneName: drawing.name,
       zoneColor: drawing.color,
       alertLevel: drawing.alertLevel,
+      zoneSound: drawing.zoneSound,
       canSave: drawing.canSave,
       startDrawing: drawing.startDrawing,
       cancelDrawing: drawing.cancelDrawing,
@@ -57,6 +58,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       setZoneName: drawing.setName,
       setZoneColor: drawing.setColor,
       setAlertLevel: drawing.setAlertLevel,
+      setZoneSound: drawing.setZoneSound,
       saveZone,
       clearTargets,
       flyToZoneFn,
@@ -76,6 +78,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       drawing.name,
       drawing.color,
       drawing.alertLevel,
+      drawing.zoneSound,
       drawing.canSave,
       drawing.startDrawing,
       drawing.cancelDrawing,
@@ -84,6 +87,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       drawing.setName,
       drawing.setColor,
       drawing.setAlertLevel,
+      drawing.setZoneSound,
       saveZone,
       clearTargets,
     ],
@@ -94,8 +98,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
    * Solo los componentes que llamen a useRadarTargets() re-renderizarán.
    */
   const targetsValue = useMemo<RadarTargetsContextValue>(
-    () => ({ targets }),
-    [targets],
+    () => ({ targets, cameraActivities }),
+    [targets, cameraActivities],
   );
 
   /**

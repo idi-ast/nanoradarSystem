@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
-import type { RadarTarget } from "../../types";
+import type { RadarTarget, DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
-import { useRadarContext } from "../../context/useRadarContext";
+import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -15,19 +15,29 @@ function isTargetMoving(
 }
 
 interface Props {
-  targets: RadarTarget[];
+  deviceFilter?: DeviceFilter;
   historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
 }
 
 export function RadarTargetsLayer({
-  targets,
+  deviceFilter = "all",
   historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
 }: Props) {
   const { instanceConfig } = useRadarContext();
+  const { targets: allTargets } = useRadarTargets();
+  const targets = useMemo(
+    () =>
+      deviceFilter === "all"
+        ? allTargets
+        : allTargets.filter((t) => t.deviceType === deviceFilter),
+    [allTargets, deviceFilter],
+  );
+
+  
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
   const timeBounds = useMemo(() => {

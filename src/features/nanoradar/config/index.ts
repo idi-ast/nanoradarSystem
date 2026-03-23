@@ -1,4 +1,3 @@
-
 export interface BeamConfig {
   /** FPS objetivo de la animación del haz */
   TARGET_FPS: number;
@@ -64,7 +63,6 @@ export interface MapConfig {
   fallbackCenter: { longitude: number; latitude: number };
 }
 
-
 export const BEAM_ANIMATION: BeamConfig = {
   TARGET_FPS: 60,
   PULSE_CYCLE_MS: 9_000,
@@ -91,7 +89,7 @@ export const TARGET_COLORS: TargetColorsConfig = {
 };
 
 export const TARGET_TIMING: TargetTimingConfig = {
-  TRACKING_ACTIVE_MS: 4_000,
+  TRACKING_ACTIVE_MS: 10_000,
   COLOR_REFRESH_MS: 1_000,
   TARGET_TIMEOUT_MS: 70_000,
   HISTORY_MAX_POINTS: 500,
@@ -199,3 +197,15 @@ export const RADAR_INSTANCES: RadarInstanceConfig[] = [
 
 /** Instancia activa por defecto (primer elemento de RADAR_INSTANCES) */
 export const ACTIVE_RADAR = RADAR_INSTANCES[0];
+
+/**
+ * Lista de sonidos disponibles para asignar a una zona de alerta.
+ * Agrega más entradas aquí para ampliar el selector en el formulario de zonas.
+ * Los archivos mp3 deben residir en /public/mp3/.
+ */
+export const ZONE_SOUNDS: { id: number; label: string; file: string }[] = [
+  { id: 1, label: "Sonido 1", file: "/mp3/sonido_alerta.mp3" },
+  { id: 2, label: "Sonido 2", file: "/mp3/sonido_alerta2.mp3" },
+  { id: 3, label: "Sonido 3", file: "/mp3/sonido_alerta3.mp3" },
+  { id: 4, label: "Sonido 4", file: "/mp3/sonido_alerta4.mp3" },
+];
