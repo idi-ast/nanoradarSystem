@@ -2,13 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export interface ZoneStyleState {
-  /** Opacidad del relleno del polígono (0–1) */
   fillOpacity: number;
-  /** Opacidad del trazo / borde del polígono (0–1) */
   lineOpacity: number;
-  /** Grosor del trazo en píxeles (1–8) */
   lineWidth: number;
-  /** Mostrar u ocultar todas las zonas del mapa */
   visible: boolean;
 }
 

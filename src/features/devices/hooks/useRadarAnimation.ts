@@ -2,13 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { BEAM_ANIMATION } from "../config";
 import { useRadarVisualStore } from "../stores/radarVisualStore";
 
-/**
- * Devuelve `phase` [0, 1) actualizado al TARGET_FPS configurado mediante
- * requestAnimationFrame. Cada componente que llame a este hook tendrá su
- * propio loop — úsalo solo en los componentes de pulso animado
- * (NanoradarPulseLayer, SpotterPulseLayer) para que el resto del árbol
- * no re-renderice por la animación.
- */
 export function useRadarAnimation(targetFps?: number): number {
   const pulseCycleMs = useRadarVisualStore((s) => s.pulseCycleMs);
   const [phase, setPhase] = useState(0);

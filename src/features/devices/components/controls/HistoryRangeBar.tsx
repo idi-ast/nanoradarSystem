@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface HistoryRange {
-  /** Porcentaje de inicio del rango activo (0–100) */
   start: number;
-  /** Porcentaje de fin del rango activo (0–100) */
   end: number;
 }
 
 interface HistoryRangeBarProps {
-  /** Callback invocado cada vez que cambia el rango seleccionado */
   onChange: (range: HistoryRange) => void;
   initialStart?: number;
   initialEnd?: number;
@@ -124,7 +121,6 @@ export function HistoryRangeBar({
 
   return (
     <div className="w-full px-1 py-1">
-      {/* Etiquetas de porcentaje */}
       <div className="flex justify-between mb-1">
         <span className="text-[9px] font-mono text-emerald-400 tabular-nums">
           {Math.round(start)}%
@@ -137,38 +133,30 @@ export function HistoryRangeBar({
         </span>
       </div>
 
-      {/* Barra principal */}
       <div
         ref={barRef}
         className="relative w-full select-none"
         style={{ height: 20 }}
         aria-label="Rango histórico"
       >
-        {/* Track base */}
         <div className="absolute inset-0 rounded-full bg-slate-700/80" />
 
-        {/* Zona inactiva izquierda */}
         <div
           className="absolute top-0 bottom-0 left-0 rounded-l-full bg-slate-900/70"
           style={{ width: `${start}%` }}
         />
 
-        {/* Zona activa */}
         <div
           className="absolute top-0 bottom-0 bg-emerald-500/25 border-y border-emerald-500/50"
           style={{ left: `${start}%`, width: `${activeWidth}%` }}
         >
-          {/* Brillo central decorativo */}
           <div className="absolute inset-x-0 top-0 h-px bg-emerald-400/40 rounded-full" />
         </div>
 
-        {/* Zona inactiva derecha */}
         <div
           className="absolute top-0 bottom-0 right-0 rounded-r-full bg-slate-900/70"
           style={{ width: `${100 - end}%` }}
         />
-
-        {/* Manejador izquierdo (start) */}
         <RangeHandle
           percent={start}
           side="left"
@@ -176,7 +164,6 @@ export function HistoryRangeBar({
           onTouchStart={startDragging("start")}
         />
 
-        {/* Manejador derecho (end) */}
         <RangeHandle
           percent={end}
           side="right"
@@ -188,7 +175,6 @@ export function HistoryRangeBar({
   );
 }
 
-// ─── Handle interno ─────────────────────────────────────────────────────────
 
 interface RangeHandleProps {
   percent: number;
@@ -214,9 +200,7 @@ function RangeHandle({ percent, side, onMouseDown, onTouchStart }: RangeHandlePr
                  transition-colors duration-100"
       style={{ left: `${percent}%` }}
     >
-      {/* Líneas decorativas del grip */}
       <span className="w-px h-2.5 bg-white/60 rounded-full" />
-      {/* Flecha indicadora de dirección */}
       <span
         className={`absolute text-[6px] text-emerald-200 font-bold leading-none
                     ${side === "left" ? "-left-2.5" : "-right-2.5"}`}

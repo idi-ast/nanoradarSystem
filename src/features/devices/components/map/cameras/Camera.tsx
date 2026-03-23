@@ -2,7 +2,7 @@ import { IconMaximize, IconMinimize, IconRefresh, IconX } from "@tabler/icons-re
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
-import type { CamaraActividad } from "@/features/nanoradar/types";
+import type { CamaraActividad } from "@/features/devices/types";
 
 export interface CameraPosition {
   top?: string;

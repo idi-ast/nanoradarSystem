@@ -10,7 +10,7 @@ import { UserProfilePage } from "@/template/user-profile";
 import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
-import NanoPages from "@/features/nanoradar/pages/NanoPages";
+import NanoPages from "@/features/devices/pages/DevicesPages";
 import ConfigDevices from "@/features/config-devices/components/ConfigDevices";
 
 const name = import.meta.env.VITE_COMPANY_NAME;
