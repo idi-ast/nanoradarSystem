@@ -407,14 +407,26 @@ function SpotterForm({
         value={form.direccionIp}
         onChange={(v) => set("direccionIp", v)}
       />
-      <RangeNumberField
+      {/* <RangeNumberField
         label="Grado"
         value={liveEdit.grado}
         onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
         min={0}
         max={360}
         unit="°"
-      />
+      /> */}
+
+      <div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+            Grado <small>Predeterminado</small>
+          </span>
+        </div>
+        <div className="bg-bg-200 py-0.5">
+          <p className="text-text-100">{liveEdit.grado} °</p>{" "}
+          <small className="text-text-300">Configuración Interna Spotter</small>
+        </div>
+      </div>
       <RangeNumberField
         label="Apertura"
         value={liveEdit.apertura}

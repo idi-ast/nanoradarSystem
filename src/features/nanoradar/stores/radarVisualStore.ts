@@ -13,6 +13,8 @@ export interface RadarVisualState {
   beamPeakOpacityPercent: number;
   /** % del radio donde comienza el desvanecimiento radial (0–100) */
   beamRadialFadeStart: number;
+  /** Fracción de cada lado angular (0–0.5) dedicada al fade-in/out del haz; el centro es techo plano */
+  beamEdgeFadeRatio: number;
 
   // ── Pulso animado 
   /** Mostrar/ocultar ondas de pulso */
@@ -66,7 +68,8 @@ export const RADAR_VISUAL_DEFAULTS: RadarVisualState = {
   beamOpacity: 1,
   beamExtraAperture: 0,
   beamPeakOpacityPercent: 40,
-  beamRadialFadeStart: 95,
+  beamRadialFadeStart: 15,
+  beamEdgeFadeRatio: 0.15,
 
   pulseShow: true,
   pulseWaveCount: 4,

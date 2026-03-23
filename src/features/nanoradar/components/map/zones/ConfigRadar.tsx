@@ -144,7 +144,8 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
           <SliderRow label="Opacidad del haz" value={vs.beamOpacity} min={0} max={1} step={0.05} format={pct} onChange={s("beamOpacity")} />
           <SliderRow label="Extra apertura visual" value={vs.beamExtraAperture} min={0} max={30} step={1} format={deg} onChange={s("beamExtraAperture")} accent="accent-lime-500" />
           <SliderRow label="Opacidad pico (centro)" value={vs.beamPeakOpacityPercent} min={0} max={100} step={5} format={(v) => `${v}%`} onChange={s("beamPeakOpacityPercent")} accent="accent-lime-500" />
-          <SliderRow label="Inicio desvanecimiento" value={vs.beamRadialFadeStart} min={50} max={100} step={5} format={(v) => `${v}%`} onChange={s("beamRadialFadeStart")} accent="accent-lime-500" />
+          <SliderRow label="Inicio desvanecimiento radial" value={vs.beamRadialFadeStart} min={0} max={100} step={5} format={(v) => `${v}%`} onChange={s("beamRadialFadeStart")} accent="accent-lime-500" />
+          <SliderRow label="Fade de bordes laterales" value={vs.beamEdgeFadeRatio} min={0} max={0.5} step={0.05} format={(v) => `${Math.round(v * 100)}%`} onChange={s("beamEdgeFadeRatio")} accent="accent-lime-500" />
         </div>
       </Section>
 

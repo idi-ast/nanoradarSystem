@@ -14,6 +14,7 @@ import { getGeoPoint } from "../utils/geoHelpers";
  * @param extraAperture       Grados extra de apertura para suavizar bordes del gradiente
  * @param peakOpacityPercent  Opacidad pico del centro en % (0-100)
  * @param radialFadeStart     % del radio donde empieza el desvanecimiento radial (0-100)
+ * @param edgeFadeRatio       Fracción de cada lado angular (0-0.5) que se usa para el fade; el resto es techo plano (defecto 0.15)
  */
 export function buildBeamCanvas(
   azimut: number,
@@ -22,7 +23,8 @@ export function buildBeamCanvas(
   size = 512,
   extraAperture = 0,
   peakOpacityPercent = 40,
-  radialFadeStart = 95,
+  radialFadeStart = 15,
+  edgeFadeRatio = 0.15,
 ): string {
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -51,9 +53,18 @@ export function buildBeamCanvas(
   const peakOpacityHex = Math.round((peakOpacityPercent / 100) * 255)
     .toString(16)
     .padStart(2, "0");
+
+  // Perfil de "techo plano": los extremos (edgeFadeRatio) hacen fade in/out,
+  // el centro mantiene la opacidad pico de forma uniforme.
+  const clampedEdge = Math.min(Math.max(edgeFadeRatio, 0), 0.49);
+  const edgeFrac = fraction * clampedEdge;
+  const peakStart = edgeFrac;
+  const peakEnd = fraction - edgeFrac;
+
   const conic = ctx.createConicGradient(startAVisual, cx, cy);
   conic.addColorStop(0, `${color}00`);
-  conic.addColorStop(fraction * 0.5, `${color}${peakOpacityHex}`);
+  conic.addColorStop(Math.min(peakStart, fraction * 0.49), `${color}${peakOpacityHex}`);
+  conic.addColorStop(Math.max(peakEnd, fraction * 0.51), `${color}${peakOpacityHex}`);
   conic.addColorStop(fraction, `${color}00`);
   if (fraction < 0.999) conic.addColorStop(1, `${color}00`);
 

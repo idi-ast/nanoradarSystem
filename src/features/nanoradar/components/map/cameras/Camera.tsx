@@ -1,5 +1,4 @@
-import { IconMaximize, IconMinimize, IconX } from "@tabler/icons-react";
-import Hls from "hls.js";
+import { IconMaximize, IconMinimize, IconRefresh, IconX } from "@tabler/icons-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
@@ -23,44 +22,118 @@ interface CameraProps {
   activity?: CamaraActividad;
 }
 
-function useHlsPlayer(streamUrl: string) {
-  const hlsRef = useRef<Hls | null>(null);
+/**
+ * Normaliza url_stream para usarla como base WHEP:
+ * elimina "/index.m3u8" y la barra final si las trae.
+ * Ejemplo: "http://10.30.7.14:8889/camara_1/index.m3u8" → "http://10.30.7.14:8889/camara_1"
+ */
+function getWhepBaseUrl(urlStream: string): string {
+  try {
+    const u = new URL(urlStream);
+    u.pathname = u.pathname.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
+    return u.toString();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Hook WebRTC WHEP para MediaMTX.
+ * Flujo correcto WHEP: enviar el offer SDP sin esperar a ICE gathering;
+ * MediaMTX responde con el answer completo (incluye sus candidatos ICE).
+ */
+function useWebRtcPlayer(streamUrl: string) {
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Expone una función para forzar reconexión desde la UI
+  const retry = useCallback(() => {
+    setConnectionError(null);
+    setRetryCount((n) => n + 1);
+  }, []);
 
   const videoRef = useCallback(
     (node: HTMLVideoElement | null) => {
-      if (!node) {
-        hlsRef.current?.destroy();
-        hlsRef.current = null;
-        return;
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
       }
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          lowLatencyMode: true,
-          backBufferLength: 4,
-          maxBufferLength: 10,
-          liveSyncDurationCount: 2,
+      if (!node) return;
+
+      let destroyed = false;
+      setConnectionError(null);
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      pcRef.current = pc;
+
+      pc.ontrack = (event) => {
+        if (node.srcObject !== event.streams[0]) {
+          node.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (
+          (pc.connectionState === "failed" ||
+            pc.connectionState === "disconnected") &&
+          !destroyed
+        ) {
+          setConnectionError("Conexión perdida");
+        }
+      };
+
+      // Recibir solo — sin enviar audio/video local
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.addTransceiver("audio", { direction: "recvonly" });
+
+      async function negotiate() {
+        // WHEP: enviar offer inmediatamente, sin esperar ICE gathering.
+        // MediaMTX devuelve un answer que ya incluye sus candidatos ICE.
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        if (destroyed) return;
+
+        const resp = await fetch(`${streamUrl}/whep`, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp,
         });
-        hlsRef.current = hls;
-        hls.loadSource(streamUrl);
-        hls.attachMedia(node);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          node.play().catch(() => {});
-        });
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal)
-            console.error("[HLS] Error fatal:", data.type, data.details);
-        });
-      } else if (node.canPlayType("application/vnd.apple.mpegurl")) {
-        node.src = streamUrl;
-        node.addEventListener("loadedmetadata", () => {
-          node.play().catch(() => {});
-        });
+
+        if (!resp.ok) {
+          throw new Error(`WHEP ${resp.status} ${resp.statusText}`);
+        }
+        if (destroyed) return;
+
+        const answerSdp = await resp.text();
+        await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
       }
+
+      negotiate().catch((e) => {
+        if (!destroyed) {
+          const msg =
+            e instanceof TypeError
+              ? "No se pudo conectar al servidor (red o CORS)"
+              : String(e.message ?? e);
+          console.error("[WebRTC]", streamUrl, e);
+          setConnectionError(msg);
+        }
+      });
+
+      return () => {
+        destroyed = true;
+        pc.close();
+        pcRef.current = null;
+      };
     },
-    [streamUrl],
+    // retryCount hace que el callback-ref se recree al presionar Reintentar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [streamUrl, retryCount],
   );
 
-  return videoRef;
+  return { videoRef, connectionError, retry };
 }
 
 function CameraToolbar({
@@ -114,16 +187,21 @@ function CameraVideo({
   videoRef,
   compact,
   activity,
+  connectionError,
+  onRetry,
 }: {
   videoRef: (node: HTMLVideoElement | null) => void;
   compact?: boolean;
   activity?: CamaraActividad;
+  connectionError?: string | null;
+  onRetry?: () => void;
 }) {
   const isActive = !!activity;
   return (
     <div className={`bg-black overflow-hidden relative ${compact ? "h-36" : "flex-1"}`}>
       <video
         ref={videoRef}
+        autoPlay
         controls
         muted
         playsInline
@@ -134,6 +212,22 @@ function CameraVideo({
           transformOrigin: activity ? getBBoxOrigin(activity.bbox) : "center center",
         }}
       />
+      {connectionError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2">
+          <p className="text-red-400 text-[11px] font-medium text-center px-3 leading-tight">
+            {connectionError}
+          </p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-1 text-[11px] text-white bg-bg-300/60 hover:bg-bg-300 px-2 py-1 rounded transition-colors"
+            >
+              <IconRefresh size={13} stroke={1.5} />
+              Reintentar
+            </button>
+          )}
+        </div>
+      )}
       {isActive && (
         <div
           className="absolute inset-0 pointer-events-none rounded-sm animate-pulse"
@@ -193,10 +287,14 @@ const EVENT_SHORT: Record<string, string> = {
 function FullscreenModal({
   name,
   videoRef,
+  connectionError,
+  onRetry,
   onClose,
 }: {
   name: string;
   videoRef: (node: HTMLVideoElement | null) => void;
+  connectionError?: string | null;
+  onRetry?: () => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -220,14 +318,7 @@ function FullscreenModal({
         </button>
       </div>
       <div className="flex-1 bg-black">
-        <video
-          ref={videoRef}
-          controls
-          muted
-          playsInline
-          autoPlay
-          className="w-full h-full object-contain"
-        />
+        <CameraVideo videoRef={videoRef} connectionError={connectionError} onRetry={onRetry} />
       </div>
     </div>,
     document.body,
@@ -243,8 +334,9 @@ const Camera = memo(function Camera({
   activity,
 }: CameraProps) {
   const [mode, setMode] = useState<CameraMode>("minimized");
-  const videoRef = useHlsPlayer(camera.url_stream);
-  const fullscreenVideoRef = useHlsPlayer(camera.url_stream);
+  const streamUrl = getWhepBaseUrl(camera.url_stream);
+  const { videoRef, connectionError, retry } = useWebRtcPlayer(streamUrl);
+  const { videoRef: fullscreenVideoRef, connectionError: fsError, retry: fsRetry } = useWebRtcPlayer(streamUrl);
   const isActive = !!activity;
   const glowColor = OBJECT_GLOW[activity?.objeto_tipo ?? ""] ?? "#ef4444";
 
@@ -297,7 +389,7 @@ const Camera = memo(function Camera({
         onToggleMaximize={toggleMaximize}
         onToggleFullscreen={openFullscreen}
       />
-      <CameraVideo videoRef={videoRef} activity={activity} />
+      <CameraVideo videoRef={videoRef} activity={activity} connectionError={connectionError} onRetry={retry} />
     </div>
   );
 
@@ -317,7 +409,7 @@ const Camera = memo(function Camera({
             onToggleMaximize={toggleMaximize}
             onToggleFullscreen={openFullscreen}
           />
-          <CameraVideo videoRef={videoRef} compact activity={activity} />
+          <CameraVideo videoRef={videoRef} compact activity={activity} connectionError={connectionError} onRetry={retry} />
         </div>
       )}
 
@@ -327,6 +419,8 @@ const Camera = memo(function Camera({
         <FullscreenModal
           name={camera.nombre}
           videoRef={fullscreenVideoRef}
+          connectionError={fsError}
+          onRetry={fsRetry}
           onClose={closeFullscreen}
         />
       )}

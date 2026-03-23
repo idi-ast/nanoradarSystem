@@ -249,9 +249,9 @@ export const DeviceSelector = memo(function DeviceSelector({
               ? "bg-brand-200/20 text-brand-200"
               : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
           }`}
-      >
-        <IconDevicesCog size={20} />
-      </button>
+        >
+          <IconDevicesCog size={20} />
+        </button>
       </Tooltip>
 
       {open &&

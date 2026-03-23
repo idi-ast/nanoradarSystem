@@ -187,9 +187,9 @@ export const SpotterDeviceLayer = memo(function SpotterDeviceLayer({
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
-    () => buildBeamCanvas(grado, apertura, color, 512, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart),
+    () => buildBeamCanvas(grado, apertura, color, 512, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart, vs.beamEdgeFadeRatio),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [grado, apertura, color, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart],
+    [grado, apertura, color, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart, vs.beamEdgeFadeRatio],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks

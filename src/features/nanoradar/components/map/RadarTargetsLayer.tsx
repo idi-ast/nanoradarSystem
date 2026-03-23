@@ -36,6 +36,8 @@ export function RadarTargetsLayer({
         : allTargets.filter((t) => t.deviceType === deviceFilter),
     [allTargets, deviceFilter],
   );
+
+  
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
   const timeBounds = useMemo(() => {

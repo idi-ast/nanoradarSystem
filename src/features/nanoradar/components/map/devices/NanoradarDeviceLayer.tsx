@@ -213,9 +213,9 @@ export const NanoradarDeviceLayer = memo(function NanoradarDeviceLayer({
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const beamImageUrl = useMemo(
-    () => buildBeamCanvas(grado, apertura, colorPrimary, 512, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart),
+    () => buildBeamCanvas(grado, apertura, colorPrimary, 512, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart, vs.beamEdgeFadeRatio),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [grado, apertura, colorPrimary, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart],
+    [grado, apertura, colorPrimary, vs.beamExtraAperture, vs.beamPeakOpacityPercent, vs.beamRadialFadeStart, vs.beamEdgeFadeRatio],
   );
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
