@@ -26,4 +26,8 @@ export const spotterService = {
     const res = await apiSystem.post<Spotters>("/spotter-datos", payload);
     return res.data;
   },
+
+  deleteSpotter: async (id: number): Promise<void> => {
+    await apiSystem.delete(`/spotter-datos/${id}`);
+  },
 };

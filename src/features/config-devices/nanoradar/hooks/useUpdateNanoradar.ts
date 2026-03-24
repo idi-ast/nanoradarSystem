@@ -11,3 +11,24 @@ export function useUpdateNanoradar() {
     },
   });
 }
+
+export function useCreateNanoradar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: NanoradarPayload) =>
+      nanoradarService.createNanoradar(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config-devices"] });
+    },
+  });
+}
+
+export function useDeleteNanoradar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => nanoradarService.deleteNanoradar(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config-devices"] });
+    },
+  });
+}

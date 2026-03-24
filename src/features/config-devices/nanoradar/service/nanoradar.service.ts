@@ -16,4 +16,8 @@ export const nanoradarService = {
     const res = await apiSystem.post<Nanoradares>("/nanoradares", payload);
     return res.data;
   },
+
+  deleteNanoradar: async (id: number): Promise<void> => {
+    await apiSystem.delete(`/nanoradares/${id}`);
+  },
 };
