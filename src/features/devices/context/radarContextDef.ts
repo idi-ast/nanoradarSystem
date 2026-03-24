@@ -33,6 +33,8 @@ export interface RadarContextValue {
   zoneColor: string;
   alertLevel: 1 | 2 | 3 | 4;
   zoneSound: number | null;
+  destello: boolean;
+  categoriaDeteccion: number;
   canSave: boolean;
   startDrawing: () => void;
   cancelDrawing: () => void;
@@ -42,6 +44,8 @@ export interface RadarContextValue {
   setZoneColor: (color: string) => void;
   setAlertLevel: (level: 1 | 2 | 3 | 4) => void;
   setZoneSound: (sound: number | null) => void;
+  setDestello: (value: boolean) => void;
+  setCategoriaDeteccion: (value: number) => void;
   saveZone: () => Promise<void>;
   /** Estable (useCallback sin deps) — vive en contexto estático para no arrastrar re-renders desde WS. */
   clearTargets: () => void;

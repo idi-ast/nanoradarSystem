@@ -1,3 +1,12 @@
+import type { ComponentType } from "react";
+import {
+  IconUser,
+  IconSailboat,
+  IconCar,
+  IconDog,
+  IconDrone,
+} from "@tabler/icons-react";
+
 export interface BeamConfig {
   /** FPS objetivo de la animación del haz */
   TARGET_FPS: number;
@@ -208,4 +217,20 @@ export const ZONE_SOUNDS: { id: number; label: string; file: string }[] = [
   { id: 2, label: "Sonido 2", file: "/mp3/sonido_alerta2.mp3" },
   { id: 3, label: "Sonido 3", file: "/mp3/sonido_alerta3.mp3" },
   { id: 4, label: "Sonido 4", file: "/mp3/sonido_alerta4.mp3" },
+];
+
+/**
+ * Categorías de detección disponibles para asignar a una zona.
+ * Agrega más entradas aquí para ampliar el selector en el formulario de zonas.
+ */
+export const ZONE_DETECTION_CATEGORIES: {
+  id: number;
+  label: string;
+  icon: ComponentType<{ size?: number; stroke?: number; className?: string }>;
+}[] = [
+  { id: 1, label: "Persona",  icon: IconUser },
+  { id: 2, label: "Barco",    icon: IconSailboat },
+  { id: 3, label: "Vehículo", icon: IconCar },
+  { id: 4, label: "Animal",   icon: IconDog },
+  { id: 5, label: "Dron",     icon: IconDrone },
 ];

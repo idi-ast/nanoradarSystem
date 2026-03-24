@@ -149,8 +149,6 @@ const RightBarNano = memo(
       instanceConfig.geofence.ACTIVE_MS,
     );
 
-    useZoneAlertSound(zones, activeZoneIds);
-
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
         <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
@@ -229,12 +227,26 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
 const GeofenceFlash = memo(function GeofenceFlash() {
   const { zones, instanceConfig } = useRadarContext();
   const { targets } = useRadarTargets();
-  const { hasAlert, color } = useGeofenceDetection(
+  const { hasAlert, color, activeZoneIds } = useGeofenceDetection(
     targets,
     zones,
     instanceConfig.geofence.ACTIVE_MS,
   );
-  if (!hasAlert) return null;
+
+  // Aquí y no en RightBarNano: GeofenceFlash siempre está montado,
+  // incluso en mobile cuando el sidebar está cerrado.
+  useZoneAlertSound(zones, activeZoneIds);
+
+  // Mostrar destello solo si al menos una zona activa tiene destello activado
+  const shouldFlash =
+    hasAlert &&
+    zones.some(
+      (z) =>
+        activeZoneIds.has(z.id?.toString() ?? z.nombre) &&
+        (z.destello ?? true),
+    );
+
+  if (!shouldFlash) return null;
 
   return (
     <div

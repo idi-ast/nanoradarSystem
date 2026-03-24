@@ -15,6 +15,8 @@ export function useZoneDrawing() {
   const [color, setColor] = useState(STOPPED_COLOR);
   const [alertLevel, setAlertLevel] = useState<1 | 2 | 3 | 4>(1);
   const [zoneSound, setZoneSound] = useState<number | null>(null);
+  const [destello, setdestello] = useState<boolean>(true);
+  const [categoriaDeteccion, setCategoriaDeteccion] = useState<number>(1);
 
   const startDrawing = useCallback(() => {
     setIsDrawing(true);
@@ -23,6 +25,8 @@ export function useZoneDrawing() {
     setColor(STOPPED_COLOR);
     setAlertLevel(1);
     setZoneSound(null);
+    setdestello(true);
+    setCategoriaDeteccion(1);
   }, []);
 
   const cancelDrawing = useCallback(() => {
@@ -48,12 +52,14 @@ export function useZoneDrawing() {
       descripcion: `Zona con alerta nivel ${alertLevel}`,
       idTipoAlerta: alertLevel,
       sonido: zoneSound,
+      destello,
+      categoriaDeteccion,
       poligono: {
         color,
         vertices: points,
       },
     };
-  }, [name, color, alertLevel, zoneSound, points]);
+  }, [name, color, alertLevel, zoneSound, destello, categoriaDeteccion, points]);
 
   return {
     isDrawing,
@@ -62,6 +68,8 @@ export function useZoneDrawing() {
     color,
     alertLevel,
     zoneSound,
+    destello,
+    categoriaDeteccion,
     startDrawing,
     cancelDrawing,
     addPoint,
@@ -71,6 +79,8 @@ export function useZoneDrawing() {
     setMovementStatus,
     setAlertLevel,
     setZoneSound,
+    setdestello,
+    setCategoriaDeteccion,
     buildPayload,
     canSave: points.length >= 3,
   };

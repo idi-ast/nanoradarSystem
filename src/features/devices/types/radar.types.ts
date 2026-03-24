@@ -33,6 +33,10 @@ export interface RadarZone {
     vertices: [number, number][] | Record<string, [number, number]>;
   };
   sonido: number | null;
+  /** Activar destello de pantalla (bordes parpadeantes) al detectar entrada a la zona */
+  destello?: boolean;
+  /** Categoría del icono de detección: corresponde al id de ZONE_DETECTION_CATEGORIES */
+  categoriaDeteccion?: number;
 }
 
 export interface CreateZonePayload {
@@ -40,6 +44,8 @@ export interface CreateZonePayload {
   descripcion: string;
   idTipoAlerta: number;
   sonido?: number | null;
+  destello?: boolean;
+  categoriaDeteccion?: number;
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -51,6 +57,8 @@ export interface UpdateZonePayload {
   descripcion: string;
   idTipoAlerta: number;
   sonido?: number | null;
+  destello?: boolean;
+  categoriaDeteccion?: number;
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;

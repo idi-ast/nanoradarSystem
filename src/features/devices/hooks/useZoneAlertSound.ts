@@ -16,6 +16,29 @@ export function useZoneAlertSound(
 ): void {
   // Map<zoneKey, HTMLAudioElement>
   const audioMap = useRef<Map<string, HTMLAudioElement>>(new Map());
+  // Sonidos bloqueados por autoplay policy — se reproducen en la próxima interacción
+  const blockedRef = useRef<Set<string>>(new Set());
+
+  // Intenta reproducir todos los sonidos bloqueados en la primera interacción del usuario
+  useEffect(() => {
+    const unblock = () => {
+      for (const key of blockedRef.current) {
+        const audio = audioMap.current.get(key);
+        if (audio) {
+          audio.play().catch(() => {
+            // Sigue bloqueado; el usuario necesita más interacción
+          });
+        }
+      }
+      blockedRef.current.clear();
+    };
+    window.addEventListener("pointerdown", unblock, { once: true });
+    window.addEventListener("keydown", unblock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unblock);
+      window.removeEventListener("keydown", unblock);
+    };
+  }, []);
 
   useEffect(() => {
     const currentKeys = new Set(audioMap.current.keys());
@@ -32,7 +55,12 @@ export function useZoneAlertSound(
             const audio = new Audio(soundDef.file);
             audio.loop = true;
             audio.play().catch(() => {
-              // El navegador puede bloquear autoplay si no hubo interacción previa
+              // El navegador bloquea autoplay sin interacción previa.
+              // Registrar para reintentar en la próxima interacción del usuario.
+              blockedRef.current.add(key);
+              if (import.meta.env.DEV) {
+                console.warn(` Autoplay bloqueado para zona "${zone.nombre}". Se reproducirá en la próxima interacción.`);
+              }
             });
             audioMap.current.set(key, audio);
           }
@@ -44,6 +72,7 @@ export function useZoneAlertSound(
           audio.pause();
           audio.currentTime = 0;
           audioMap.current.delete(key);
+          blockedRef.current.delete(key);
         }
       }
 
@@ -57,6 +86,7 @@ export function useZoneAlertSound(
         audio.pause();
         audio.currentTime = 0;
         audioMap.current.delete(orphanKey);
+        blockedRef.current.delete(orphanKey);
       }
     }
   }, [zones, activeZoneIds]);

@@ -1,6 +1,6 @@
 import { IconArrowBackUp, IconHexagon } from "@tabler/icons-react";
 import { useRadarContext } from "../../context/useRadarContext";
-import { ZONE_SOUNDS } from "../../config";
+import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
 
 const ALERT_LEVELS = [
   { value: 1, label: "Nivel 1: Informativa" },
@@ -9,7 +9,6 @@ const ALERT_LEVELS = [
   { value: 4, label: "Nivel 4: CRÍTICO" },
 ] as const;
 
-
 export function ZoneDrawingPanel() {
   const {
     drawingPoints,
@@ -17,11 +16,15 @@ export function ZoneDrawingPanel() {
     zoneColor,
     alertLevel,
     zoneSound,
+    destello,
+    categoriaDeteccion,
     canSave,
     setZoneName,
     setZoneColor,
     setAlertLevel,
     setZoneSound,
+    setDestello,
+    setCategoriaDeteccion,
     saveZone,
     removeLastDrawingPoint,
   } = useRadarContext();
@@ -102,6 +105,51 @@ export function ZoneDrawingPanel() {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Destello de pantalla */}
+      <div className="flex items-center justify-between bg-bg-100/30 p-2 rounded border border-border">
+        <label className="text-xs text-text-200">Destello de pantalla:</label>
+        <button
+          type="button"
+          onClick={() => setDestello(!destello)}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+            destello ? "bg-brand-100" : "bg-bg-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+              destello ? "translate-x-4.5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Categoría de detección */}
+      <div>
+        <label className="text-xs text-text-200 block mb-1">
+          Categoría de detección:
+        </label>
+        <div className="grid grid-cols-3 gap-1">
+          {ZONE_DETECTION_CATEGORIES.map((cat) => {
+            const active = categoriaDeteccion === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategoriaDeteccion(cat.id)}
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${
+                  active
+                    ? "border-brand-100 bg-brand-100/10 text-text-100"
+                    : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                }`}
+              >
+                <cat.icon size={20} stroke={1.5} />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex gap-2">
