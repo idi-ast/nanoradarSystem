@@ -4,9 +4,12 @@ import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import { GEOFENCE } from "../config";
 
 /**
- * Para cada target activo, resuelve el id de categoría a mostrar:
+ * Para cada target, resuelve el id de categoría a mostrar:
  *  - Si el target está dentro de una zona con categoriaDeteccion → usa esa
  *  - Si no → usa el defaultCategoriaDeteccion del store
+ *
+ * El estado activo/inactivo no afecta esta resolución: un target que se
+ * detiene dentro de una zona mantiene el icono de la zona.
  *
  * Retorna un Map<targetId, categoriaDeteccionId>
  */
@@ -24,11 +27,8 @@ export function useTargetCategoryResolution(
 
   return useMemo(() => {
     const result = new Map<string, number>();
-    const activeTargets = targets.filter(
-      (t) => now - t.lastUpdate <= activeMs,
-    );
 
-    for (const target of activeTargets) {
+    for (const target of targets) {
       let resolved = defaultCategoria;
 
       for (const zone of zones) {
@@ -50,13 +50,6 @@ export function useTargetCategoryResolution(
       }
 
       result.set(target.id, resolved);
-    }
-
-    // Targets fuera del activeMs mantienen el default
-    for (const target of targets) {
-      if (!result.has(target.id)) {
-        result.set(target.id, defaultCategoria);
-      }
     }
 
     return result;

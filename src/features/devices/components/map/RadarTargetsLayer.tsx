@@ -162,7 +162,7 @@ export function RadarTargetsLayer({
                 }}
                 className={[
                   "relative cursor-pointer flex items-center justify-center",
-                  "w-8 h-8 rounded-full bg-bg-100/85  border-2 transition-all",
+                  "w-12 h-12 rounded-full bg-bg-100/85  border-2 transition-all",
                   moving
                     ? "border-sky-400 shadow-[0_0_8px_2px_rgba(56,189,248,0.4)]"
                     : "border-text-200/30",
