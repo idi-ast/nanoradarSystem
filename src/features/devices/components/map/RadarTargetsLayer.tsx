@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Source, Layer, Popup } from "react-map-gl";
-import type { FilterSpecification } from "mapbox-gl";
+import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
+import { useTargetVisualStore } from "../../stores/targetVisualStore";
+import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
+import { ZONE_DETECTION_CATEGORIES } from "../../config";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -27,7 +29,7 @@ export function RadarTargetsLayer({
   selectedTargetId,
   onSelectTarget,
 }: Props) {
-  const { instanceConfig } = useRadarContext();
+  const { instanceConfig, zones } = useRadarContext();
   const { targets: allTargets } = useRadarTargets();
   const targets = useMemo(
     () =>
@@ -37,9 +39,19 @@ export function RadarTargetsLayer({
     [allTargets, deviceFilter],
   );
 
-  
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
+
+  const defaultCategoria = useTargetVisualStore(
+    (s) => s.defaultCategoriaDeteccion,
+  );
+  const categoryMap = useTargetCategoryResolution(
+    targets,
+    zones,
+    defaultCategoria,
+    instanceConfig.geofence.ACTIVE_MS,
+  );
+
   const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
@@ -66,6 +78,7 @@ export function RadarTargetsLayer({
       }))
       .filter((t) => t.history.length > 0);
   }, [targets, historyRange, timeBounds]);
+
   const [now, setNow] = useState(0);
   const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
 
@@ -73,40 +86,8 @@ export function RadarTargetsLayer({
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
     }, timing.COLOR_REFRESH_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    return () => window.clearInterval(intervalId);
   }, []);
-
-  const pointsData = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: slicedTargets
-        .filter((t) => t.history.length > 0)
-        .map((t) => {
-          // Si end=100 esto coincide con t.lat/t.lon (posición en vivo).
-          const lastPoint = t.history[t.history.length - 1];
-          const lat = lastPoint[0];
-          const lon = lastPoint[1];
-          return {
-            type: "Feature" as const,
-            geometry: {
-              type: "Point" as const,
-              coordinates: [lon, lat],
-            },
-            properties: {
-              id: t.id,
-              nivel: t.nivel,
-              zona: t.zona,
-              deviceType: t.deviceType,
-              isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
-            },
-          };
-        }),
-    }),
-    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
-  );
 
   const trailsData = useMemo(
     () => ({
@@ -117,7 +98,6 @@ export function RadarTargetsLayer({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            // History está en [lat, lon]; convertir a [lon, lat]
             coordinates: t.history.map(toGeoCoord),
           },
           properties: {
@@ -137,110 +117,14 @@ export function RadarTargetsLayer({
     paint: {
       "line-color": [
         "case",
-        [
-          "all",
-          ["==", ["get", "deviceType"], "nanoRadar"],
-          ["get", "isMoving"],
-        ],
-        "#4ade80",
-        [
-          "case",
-          ["get", "isMoving"],
-          targetColors.moving,
-          targetColors.stopped,
-        ],
+        ["get", "isMoving"],
+        targetColors.moving,
+        targetColors.stopped,
       ] as unknown as string,
       "line-width": 4,
       "line-dasharray": [1, 2],
       "line-opacity": 0.72,
       "line-blur": 0.65,
-    },
-  };
-
-  const circleLayer = {
-    id: `targets-circles-${id}`,
-    type: "circle" as const,
-    paint: {
-      "circle-radius": [
-        "case",
-        ["==", ["get", "nivel"], 3],
-        4,
-        5,
-      ] as unknown as number,
-      "circle-color": [
-        "case",
-        [
-          "all",
-          ["==", ["get", "deviceType"], "nanoRadar"],
-          ["get", "isMoving"],
-        ],
-        "#4ade80",
-        [
-          "case",
-          ["get", "isMoving"],
-          targetColors.moving,
-          targetColors.stopped,
-        ],
-      ] as unknown as string,
-      "circle-stroke-width": 2,
-      "circle-stroke-color": [
-        "case",
-        [
-          "all",
-          ["==", ["get", "deviceType"], "nanoRadar"],
-          ["get", "isMoving"],
-        ],
-        "#166534",
-        [
-          "case",
-          ["get", "isMoving"],
-          targetColors.movingStroke,
-          targetColors.stoppedStroke,
-        ],
-      ] as unknown as string,
-      "circle-opacity": 0.9,
-    },
-  };
-
-  const haloLayer = {
-    id: `targets-halo-${id}`,
-    type: "circle" as const,
-    filter: ["==", ["get", "nivel"], 4] as unknown as FilterSpecification,
-    paint: {
-      "circle-radius": 16,
-      "circle-color": [
-        "case",
-        [
-          "all",
-          ["==", ["get", "deviceType"], "nanoRadar"],
-          ["get", "isMoving"],
-        ],
-        "#4ade80",
-        [
-          "case",
-          ["get", "isMoving"],
-          targetColors.moving,
-          targetColors.stopped,
-        ],
-      ] as unknown as string,
-      "circle-opacity": 0.11,
-      "circle-stroke-width": 1,
-      "circle-stroke-color": [
-        "case",
-        [
-          "all",
-          ["==", ["get", "deviceType"], "nanoRadar"],
-          ["get", "isMoving"],
-        ],
-        "#4ade80",
-        [
-          "case",
-          ["get", "isMoving"],
-          targetColors.moving,
-          targetColors.stopped,
-        ],
-      ] as unknown as string,
-      "circle-stroke-opacity": 0.3,
     },
   };
 
@@ -250,17 +134,62 @@ export function RadarTargetsLayer({
         <Layer {...trailLayer} />
       </Source>
 
-      <Source id={`targets-points-${id}`} type="geojson" data={pointsData}>
-        <Layer {...haloLayer} />
-        <Layer {...circleLayer} />
-      </Source>
+      {slicedTargets
+        .filter((t) => t.history.length > 0)
+        .map((t) => {
+          const lastPoint = t.history[t.history.length - 1];
+          const lat = lastPoint[0];
+          const lon = lastPoint[1];
+          const moving = isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS);
+          const catId = categoryMap.get(t.id) ?? defaultCategoria;
+          const cat =
+            ZONE_DETECTION_CATEGORIES.find((c) => c.id === catId) ??
+            ZONE_DETECTION_CATEGORIES[1];
+          const Icon = cat.icon;
+          const isSelected = selectedTargetId === t.id;
+
+          return (
+            <Marker
+              key={t.id}
+              longitude={lon}
+              latitude={lat}
+              anchor="center"
+            >
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectTarget(isSelected ? null : t.id);
+                }}
+                className={[
+                  "relative cursor-pointer flex items-center justify-center",
+                  "w-8 h-8 rounded-full bg-bg-100/85  border-2 transition-all",
+                  moving
+                    ? "border-sky-400 shadow-[0_0_8px_2px_rgba(56,189,248,0.4)]"
+                    : "border-text-200/30",
+                  isSelected
+                    ? "ring-2 ring-brand-100 scale-110"
+                    : "hover:scale-110",
+                ].join(" ")}
+              >
+                <Icon
+                  size={20}
+                  stroke={2}
+                  className={moving ? "text-sky-300" : "text-text-200/50"}
+                />
+                {t.nivel === 4 && (
+                  <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
+                )}
+              </div>
+            </Marker>
+          );
+        })}
 
       {selected && (
         <Popup
           longitude={selected.lon}
           latitude={selected.lat}
           anchor="bottom"
-          offset={12}
+          offset={20}
           closeButton={false}
           onClose={() => onSelectTarget(null)}
         >
@@ -299,3 +228,4 @@ export function RadarTargetsLayer({
     </>
   );
 }
+
