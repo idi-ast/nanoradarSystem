@@ -17,7 +17,8 @@ const AVAILABLE_MODELS: { path: string; label: string }[] = [
   { path: "/3d/glb/people.glb", label: "Persona"  },
   { path: "/3d/glb/car2.glb", label: "Auto"  },
   { path: "/3d/glb/pet.glb", label: "Mascota"  },
-  { path: "/3d/glb/dron2.glb", label: "Dron"  },
+  { path: "/3d/glb/dron2.glb", label: "Dron2"  },
+  { path: "/3d/glb/dron.glb", label: "Dron"  },
 ];
 
 
