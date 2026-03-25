@@ -10,6 +10,7 @@ import {
 import { Tooltip } from "@/components/ui";
 import ConfigZones from "./ConfigZones";
 import ConfigRadar from "./ConfigRadar";
+import ConfigTargets from "./ConfigTargets";
 
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
@@ -52,6 +53,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
       <ClearTargetsButton />
       <ConfigZones />
       <ConfigRadar />
+      <ConfigTargets />
       <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}
