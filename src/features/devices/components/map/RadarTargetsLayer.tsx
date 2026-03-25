@@ -9,6 +9,7 @@ import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolu
 import { ZONE_DETECTION_CATEGORIES } from "../../config";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
+import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -48,6 +49,7 @@ export function RadarTargetsLayer({
     (s) => s.defaultCategoriaDeteccion,
   );
   const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
+  const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const categoryMap = useTargetCategoryResolution(
     targets,
     zones,
@@ -154,8 +156,10 @@ export function RadarTargetsLayer({
           const Icon = cat.icon;
           const isSelected = selectedTargetId === t.id;
 
-          // Modo 3D: sólo para barcos (catId === 2) cuando use3DBoat está activo
-          const show3D = use3DBoat && catId === 2;
+          // Modo 3D: activo para todas las categorías cuando use3DBoat está activado
+          const show3D = use3DBoat;
+          // Modelo GLB según la categoría (preferencia del usuario o default)
+          const modelPath = categoryModels[catId] ?? DEFAULT_CATEGORY_MODELS[catId] ?? "/3d/glb/cargo_ship.glb";
 
           return (
             <Marker
@@ -176,6 +180,7 @@ export function RadarTargetsLayer({
                     id={t.id}
                     lng={lon}
                     lat={lat}
+                    modelPath={modelPath}
                     history={t.history}
                     moving={moving}
                     isSelected={isSelected}

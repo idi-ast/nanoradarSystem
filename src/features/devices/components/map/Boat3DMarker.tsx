@@ -24,6 +24,8 @@ interface Boat3DMarkerProps {
   /** Posición actual del target en el mapa */
   lng: number;
   lat: number;
+  /** Modelo GLB a renderizar (asignado según categoría de la zona) */
+  modelPath: string;
   /** Historial de posiciones [lat, lon, ts] para calcular el rumbo */
   history: [number, number, number][];
   moving: boolean;
@@ -36,6 +38,7 @@ export function Boat3DMarker({
   id,
   lng,
   lat,
+  modelPath,
   history,
   moving,
   isSelected,
@@ -50,15 +53,15 @@ export function Boat3DMarker({
 
   // Registrar posición inicial en el renderer al montar
   useEffect(() => {
-    registerBoat(id, lng, lat);
+    registerBoat(id, lng, lat, modelPath);
     return () => unregisterBoat(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Actualizar posición y estado cuando cambian
+  // Actualizar posición, estado y modelo cuando cambian
   useEffect(() => {
-    updateBoat(id, { lng, lat, bearingDeg, moving, isSelected });
-  }, [id, lng, lat, bearingDeg, moving, isSelected]);
+    updateBoat(id, { lng, lat, bearingDeg, moving, isSelected, modelPath });
+  }, [id, lng, lat, bearingDeg, moving, isSelected, modelPath]);
 
   const effectiveSize = isSelected ? Math.round(size * 1.2) : size;
 

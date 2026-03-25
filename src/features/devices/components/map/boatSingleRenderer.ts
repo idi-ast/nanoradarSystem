@@ -3,15 +3,20 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MercatorCoordinate } from "mapbox-gl";
 import type { CustomLayerInterface, Map as MapboxMap } from "mapbox-gl";
 
+// ── Tipos públicos ─────────────────────────────────────────────────────────
+
 export interface BoatEntry {
   lng: number;
   lat: number;
   bearingDeg: number;
   moving: boolean;
   isSelected: boolean;
+  /** Ruta GLB asignada a este target según su categoría */
+  modelPath: string;
 }
 
 export interface Boat3DConfig {
+  /** Ruta del modelo por defecto (se usa como fallback) */
   modelPath: string;
   scale: number;
   rotationOffset: number;
@@ -23,7 +28,7 @@ export interface Boat3DConfig {
 }
 
 export const DEFAULT_BOAT3D_CONFIG: Boat3DConfig = {
-  modelPath: "/3d/glb/ship.glb",
+  modelPath: "/3d/glb/cargo_ship.glb",
   scale: 1,
   rotationOffset: 0,
   camHeight: 3.5,
@@ -35,25 +40,37 @@ export const DEFAULT_BOAT3D_CONFIG: Boat3DConfig = {
 
 export const BOAT_LAYER_ID = "boat-3d-custom-layer";
 
+// ── Estado del módulo ──────────────────────────────────────────────────────
+
+interface CachedModel {
+  obj: THREE.Object3D;
+  maxDim: number;
+  mixer?: THREE.AnimationMixer;
+}
+
 let _map: MapboxMap | null = null;
 let _renderer: THREE.WebGLRenderer | null = null;
 let _scene: THREE.Scene | null = null;
 let _camera: THREE.Camera | null = null;
 let _modelGroup: THREE.Group | null = null;
-let _boatObj: THREE.Object3D | null = null;
-let _mixer: THREE.AnimationMixer | null = null;
+/** Modelo actualmente adjunto al _modelGroup (para swap eficiente) */
+let _activeModelObj: THREE.Object3D | null = null;
 let _ambientLight: THREE.AmbientLight | null = null;
 let _dirLight: THREE.DirectionalLight | null = null;
 let _movingRing: THREE.Mesh | null = null;
 let _selectedRing: THREE.Mesh | null = null;
-let _maxDim = 1;
-let _loadId = 0;
 const _clock = new THREE.Clock();
 let _config: Boat3DConfig = { ...DEFAULT_BOAT3D_CONFIG };
 const _entries = new Map<string, BoatEntry>();
+/** Cache de modelos cargados: path → objeto Three.js listo para usar */
+const _modelCache = new Map<string, CachedModel>();
+/** Rutas en carga actualmente (para no lanzar peticiones duplicadas) */
+const _loadingPaths = new Set<string>();
 
-/** Base size of the model in real-world meters with scale=1 */
+/** Tamaño base del modelo en metros reales con scale=1 */
 const SCALE_TO_METERS = 20;
+
+// ── Carga de modelo ────────────────────────────────────────────────────────
 
 function disposeObj(obj: THREE.Object3D) {
   obj.traverse((child) => {
@@ -69,52 +86,50 @@ function disposeObj(obj: THREE.Object3D) {
   });
 }
 
-function loadModel(path: string) {
-  if (!_scene || !_modelGroup) return;
+/**
+ * Si el modelo no está en cache ni cargando, inicia su carga async.
+ * Cuando termina queda disponible en _modelCache para el próximo frame.
+ */
+function ensureModel(path: string) {
+  if (!_scene || _modelCache.has(path) || _loadingPaths.has(path)) return;
 
-  if (_boatObj) {
-    _modelGroup.remove(_boatObj);
-    disposeObj(_boatObj);
-    _boatObj = null;
-  }
-  _mixer = null;
-
-  const myId = ++_loadId;
+  _loadingPaths.add(path);
   const loader = new GLTFLoader();
   loader.load(
     path,
     (gltf) => {
-      if (myId !== _loadId || !_scene || !_modelGroup) return;
-
-      if (_boatObj) {
-        _modelGroup.remove(_boatObj);
-        disposeObj(_boatObj);
-        _boatObj = null;
-      }
+      _loadingPaths.delete(path);
+      if (!_scene) return;
 
       const obj = gltf.scene;
+      // Centrar en XZ, base en Y=0
       const box = new THREE.Box3().setFromObject(obj);
       const center = box.getCenter(new THREE.Vector3());
       const sz = box.getSize(new THREE.Vector3());
-      _maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
+      const maxDim = Math.max(sz.x, sz.y, sz.z) || 1;
 
       obj.position.x -= center.x;
       obj.position.z -= center.z;
       obj.position.y -= box.min.y;
 
+      let mixer: THREE.AnimationMixer | undefined;
       if (gltf.animations.length > 0) {
-        _mixer = new THREE.AnimationMixer(obj);
-        gltf.animations.forEach((clip) => _mixer!.clipAction(clip).play());
+        mixer = new THREE.AnimationMixer(obj);
+        gltf.animations.forEach((clip) => mixer!.clipAction(clip).play());
       }
 
-      _boatObj = obj;
-      _modelGroup.add(obj);
+      _modelCache.set(path, { obj, maxDim, mixer });
       _map?.triggerRepaint();
     },
     undefined,
-    (err) => console.error("[BoatLayer] Error loading GLB:", path, err),
+    (err) => {
+      _loadingPaths.delete(path);
+      console.error("[BoatLayer] Error loading GLB:", path, err);
+    },
   );
 }
+
+// ── CustomLayerInterface ───────────────────────────────────────────────────
 
 const _layer: CustomLayerInterface = {
   id: BOAT_LAYER_ID,
@@ -149,9 +164,11 @@ const _layer: CustomLayerInterface = {
       ),
     );
 
+    // Grupo que contiene el modelo activo + anillos indicadores
     _modelGroup = new THREE.Group();
     _scene.add(_modelGroup);
 
+    // Anillo de estado
     const rGeo1 = new THREE.RingGeometry(0.88, 1.08, 64);
     rGeo1.rotateX(-Math.PI / 2);
     _movingRing = new THREE.Mesh(
@@ -161,6 +178,7 @@ const _layer: CustomLayerInterface = {
     _movingRing.position.y = 0.01;
     _modelGroup.add(_movingRing);
 
+    // Anillo de selección
     const rGeo2 = new THREE.RingGeometry(1.08, 1.28, 64);
     rGeo2.rotateX(-Math.PI / 2);
     _selectedRing = new THREE.Mesh(
@@ -176,14 +194,20 @@ const _layer: CustomLayerInterface = {
     _selectedRing.visible = false;
     _modelGroup.add(_selectedRing);
 
-    loadModel(_config.modelPath);
+    // Pre-cargar los modelos que ya están registrados
+    for (const [, entry] of _entries) {
+      ensureModel(entry.modelPath);
+    }
   },
 
   onRemove() {
-    _loadId++;
-    if (_boatObj && _modelGroup) _modelGroup.remove(_boatObj);
-    _boatObj = null;
-    _mixer = null;
+    // Limpiar todos los modelos en caché
+    for (const [, cached] of _modelCache) {
+      disposeObj(cached.obj);
+    }
+    _modelCache.clear();
+    _loadingPaths.clear();
+    _activeModelObj = null;
     _renderer?.dispose();
     _renderer = null;
     _scene = null;
@@ -193,7 +217,6 @@ const _layer: CustomLayerInterface = {
     _dirLight = null;
     _movingRing = null;
     _selectedRing = null;
-    _maxDim = 1;
     _map = null;
   },
 
@@ -202,7 +225,11 @@ const _layer: CustomLayerInterface = {
       return;
 
     const delta = _clock.getDelta();
-    if (_mixer) _mixer.update(delta);
+
+    // Actualizar animaciones de todos los modelos cargados
+    for (const [, cached] of _modelCache) {
+      cached.mixer?.update(delta);
+    }
 
     if (_ambientLight) _ambientLight.intensity = _config.ambientInt;
     if (_dirLight) _dirLight.intensity = _config.dirInt;
@@ -212,44 +239,66 @@ const _layer: CustomLayerInterface = {
     _renderer.setSize(canvas.width / dpr, canvas.height / dpr, false);
 
     const mapMatrix = new THREE.Matrix4().fromArray(matrix);
-    const modelWorldScale = (SCALE_TO_METERS / _maxDim) * _config.scale;
-    _modelGroup.scale.setScalar(modelWorldScale);
 
     for (const [, boat] of _entries) {
-      const { lng, lat } = boat;
+      const { lng, lat, modelPath } = boat;
       if (!isFinite(lng) || !isFinite(lat)) continue;
 
+      // Obtener modelo del cache (o disparar carga si falta)
+      const cached = _modelCache.get(modelPath);
+      if (!cached) {
+        ensureModel(modelPath);
+        continue; // se renderiza en el próximo frame cuando esté listo
+      }
+
+      // Intercambiar modelo en el grupo si es diferente al anterior
+      if (_activeModelObj !== cached.obj) {
+        if (_activeModelObj) _modelGroup.remove(_activeModelObj);
+        _modelGroup.add(cached.obj);
+        _activeModelObj = cached.obj;
+      }
+
+      // Escala: SCALE_TO_METERS metros reales, ajustada por _config.scale
+      const modelWorldScale = (SCALE_TO_METERS / cached.maxDim) * _config.scale;
+      _modelGroup.scale.setScalar(modelWorldScale);
+
+      // Posición Mercator del target
       const mc = MercatorCoordinate.fromLngLat([lng, lat], 0);
       const s = mc.meterInMercatorCoordinateUnits();
 
-      // Boat's transform in Mercator space:
-      // 1) RotateX(PI/2) converts GLB Y-up to Mercator Z-up
-      // 2) Scale(s,-s,s) converts meters to Mercator units (Y flip for Mercator convention)
-      // 3) Translate to boat's Mercator position
-      const boatMercatorMatrix = new THREE.Matrix4()
+      // Matriz del target en espacio Mercator:
+      //   1. RotateX(PI/2): GLB Y-up → Mercator Z-up
+      //   2. Scale(s,-s,s): metros → unidades Mercator (el -s invierte Y de Mercator)
+      //   3. Translate: posición exacta en el mapa
+      const targetMercatorMatrix = new THREE.Matrix4()
         .makeTranslation(mc.x, mc.y, mc.z)
         .multiply(new THREE.Matrix4().makeScale(s, -s, s))
         .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
 
+      // Rumbo del target (solo su propio heading)
       _modelGroup.rotation.y =
         -((boat.bearingDeg + _config.rotationOffset) * Math.PI) / 180;
 
+      // Estado de los anillos
       const mat = _movingRing!.material as THREE.MeshBasicMaterial;
       mat.color.set(boat.moving ? 0x38bdf8 : 0x6b7280);
       mat.opacity = boat.moving ? 0.85 : 0.35;
       _movingRing!.visible = true;
       _selectedRing!.visible = boat.isSelected;
 
-      // Full MVP = mapboxVP x boatMercatorMatrix x modelGroup.matrixWorld
-      _camera.projectionMatrix = mapMatrix.clone().multiply(boatMercatorMatrix);
+      // projectionMatrix = mapboxVP × targetMercatorMatrix
+      _camera.projectionMatrix = mapMatrix.clone().multiply(targetMercatorMatrix);
 
       _renderer.resetState();
       _renderer.render(_scene!, _camera);
     }
 
-    if (_mixer) _map?.triggerRepaint();
+    if ([...
+_modelCache.values()].some((c) => c.mixer)) _map?.triggerRepaint();
   },
 };
+
+// ── API pública ────────────────────────────────────────────────────────────
 
 export function createBoatLayer(): CustomLayerInterface {
   return _layer;
@@ -260,23 +309,25 @@ export function destroyBoatLayer() {
 }
 
 export function updateBoat3DConfig(cfg: Partial<Boat3DConfig>) {
-  const prevPath = _config.modelPath;
   Object.assign(_config, cfg);
-  if (cfg.modelPath && cfg.modelPath !== prevPath && _scene) {
-    loadModel(cfg.modelPath);
-  }
   _map?.triggerRepaint();
 }
 
-export function registerBoat(id: string, lng: number, lat: number) {
-  _entries.set(id, { lng, lat, bearingDeg: 0, moving: false, isSelected: false });
+export function registerBoat(id: string, lng: number, lat: number, modelPath: string) {
+  _entries.set(id, { lng, lat, bearingDeg: 0, moving: false, isSelected: false, modelPath });
+  if (_scene) ensureModel(modelPath);
   _map?.triggerRepaint();
 }
 
 export function updateBoat(id: string, data: Partial<BoatEntry>) {
   const entry = _entries.get(id);
   if (entry) {
+    const prevPath = entry.modelPath;
     Object.assign(entry, data);
+    // Pre-cargar el modelo nuevo si cambió la categoría
+    if (data.modelPath && data.modelPath !== prevPath && _scene) {
+      ensureModel(data.modelPath);
+    }
     _map?.triggerRepaint();
   }
 }

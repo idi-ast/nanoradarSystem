@@ -9,17 +9,22 @@ import {
   DEFAULT_BOAT3D_CONFIG,
   type Boat3DConfig,
 } from "../boatSingleRenderer";
+import { DEFAULT_CATEGORY_MODELS } from "../../../stores/targetVisualStore";
 
-const AVAILABLE_MODELS: { path: string; label: string }[] = [
-  { path: "/3d/glb/cargo_ship.glb",  label: "Auto" },
-  { path: "/3d/glb/bote.glb",  label: "Bote" },
-  { path: "/3d/glb/cargo_ship.glb", label: "Barco"  },
-  { path: "/3d/glb/people.glb", label: "Persona"  },
-  { path: "/3d/glb/car2.glb", label: "Auto"  },
-  { path: "/3d/glb/pet.glb", label: "Mascota"  },
-  { path: "/3d/glb/dron2.glb", label: "Dron2"  },
-  { path: "/3d/glb/dron.glb", label: "Dron"  },
-];
+/** Opciones de modelo GLB disponibles por categoría */
+const CATEGORY_MODEL_OPTIONS: Record<number, { path: string; label: string }[]> = {
+  1: [{ path: "/3d/glb/people.glb",    label: "Persona" }],
+  2: [
+    { path: "/3d/glb/cargo_ship.glb", label: "Cargo" },
+    { path: "/3d/glb/bote.glb",       label: "Bote" },
+  ],
+  3: [{ path: "/3d/glb/car2.glb",     label: "Auto" }],
+  4: [{ path: "/3d/glb/pet.glb",      label: "Mascota" }],
+  5: [
+    { path: "/3d/glb/dron.glb",       label: "Dron" },
+    { path: "/3d/glb/dron2.glb",      label: "Dron 2" },
+  ],
+};
 
 
 function SliderRow({
@@ -69,6 +74,8 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
     set3DBoat,
     boat3DConfig,
     setBoat3DConfig,
+    categoryModels,
+    setCategoryModel,
     reset,
   } = useTargetVisualStore();
 
@@ -124,7 +131,7 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
 
       <div className="bg-bg-200/60 rounded-lg p-2.5 space-y-2">
         <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
-          Modelo 3D · Barco
+          Modelo 3D · Configuración
         </p>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[10px] text-text-200">
@@ -153,27 +160,35 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
         {use3DBoat && (
           <div className="pt-1 space-y-2 border-t border-border/40">
 
-            <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Modelo</p>
+            <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Modelo por categoría</p>
 
-            <div className="flex flex-wrap gap-1">
-              {AVAILABLE_MODELS.map((m) => {
-                const active = boat3DConfig.modelPath === m.path;
-                return (
-                  <button
-                    key={m.path}
-                    type="button"
-                    onClick={() => handleConfig("modelPath", m.path)}
-                    className={`px-2 py-0.5 text-[9px] rounded border transition-colors ${
-                      active
-                        ? "border-brand-100 bg-brand-100/15 text-brand-100"
-                        : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
+            {ZONE_DETECTION_CATEGORIES.map((cat) => {
+              const options = CATEGORY_MODEL_OPTIONS[cat.id];
+              if (!options || options.length === 0) return null;
+              const currentPath = categoryModels[cat.id] ?? DEFAULT_CATEGORY_MODELS[cat.id];
+              return (
+                <div key={cat.id} className="flex items-center gap-1.5">
+                  <cat.icon size={13} stroke={1.6} className="text-text-200/60 shrink-0" />
+                  <span className="text-[9px] text-text-200/60 w-13 shrink-0">{cat.label}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {options.map((m) => (
+                      <button
+                        key={m.path}
+                        type="button"
+                        onClick={() => setCategoryModel(cat.id, m.path)}
+                        className={`px-2 py-0.5 text-[9px] rounded border transition-colors ${
+                          currentPath === m.path
+                            ? "border-brand-100 bg-brand-100/15 text-brand-100"
+                            : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
             <SliderRow
               label="Escala"
