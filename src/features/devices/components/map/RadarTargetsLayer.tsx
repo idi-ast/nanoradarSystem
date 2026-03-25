@@ -174,6 +174,8 @@ export function RadarTargetsLayer({
                 >
                   <Boat3DMarker
                     id={t.id}
+                    lng={lon}
+                    lat={lat}
                     history={t.history}
                     moving={moving}
                     isSelected={isSelected}

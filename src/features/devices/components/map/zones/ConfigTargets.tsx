@@ -10,15 +10,12 @@ import {
   type Boat3DConfig,
 } from "../boatSingleRenderer";
 
-// ── Modelos 3D disponibles ───────────────────────────────────────────────────
-// Agregar aquí los nuevos GLBs cuando estén listos (ships, drones, etc.)
 const AVAILABLE_MODELS: { path: string; label: string }[] = [
   { path: "/3d/glb/car.glb",  label: "Auto" },
-  { path: "/3d/glb/ship.glb",  label: "Barco" },
-  // { path: "/3d/glb/drone.glb", label: "Dron"  },
+  // { path: "/3d/glb/ship.glb",  label: "Barco" },
+  { path: "/3d/glb/cargo_ship.glb", label: "Barco"  },
 ];
 
-// ── Slider compacto ──────────────────────────────────────────────────────────
 
 function SliderRow({
   label,
@@ -120,7 +117,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* ── Modo 3D (barco) ─────────────────────────────── */}
       <div className="bg-bg-200/60 rounded-lg p-2.5 space-y-2">
         <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
           Modelo 3D · Barco
@@ -132,7 +128,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
               {use3DBoat ? "Modelo 3D activo" : "Alto rendimiento (2D)"}
             </span>
           </div>
-          {/* Toggle switch */}
           <button
             type="button"
             onClick={() => set3DBoat(!use3DBoat)}
@@ -150,14 +145,11 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* ── Controles del modelo 3D ── */}
         {use3DBoat && (
           <div className="pt-1 space-y-2 border-t border-border/40">
 
-            {/* Modelo */}
             <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Modelo</p>
 
-            {/* Selector de modelo GLB */}
             <div className="flex flex-wrap gap-1">
               {AVAILABLE_MODELS.map((m) => {
                 const active = boat3DConfig.modelPath === m.path;
@@ -180,7 +172,7 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
 
             <SliderRow
               label="Escala"
-              min={0.1} max={5} step={0.05}
+              min={0.1} max={10} step={0.05}
               value={boat3DConfig.scale}
               format={(v) => `${v.toFixed(2)}×`}
               onChange={(v) => handleConfig("scale", v)}
@@ -193,7 +185,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
               onChange={(v) => handleConfig("rotationOffset", v)}
             />
 
-            {/* Cámara */}
             <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Cámara</p>
             <SliderRow
               label="Altura"
@@ -217,7 +208,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
               onChange={(v) => handleConfig("fov", v)}
             />
 
-            {/* Luces */}
             <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Luces</p>
             <SliderRow
               label="Ambiental"
