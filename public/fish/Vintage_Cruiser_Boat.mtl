@@ -1,0 +1,34 @@
+newmtl Cabin_Mat
+Ni 1.5
+Ka 0 0 0
+d 1.0
+Ke 0.0
+Kd 0 0 0
+adobe_map_normal Vintage_Cruiser_Boat/Cabin_normal.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_translucence 0.0
+adobe_map_roughness Vintage_Cruiser_Boat/Cabin_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm Vintage_Cruiser_Boat/Cabin_metallic.png
+Ns 16
+map_Kd Vintage_Cruiser_Boat/Cabin_baseColor.png
+newmtl Body_Mat
+Ni 1.5
+Ka 0 0 0
+d 1.0
+Ke 0.0
+Kd 0 0 0
+adobe_map_normal Vintage_Cruiser_Boat/Body_normal.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_translucence 0.0
+adobe_map_roughness Vintage_Cruiser_Boat/Body_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm Vintage_Cruiser_Boat/Body_metallic.png
+Ns 16
+map_Kd Vintage_Cruiser_Boat/Body_baseColor.png

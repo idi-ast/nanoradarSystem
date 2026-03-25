@@ -1,0 +1,71 @@
+newmtl cotton_mat
+Ni 1.5
+Ka 0 0 0
+map_Ke boat_STWANZF/cotton_mat_glow.png
+d 1
+Kd 0 0 0
+adobe_map_normal boat_STWANZF/cotton_mat_normal.png
+map_d boat_STWANZF/cotton_mat_opacity.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_translucence 0.0
+adobe_map_roughness boat_STWANZF/cotton_mat_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm boat_STWANZF/cotton_mat_metallic.png
+Ns 16
+map_Kd boat_STWANZF/cotton_mat_baseColor.png
+newmtl glass_mat
+Ni 1.5
+Ka 0 0 0
+d 1.0
+Ke 0.0
+Kd 0 0 0
+adobe_map_normal boat_STWANZF/glass_mat_normal.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_map_roughness boat_STWANZF/glass_mat_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm boat_STWANZF/glass_mat_metallic.png
+Ns 16
+adobe_map_translucence boat_STWANZF/glass_mat_translucence.png
+map_Kd boat_STWANZF/glass_mat_baseColor.png
+newmtl metal_mat
+Ni 1.5
+Ka 0 0 0
+map_Ke boat_STWANZF/metal_mat_glow.png
+d 1
+Kd 0 0 0
+adobe_map_normal boat_STWANZF/metal_mat_normal.png
+map_d boat_STWANZF/metal_mat_opacity.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_translucence 0.0
+adobe_map_roughness boat_STWANZF/metal_mat_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm boat_STWANZF/metal_mat_metallic.png
+Ns 16
+map_Kd boat_STWANZF/metal_mat_baseColor.png
+newmtl wood_mat
+Ni 1.5
+Ka 0 0 0
+map_Ke boat_STWANZF/cotton_mat_glow.png
+d 1
+Kd 0 0 0
+adobe_map_normal boat_STWANZF/wood_mat_normal.png
+map_d boat_STWANZF/wood_mat_opacity.png
+Tr 0
+illum 7
+Ks 1 1 1
+adobe_translucence 0.0
+adobe_map_roughness boat_STWANZF/wood_mat_roughness.png
+adobe_interior_color 1.0 1.0 1.0
+adobe_density 0.0
+map_Pm boat_STWANZF/wood_mat_metallic.png
+Ns 16
+map_Kd boat_STWANZF/wood_mat_baseColor.png

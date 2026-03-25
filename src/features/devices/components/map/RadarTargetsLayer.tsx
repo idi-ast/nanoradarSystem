@@ -7,6 +7,8 @@ import { useRadarContext, useRadarTargets } from "../../context/useRadarContext"
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
 import { ZONE_DETECTION_CATEGORIES } from "../../config";
+import { Boat3DMarker } from "./Boat3DMarker";
+import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -45,6 +47,7 @@ export function RadarTargetsLayer({
   const defaultCategoria = useTargetVisualStore(
     (s) => s.defaultCategoriaDeteccion,
   );
+  const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
   const categoryMap = useTargetCategoryResolution(
     targets,
     zones,
@@ -130,6 +133,9 @@ export function RadarTargetsLayer({
 
   return (
     <>
+      {/* Canvas WebGL compartido para todos los marcadores 3D — UN solo contexto WebGL */}
+      {use3DBoat && <BoatsSharedCanvas />}
+
       <Source id={`targets-trails-${id}`} type="geojson" data={trailsData}>
         <Layer {...trailLayer} />
       </Source>
@@ -148,6 +154,9 @@ export function RadarTargetsLayer({
           const Icon = cat.icon;
           const isSelected = selectedTargetId === t.id;
 
+          // Modo 3D: sólo para barcos (catId === 2) cuando use3DBoat está activo
+          const show3D = use3DBoat && catId === 2;
+
           return (
             <Marker
               key={t.id}
@@ -155,31 +164,52 @@ export function RadarTargetsLayer({
               latitude={lat}
               anchor="center"
             >
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectTarget(isSelected ? null : t.id);
-                }}
-                className={[
-                  "relative cursor-pointer flex items-center justify-center",
-                  "w-15 h-15 rounded-full  transition-all",
-                  moving
-                    ? "border-sky-400 shadow-[0_0_1px_5px_rgba(56,189,248,0.5)]"
-                    : "border-text-200/30",
-                  isSelected
-                    ? "ring-2 ring-white scale-120 bg-bg-300"
-                    : "hover:scale-110",
-                ].join(" ")}
-              >
-                <Icon
-                  size={20}
-                  stroke={2}
-                  className={moving ? "text-sky-300" : "text-text-200/50"}
-                />
-                {t.nivel === 4 && (
-                  <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
-                )}
-              </div>
+              {show3D ? (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTarget(isSelected ? null : t.id);
+                  }}
+                  className="relative"
+                >
+                  <Boat3DMarker
+                    id={t.id}
+                    history={t.history}
+                    moving={moving}
+                    isSelected={isSelected}
+                    size={64}
+                  />
+                  {t.nivel === 4 && (
+                    <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping pointer-events-none" />
+                  )}
+                </div>
+              ) : (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTarget(isSelected ? null : t.id);
+                  }}
+                  className={[
+                    "relative cursor-pointer flex items-center justify-center",
+                    "w-15 h-15 rounded-full  transition-all",
+                    moving
+                      ? "border-sky-400 shadow-[0_0_1px_5px_rgba(56,189,248,0.5)]"
+                      : "border-text-200/30",
+                    isSelected
+                      ? "ring-2 ring-white scale-120 bg-bg-300"
+                      : "hover:scale-110",
+                  ].join(" ")}
+                >
+                  <Icon
+                    size={20}
+                    stroke={2}
+                    className={moving ? "text-sky-300" : "text-text-200/50"}
+                  />
+                  {t.nivel === 4 && (
+                    <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
+                  )}
+                </div>
+              )}
             </Marker>
           );
         })}
