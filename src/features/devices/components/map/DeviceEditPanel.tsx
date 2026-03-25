@@ -99,6 +99,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
       />
+      
     </div>
   );
 }

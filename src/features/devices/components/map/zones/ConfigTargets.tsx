@@ -1,13 +1,89 @@
 import { memo, useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconRefresh, IconTarget } from "@tabler/icons-react";
+import { IconRefresh, IconTarget, IconBox } from "@tabler/icons-react";
 import { useTargetVisualStore } from "../../../stores/targetVisualStore";
 import { ZONE_DETECTION_CATEGORIES } from "../../../config";
 import { Tooltip } from "@/components/ui";
+import {
+  updateBoat3DConfig,
+  DEFAULT_BOAT3D_CONFIG,
+  type Boat3DConfig,
+} from "../boatSingleRenderer";
+import { DEFAULT_CATEGORY_MODELS } from "../../../stores/targetVisualStore";
+
+/** Opciones de modelo GLB disponibles por categoría */
+const CATEGORY_MODEL_OPTIONS: Record<number, { path: string; label: string }[]> = {
+  1: [{ path: "/3d/glb/people.glb",    label: "Persona" }],
+  2: [
+    { path: "/3d/glb/cargo_ship.glb", label: "Cargo" },
+    { path: "/3d/glb/bote.glb",       label: "Bote" },
+  ],
+  3: [{ path: "/3d/glb/car2.glb",     label: "Auto" }],
+  4: [{ path: "/3d/glb/pet.glb",      label: "Mascota" }],
+  5: [
+    { path: "/3d/glb/dron.glb",       label: "Dron" },
+    { path: "/3d/glb/dron2.glb",      label: "Dron 2" },
+  ],
+};
+
+
+function SliderRow({
+  label,
+  min,
+  max,
+  step,
+  value,
+  format,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  format?: (v: number) => string;
+  onChange: (v: number) => void;
+}) {
+  const fmt = format ?? ((v: number) => String(v));
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[9px] text-text-200/60 uppercase tracking-wide w-18 shrink-0 leading-none">
+        {label}
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 h-1 cursor-pointer accent-brand-100"
+      />
+      <span className="text-[10px] text-text-200 w-9 text-right tabular-nums shrink-0">
+        {fmt(value)}
+      </span>
+    </div>
+  );
+}
 
 function TargetVisualPanel({ onClose }: { onClose: () => void }) {
-  const { defaultCategoriaDeteccion, setDefaultCategoria, reset } =
-    useTargetVisualStore();
+  const {
+    defaultCategoriaDeteccion,
+    setDefaultCategoria,
+    use3DBoat,
+    set3DBoat,
+    boat3DConfig,
+    setBoat3DConfig,
+    categoryModels,
+    setCategoryModel,
+    reset,
+  } = useTargetVisualStore();
+
+  function handleConfig(key: keyof Boat3DConfig, value: number | string) {
+    const next = { [key]: value } as Partial<Boat3DConfig>;
+    setBoat3DConfig(next);
+    updateBoat3DConfig(next);
+  }
 
   return (
     <div className="w-72 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-4">
@@ -51,6 +127,135 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
             );
           })}
         </div>
+      </div>
+
+      <div className="bg-bg-200/60 rounded-lg p-2.5 space-y-2">
+        <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
+          Modelo 3D · Configuración
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] text-text-200">
+            <IconBox size={13} stroke={1.6} />
+            <span>
+              {use3DBoat ? "Modelo 3D activo" : "Alto rendimiento (2D)"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => set3DBoat(!use3DBoat)}
+            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+              use3DBoat ? "bg-brand-100" : "bg-bg-400"
+            }`}
+            role="switch"
+            aria-checked={use3DBoat}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                use3DBoat ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {use3DBoat && (
+          <div className="pt-1 space-y-2 border-t border-border/40">
+
+            <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Modelo por categoría</p>
+
+            {ZONE_DETECTION_CATEGORIES.map((cat) => {
+              const options = CATEGORY_MODEL_OPTIONS[cat.id];
+              if (!options || options.length === 0) return null;
+              const currentPath = categoryModels[cat.id] ?? DEFAULT_CATEGORY_MODELS[cat.id];
+              return (
+                <div key={cat.id} className="flex items-center gap-1.5">
+                  <cat.icon size={13} stroke={1.6} className="text-text-200/60 shrink-0" />
+                  <span className="text-[9px] text-text-200/60 w-13 shrink-0">{cat.label}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {options.map((m) => (
+                      <button
+                        key={m.path}
+                        type="button"
+                        onClick={() => setCategoryModel(cat.id, m.path)}
+                        className={`px-2 py-0.5 text-[9px] rounded border transition-colors ${
+                          currentPath === m.path
+                            ? "border-brand-100 bg-brand-100/15 text-brand-100"
+                            : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            <SliderRow
+              label="Escala"
+              min={0.1} max={10} step={0.05}
+              value={boat3DConfig.scale}
+              format={(v) => `${v.toFixed(2)}×`}
+              onChange={(v) => handleConfig("scale", v)}
+            />
+            <SliderRow
+              label="Rot. inicial"
+              min={-180} max={180} step={5}
+              value={boat3DConfig.rotationOffset}
+              format={(v) => `${v}°`}
+              onChange={(v) => handleConfig("rotationOffset", v)}
+            />
+
+            <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Cámara</p>
+            <SliderRow
+              label="Altura"
+              min={0.5} max={12} step={0.25}
+              value={boat3DConfig.camHeight}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => handleConfig("camHeight", v)}
+            />
+            <SliderRow
+              label="Distancia"
+              min={0.5} max={12} step={0.25}
+              value={boat3DConfig.camDist}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => handleConfig("camDist", v)}
+            />
+            <SliderRow
+              label="FOV"
+              min={15} max={90} step={5}
+              value={boat3DConfig.fov}
+              format={(v) => `${v}°`}
+              onChange={(v) => handleConfig("fov", v)}
+            />
+
+            <p className="text-[9px] text-text-200/40 uppercase tracking-widest pt-0.5">Luces</p>
+            <SliderRow
+              label="Ambiental"
+              min={0} max={3} step={0.05}
+              value={boat3DConfig.ambientInt}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => handleConfig("ambientInt", v)}
+            />
+            <SliderRow
+              label="Direccional"
+              min={0} max={5} step={0.1}
+              value={boat3DConfig.dirInt}
+              format={(v) => v.toFixed(1)}
+              onChange={(v) => handleConfig("dirInt", v)}
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                setBoat3DConfig(DEFAULT_BOAT3D_CONFIG);
+                updateBoat3DConfig(DEFAULT_BOAT3D_CONFIG);
+              }}
+              className="w-full text-[9px] text-text-200/50 hover:text-text-200 transition-colors pt-0.5"
+            >
+              ↺ Resetear ajustes 3D
+            </button>
+          </div>
+        )}
       </div>
 
       <button
