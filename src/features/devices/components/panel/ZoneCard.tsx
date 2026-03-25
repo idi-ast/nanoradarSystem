@@ -152,7 +152,6 @@ export const ZoneCard = memo(function ZoneCard({
             ))}
           </select>
         </div>
-        {/* Destello de pantalla */}
         <div className="flex items-center justify-between bg-bg-100/30 py-1.5 rounded border border-border">
           <label className="text-xs text-text-200 uppercase">Destello pantalla:</label>
           <button
@@ -169,7 +168,6 @@ export const ZoneCard = memo(function ZoneCard({
             />
           </button>
         </div>
-        {/* Categoría de detección */}
         <div>
           <label className="text-xs text-text-200 uppercase block mb-1">
             Categoría detección:

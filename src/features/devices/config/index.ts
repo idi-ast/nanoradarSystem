@@ -1,11 +1,16 @@
+// import { createElement } from "react";
 import type { ComponentType } from "react";
 import {
   IconUser,
   IconSailboat,
-  IconCar,
   IconDog,
   IconDrone,
+  IconCar,
 } from "@tabler/icons-react";
+
+// const IconAutoImg: ComponentType<{ size?: number; stroke?: number; className?: string }> =
+//   ({ size = 20, className }) =>
+//     createElement("img", { src: "/svg/auto.png", width: size, height: size, className, alt: "Vehículo" });
 
 export interface BeamConfig {
   /** FPS objetivo de la animación del haz */

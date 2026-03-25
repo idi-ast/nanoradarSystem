@@ -162,12 +162,12 @@ export function RadarTargetsLayer({
                 }}
                 className={[
                   "relative cursor-pointer flex items-center justify-center",
-                  "w-12 h-12 rounded-full bg-bg-100/85  border-2 transition-all",
+                  "w-15 h-15 rounded-full  transition-all",
                   moving
-                    ? "border-sky-400 shadow-[0_0_8px_2px_rgba(56,189,248,0.4)]"
+                    ? "border-sky-400 shadow-[0_0_1px_5px_rgba(56,189,248,0.5)]"
                     : "border-text-200/30",
                   isSelected
-                    ? "ring-2 ring-brand-100 scale-110"
+                    ? "ring-2 ring-white scale-120 bg-bg-300"
                     : "hover:scale-110",
                 ].join(" ")}
               >
@@ -193,7 +193,7 @@ export function RadarTargetsLayer({
           closeButton={false}
           onClose={() => onSelectTarget(null)}
         >
-          <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow shadow-2xl p-5 min-w-64 rounded-lg">
+          <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow-2xl p-5 min-w-64 rounded-lg">
             <div>
               <h4 className="pb-2">
                 Detección: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}

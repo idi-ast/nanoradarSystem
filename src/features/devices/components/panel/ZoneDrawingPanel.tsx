@@ -107,7 +107,6 @@ export function ZoneDrawingPanel() {
         </select>
       </div>
 
-      {/* Destello de pantalla */}
       <div className="flex items-center justify-between bg-bg-100/30 p-2 rounded border border-border">
         <label className="text-xs text-text-200">Destello de pantalla:</label>
         <button
@@ -125,7 +124,6 @@ export function ZoneDrawingPanel() {
         </button>
       </div>
 
-      {/* Categoría de detección */}
       <div>
         <label className="text-xs text-text-200 block mb-1">
           Categoría de detección:
