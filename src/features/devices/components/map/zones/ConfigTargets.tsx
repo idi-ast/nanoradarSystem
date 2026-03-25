@@ -11,9 +11,13 @@ import {
 } from "../boatSingleRenderer";
 
 const AVAILABLE_MODELS: { path: string; label: string }[] = [
-  { path: "/3d/glb/car.glb",  label: "Auto" },
-  // { path: "/3d/glb/ship.glb",  label: "Barco" },
+  { path: "/3d/glb/cargo_ship.glb",  label: "Auto" },
+  { path: "/3d/glb/bote.glb",  label: "Bote" },
   { path: "/3d/glb/cargo_ship.glb", label: "Barco"  },
+  { path: "/3d/glb/people.glb", label: "Persona"  },
+  { path: "/3d/glb/car2.glb", label: "Auto"  },
+  { path: "/3d/glb/pet.glb", label: "Mascota"  },
+  { path: "/3d/glb/dron2.glb", label: "Dron"  },
 ];
 
 
