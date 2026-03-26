@@ -120,6 +120,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await authClient.signOut();
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_role_id");
+      localStorage.removeItem("auth_user");
+
       setLocalAuth(null);
     } catch (err) {
       setError((err as Error).message);

@@ -17,6 +17,8 @@ import type {
   Session,
 } from "@/libs/better-auth/types";
 import { authService } from "../services/authService";
+import { useRole } from "@/context/role";
+import type { RoleId } from "@/context/role";
 
 const USER_STORAGE_KEY = "auth_user";
 
@@ -25,6 +27,8 @@ interface BackdoorAuthProviderProps {
 }
 
 export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
+  const { setRoleId } = useRole();
+
   const [user, setUser] = useState<User | null>(() => {
     try {
       const stored = localStorage.getItem(USER_STORAGE_KEY);
@@ -83,6 +87,12 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
       setUser(newUser);
       setSession(buildSession(newUser.id, token));
+
+      const storedRoleId = localStorage.getItem("auth_role_id");
+      const parsed = storedRoleId ? parseInt(storedRoleId, 10) : NaN;
+      if (parsed === 1 || parsed === 2 || parsed === 3) {
+        setRoleId(parsed as RoleId);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +114,8 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     setUser(null);
     setSession(null);
     localStorage.removeItem(USER_STORAGE_KEY);
-  }, []);
+    setRoleId(null);
+  }, [setRoleId]);
 
   const refreshSession = useCallback(async () => {}, []);
 

@@ -3,6 +3,7 @@ import { IconPencil, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
+import { useRole } from "@/context/role/hooks/useRole";
 
 const ALERT_LEVELS = [
   { value: 1, label: "Nivel 1: Informativa" },
@@ -157,14 +158,12 @@ export const ZoneCard = memo(function ZoneCard({
           <button
             type="button"
             onClick={() => setEditDestello(!editDestello)}
-            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${
-              editDestello ? "bg-brand-100" : "bg-bg-300"
-            }`}
+            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${editDestello ? "bg-brand-100" : "bg-bg-300"
+              }`}
           >
             <span
-              className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${
-                editDestello ? "translate-x-4" : "translate-x-0.5"
-              }`}
+              className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${editDestello ? "translate-x-4" : "translate-x-0.5"
+                }`}
             />
           </button>
         </div>
@@ -180,11 +179,10 @@ export const ZoneCard = memo(function ZoneCard({
                   key={cat.id}
                   type="button"
                   onClick={() => setEditCategoria(cat.id)}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${
-                    active
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${active
                       ? "border-brand-100 bg-brand-100/10 text-text-100"
                       : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
-                  }`}
+                    }`}
                 >
                   <cat.icon size={20} stroke={1.5} />
                   {cat.label}
@@ -212,6 +210,7 @@ export const ZoneCard = memo(function ZoneCard({
       </div>
     );
   }
+  const { isSuperAdmin } = useRole();
 
   return (
     <div
@@ -219,10 +218,10 @@ export const ZoneCard = memo(function ZoneCard({
       style={
         hasAlert
           ? ({
-              border: `1.5px solid ${zone.poligono.color}`,
-              "--zone-glow-color": zone.poligono.color,
-              animation: "zone-alert-glow 1.6s ease-in-out infinite",
-            } as React.CSSProperties)
+            border: `1.5px solid ${zone.poligono.color}`,
+            "--zone-glow-color": zone.poligono.color,
+            animation: "zone-alert-glow 1.6s ease-in-out infinite",
+          } as React.CSSProperties)
           : undefined
       }
       onClick={handleFlyTo}
@@ -285,14 +284,15 @@ export const ZoneCard = memo(function ZoneCard({
             }}
           />
 
-          <button
+          {isSuperAdmin && <button
             onClick={handleEdit}
             className="p-1 rounded hover:bg-bg-300/80 text-text-100/40 hover:text-text-100 transition-colors opacity-0 group-hover:opacity-100"
             title="Editar zona"
           >
             <IconPencil size={13} stroke={1.5} />
           </button>
-          {confirmDelete ? (
+          }
+          {isSuperAdmin && confirmDelete ? (
             <>
               <span className="text-xs text-red-400 font-semibold whitespace-nowrap">
                 ¿Eliminar?
@@ -315,7 +315,7 @@ export const ZoneCard = memo(function ZoneCard({
               </button>
             </>
           ) : (
-            <button
+            isSuperAdmin && <button
               onClick={() => setConfirmDelete(true)}
               className="p-1 rounded hover:bg-red-900/60 text-text-100/40 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
               title="Eliminar zona"

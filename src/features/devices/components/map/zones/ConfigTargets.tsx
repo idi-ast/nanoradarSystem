@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconRefresh, IconTarget, IconBox } from "@tabler/icons-react";
+import { IconRefresh, IconTarget, IconBox, IconMapPin, IconMapPinFilled } from "@tabler/icons-react";
 import { useTargetVisualStore } from "../../../stores/targetVisualStore";
 import { ZONE_DETECTION_CATEGORIES } from "../../../config";
 import { useMapPanel } from "../MapPanelContext";
@@ -77,6 +77,12 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
     setBoat3DConfig,
     categoryModels,
     setCategoryModel,
+    customMapCenter,
+    customMapZoom,
+    currentViewportCenter,
+    currentViewportZoom,
+    setCustomMapCenter,
+    setCustomMapZoom,
     reset,
   } = useTargetVisualStore();
 
@@ -90,13 +96,58 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
     <div className="w-72 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
-          Icono de Detección
+          Configuración del mapa
         </h4>
         <button
           onClick={onClose}
           className="text-text-200 hover:text-text-100 transition-colors text-[10px]"
         >
           ✕
+        </button>
+      </div>
+
+      {/* Centro del mapa */}
+      <div className="bg-bg-200/60 rounded-lg p-2.5 space-y-2.5">
+        <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
+          Centro del mapa al iniciar
+        </p>
+        {customMapCenter ? (
+          <div className="flex items-start gap-1.5">
+            <IconMapPinFilled size={13} stroke={1.5} className="text-brand-100 shrink-0 mt-0.5" />
+            <div className="flex-1 text-[10px] text-text-200 leading-tight">
+              <p className="tabular-nums">{customMapCenter.latitude.toFixed(6)}</p>
+              <p className="tabular-nums">{customMapCenter.longitude.toFixed(6)}</p>
+              {customMapZoom !== null && (
+                <p className="tabular-nums text-liem-200/50">Zoom: <span className="text-lime-300">{customMapZoom.toFixed(1)} </span><small>predeterminado</small></p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => { setCustomMapCenter(null); setCustomMapZoom(null); }}
+              className="text-[9px] text-text-200/50 hover:text-red-400 transition-colors shrink-0"
+              title="Eliminar posición guardada"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <p className="text-[10px] text-text-200/50 leading-tight">
+            Sin posición guardada. Se usará la posición por defecto del sistema.
+          </p>
+        )}
+        <button
+          type="button"
+          disabled={!currentViewportCenter}
+          onClick={() => {
+            if (currentViewportCenter) {
+              setCustomMapCenter(currentViewportCenter);
+              setCustomMapZoom(currentViewportZoom);
+            }
+          }}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] rounded-lg border border-border text-text-200 hover:text-text-100 hover:bg-bg-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <IconMapPin size={12} stroke={2} />
+          Usar posición actual del mapa
         </button>
       </div>
 
@@ -294,7 +345,7 @@ const ConfigTargets = memo(function ConfigTargets() {
 
   return (
     <>
-      <Tooltip text="Icono de detección">
+      <Tooltip text="Configuración del mapa">
         <button
           ref={triggerRef}
           onClick={() => open ? closePanel("targets") : openPanel("targets")}

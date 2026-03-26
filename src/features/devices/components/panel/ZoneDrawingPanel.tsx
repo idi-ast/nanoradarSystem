@@ -98,7 +98,6 @@ export function ZoneDrawingPanel() {
             setZoneSound(e.target.value === "" ? null : Number(e.target.value))
           }
         >
-          <option value="0">Sin sonido</option>
           {ZONE_SOUNDS.map((s) => (
             <option key={s.id} value={s.id}>
               {s.id} — {s.label}
