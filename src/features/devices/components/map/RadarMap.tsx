@@ -29,6 +29,7 @@ import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
+import { MapPanelProvider } from "./MapPanelContext";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
@@ -38,6 +39,7 @@ interface RadarMapProps {
   historyRange?: HistoryRange;
   radarInstance?: RadarInstanceConfig;
   deviceFilter?: DeviceFilter;
+  visibility?: DeviceVisibility;
   onVisibilityChange?: (v: DeviceVisibility) => void;
 }
 
@@ -67,6 +69,7 @@ function SecondaryRadarLayers({
 export const RadarMap = memo(function RadarMap({
   historyRange = { start: 0, end: 100 },
   deviceFilter = "all",
+  visibility: controlledVisibility,
   onVisibilityChange,
 }: RadarMapProps) {
   const {
@@ -99,6 +102,7 @@ export const RadarMap = memo(function RadarMap({
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  const effectiveVisibility = controlledVisibility ?? deviceVisibility;
   const handleVisibilityChange = useCallback(
     (v: DeviceVisibility) => {
       setDeviceVisibility(v);
@@ -283,7 +287,7 @@ export const RadarMap = memo(function RadarMap({
           </Source>
 
           <DevicesOverlay
-            visibility={deviceVisibility}
+            visibility={effectiveVisibility}
             deviceFilter={deviceFilter}
           />
           <MapControls
@@ -350,11 +354,12 @@ export const RadarMap = memo(function RadarMap({
         <div className="radar-vignette" />
         <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
-      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex ">
-        <div className="flex flex-col gap-1 p-1.5">
+      <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
+        <MapPanelProvider>
+        <div className="flex flex-col gap-1 p-2 ">
           <ZonesPanel />
           <DeviceSelector
-            visibility={deviceVisibility}
+            visibility={effectiveVisibility}
             onChange={handleVisibilityChange}
             onEditNanoradar={(device) =>
               openEdit({ kind: "nanoradar", device })
@@ -372,6 +377,7 @@ export const RadarMap = memo(function RadarMap({
             </span>
           </div>
         </div>
+        </MapPanelProvider>
       </div>
     </div>
   );

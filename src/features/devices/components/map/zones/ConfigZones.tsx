@@ -7,6 +7,7 @@ import {
   IconRefresh,
 } from "@tabler/icons-react";
 import { useZoneStyleStore } from "../../../stores/zoneStyleStore";
+import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
 
 
@@ -174,7 +175,8 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
 
 
 const ConfigZones = memo(function ConfigZones() {
-  const [open, setOpen] = useState(false);
+  const { isOpen, openPanel, closePanel } = useMapPanel();
+  const open = isOpen("zones");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
@@ -201,7 +203,7 @@ const ConfigZones = memo(function ConfigZones() {
       <Tooltip text="Configurar estilo de zonas">
         <button
           ref={triggerRef}
-          onClick={() => setOpen((p) => !p)}
+          onClick={() => open ? closePanel("zones") : openPanel("zones")}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
               ? "bg-emerald-700 text-white border border-emerald-500/50"
@@ -228,7 +230,7 @@ const ConfigZones = memo(function ConfigZones() {
           <div
             style={{ position: "fixed", top: panelStyle.top, right: panelStyle.right, zIndex: 9999 }}
           >
-            <ZoneStylePanel onClose={() => setOpen(false)} />
+            <ZoneStylePanel onClose={() => closePanel("zones")} />
           </div>,
           document.body,
         )}

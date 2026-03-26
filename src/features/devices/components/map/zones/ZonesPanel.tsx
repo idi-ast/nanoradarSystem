@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui";
 import ConfigZones from "./ConfigZones";
 import ConfigRadar from "./ConfigRadar";
 import ConfigTargets from "./ConfigTargets";
+import { useMapPanel } from "../MapPanelContext";
 
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
@@ -28,11 +29,29 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
 
 export const ZonesPanel = memo(function ZonesPanel() {
   const { isDrawing, startDrawing, cancelDrawing } = useRadarContext();
+  const { activePanel, openPanel, closePanel } = useMapPanel();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
     right: 0,
   });
+
+  // When another panel opens, cancel drawing automatically
+  useEffect(() => {
+    if (isDrawing && activePanel !== "drawing") {
+      cancelDrawing();
+    }
+  }, [activePanel, isDrawing, cancelDrawing]);
+
+  const handleDrawToggle = () => {
+    if (isDrawing) {
+      cancelDrawing();
+      closePanel("drawing");
+    } else {
+      startDrawing();
+      openPanel("drawing");
+    }
+  };
 
   useEffect(() => {
     if (!isDrawing || !triggerRef.current) return;
@@ -57,7 +76,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
       <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}
-          onClick={isDrawing ? cancelDrawing : startDrawing}
+          onClick={handleDrawToggle}
           className={`h-10 w-10 flex justify-center items-center rounded text-white transition-colors ${
             isDrawing
               ? "border border-brand-100 hover:border-red-600"

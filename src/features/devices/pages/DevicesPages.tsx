@@ -38,6 +38,14 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   });
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  const handleHideCamera = useCallback(
+    (id: number) =>
+      setDeviceVisibility((prev) => ({
+        ...prev,
+        hiddenCamaras: new Set([...prev.hiddenCamaras, id]),
+      })),
+    [],
+  );
   const handleRangeChange = useCallback(
     (range: HistoryRange) => setHistoryRange(range),
     [],
@@ -52,6 +60,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           <RadarMap
             historyRange={historyRange}
             deviceFilter={deviceFilter}
+            visibility={deviceVisibility}
             onVisibilityChange={setDeviceVisibility}
           />
         </div>
@@ -66,6 +75,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
           hiddenCamaras={deviceVisibility.hiddenCamaras}
+          onHideCamera={handleHideCamera}
         />
       ) : isOpenRightBar ? (
         <RightBarNano
@@ -73,6 +83,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           deviceFilter={deviceFilter}
           onDeviceFilterChange={setDeviceFilter}
           hiddenCamaras={deviceVisibility.hiddenCamaras}
+          onHideCamera={handleHideCamera}
         />
       ) : (
         <button
@@ -135,11 +146,13 @@ const RightBarNano = memo(
     deviceFilter,
     onDeviceFilterChange,
     hiddenCamaras,
+    onHideCamera,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
     onDeviceFilterChange: (f: DeviceFilter) => void;
     hiddenCamaras: Set<number>;
+    onHideCamera?: (id: number) => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -189,7 +202,7 @@ const RightBarNano = memo(
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
           />
-          <CamerasOverlay hiddenCamaras={hiddenCamaras} />
+          <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />
         </div>
       </div>
     );
@@ -199,6 +212,7 @@ const RightBarNano = memo(
     if (prev.deviceFilter !== next.deviceFilter) return false;
     if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
     if (prev.hiddenCamaras !== next.hiddenCamaras) return false;
+    if (prev.onHideCamera !== next.onHideCamera) return false;
     return true;
   },
 );
@@ -338,8 +352,10 @@ const TargetsSection = memo(function TargetsSection({
 
 const CamerasOverlay = memo(function CamerasOverlay({
   hiddenCamaras,
+  onHideCamera,
 }: {
   hiddenCamaras: Set<number>;
+  onHideCamera?: (id: number) => void;
 }) {
   const { data } = useConfigDevices();
   const camaras = data?.data?.camaras;
@@ -382,6 +398,7 @@ const CamerasOverlay = memo(function CamerasOverlay({
             stackIndex={stackIndex >= 0 ? stackIndex : 0}
             onBecomeMaximized={() => handleMaximize(cam.id)}
             onBecomeMinimized={() => handleMinimize(cam.id)}
+            onClose={onHideCamera ? () => onHideCamera(cam.id) : undefined}
             activity={activity}
           />
         );

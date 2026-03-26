@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { IconRefresh, IconTarget, IconBox } from "@tabler/icons-react";
 import { useTargetVisualStore } from "../../../stores/targetVisualStore";
 import { ZONE_DETECTION_CATEGORIES } from "../../../config";
+import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
 import {
   updateBoat3DConfig,
@@ -270,7 +271,8 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
 }
 
 const ConfigTargets = memo(function ConfigTargets() {
-  const [open, setOpen] = useState(false);
+  const { isOpen, openPanel, closePanel } = useMapPanel();
+  const open = isOpen("targets");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>(
     { top: 0, right: 0 },
@@ -295,7 +297,7 @@ const ConfigTargets = memo(function ConfigTargets() {
       <Tooltip text="Icono de detección">
         <button
           ref={triggerRef}
-          onClick={() => setOpen((p) => !p)}
+          onClick={() => open ? closePanel("targets") : openPanel("targets")}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
               ? "bg-sky-700 text-white border border-sky-500/50"
@@ -316,7 +318,7 @@ const ConfigTargets = memo(function ConfigTargets() {
               zIndex: 9999,
             }}
           >
-            <TargetVisualPanel onClose={() => setOpen(false)} />
+            <TargetVisualPanel onClose={() => closePanel("targets")} />
           </div>,
           document.body,
         )}

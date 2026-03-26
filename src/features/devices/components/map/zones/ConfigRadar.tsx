@@ -8,6 +8,7 @@ import {
 } from "@tabler/icons-react";
 import { useRadarVisualStore } from "../../../stores/radarVisualStore";
 import type { RadarVisualState } from "../../../stores/radarVisualStore";
+import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
 
 
@@ -210,7 +211,8 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
 
 
 export const ConfigRadar = memo(function ConfigRadar() {
-  const [open, setOpen] = useState(false);
+  const { isOpen, openPanel, closePanel } = useMapPanel();
+  const open = isOpen("radar");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
@@ -236,7 +238,7 @@ export const ConfigRadar = memo(function ConfigRadar() {
       <Tooltip text="Configurar visual del radar">
         <button
           ref={triggerRef}
-          onClick={() => setOpen((p) => !p)}
+          onClick={() => open ? closePanel("radar") : openPanel("radar")}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
               ? "bg-emerald-700 text-white border border-emerald-500/50"
@@ -257,7 +259,7 @@ export const ConfigRadar = memo(function ConfigRadar() {
               zIndex: 9999,
             }}
           >
-            <RadarConfigPanel onClose={() => setOpen(false)} />
+            <RadarConfigPanel onClose={() => closePanel("radar")} />
           </div>,
           document.body,
         )}

@@ -23,6 +23,7 @@ import { DeviceEditPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { Tooltip } from "@/components/ui";
 import { AddDeviceModal } from "@/features/config-devices/components/AddDeviceModal";
+import { useMapPanel } from "./MapPanelContext";
 
 interface DeviceSelectorProps {
   visibility: DeviceVisibility;
@@ -146,7 +147,9 @@ export const DeviceSelector = memo(function DeviceSelector({
   onLiveEditChange,
   onEditClose,
 }: DeviceSelectorProps) {
-  const [open, setOpen] = useState(false);
+  const { isOpen, openPanel, closePanel } = useMapPanel();
+  const open = isOpen("devices");
+  const toggleOpen = () => open ? closePanel("devices") : openPanel("devices");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
@@ -246,7 +249,7 @@ export const DeviceSelector = memo(function DeviceSelector({
       <Tooltip text="Dispositivos en mapa">
         <button
           ref={triggerRef}
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleOpen}
           className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${
             open
               ? "bg-brand-200/20 text-brand-200"
@@ -300,7 +303,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                   </Tooltip>
                   <button
                     onClick={() => {
-                      setOpen(false);
+                      closePanel("devices");
                       onEditClose?.();
                     }}
                     className="text-text-100/30 hover:text-text-100/70 ml-1"
