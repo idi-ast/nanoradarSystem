@@ -4,6 +4,7 @@ import type {
   Nanoradares,
   Spotters,
   Camaras,
+  Ptz,
 } from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
@@ -12,6 +13,8 @@ import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
 import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
+import { useUpdatePtz, useDeletePtz } from "@/features/config-devices/ptz/hooks";
+import type { PtzPayload } from "@/features/config-devices/ptz/service";
 
 export interface LiveEditValues {
   grado: number;
@@ -23,7 +26,8 @@ export interface LiveEditValues {
 export type EditingDevice =
   | { kind: "nanoradar"; device: Nanoradares }
   | { kind: "spotter"; device: Spotters }
-  | { kind: "camara"; device: Camaras };
+  | { kind: "camara"; device: Camaras }
+  | { kind: "ptz"; device: Ptz };
 
 function RangeNumberField({
   label,
@@ -672,6 +676,147 @@ function CamaraForm({
   );
 }
 
+function PtzForm({
+  device,
+  onClose,
+  liveEdit,
+  onLiveEditChange,
+  mode = "sidebar",
+}: {
+  device: Ptz;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  mode?: "sidebar" | "floating";
+}) {
+  const { mutate, isPending, isError } = useUpdatePtz();
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeletePtz();
+  const [form, setForm] = useState({
+    nombre: device.nombre,
+    direccionIp: device.direccionIp,
+    channel: device.channel ?? 1,
+    subtype: device.subtype ?? 0,
+    azimut: device.azimut ?? "0",
+    usuario: device.usuario,
+    password: device.password,
+    url_stream: device.url_stream,
+    tipo: device.tipo,
+  });
+
+  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  function save() {
+    const payload: PtzPayload = {
+      nombre: form.nombre,
+      direccionIp: form.direccionIp,
+      channel: form.channel,
+      subtype: form.subtype,
+      azimut: form.azimut,
+      grado: liveEdit.grado,
+      radio: liveEdit.radio,
+      apertura: liveEdit.apertura,
+      usuario: form.usuario,
+      password: form.password,
+      color: liveEdit.color,
+      url_stream: form.url_stream,
+      tipo: form.tipo,
+      latitud: String(device.ubicacion.lat),
+      longitud: String(device.ubicacion.lng),
+    };
+    mutate({ id: device.id, payload }, { onSuccess: onClose });
+  }
+
+  function remove() {
+    deleteMutate(device.id, { onSuccess: onClose });
+  }
+
+  return (
+    <PanelWrapper
+      title="PTZ"
+      subtitle={form.nombre}
+      onClose={onClose}
+      onSave={save}
+      onDelete={remove}
+      isPending={isPending}
+      isDeleting={isDeleting}
+      isError={isError}
+      mode={mode}
+    >
+      <TextField
+        label="Nombre"
+        value={form.nombre}
+        onChange={(v) => set("nombre", v)}
+      />
+      <TextField
+        label="Dirección IP"
+        value={form.direccionIp}
+        onChange={(v) => set("direccionIp", v)}
+      />
+      <RangeNumberField
+        label="Grado"
+        value={liveEdit.grado}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
+        min={0}
+        max={360}
+        unit="°"
+      />
+      <RangeNumberField
+        label="Apertura"
+        value={liveEdit.apertura}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
+        min={1}
+        max={180}
+        unit="°"
+      />
+      <RangeNumberField
+        label="Radio"
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
+      />
+      <RangeNumberField
+        label="Channel"
+        value={form.channel}
+        onChange={(v) => set("channel", v)}
+        min={1}
+        max={64}
+      />
+      <RangeNumberField
+        label="Subtype"
+        value={form.subtype}
+        onChange={(v) => set("subtype", v)}
+        min={0}
+        max={10}
+      />
+      <TextField
+        label="URL Stream"
+        value={form.url_stream}
+        onChange={(v) => set("url_stream", v)}
+      />
+      <TextField
+        label="Usuario"
+        value={form.usuario}
+        onChange={(v) => set("usuario", v)}
+      />
+      <TextField
+        label="Password"
+        type="password"
+        value={form.password}
+        onChange={(v) => set("password", v)}
+      />
+      <ColorField
+        value={liveEdit.color}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+      />
+    </PanelWrapper>
+  );
+}
+
 export function DeviceEditPanel({
   editing,
   onClose,
@@ -688,6 +833,17 @@ export function DeviceEditPanel({
   if (editing.kind === "nanoradar") {
     return (
       <NanoradarForm
+        device={editing.device}
+        onClose={onClose}
+        liveEdit={liveEdit}
+        onLiveEditChange={onLiveEditChange}
+        mode={mode}
+      />
+    );
+  }
+  if (editing.kind === "ptz") {
+    return (
+      <PtzForm
         device={editing.device}
         onClose={onClose}
         liveEdit={liveEdit}

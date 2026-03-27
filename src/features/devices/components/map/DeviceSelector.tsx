@@ -10,12 +10,14 @@ import {
   IconPencil,
   IconDevicesCog,
   IconPlus,
+  IconAdjustments,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import type {
   Nanoradares,
   Spotters,
   Camaras,
+  Ptz,
 } from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE } from "./devicesConfig";
@@ -31,6 +33,7 @@ interface DeviceSelectorProps {
   onEditNanoradar?: (device: Nanoradares) => void;
   onEditSpotter?: (device: Spotters) => void;
   onEditCamara?: (device: Camaras) => void;
+  onEditPtz?: (device: Ptz) => void;
   /** Estado de edición controlado desde el padre (p.ej. RadarMap) */
   editingDevice?: EditingDevice | null;
   liveEdit?: LiveEditValues | null;
@@ -142,6 +145,7 @@ export const DeviceSelector = memo(function DeviceSelector({
   onEditNanoradar,
   onEditSpotter,
   onEditCamara,
+  onEditPtz,
   editingDevice,
   liveEdit,
   onLiveEditChange,
@@ -175,12 +179,14 @@ export const DeviceSelector = memo(function DeviceSelector({
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
   const spotters = useMemo(() => data?.data?.spotters ?? [], [data]);
   const camaras = useMemo(() => data?.data?.camaras ?? [], [data]);
+  const ptzList = useMemo(() => data?.data?.ptz ?? [], [data]);
 
-  const totalDevices = nanoradares.length + spotters.length + camaras.length;
+  const totalDevices = nanoradares.length + spotters.length + camaras.length + ptzList.length;
   const totalHidden =
     visibility.hiddenNanoradares.size +
     visibility.hiddenSpotters.size +
-    visibility.hiddenCamaras.size;
+    visibility.hiddenCamaras.size +
+    visibility.hiddenPtz.size;
 
   const toggleNR = useCallback(
     (id: number) =>
@@ -205,6 +211,15 @@ export const DeviceSelector = memo(function DeviceSelector({
       onChange({
         ...visibility,
         hiddenCamaras: toggleId(visibility.hiddenCamaras, id),
+      }),
+    [visibility, onChange],
+  );
+
+  const togglePtz = useCallback(
+    (id: number) =>
+      onChange({
+        ...visibility,
+        hiddenPtz: toggleId(visibility.hiddenPtz, id),
       }),
     [visibility, onChange],
   );
@@ -236,11 +251,21 @@ export const DeviceSelector = memo(function DeviceSelector({
     });
   }, [camaras, visibility, onChange]);
 
+  const toggleAllPtz = useCallback(() => {
+    const ids = ptzList.map((p) => p.id);
+    const hideAll = !allHidden(ids, visibility.hiddenPtz);
+    onChange({
+      ...visibility,
+      hiddenPtz: hideAll ? new Set(ids) : new Set(),
+    });
+  }, [ptzList, visibility, onChange]);
+
   const showAll = useCallback(() => {
     onChange({
       hiddenNanoradares: new Set(),
       hiddenSpotters: new Set(),
       hiddenCamaras: new Set(),
+      hiddenPtz: new Set(),
     });
   }, [onChange]);
 
@@ -407,6 +432,36 @@ export const DeviceSelector = memo(function DeviceSelector({
                           onToggle={toggleCamera}
                           onEdit={
                             onEditCamara ? () => onEditCamara(c) : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* PTZ */}
+                  {ptzList.length > 0 && (
+                    <div>
+                      <GroupHeader
+                        icon={<IconAdjustments size={11} />}
+                        title="PTZ"
+                        count={ptzList.length}
+                        allGroupHidden={allHidden(
+                          ptzList.map((p) => p.id),
+                          visibility.hiddenPtz,
+                        )}
+                        onToggleAll={toggleAllPtz}
+                      />
+                      {ptzList.map((p) => (
+                        <DeviceRow
+                          key={p.id}
+                          id={p.id}
+                          label={p.nombre}
+                          subtitle={p.tipo}
+                          accentColor={p.color || "#8207d5"}
+                          isHidden={visibility.hiddenPtz.has(p.id)}
+                          onToggle={togglePtz}
+                          onEdit={
+                            onEditPtz ? () => onEditPtz(p) : undefined
                           }
                         />
                       ))}

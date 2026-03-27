@@ -2,13 +2,13 @@ import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import { IconCamera } from "@tabler/icons-react";
-import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
+import type { Camaras, Ptz } from "@/features/config-devices/types/ConfigServices.type";
 import { getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon, buildArcCoords } from "./geoUtils";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
 
 export interface CameraDeviceLayersProps {
-  camera: Camaras;
+  camera: Camaras | Ptz;
   fovDeg?: number;
   rangeM?: number;
 }

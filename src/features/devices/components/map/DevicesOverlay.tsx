@@ -14,6 +14,7 @@ export interface DeviceVisibility {
   hiddenNanoradares: Set<number>;
   hiddenSpotters: Set<number>;
   hiddenCamaras: Set<number>;
+  hiddenPtz: Set<number>;
 }
 
 export const DevicesOverlay = memo(function DevicesOverlay({
@@ -27,7 +28,7 @@ export const DevicesOverlay = memo(function DevicesOverlay({
 
   if (!data?.data) return null;
 
-  const { nanoradares, spotters, camaras } = data.data;
+  const { nanoradares, spotters, camaras, ptz } = data.data;
 
   const showNanoradares = deviceFilter !== "spotter";
   const showSpotters = deviceFilter !== "nanoRadar";
@@ -90,6 +91,12 @@ export const DevicesOverlay = memo(function DevicesOverlay({
         .filter((c) => !visibility.hiddenCamaras.has(c.id))
         .map((c) => (
           <CameraDeviceLayers key={c.id} camera={c} />
+        ))}
+
+      {(ptz ?? [])
+        .filter((p) => !visibility.hiddenPtz.has(p.id))
+        .map((p) => (
+          <CameraDeviceLayers key={`ptz-${p.id}`} camera={p} />
         ))}
     </>
   );

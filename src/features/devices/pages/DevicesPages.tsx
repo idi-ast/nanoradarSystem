@@ -19,6 +19,7 @@ import { ALL_VISIBLE } from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
+import PtzCameraOverlay from "./PtzCameraOverlay";
 
 function NanoPages() {
   const { isMobile } = useBreakpoint();
@@ -43,6 +44,14 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       setDeviceVisibility((prev) => ({
         ...prev,
         hiddenCamaras: new Set([...prev.hiddenCamaras, id]),
+      })),
+    [],
+  );
+  const handleHidePtz = useCallback(
+    (id: number) =>
+      setDeviceVisibility((prev) => ({
+        ...prev,
+        hiddenPtz: new Set([...prev.hiddenPtz, id]),
       })),
     [],
   );
@@ -76,6 +85,8 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           onDeviceFilterChange={setDeviceFilter}
           hiddenCamaras={deviceVisibility.hiddenCamaras}
           onHideCamera={handleHideCamera}
+          hiddenPtz={deviceVisibility.hiddenPtz}
+          onHidePtz={handleHidePtz}
         />
       ) : isOpenRightBar ? (
         <RightBarNano
@@ -84,6 +95,8 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           onDeviceFilterChange={setDeviceFilter}
           hiddenCamaras={deviceVisibility.hiddenCamaras}
           onHideCamera={handleHideCamera}
+          hiddenPtz={deviceVisibility.hiddenPtz}
+          onHidePtz={handleHidePtz}
         />
       ) : (
         <button
@@ -147,12 +160,16 @@ const RightBarNano = memo(
     onDeviceFilterChange,
     hiddenCamaras,
     onHideCamera,
+    hiddenPtz,
+    onHidePtz,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
     onDeviceFilterChange: (f: DeviceFilter) => void;
     hiddenCamaras: Set<number>;
     onHideCamera?: (id: number) => void;
+    hiddenPtz: Set<number>;
+    onHidePtz?: (id: number) => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -203,6 +220,7 @@ const RightBarNano = memo(
             onDeviceFilterChange={onDeviceFilterChange}
           />
           <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />
+          <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
         </div>
       </div>
     );
@@ -213,6 +231,8 @@ const RightBarNano = memo(
     if (prev.onDeviceFilterChange !== next.onDeviceFilterChange) return false;
     if (prev.hiddenCamaras !== next.hiddenCamaras) return false;
     if (prev.onHideCamera !== next.onHideCamera) return false;
+    if (prev.hiddenPtz !== next.hiddenPtz) return false;
+    if (prev.onHidePtz !== next.onHidePtz) return false;
     return true;
   },
 );
@@ -405,4 +425,4 @@ const CamerasOverlay = memo(function CamerasOverlay({
       })}
     </div>
   );
-});
+})

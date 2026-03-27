@@ -172,6 +172,18 @@ export const RadarMap = memo(function RadarMap({
         lat: Number(d.ubicacion.lat),
         lng: Number(d.ubicacion.lng),
       });
+    } else if (ed.kind === "ptz") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#8207d5",
+      });
+      setLiveEditPos({
+        lat: Number(d.ubicacion.lat),
+        lng: Number(d.ubicacion.lng),
+      });
     }
   }
 
@@ -381,6 +393,7 @@ export const RadarMap = memo(function RadarMap({
               }
               onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
               onEditCamara={(device) => openEdit({ kind: "camara", device })}
+              onEditPtz={(device) => openEdit({ kind: "ptz", device })}
               editingDevice={editingDevice}
               liveEdit={liveEdit}
               onLiveEditChange={setLiveEdit}
