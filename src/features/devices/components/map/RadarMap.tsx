@@ -34,7 +34,6 @@ import { MapPanelProvider } from "./MapPanelContext";
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { PageLoader } from "@/components/ui";
-import { useRole } from "@/context/role/hooks/useRole";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 
 interface RadarMapProps {
@@ -244,7 +243,6 @@ export const RadarMap = memo(function RadarMap({
   const defaultCenter = instanceConfig.map.fallbackCenter;
   const customMapCenter = useTargetVisualStore((s) => s.customMapCenter);
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
-  const { isSuperAdmin } = useRole();
 
   if (!config) {
     return (
@@ -370,38 +368,32 @@ export const RadarMap = memo(function RadarMap({
         <div className="radar-vignette" />
         <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
-      {isSuperAdmin && (
 
-        <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
-          <MapPanelProvider>
-            <div className="flex flex-col gap-1 p-2 ">
-
-
-              <ZonesPanel />
-
-
-              <DeviceSelector
-                visibility={effectiveVisibility}
-                onChange={handleVisibilityChange}
-                onEditNanoradar={(device) =>
-                  openEdit({ kind: "nanoradar", device })
-                }
-                onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
-                onEditCamara={(device) => openEdit({ kind: "camara", device })}
-                editingDevice={editingDevice}
-                liveEdit={liveEdit}
-                onLiveEditChange={setLiveEdit}
-                onEditClose={closeEdit}
-              />
-              <div className="flex justify-center items-center flex-1">
-                <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
-                  Configuraciones de dispositivos
-                </span>
-              </div>
+      <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
+        <MapPanelProvider>
+          <div className="flex flex-col gap-1 p-2 ">
+            <ZonesPanel />
+            <DeviceSelector
+              visibility={effectiveVisibility}
+              onChange={handleVisibilityChange}
+              onEditNanoradar={(device) =>
+                openEdit({ kind: "nanoradar", device })
+              }
+              onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
+              onEditCamara={(device) => openEdit({ kind: "camara", device })}
+              editingDevice={editingDevice}
+              liveEdit={liveEdit}
+              onLiveEditChange={setLiveEdit}
+              onEditClose={closeEdit}
+            />
+            <div className="flex justify-center items-center flex-1">
+              <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
+                Configuraciones de dispositivos
+              </span>
             </div>
-          </MapPanelProvider>
-        </div>
-      )}
+          </div>
+        </MapPanelProvider>
+      </div>
     </div>
   );
 });

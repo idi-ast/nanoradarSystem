@@ -50,6 +50,7 @@ export function RadarTargetsLayer({
   );
   const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
+  const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
   const categoryMap = useTargetCategoryResolution(
     targets,
     zones,
@@ -196,22 +197,29 @@ export function RadarTargetsLayer({
                     e.stopPropagation();
                     onSelectTarget(isSelected ? null : t.id);
                   }}
-                  className={[
-                    "relative cursor-pointer flex items-center justify-center",
-                    "w-15 h-15 rounded-full  transition-all",
-                    moving
-                      ? "border-sky-400 shadow-[0_0_1px_5px_rgba(56,189,248,0.5)]"
-                      : "border-text-200/30",
-                    isSelected
-                      ? "ring-2 ring-white scale-120 bg-bg-300"
-                      : "hover:scale-110",
-                  ].join(" ")}
+                  style={{
+                    width: moving ? iconStyle2D.movingSize : iconStyle2D.size,
+                    height: moving ? iconStyle2D.movingSize : iconStyle2D.size,
+                    borderRadius: `${moving ? iconStyle2D.movingBorderRadius : iconStyle2D.borderRadius}%`,
+                    borderWidth: moving ? iconStyle2D.movingBorderWidth : iconStyle2D.borderWidth,
+                    borderStyle: "solid",
+                    borderColor: moving ? iconStyle2D.movingBorderColor : iconStyle2D.borderColor,
+                    backgroundColor: iconStyle2D.bgColor + Math.round((moving ? iconStyle2D.movingBgOpacity : iconStyle2D.bgOpacity) * 255).toString(16).padStart(2, "0"),
+                    boxShadow: moving
+                      ? `0 0 0 4px ${iconStyle2D.movingBorderColor}40`
+                      : undefined,
+                    outline: isSelected ? "2px solid white" : undefined,
+                    transform: isSelected ? "scale(1.2)" : undefined,
+                  }}
+                  className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
                 >
-                  <Icon
-                    size={20}
-                    stroke={2}
-                    className={moving ? "text-sky-300" : "text-text-200/50"}
-                  />
+                  {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
+                    <Icon
+                      size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
+                      stroke={2}
+                      style={{ color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor }}
+                    />
+                  )}
                   {t.nivel === 4 && (
                     <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
                   )}
