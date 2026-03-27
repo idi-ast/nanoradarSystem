@@ -98,6 +98,7 @@ export function ZoneDrawingPanel() {
             setZoneSound(e.target.value === "" ? null : Number(e.target.value))
           }
         >
+          <option value="0">Sin sonido</option>
           {ZONE_SOUNDS.map((s) => (
             <option key={s.id} value={s.id}>
               {s.id} — {s.label}
@@ -111,14 +112,12 @@ export function ZoneDrawingPanel() {
         <button
           type="button"
           onClick={() => setDestello(!destello)}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-            destello ? "bg-brand-100" : "bg-bg-300"
-          }`}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${destello ? "bg-brand-100" : "bg-bg-300"
+            }`}
         >
           <span
-            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-              destello ? "translate-x-4.5" : "translate-x-0.5"
-            }`}
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${destello ? "translate-x-4.5" : "translate-x-0.5"
+              }`}
           />
         </button>
       </div>
@@ -135,11 +134,10 @@ export function ZoneDrawingPanel() {
                 key={cat.id}
                 type="button"
                 onClick={() => setCategoriaDeteccion(cat.id)}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${
-                  active
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${active
                     ? "border-brand-100 bg-brand-100/10 text-text-100"
                     : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
-                }`}
+                  }`}
               >
                 <cat.icon size={20} stroke={1.5} />
                 {cat.label}
