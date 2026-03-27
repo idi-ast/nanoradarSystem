@@ -11,6 +11,8 @@ import { Tooltip } from "@/components/ui";
 import ConfigZones from "./ConfigZones";
 import ConfigRadar from "./ConfigRadar";
 import ConfigTargets from "./ConfigTargets";
+import { useMapPanel } from "../MapPanelContext";
+import { useRole } from "@/context/role/hooks/useRole";
 
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
@@ -28,11 +30,29 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
 
 export const ZonesPanel = memo(function ZonesPanel() {
   const { isDrawing, startDrawing, cancelDrawing } = useRadarContext();
+  const { activePanel, openPanel, closePanel } = useMapPanel();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
     right: 0,
   });
+
+  // When another panel opens, cancel drawing automatically
+  useEffect(() => {
+    if (isDrawing && activePanel !== "drawing") {
+      cancelDrawing();
+    }
+  }, [activePanel, isDrawing, cancelDrawing]);
+
+  const handleDrawToggle = () => {
+    if (isDrawing) {
+      cancelDrawing();
+      closePanel("drawing");
+    } else {
+      startDrawing();
+      openPanel("drawing");
+    }
+  };
 
   useEffect(() => {
     if (!isDrawing || !triggerRef.current) return;
@@ -47,22 +67,22 @@ export const ZonesPanel = memo(function ZonesPanel() {
     window.addEventListener("resize", updatePos);
     return () => window.removeEventListener("resize", updatePos);
   }, [isDrawing]);
+  const { isSuperAdmin, isAdmin } = useRole();
 
   return (
     <div className="flex flex-col border-b border-border gap-1 pb-1">
-      <ClearTargetsButton />
+      {isSuperAdmin || isAdmin && <ClearTargetsButton />}
       <ConfigZones />
       <ConfigRadar />
       <ConfigTargets />
       <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}
-          onClick={isDrawing ? cancelDrawing : startDrawing}
-          className={`h-10 w-10 flex justify-center items-center rounded text-white transition-colors ${
-            isDrawing
-              ? "border border-brand-100 hover:border-red-600"
-              : "border border-transparent bg-bg-300 hover:bg-emerald-700"
-          }`}
+          onClick={handleDrawToggle}
+          className={`h-10 w-10 flex justify-center items-center rounded text-white transition-colors ${isDrawing
+            ? "border border-brand-100 hover:border-red-600"
+            : "border border-transparent bg-bg-300 hover:bg-emerald-700"
+            }`}
         >
           {isDrawing ? (
             <IconCircleX size={20} stroke={2} className="text-red-600" />

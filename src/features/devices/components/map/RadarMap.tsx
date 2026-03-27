@@ -29,15 +29,18 @@ import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
+import { MapPanelProvider } from "./MapPanelContext";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { PageLoader } from "@/components/ui";
+import { useTargetVisualStore } from "../../stores/targetVisualStore";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
   radarInstance?: RadarInstanceConfig;
   deviceFilter?: DeviceFilter;
+  visibility?: DeviceVisibility;
   onVisibilityChange?: (v: DeviceVisibility) => void;
 }
 
@@ -58,7 +61,7 @@ function SecondaryRadarLayers({
       <RadarTargetsLayer
         historyRange={historyRange}
         selectedTargetId={null}
-        onSelectTarget={() => {}}
+        onSelectTarget={() => { }}
       />
     </>
   );
@@ -67,6 +70,7 @@ function SecondaryRadarLayers({
 export const RadarMap = memo(function RadarMap({
   historyRange = { start: 0, end: 100 },
   deviceFilter = "all",
+  visibility: controlledVisibility,
   onVisibilityChange,
 }: RadarMapProps) {
   const {
@@ -99,6 +103,7 @@ export const RadarMap = memo(function RadarMap({
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  const effectiveVisibility = controlledVisibility ?? deviceVisibility;
   const handleVisibilityChange = useCallback(
     (v: DeviceVisibility) => {
       setDeviceVisibility(v);
@@ -120,10 +125,20 @@ export const RadarMap = memo(function RadarMap({
     lng: parseFloat(config?.longitud ?? "0"),
   }));
 
+  const setCurrentViewportCenter = useTargetVisualStore((s) => s.setCurrentViewportCenter);
+  const setCurrentViewportZoom = useTargetVisualStore((s) => s.setCurrentViewportZoom);
+
   const handleMoveEnd = useCallback(() => {
     const center = mapRef.current?.getCenter();
-    if (center) setMapCenter({ lat: center.lat, lng: center.lng });
-  }, []);
+    const zoom = mapRef.current?.getZoom();
+    if (center) {
+      setMapCenter({ lat: center.lat, lng: center.lng });
+      setCurrentViewportCenter({ latitude: center.lat, longitude: center.lng });
+    }
+    if (zoom !== undefined) {
+      setCurrentViewportZoom(zoom);
+    }
+  }, [setCurrentViewportCenter, setCurrentViewportZoom]);
 
   function openEdit(ed: EditingDevice) {
     setEditingDevice(ed);
@@ -152,6 +167,18 @@ export const RadarMap = memo(function RadarMap({
         apertura: d.apertura ?? 0,
         radio: d.radio ?? 0,
         color: d.color || "#f59e0b",
+      });
+      setLiveEditPos({
+        lat: Number(d.ubicacion.lat),
+        lng: Number(d.ubicacion.lng),
+      });
+    } else if (ed.kind === "ptz") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#8207d5",
       });
       setLiveEditPos({
         lat: Number(d.ubicacion.lat),
@@ -224,6 +251,11 @@ export const RadarMap = memo(function RadarMap({
     [isDrawing, addDrawingPoint],
   );
 
+
+  const defaultCenter = instanceConfig.map.fallbackCenter;
+  const customMapCenter = useTargetVisualStore((s) => s.customMapCenter);
+  const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
+
   if (!config) {
     return (
       <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
@@ -235,8 +267,6 @@ export const RadarMap = memo(function RadarMap({
     );
   }
 
-  const defaultCenter = instanceConfig.map.fallbackCenter;
-
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
@@ -244,9 +274,9 @@ export const RadarMap = memo(function RadarMap({
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
-            latitude: defaultCenter.latitude || initialCenter.latitude,
-            longitude: defaultCenter.longitude || initialCenter.longitude,
-            zoom: instanceConfig.map.zoom,
+            latitude: customMapCenter?.latitude ?? (defaultCenter.latitude || initialCenter.latitude),
+            longitude: customMapCenter?.longitude ?? (defaultCenter.longitude || initialCenter.longitude),
+            zoom: customMapZoom ?? instanceConfig.map.zoom,
             pitch: instanceConfig.map.pitch,
             bearing: instanceConfig.map.bearing,
           }}
@@ -283,7 +313,7 @@ export const RadarMap = memo(function RadarMap({
           </Source>
 
           <DevicesOverlay
-            visibility={deviceVisibility}
+            visibility={effectiveVisibility}
             deviceFilter={deviceFilter}
           />
           <MapControls
@@ -350,28 +380,32 @@ export const RadarMap = memo(function RadarMap({
         <div className="radar-vignette" />
         <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
-      <div className="relative h-full bg-bg-100/85 backdrop-blur-sm flex ">
-        <div className="flex flex-col gap-1 p-1.5">
-          <ZonesPanel />
-          <DeviceSelector
-            visibility={deviceVisibility}
-            onChange={handleVisibilityChange}
-            onEditNanoradar={(device) =>
-              openEdit({ kind: "nanoradar", device })
-            }
-            onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
-            onEditCamara={(device) => openEdit({ kind: "camara", device })}
-            editingDevice={editingDevice}
-            liveEdit={liveEdit}
-            onLiveEditChange={setLiveEdit}
-            onEditClose={closeEdit}
-          />
-          <div className="flex justify-center items-center flex-1">
-            <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
-              Configuraciones de dispositivos
-            </span>
+
+      <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
+        <MapPanelProvider>
+          <div className="flex flex-col gap-1 p-2 ">
+            <ZonesPanel />
+            <DeviceSelector
+              visibility={effectiveVisibility}
+              onChange={handleVisibilityChange}
+              onEditNanoradar={(device) =>
+                openEdit({ kind: "nanoradar", device })
+              }
+              onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
+              onEditCamara={(device) => openEdit({ kind: "camara", device })}
+              onEditPtz={(device) => openEdit({ kind: "ptz", device })}
+              editingDevice={editingDevice}
+              liveEdit={liveEdit}
+              onLiveEditChange={setLiveEdit}
+              onEditClose={closeEdit}
+            />
+            <div className="flex justify-center items-center flex-1">
+              <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
+                Configuraciones de dispositivos
+              </span>
+            </div>
           </div>
-        </div>
+        </MapPanelProvider>
       </div>
     </div>
   );

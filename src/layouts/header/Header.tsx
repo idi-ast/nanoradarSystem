@@ -1,6 +1,6 @@
 import ThemeToggleButton from "../modeColor/ThemeToggleButton";
 import type { AppConfig } from "@/config/ConfigServer";
-import { NotificationDropdown } from "@/template/notifications";
+// import { NotificationDropdown } from "@/template/notifications";
 import { UserMenu } from "@/template/components";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
 import { IconCategory2 } from "@tabler/icons-react";
@@ -47,7 +47,7 @@ function Header({
               </button>
             )}
             <ThemeToggleButton />
-            <NotificationDropdown />
+            {/* <NotificationDropdown /> */}
           </div>
           <div className="border-s border-border/50 py-0.5 px-0.5 relative">
             <UserMenu />

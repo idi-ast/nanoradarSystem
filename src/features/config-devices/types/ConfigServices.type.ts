@@ -6,6 +6,7 @@ export interface ConfigServicesType {
 export interface Data {
   nanoradares: Nanoradares[];
   camaras: Camaras[];
+  ptz: Ptz[];
   spotters: Spotters[];
 }
 
@@ -48,10 +49,30 @@ export interface Camaras {
   tipo: string;
 }
 
+
 export interface Ubicacion {
   lat: string;
   lng: string;
 }
+
+export interface Ptz {
+  id: number;
+  nombre: string;
+  ubicacion: Ubicacion;
+  direccionIp: string;
+  channel: number;
+  subtype: number;
+  azimut: string;
+  usuario: string;
+  password: string;
+  color: string;
+  grado: number;
+  radio: number;
+  apertura: number;
+  url_stream: string;
+  tipo: string;
+}
+
 
 export interface Nanoradares {
   nombre: string;

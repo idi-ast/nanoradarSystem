@@ -14,4 +14,5 @@ export const ALL_VISIBLE: DeviceVisibility = {
   hiddenNanoradares: new Set(),
   hiddenSpotters: new Set(),
   hiddenCamaras: new Set(),
+  hiddenPtz: new Set(),
 };

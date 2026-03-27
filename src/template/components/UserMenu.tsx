@@ -3,6 +3,8 @@ import { IconChevronDown } from "@tabler/icons-react";
 import { useBetterAuth, useBetterSession } from "@/libs/better-auth";
 import { LOGOUT_ITEM } from "@/template/config";
 import LineGradientWhite from "@/components/ui/LineGradientWhite";
+import { Link } from "react-router";
+import { useRole } from "@/context/role/hooks/useRole";
 
 export default function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,7 +12,6 @@ export default function UserMenu() {
   const { user } = useBetterSession();
   const { signOut } = useBetterAuth();
 
-  // Cerrar menú al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -27,12 +28,12 @@ export default function UserMenu() {
     signOut();
   };
 
+  const { isSuperAdmin } = useRole();
 
   return (
     <div className="relative" ref={menuRef}>
       <LineGradientWhite top="" height="0.05rem" color="#5e6166" />
 
-      {/* Trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 pe-2 ps-0.5 bg-bg-200   shadow-sm shadow-bg-100  hover:bg-bg-300 rounded-lg transition-colors"
@@ -54,16 +55,21 @@ export default function UserMenu() {
         />
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute animate-fade-in-down animate-duration-300  right-0 top-full mt-2 w-64 bg-bg-100 border border-border rounded-lg shadow-lg z-500 overflow-hidden">
-          {/* Header del menú */}
           <div className="px-4 py-3 border-b border-border bg-bg-200">
             <p className="text-sm font-semibold">{user?.name}</p>
             <p className="text-xs text-text-100">{user?.email}</p>
           </div>
-
-          {/* Cerrar sesión */}
+          {isSuperAdmin && <div className="px-5 flex flex-col gap-3 py-4">
+            <Link to="/perfil">
+              Perfil
+            </Link>
+            <Link to="/usuarios">
+              Usuarios
+            </Link>
+          </div>
+          }
           <div className="border-t border-border">
             <button
               onClick={handleLogout}

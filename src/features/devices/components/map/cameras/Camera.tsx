@@ -1,4 +1,4 @@
-import { IconMaximize, IconMinimize, IconRefresh, IconX } from "@tabler/icons-react";
+import { IconEye, IconMaximize, IconMinimize, IconRefresh, IconX } from "@tabler/icons-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
@@ -19,6 +19,7 @@ interface CameraProps {
   stackIndex?: number;
   onBecomeMaximized?: () => void;
   onBecomeMinimized?: () => void;
+  onClose?: () => void;
   activity?: CamaraActividad;
 }
 
@@ -147,11 +148,13 @@ function CameraToolbar({
   mode,
   onToggleMaximize,
   onToggleFullscreen,
+  onHide,
 }: {
   name: string;
   mode: CameraMode;
   onToggleMaximize: () => void;
   onToggleFullscreen: () => void;
+  onHide?: () => void;
 }) {
   return (
     <div className="flex items-center gap-3 px-2 py-1  border-b border-border">
@@ -183,6 +186,15 @@ function CameraToolbar({
         >
           <IconMaximize size={14} stroke={1.5} />
           <span>Pantalla completa</span>
+        </button>
+      )}
+
+      {onHide && (
+        <button
+          onClick={onHide}
+          className="flex items-center gap-1 text-[11px] text-text-100/70 hover:text-text-100 hover:bg-bg-300/60 px-1.5 py-0.5 rounded transition-colors"
+        >
+          <IconEye size={14} stroke={1.5} />
         </button>
       )}
     </div>
@@ -353,6 +365,7 @@ const Camera = memo(
     stackIndex = 0,
     onBecomeMaximized,
     onBecomeMinimized,
+    onClose,
     activity,
   }: CameraProps) {
   const [mode, setMode] = useState<CameraMode>("minimized");
@@ -409,6 +422,7 @@ const Camera = memo(
         mode="maximized"
         onToggleMaximize={toggleMaximize}
         onToggleFullscreen={openFullscreen}
+        onHide={onClose}
       />
       <CameraVideo videoRef={videoRef} activity={activity} connectionError={connectionError} onRetry={retry} />
     </div>
@@ -429,6 +443,7 @@ const Camera = memo(
             mode="minimized"
             onToggleMaximize={toggleMaximize}
             onToggleFullscreen={openFullscreen}
+            onHide={onClose}
           />
           <CameraVideo videoRef={videoRef} compact activity={activity} connectionError={connectionError} onRetry={retry} />
         </div>
@@ -453,6 +468,7 @@ const Camera = memo(
     if (prev.stackIndex !== next.stackIndex) return false;
     if (prev.onBecomeMaximized !== next.onBecomeMaximized) return false;
     if (prev.onBecomeMinimized !== next.onBecomeMinimized) return false;
+    if (prev.onClose !== next.onClose) return false;
     if (prev.position !== next.position) return false;
     // Compara activity por valor para ignorar cambios de referencia sin datos nuevos
     const pa = prev.activity;
