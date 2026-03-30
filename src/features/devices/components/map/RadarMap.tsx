@@ -30,11 +30,13 @@ import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
 import { MapPanelProvider } from "./MapPanelContext";
+import { IconCrosshair } from "@tabler/icons-react";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { PageLoader } from "@/components/ui";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
+import { useRole } from "@/context/role";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -119,6 +121,7 @@ export const RadarMap = memo(function RadarMap({
     lat: number;
     lng: number;
   } | null>(null);
+  const [isPickingPosition, setIsPickingPosition] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(() => ({
     lat: parseFloat(config?.latitud ?? "0"),
@@ -191,6 +194,7 @@ export const RadarMap = memo(function RadarMap({
     setEditingDevice(null);
     setLiveEdit(null);
     setLiveEditPos(null);
+    setIsPickingPosition(false);
   }
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
@@ -238,6 +242,12 @@ export const RadarMap = memo(function RadarMap({
         return;
       }
 
+      if (isPickingPosition) {
+        setLiveEditPos({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        setIsPickingPosition(false);
+        return;
+      }
+
       const feature = e.features?.[0];
       if (
         feature?.layer?.id &&
@@ -248,13 +258,14 @@ export const RadarMap = memo(function RadarMap({
         setSelectedTargetId(null);
       }
     },
-    [isDrawing, addDrawingPoint],
+    [isDrawing, addDrawingPoint, isPickingPosition],
   );
 
 
   const defaultCenter = instanceConfig.map.fallbackCenter;
   const customMapCenter = useTargetVisualStore((s) => s.customMapCenter);
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
+  const { isSuperAdmin, isAdmin } = useRole();
 
   if (!config) {
     return (
@@ -291,14 +302,14 @@ export const RadarMap = memo(function RadarMap({
           onMoveEnd={handleMoveEnd}
           onLoad={() => setMapLoaded(true)}
           cursor={
-            isDrawing ? "crosshair" : editingDevice ? "default" : undefined
+            isDrawing ? "crosshair" : isPickingPosition ? "crosshair" : editingDevice ? "default" : undefined
           }
-          scrollZoom={!editingDevice}
-          dragPan={!editingDevice}
-          dragRotate={!editingDevice}
-          touchPitch={!editingDevice}
-          doubleClickZoom={!editingDevice}
-          keyboard={!editingDevice}
+          scrollZoom={!editingDevice || isPickingPosition}
+          dragPan={!editingDevice || isPickingPosition}
+          dragRotate={!editingDevice && !isPickingPosition}
+          touchPitch={!editingDevice && !isPickingPosition}
+          doubleClickZoom={!editingDevice && !isPickingPosition}
+          keyboard={!editingDevice && !isPickingPosition}
         >
           <Source
             id="device-layers-upper-bound-src"
@@ -353,6 +364,11 @@ export const RadarMap = memo(function RadarMap({
               longitude={liveEditPos.lng}
               anchor="center"
               style={{ zIndex: 9999 }}
+              draggable={!isPickingPosition}
+              onDrag={(e) => {
+                const { lat, lng } = e.lngLat;
+                setLiveEditPos({ lat, lng });
+              }}
             >
               <div
                 onPointerDown={(e) => e.stopPropagation()}
@@ -374,6 +390,45 @@ export const RadarMap = memo(function RadarMap({
               </div>
             </Marker>
           )}
+
+          {/* Overlay hint when picking position */}
+          {isPickingPosition && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+                zIndex: 10000,
+              }}
+            >
+              <div className="flex flex-col items-center gap-2 animate-pulse">
+                <div
+                  className="p-3 rounded-full"
+                  style={{
+                    background: "rgba(16,185,129,0.15)",
+                    border: "1.5px solid rgba(16,185,129,0.7)",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <IconCrosshair size={28} color="#10b981" />
+                </div>
+                <span
+                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  style={{
+                    background: "rgba(0,0,0,0.75)",
+                    color: "#10b981",
+                    border: "1px solid rgba(16,185,129,0.4)",
+                    backdropFilter: "blur(8px)",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Haz clic en el mapa para mover el dispositivo
+                </span>
+              </div>
+            </div>
+          )}
         </ReactMapGL>
 
         <div className="radar-scanlines" />
@@ -385,7 +440,7 @@ export const RadarMap = memo(function RadarMap({
         <MapPanelProvider>
           <div className="flex flex-col gap-1 p-2 ">
             <ZonesPanel />
-            <DeviceSelector
+            {(isSuperAdmin || isAdmin) && <DeviceSelector
               visibility={effectiveVisibility}
               onChange={handleVisibilityChange}
               onEditNanoradar={(device) =>
@@ -398,7 +453,12 @@ export const RadarMap = memo(function RadarMap({
               liveEdit={liveEdit}
               onLiveEditChange={setLiveEdit}
               onEditClose={closeEdit}
-            />
+              liveEditPos={liveEditPos}
+              onLiveEditPosChange={setLiveEditPos}
+              isPickingPosition={isPickingPosition}
+              onPickPosition={() => setIsPickingPosition(true)}
+              onCancelPickPosition={() => setIsPickingPosition(false)}
+            />}
             <div className="flex justify-center items-center flex-1">
               <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
                 Configuraciones de dispositivos

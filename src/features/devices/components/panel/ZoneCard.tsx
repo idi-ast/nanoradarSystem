@@ -180,8 +180,8 @@ export const ZoneCard = memo(function ZoneCard({
                   type="button"
                   onClick={() => setEditCategoria(cat.id)}
                   className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${active
-                      ? "border-brand-100 bg-brand-100/10 text-text-100"
-                      : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                    ? "border-brand-100 bg-brand-100/10 text-text-100"
+                    : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
                     }`}
                 >
                   <cat.icon size={20} stroke={1.5} />

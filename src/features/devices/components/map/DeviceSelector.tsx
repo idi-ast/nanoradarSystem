@@ -39,6 +39,13 @@ interface DeviceSelectorProps {
   liveEdit?: LiveEditValues | null;
   onLiveEditChange?: (v: LiveEditValues) => void;
   onEditClose?: () => void;
+  /** Posición en vivo del dispositivo siendo editado */
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  /** Control del modo de selección de posición en mapa */
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
 }
 
 function toggleId(set: Set<number>, id: number): Set<number> {
@@ -150,6 +157,11 @@ export const DeviceSelector = memo(function DeviceSelector({
   liveEdit,
   onLiveEditChange,
   onEditClose,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
 }: DeviceSelectorProps) {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("devices");
@@ -275,11 +287,10 @@ export const DeviceSelector = memo(function DeviceSelector({
         <button
           ref={triggerRef}
           onClick={toggleOpen}
-          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${
-            open
+          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${open
               ? "bg-brand-200/20 text-brand-200"
               : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
-          }`}
+            }`}
         >
           <IconDevicesCog size={20} />
         </button>
@@ -303,6 +314,11 @@ export const DeviceSelector = memo(function DeviceSelector({
                   onClose={() => onEditClose?.()}
                   liveEdit={liveEdit}
                   onLiveEditChange={(v) => onLiveEditChange?.(v)}
+                  liveEditPos={liveEditPos ?? null}
+                  onLiveEditPosChange={onLiveEditPosChange}
+                  isPickingPosition={isPickingPosition}
+                  onPickPosition={onPickPosition}
+                  onCancelPickPosition={onCancelPickPosition}
                   mode="floating"
                 />
               </div>
