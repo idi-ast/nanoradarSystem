@@ -1,11 +1,45 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 
-const SIZE = 156;
+
+const SIZE = 174;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
-const OUTER_R = 70;
-const CONTENT_R = 60;
-const HANDLE_R = 5.5;
+
+export const KNOB_CONFIG = {
+  size: SIZE,
+  outerRadius: 48,
+  contentRadius: 32,
+  handleRadius: 9.5,
+  centerDragRadius: 25, // Radio central donde se arrastra el mapa en lugar del knob
+  centerHubRadius: 20,
+
+  colors: {
+    bgDial: "rgba(0, 0, 0, 0.66)", // Fondo principal del radar
+    bgDialBorder: "#00c2fdff", // Borde exterior
+
+    // Grilla
+    gridDashed: "rgba(207, 255, 164, 1)", // Anillos punteados
+    gridText: "rgba(255, 255, 255, 1)", // Texto de distancia
+
+    // Marcas de grados (Ticks)
+    tickMajor: "rgba(0, 208, 255, 1)",
+    tickMinor: "rgba(0, 221, 255, 1)",
+    cardinalText: "rgba(255, 255, 255, 0.95)",
+
+    // Centro (Hub)
+    hubBorder: "rgba(255, 255, 255, 0.2)",
+    hubText: "rgba(255, 255, 255, 0.95)",
+    hubDot: "rgba(255, 255, 255, 0.4)",
+  },
+
+  // Grosores
+  strokeWidths: {
+    dialBorder: 1,
+    tickMajor: 2.5,
+    tickMinor: 1,
+  }
+};
+
 
 function polarToXY(r: number, azimutDeg: number) {
   const rad = ((azimutDeg - 90) * Math.PI) / 180;
@@ -35,14 +69,28 @@ function getAngleFromPointer(
   clientY: number,
 ): number {
   const rect = svgEl.getBoundingClientRect();
-  const scaleX = SIZE / rect.width;
-  const scaleY = SIZE / rect.height;
+  const scaleX = KNOB_CONFIG.size / rect.width;
+  const scaleY = KNOB_CONFIG.size / rect.height;
   const dx = (clientX - rect.left) * scaleX - CX;
   const dy = (clientY - rect.top) * scaleY - CY;
   let angle = (Math.atan2(dx, -dy) * 180) / Math.PI;
   if (angle < 0) angle += 360;
   return Math.round(angle) % 360;
 }
+
+function getDistanceFromPointer(
+  svgEl: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): number {
+  const rect = svgEl.getBoundingClientRect();
+  const scaleX = KNOB_CONFIG.size / rect.width;
+  const scaleY = KNOB_CONFIG.size / rect.height;
+  const dx = (clientX - rect.left) * scaleX - CX;
+  const dy = (clientY - rect.top) * scaleY - CY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 
 interface RadarKnobProps {
   grado: number;
@@ -64,11 +112,45 @@ export function RadarKnob({
   const svgRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
 
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    // Detenemos la propagación de eventos NATIVOS en los bordes para ocultar el click a Mapbox.
+    const stopMapDragOnEdge = (e: MouseEvent | TouchEvent) => {
+      const isTouch = e.type === "touchstart";
+      const clientX = isTouch ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = isTouch ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
+
+      const distance = getDistanceFromPointer(el, clientX, clientY);
+
+      if (distance >= KNOB_CONFIG.centerDragRadius) {
+        // Bloqueamos la propagación nativa. Mapbox no detectará este click.
+        e.stopPropagation();
+      }
+    };
+
+    el.addEventListener("mousedown", stopMapDragOnEdge);
+    el.addEventListener("touchstart", stopMapDragOnEdge, { passive: false });
+
+    return () => {
+      el.removeEventListener("mousedown", stopMapDragOnEdge);
+      el.removeEventListener("touchstart", stopMapDragOnEdge);
+    };
+  }, []);
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent<SVGRectElement>) => {
-      isDragging.current = true;
-      e.currentTarget.setPointerCapture(e.pointerId);
       if (svgRef.current) {
+        const distance = getDistanceFromPointer(svgRef.current, e.clientX, e.clientY);
+
+        // Zona muerta central (drag del marker en el mapa, ignora rotación)
+        if (distance < KNOB_CONFIG.centerDragRadius) {
+          return;
+        }
+
+        isDragging.current = true;
+        e.currentTarget.setPointerCapture(e.pointerId);
         onGradoChange(
           getAngleFromPointer(svgRef.current, e.clientX, e.clientY),
         );
@@ -89,14 +171,13 @@ export function RadarKnob({
     isDragging.current = false;
   }, []);
 
-  // Tick marks every 10°
   const ticks: React.ReactNode[] = [];
   for (let deg = 0; deg < 360; deg += 10) {
     const isCardinal = deg % 90 === 0;
     const isMajor = deg % 30 === 0;
-    const tickLen = isCardinal ? 9 : isMajor ? 5 : 3;
-    const outer = polarToXY(OUTER_R, deg);
-    const inner = polarToXY(OUTER_R - tickLen, deg);
+    const tickLen = isCardinal ? 10 : isMajor ? 6 : 4;
+    const outer = polarToXY(KNOB_CONFIG.outerRadius, deg);
+    const inner = polarToXY(KNOB_CONFIG.outerRadius - tickLen, deg);
     ticks.push(
       <line
         key={deg}
@@ -104,8 +185,9 @@ export function RadarKnob({
         y1={outer.y.toFixed(2)}
         x2={inner.x.toFixed(2)}
         y2={inner.y.toFixed(2)}
-        stroke={isCardinal ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.14)"}
-        strokeWidth={isCardinal ? 1.5 : 0.8}
+        stroke={isCardinal ? KNOB_CONFIG.colors.tickMajor : KNOB_CONFIG.colors.tickMinor}
+        strokeWidth={isCardinal ? KNOB_CONFIG.strokeWidths.tickMajor : KNOB_CONFIG.strokeWidths.tickMinor}
+        strokeLinecap="round"
       />,
     );
   }
@@ -117,42 +199,60 @@ export function RadarKnob({
     { deg: 270, label: "O" },
   ];
 
-  // Scale radio to fit inside content circle
   const radioFrac =
     maxRadio > 0 ? Math.min(Math.max(radio / maxRadio, 0), 1) : 0.5;
-  const radioR = Math.max(12, CONTENT_R * radioFrac);
+  const radioR = Math.max(14, KNOB_CONFIG.contentRadius * radioFrac);
 
   const sectorD = makeSectorPath(radioR, grado, apertura);
   const lineEnd = polarToXY(radioR, grado);
-  const handle = polarToXY(OUTER_R - 8, grado);
+  const handle = polarToXY(KNOB_CONFIG.outerRadius - 8, grado);
 
   const radioLabel =
     radio >= 1000 ? `${(radio / 1000).toFixed(1)}km` : `${radio}m`;
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="flex w-full justify-center px-1 text-[9px] font-semibold uppercase tracking-widest text-text-10">
-        <span>Radio</span>
+    <div className="flex flex-col items-center gap-2 drop-shadow-2xl">
+      {/* Etiqueta superior */}
+      <div className="flex w-full justify-center px-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 bg-black/40 rounded-full py-0.5 max-w-max backdrop-blur-md border border-white/5 mx-auto">
+        <span className="px-2">Orientación Y Cobertura</span>
       </div>
 
       <svg
         ref={svgRef}
-        width={SIZE}
-        height={SIZE}
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        width={KNOB_CONFIG.size}
+        height={KNOB_CONFIG.size}
+        viewBox={`0 0 ${KNOB_CONFIG.size} ${KNOB_CONFIG.size}`}
         style={{ userSelect: "none" }}
+        className="overflow-visible"
       >
+        <defs>
+          <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <radialGradient id="hubGradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(30, 40, 45, 0.9)" />
+            <stop offset="80%" stopColor="rgba(15, 20, 25, 0.95)" />
+            <stop offset="100%" stopColor="rgba(0, 0, 0, 1)" />
+          </radialGradient>
+        </defs>
+
         <circle
           cx={CX}
           cy={CY}
-          r={OUTER_R}
-          fill="rgba(0,15,8,0.9)"
-          stroke="rgba(255,255,255,0.3)"
-          strokeWidth={0.5}
+          r={KNOB_CONFIG.outerRadius}
+          fill={KNOB_CONFIG.colors.bgDial}
+          stroke={KNOB_CONFIG.colors.bgDialBorder}
+          strokeWidth={KNOB_CONFIG.strokeWidths.dialBorder}
+          style={{ backdropFilter: "blur(4px)" }} // Efecto glassmorphism
         />
 
         {([0.33, 0.66] as const).map((f) => {
-          const r = CONTENT_R * f;
+          const r = KNOB_CONFIG.contentRadius * f;
           const rangeVal = Math.round(maxRadio * f);
           const lp = polarToXY(r - 5, 135);
           return (
@@ -162,18 +262,19 @@ export function RadarKnob({
                 cy={CY}
                 r={r}
                 fill="none"
-                stroke="rgba(255,255,255,0.8)"
+                stroke={KNOB_CONFIG.colors.gridDashed}
                 strokeWidth={1}
-                strokeDasharray="2 3"
+                strokeDasharray="2 4"
               />
               <text
                 x={lp.x.toFixed(1)}
                 y={lp.y.toFixed(1)}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill="rgba(255,255,255,1)"
+                fill={KNOB_CONFIG.colors.gridText}
                 fontSize={5.5}
-                fontFamily="monospace"
+                fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                className="opacity-80"
               >
                 {rangeVal >= 1000
                   ? `${(rangeVal / 1000).toFixed(1)}k`
@@ -186,17 +287,18 @@ export function RadarKnob({
         <circle
           cx={CX}
           cy={CY}
-          r={CONTENT_R}
+          r={KNOB_CONFIG.contentRadius}
           fill="none"
-          stroke="rgba(255,255,255,0.6)"
+          stroke={KNOB_CONFIG.colors.gridDashed}
           strokeWidth={1}
         />
 
         <path
           d={sectorD}
-          fill={accentColor + "22"}
-          stroke={accentColor + "55"}
-          strokeWidth={1}
+          fill={accentColor + "2A"} // Fill transparente
+          stroke={accentColor + "80"} // Borde ligeramente opaco
+          strokeWidth={1.2}
+          strokeLinejoin="round"
         />
 
         <line
@@ -205,14 +307,14 @@ export function RadarKnob({
           x2={lineEnd.x.toFixed(2)}
           y2={lineEnd.y.toFixed(2)}
           stroke={accentColor}
-          strokeWidth={1.5}
-          strokeOpacity={0.88}
+          strokeWidth={2}
+          strokeOpacity={0.9}
         />
 
         {ticks}
 
         {cardinalLabels.map(({ deg, label }) => {
-          const pos = polarToXY(OUTER_R - 15, deg);
+          const pos = polarToXY(KNOB_CONFIG.outerRadius + 10, deg);
           return (
             <text
               key={deg}
@@ -220,60 +322,87 @@ export function RadarKnob({
               y={pos.y.toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="rgba(255,255,255,1)"
-              fontSize={7.5}
-              fontFamily="monospace"
+              fill={KNOB_CONFIG.colors.cardinalText}
+              fontSize={17}
+              fontWeight="semibold"
+              fontFamily="system-ui, -apple-system, sans-serif"
             >
               {label}
             </text>
           );
         })}
 
-        <circle
-          cx={handle.x.toFixed(2)}
-          cy={handle.y.toFixed(2)}
-          r={HANDLE_R + 3}
-          fill={accentColor + "18"}
-        />
-        <circle
-          cx={handle.x.toFixed(2)}
-          cy={handle.y.toFixed(2)}
-          r={HANDLE_R}
-          fill={accentColor}
-          stroke="rgba(255,255,255,0.65)"
-          strokeWidth={1.2}
-        />
+        <g filter="url(#neonGlow)">
+          <circle
+            cx={handle.x.toFixed(2)}
+            cy={handle.y.toFixed(2)}
+            r={KNOB_CONFIG.handleRadius + 3}
+            fill={accentColor + "18"}
+          />
+          <circle
+            cx={handle.x.toFixed(2)}
+            cy={handle.y.toFixed(2)}
+            r={KNOB_CONFIG.handleRadius}
+            fill={accentColor}
+            stroke="rgba(255,255,255,0.8)"
+            strokeWidth={1.5}
+          />
+        </g>
 
-        <circle
-          cx={CX}
-          cy={CY}
-          r={18}
-          fill="rgba(0,0,0,0.5)"
-          stroke="rgba(255,255,255,0.07)"
-          strokeWidth={1}
-        />
+        <g style={{ cursor: "grab" }}>
+          <circle
+            cx={CX}
+            cy={CY}
+            r={KNOB_CONFIG.centerHubRadius}
+            fill="url(#hubGradient)"
+            stroke={KNOB_CONFIG.colors.hubBorder}
+            strokeWidth={1.5}
+          />
+          {/* Anillo de detalle interno */}
+          <circle
+            cx={CX}
+            cy={CY}
+            r={KNOB_CONFIG.centerHubRadius - 4}
+            fill="none"
+            stroke="rgba(255,255,255,0.05)"
+            strokeWidth={1}
+            strokeDasharray="1 2"
+          />
+          {/* Punto exacto del centro */}
+          <circle
+            cx={CX}
+            cy={CY}
+            r={1.5}
+            fill={KNOB_CONFIG.colors.hubDot}
+          />
 
+          {/* Texto Central: Grados */}
+          <text
+            x={CX}
+            y={CY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill={KNOB_CONFIG.colors.hubText}
+            fontSize={12}
+            fontFamily="ui-monospace, SFMono-Regular, Consolas, monospace"
+            fontWeight="bold"
+            letterSpacing="0.05em"
+          >
+            {grado}°
+          </text>
+        </g>
+
+        {/* Texto Inferior: Distancia actual (flotante) */}
         <text
           x={CX}
-          y={CY - 4}
+          y={CY + 29}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="rgba(255,255,255,0.92)"
+          fill={"white"}
           fontSize={12}
-          fontFamily="monospace"
           fontWeight="bold"
-        >
-          {grado}°
-        </text>
-
-        <text
-          x={CX}
-          y={CY + 30}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={accentColor + "99"}
-          fontSize={9.5}
-          fontWeight="bold"
+          fontFamily="system-ui, -apple-system, sans-serif"
+          filter="drop-shadow(0px 1px 2px rgba(0,0,0,0.8))"
         >
           {radioLabel}
         </text>
@@ -281,8 +410,8 @@ export function RadarKnob({
         <rect
           x={0}
           y={0}
-          width={SIZE}
-          height={SIZE}
+          width={KNOB_CONFIG.size}
+          height={KNOB_CONFIG.size}
           fill="transparent"
           style={{ cursor: "crosshair", touchAction: "none" }}
           onPointerDown={onPointerDown}
@@ -291,9 +420,11 @@ export function RadarKnob({
         />
       </svg>
 
-      <p className="text-xs text-text-100/22 italic select-none">
-        arrastra para girar · apertura {apertura}°
-      </p>
+      <div className="flex bg-black/40 px-2.5 py-1 rounded-md border border-white/5 backdrop-blur-sm shadow-xl">
+        <p className="text-[10px] text-white/40 tracking-wide select-none">
+          Borde: <strong className="text-white/60">Girar</strong> · Centro: <strong className="text-white/60">Arrastrar</strong>
+        </p>
+      </div>
     </div>
   );
 }

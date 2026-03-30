@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle } from "@tabler/icons-react";
+import { useState, useEffect } from "react";
+import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair } from "@tabler/icons-react";
 import type {
   Nanoradares,
   Spotters,
@@ -137,6 +137,98 @@ function ColorField({
           className="w-5 h-5 rounded shrink-0 border border-border/30"
           style={{ backgroundColor: value }}
         />
+      </div>
+    </div>
+  );
+}
+
+function PositionField({
+  lat,
+  lng,
+  onLatChange,
+  onLngChange,
+  liveEditPos,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
+}: {
+  lat: string;
+  lng: string;
+  onLatChange: (v: string) => void;
+  onLngChange: (v: string) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+          Posición
+        </span>
+        {liveEditPos && (
+          <span className="text-[8px] font-mono text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+            live
+          </span>
+        )}
+      </div>
+
+      {/* Map pick button */}
+      {isPickingPosition ? (
+        <button
+          type="button"
+          onClick={onCancelPickPosition}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold"
+          style={{
+            background: "rgba(239,68,68,0.15)",
+            border: "1px solid rgba(239,68,68,0.4)",
+            color: "#f87171",
+          }}
+        >
+          <IconX size={11} />
+          Cancelar selección
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onPickPosition}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold transition-colors hover:opacity-90"
+          style={{
+            background: "rgba(16,185,129,0.12)",
+            border: "1px solid rgba(16,185,129,0.35)",
+            color: "#10b981",
+          }}
+        >
+          <IconCrosshair size={11} />
+          Mover en mapa
+        </button>
+      )}
+
+      {/* Lat / Lng inputs */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <IconMapPin size={10} className="text-text-100/30 shrink-0" />
+          <span className="text-[9px] text-text-100/40 w-7 shrink-0">Lat</span>
+          <input
+            type="number"
+            step="0.000001"
+            value={lat}
+            onChange={(e) => onLatChange(e.target.value)}
+            className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60 tabular-nums"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <IconMapPin size={10} className="text-text-100/30 shrink-0" />
+          <span className="text-[9px] text-text-100/40 w-7 shrink-0">Lng</span>
+          <input
+            type="number"
+            step="0.000001"
+            value={lng}
+            onChange={(e) => onLngChange(e.target.value)}
+            className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60 tabular-nums"
+          />
+        </div>
       </div>
     </div>
   );
@@ -293,12 +385,22 @@ function NanoradarForm({
   onClose,
   liveEdit,
   onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
   mode = "sidebar",
 }: {
   device: Nanoradares;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateNanoradar();
@@ -310,6 +412,16 @@ function NanoradarForm({
     longitud: device.longitud,
     azimut: device.azimut ?? "0",
   });
+
+  // Sync lat/lng when marker is dragged or clicked on map
+  useEffect(() => {
+    if (!liveEditPos) return;
+    setForm((p) => ({
+      ...p,
+      latitud: liveEditPos.lat.toFixed(7),
+      longitud: liveEditPos.lng.toFixed(7),
+    }));
+  }, [liveEditPos]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -381,15 +493,21 @@ function NanoradarForm({
         step={50}
         unit="m"
       />
-      <TextField
-        label="Latitud"
-        value={form.latitud}
-        onChange={(v) => set("latitud", v)}
-      />
-      <TextField
-        label="Longitud"
-        value={form.longitud}
-        onChange={(v) => set("longitud", v)}
+      <PositionField
+        lat={form.latitud}
+        lng={form.longitud}
+        onLatChange={(v) => {
+          set("latitud", v);
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitud) });
+        }}
+        onLngChange={(v) => {
+          set("longitud", v);
+          onLiveEditPosChange?.({ lat: Number(form.latitud), lng: Number(v) });
+        }}
+        liveEditPos={liveEditPos}
+        isPickingPosition={isPickingPosition}
+        onPickPosition={onPickPosition}
+        onCancelPickPosition={onCancelPickPosition}
       />
       <ColorField
         value={liveEdit.color}
@@ -404,12 +522,22 @@ function SpotterForm({
   onClose,
   liveEdit,
   onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
   mode = "sidebar",
 }: {
   device: Spotters;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateSpotter();
@@ -421,6 +549,15 @@ function SpotterForm({
     longitude: device.longitude,
     azimut: device.azimut ?? "0",
   });
+
+  useEffect(() => {
+    if (!liveEditPos) return;
+    setForm((p) => ({
+      ...p,
+      latitude: liveEditPos.lat.toFixed(7),
+      longitude: liveEditPos.lng.toFixed(7),
+    }));
+  }, [liveEditPos]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -504,15 +641,21 @@ function SpotterForm({
         step={50}
         unit="m"
       />
-      <TextField
-        label="Latitud"
-        value={form.latitude}
-        onChange={(v) => set("latitude", v)}
-      />
-      <TextField
-        label="Longitud"
-        value={form.longitude}
-        onChange={(v) => set("longitude", v)}
+      <PositionField
+        lat={form.latitude}
+        lng={form.longitude}
+        onLatChange={(v) => {
+          set("latitude", v);
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitude) });
+        }}
+        onLngChange={(v) => {
+          set("longitude", v);
+          onLiveEditPosChange?.({ lat: Number(form.latitude), lng: Number(v) });
+        }}
+        liveEditPos={liveEditPos}
+        isPickingPosition={isPickingPosition}
+        onPickPosition={onPickPosition}
+        onCancelPickPosition={onCancelPickPosition}
       />
       <ColorField
         value={liveEdit.color}
@@ -527,12 +670,22 @@ function CamaraForm({
   onClose,
   liveEdit,
   onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
   mode = "sidebar",
 }: {
   device: Camaras;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdateCamara();
@@ -550,6 +703,19 @@ function CamaraForm({
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
+
+  const [posForm, setPosForm] = useState({
+    latitud: String(device.ubicacion.lat),
+    longitud: String(device.ubicacion.lng),
+  });
+
+  useEffect(() => {
+    if (!liveEditPos) return;
+    setPosForm({
+      latitud: liveEditPos.lat.toFixed(7),
+      longitud: liveEditPos.lng.toFixed(7),
+    });
+  }, [liveEditPos]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -570,6 +736,10 @@ function CamaraForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
+      // @ts-ignore
+      latitud: posForm.latitud,
+      // @ts-ignore
+      longitud: posForm.longitud,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -660,6 +830,22 @@ function CamaraForm({
         value={form.password}
         onChange={(v) => set("password", v)}
       />
+      <PositionField
+        lat={posForm.latitud}
+        lng={posForm.longitud}
+        onLatChange={(v) => {
+          setPosForm((p) => ({ ...p, latitud: v }));
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(posForm.longitud) });
+        }}
+        onLngChange={(v) => {
+          setPosForm((p) => ({ ...p, longitud: v }));
+          onLiveEditPosChange?.({ lat: Number(posForm.latitud), lng: Number(v) });
+        }}
+        liveEditPos={liveEditPos}
+        isPickingPosition={isPickingPosition}
+        onPickPosition={onPickPosition}
+        onCancelPickPosition={onCancelPickPosition}
+      />
       <ColorField
         value={liveEdit.color}
         onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
@@ -681,12 +867,22 @@ function PtzForm({
   onClose,
   liveEdit,
   onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
   mode = "sidebar",
 }: {
   device: Ptz;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
 }) {
   const { mutate, isPending, isError } = useUpdatePtz();
@@ -702,6 +898,19 @@ function PtzForm({
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
+
+  const [posForm, setPosForm] = useState({
+    latitud: String(device.ubicacion.lat),
+    longitud: String(device.ubicacion.lng),
+  });
+
+  useEffect(() => {
+    if (!liveEditPos) return;
+    setPosForm({
+      latitud: liveEditPos.lat.toFixed(7),
+      longitud: liveEditPos.lng.toFixed(7),
+    });
+  }, [liveEditPos]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -722,8 +931,8 @@ function PtzForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
-      latitud: String(device.ubicacion.lat),
-      longitud: String(device.ubicacion.lng),
+      latitud: posForm.latitud,
+      longitud: posForm.longitud,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -809,6 +1018,22 @@ function PtzForm({
         value={form.password}
         onChange={(v) => set("password", v)}
       />
+      <PositionField
+        lat={posForm.latitud}
+        lng={posForm.longitud}
+        onLatChange={(v) => {
+          setPosForm((p) => ({ ...p, latitud: v }));
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(posForm.longitud) });
+        }}
+        onLngChange={(v) => {
+          setPosForm((p) => ({ ...p, longitud: v }));
+          onLiveEditPosChange?.({ lat: Number(posForm.latitud), lng: Number(v) });
+        }}
+        liveEditPos={liveEditPos}
+        isPickingPosition={isPickingPosition}
+        onPickPosition={onPickPosition}
+        onCancelPickPosition={onCancelPickPosition}
+      />
       <ColorField
         value={liveEdit.color}
         onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
@@ -822,14 +1047,32 @@ export function DeviceEditPanel({
   onClose,
   liveEdit,
   onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
   mode = "sidebar",
 }: {
   editing: EditingDevice;
   onClose: () => void;
   liveEdit: LiveEditValues;
   onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
 }) {
+  const posProps = {
+    liveEditPos,
+    onLiveEditPosChange,
+    isPickingPosition,
+    onPickPosition,
+    onCancelPickPosition,
+  };
+
   if (editing.kind === "nanoradar") {
     return (
       <NanoradarForm
@@ -838,6 +1081,7 @@ export function DeviceEditPanel({
         liveEdit={liveEdit}
         onLiveEditChange={onLiveEditChange}
         mode={mode}
+        {...posProps}
       />
     );
   }
@@ -849,6 +1093,7 @@ export function DeviceEditPanel({
         liveEdit={liveEdit}
         onLiveEditChange={onLiveEditChange}
         mode={mode}
+        {...posProps}
       />
     );
   }
@@ -860,6 +1105,7 @@ export function DeviceEditPanel({
         liveEdit={liveEdit}
         onLiveEditChange={onLiveEditChange}
         mode={mode}
+        {...posProps}
       />
     );
   }
@@ -870,6 +1116,7 @@ export function DeviceEditPanel({
       liveEdit={liveEdit}
       onLiveEditChange={onLiveEditChange}
       mode={mode}
+      {...posProps}
     />
   );
 }

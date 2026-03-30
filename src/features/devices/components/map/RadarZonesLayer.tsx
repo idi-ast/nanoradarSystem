@@ -65,6 +65,22 @@ export function RadarZonesLayer({ zones }: Props) {
     <Source id={`alert-zones-${id}`} type="geojson" data={data}>
       <Layer {...fillLayer} />
       <Layer {...lineLayer} />
+      <Layer
+        id={`alert-zones-label-${id}`}
+        type="symbol"
+        paint={{
+          "text-color": "#fff",
+          "text-halo-color": "#000",
+          "text-halo-width": 1,
+        }}
+        layout={{
+          "text-field": ["get", "name"],
+          "text-size": 12,
+          "text-font": ["Open Sans Bold"],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        }}
+      />
     </Source>
   );
 }
