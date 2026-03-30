@@ -372,7 +372,7 @@ export const RadarMap = memo(function RadarMap({
         icon: <IconLeaf size={20} />,
         style: "mapbox://styles/mapbox/emerald-v8",
       },
- 
+
     }),
     [],
   );
@@ -435,7 +435,7 @@ export const RadarMap = memo(function RadarMap({
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
-        {!mapLoaded && <PageLoader />}
+        {/* {!mapLoaded && <PageLoader />} */}
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
