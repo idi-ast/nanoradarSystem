@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "useDefineForClassFields": true,
@@ -8,16 +7,12 @@
     "module": "ESNext",
     "types": ["vite/client"],
     "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Path aliases */
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -26,8 +21,6 @@
       "@/apis/*": ["src/apis/*"],
       "@/apis": ["src/apis"]
     },
-
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
