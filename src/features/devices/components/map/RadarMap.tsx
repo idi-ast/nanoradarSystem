@@ -8,6 +8,29 @@ import {
   IconWorld,
   IconSatellite,
   IconMapPin,
+  IconSun,
+  IconMountain,
+  IconNavigation,
+  IconMoon,
+  IconTrees,
+  IconLayout,
+  IconStack,
+  IconCar,
+  IconBolt,
+  IconSquare,
+  IconRoad,
+  IconBrightnessUp,
+  IconMoonStars,
+  IconLeaf,
+  IconPencil,
+  IconTerminal2,
+  IconNumber,
+  IconRipple,
+  IconCompass,
+  IconIceCream,
+  IconCloudMinus,
+  IconRocket,
+  IconCircleDot,
 } from "@tabler/icons-react";
 import { MAPBOX_TOKEN, MAP_STYLES } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
@@ -31,6 +54,7 @@ import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
 import { MapPanelProvider } from "./MapPanelContext";
 import { IconCrosshair } from "@tabler/icons-react";
+import { createSectorCoords } from "./utils/geoHelpers";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
@@ -66,6 +90,63 @@ function SecondaryRadarLayers({
         onSelectTarget={() => { }}
       />
     </>
+  );
+}
+
+function LiveDevicePreviewLayer({
+  lat,
+  lng,
+  radio,
+  apertura,
+  grado,
+  color,
+}: {
+  lat: number;
+  lng: number;
+  radio: number;
+  apertura: number;
+  grado: number;
+  color: string;
+}) {
+  const startAngle = grado - apertura / 2;
+  const endAngle = grado + apertura / 2;
+
+  const data = useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          geometry: {
+            type: "Polygon" as const,
+            coordinates: [createSectorCoords(lat, lng, radio, startAngle, endAngle, 64)],
+          },
+          properties: {},
+        },
+      ],
+    };
+  }, [lat, lng, radio, startAngle, endAngle]);
+
+  return (
+    <Source id="live-edit-preview-src" type="geojson" data={data}>
+      <Layer
+        id="live-edit-preview-fill"
+        type="fill"
+        beforeId={DEVICES_BELOW_LAYER_ID}
+        paint={{ "fill-color": color, "fill-opacity": 0.25 }}
+      />
+      <Layer
+        id="live-edit-preview-line"
+        type="line"
+        beforeId={DEVICES_BELOW_LAYER_ID}
+        paint={{
+          "line-color": color,
+          "line-width": 2,
+          "line-opacity": 0.8,
+          "line-dasharray": [2, 2],
+        }}
+      />
+    </Source>
   );
 }
 
@@ -202,23 +283,96 @@ export const RadarMap = memo(function RadarMap({
       street: {
         name: "Mapa de Calles",
         icon: <IconMap size={20} />,
-        style: MAP_STYLES.street,
+        style: "mapbox://styles/mapbox/streets-v12",
       },
       dark: {
         name: "Mapa Oscuro",
         icon: <IconWorld size={20} />,
-        style: MAP_STYLES.dark,
+        style: "mapbox://styles/mapbox/dark-v11",
       },
       satellite: {
         name: "Satelital Clásico",
         icon: <IconSatellite size={20} />,
-        style: MAP_STYLES.satellite,
+        style: "mapbox://styles/mapbox/satellite-streets-v12",
       },
       smooth: {
         name: "Satelital Clear",
         icon: <IconMapPin size={20} />,
-        style: MAP_STYLES.smooth,
+        style: "mapbox://styles/mapbox/satellite-v9",
       },
+      light: {
+        name: "Mapa Claro",
+        icon: <IconSun size={20} />,
+        style: "mapbox://styles/mapbox/light-v11",
+      },
+      outdoors: {
+        name: "Aventuras / Outdoor",
+        icon: <IconMountain size={20} />,
+        style: "mapbox://styles/mapbox/outdoors-v12",
+      },
+      navigation_day: {
+        name: "Navegación Día",
+        icon: <IconNavigation size={20} />,
+        style: "mapbox://styles/mapbox/navigation-day-v1",
+      },
+      navigation_night: {
+        name: "Navegación Noche",
+        icon: <IconMoon size={20} />,
+        style: "mapbox://styles/mapbox/navigation-night-v1",
+      },
+      terrain: {
+        name: "Relieve / Terreno",
+        icon: <IconTrees size={20} />,
+        style: "mapbox://styles/mapbox/outdoors-v12",
+      },
+      blueprint: {
+        name: "Planos / Blueprint",
+        icon: <IconLayout size={20} />,
+        style: "mapbox://styles/mapbox/cj7qzzm1u20ia2rp6v7ndznb2",
+      },
+      standard: {
+        name: "Mapbox Standard",
+        icon: <IconStack size={20} />,
+        style: "mapbox://styles/mapbox/standard",
+      },
+      traffic_day: {
+        name: "Tráfico en Vivo",
+        icon: <IconCar size={20} />,
+        style: "mapbox://styles/mapbox/traffic-day-v2",
+      },
+      traffic_night: {
+        name: "Tráfico Nocturno",
+        icon: <IconBolt size={20} />,
+        style: "mapbox://styles/mapbox/traffic-night-v2",
+      },
+      blank: {
+        name: "Lienzo Vacío",
+        icon: <IconSquare size={20} />,
+        style: "mapbox://styles/mapbox/empty-v9",
+      },
+
+      // --- 15 NUEVAS CAPAS ADICIONALES ---
+      streets_v11: {
+        name: "Calles Clásico",
+        icon: <IconRoad size={20} />,
+        style: "mapbox://styles/mapbox/streets-v11",
+      },
+      light_v10: {
+        name: "Claro Minimal",
+        icon: <IconBrightnessUp size={20} />,
+        style: "mapbox://styles/mapbox/light-v10",
+      },
+      dark_v10: {
+        name: "Oscuro Profundo",
+        icon: <IconMoonStars size={20} />,
+        style: "mapbox://styles/mapbox/dark-v10",
+      },
+      emerald: {
+        name: "Estilo Esmeralda",
+        icon: <IconLeaf size={20} />,
+        style: "mapbox://styles/mapbox/emerald-v8",
+      },
+ 
     }),
     [],
   );
@@ -359,36 +513,46 @@ export const RadarMap = memo(function RadarMap({
             defaultZoom={instanceConfig.map.zoom}
           />
           {liveEdit && liveEditPos && (
-            <Marker
-              latitude={liveEditPos.lat}
-              longitude={liveEditPos.lng}
-              anchor="center"
-              style={{ zIndex: 9999 }}
-              draggable={!isPickingPosition}
-              onDrag={(e) => {
-                const { lat, lng } = e.lngLat;
-                setLiveEditPos({ lat, lng });
-              }}
-            >
-              <div
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerMove={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
+            <>
+              <LiveDevicePreviewLayer
+                lat={liveEditPos.lat}
+                lng={liveEditPos.lng}
+                radio={liveEdit.radio}
+                apertura={liveEdit.apertura}
+                grado={liveEdit.grado}
+                color={liveEdit.color}
+              />
+              <Marker
+                latitude={liveEditPos.lat}
+                longitude={liveEditPos.lng}
+                anchor="center"
+                style={{ zIndex: 9999 }}
+                draggable={!isPickingPosition}
+                onDrag={(e) => {
+                  const { lat, lng } = e.lngLat;
+                  setLiveEditPos({ lat, lng });
+                }}
               >
-                <RadarKnob
-                  grado={liveEdit.grado}
-                  apertura={liveEdit.apertura}
-                  radio={liveEdit.radio}
-                  maxRadio={10000}
-                  accentColor={liveEdit.color}
-                  onGradoChange={(v) =>
-                    setLiveEdit((p: LiveEditValues | null) =>
-                      p ? { ...p, grado: v } : null,
-                    )
-                  }
-                />
-              </div>
-            </Marker>
+                <div
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onPointerMove={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <RadarKnob
+                    grado={liveEdit.grado}
+                    apertura={liveEdit.apertura}
+                    radio={liveEdit.radio}
+                    maxRadio={10000}
+                    accentColor={liveEdit.color}
+                    onGradoChange={(v) =>
+                      setLiveEdit((p: LiveEditValues | null) =>
+                        p ? { ...p, grado: v } : null,
+                      )
+                    }
+                  />
+                </div>
+              </Marker>
+            </>
           )}
 
           {/* Overlay hint when picking position */}
