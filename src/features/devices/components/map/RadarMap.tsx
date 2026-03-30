@@ -421,16 +421,16 @@ export const RadarMap = memo(function RadarMap({
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
   const { isSuperAdmin, isAdmin } = useRole();
 
-  if (!config) {
-    return (
-      <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
-        <div className="w-10 h-10 rounded-full border-4 border-bg-400 border-l-transparent animate-spin "></div>
-        <small className="text-bg-400 font-mono  animate-pulse">
-          Cargando configuración del radar...
-        </small>
-      </div>
-    );
-  }
+  // if (!config) {
+  //   return (
+  //     <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
+  //       <div className="w-10 h-10 rounded-full border-4 border-bg-400 border-l-transparent animate-spin "></div>
+  //       <small className="text-bg-400 font-mono  animate-pulse">
+  //         Cargando configuración del radar...
+  //       </small>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
