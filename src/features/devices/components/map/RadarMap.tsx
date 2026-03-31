@@ -22,17 +22,8 @@ import {
   IconBrightnessUp,
   IconMoonStars,
   IconLeaf,
-  IconPencil,
-  IconTerminal2,
-  IconNumber,
-  IconRipple,
-  IconCompass,
-  IconIceCream,
-  IconCloudMinus,
-  IconRocket,
-  IconCircleDot,
 } from "@tabler/icons-react";
-import { MAPBOX_TOKEN, MAP_STYLES } from "@/components/baseMap/libs";
+import { MAPBOX_TOKEN } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
 import MapControls from "@/components/baseMap/components/MapControls";
 import { RADAR_INSTANCES } from "../../config";

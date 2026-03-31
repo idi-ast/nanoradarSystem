@@ -66,6 +66,9 @@ const defaultCamara: CamaraPayload = {
   apertura: 90,
   url_stream: "",
   tipo: "IP",
+  latitud: "",
+  longitud: "",
+  idEmpresa: 1,
 };
 
 const defaultPtz: PtzPayload = {
@@ -258,6 +261,9 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
         radio: Number(form.radio),
         apertura: Number(form.apertura),
         azimut: String(form.azimut),
+        latitud: String(form.latitud),
+        longitud: String(form.longitud),
+        idEmpresa: Number(form.idEmpresa ?? 1),
       },
       { onSuccess: onClose },
     );
@@ -268,6 +274,10 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
       <FieldRow>
         <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="Cámara-01" />
         <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.102" />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
+        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
       </FieldRow>
       <FieldRow>
         <Field label="Usuario" name="usuario" value={form.usuario} onChange={handleChange} placeholder="admin" />

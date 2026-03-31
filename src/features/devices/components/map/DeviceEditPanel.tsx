@@ -29,6 +29,16 @@ export type EditingDevice =
   | { kind: "camara"; device: Camaras }
   | { kind: "ptz"; device: Ptz };
 
+interface RangeNumberFieldProps {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+}
+
 function RangeNumberField({
   label,
   value,
@@ -37,15 +47,7 @@ function RangeNumberField({
   max,
   step = 1,
   unit,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step?: number;
-  unit?: string;
-}) {
+}: RangeNumberFieldProps) {
   return (
     <div className="flex flex-col gap-1.5 ">
       <div className="flex items-center justify-between">
@@ -81,17 +83,19 @@ function RangeNumberField({
   );
 }
 
+interface TextFieldProps {
+  label: string;
+  value: string;
+  type?: string;
+  onChange: (v: string) => void;
+}
+
 function TextField({
   label,
   value,
   type,
   onChange,
-}: {
-  label: string;
-  value: string;
-  type?: string;
-  onChange: (v: string) => void;
-}) {
+}: TextFieldProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
@@ -103,18 +107,20 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
       />
-      
+
     </div>
   );
+}
+
+interface ColorFieldProps {
+  value: string;
+  onChange: (v: string) => void;
 }
 
 function ColorField({
   value,
   onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+}: ColorFieldProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
@@ -142,6 +148,17 @@ function ColorField({
   );
 }
 
+interface PositionFieldProps {
+  lat: string;
+  lng: string;
+  onLatChange: (v: string) => void;
+  onLngChange: (v: string) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+}
+
 function PositionField({
   lat,
   lng,
@@ -151,16 +168,7 @@ function PositionField({
   isPickingPosition,
   onPickPosition,
   onCancelPickPosition,
-}: {
-  lat: string;
-  lng: string;
-  onLatChange: (v: string) => void;
-  onLngChange: (v: string) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-}) {
+}: PositionFieldProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -234,17 +242,19 @@ function PositionField({
   );
 }
 
+interface ToggleFieldProps {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}
+
 function ToggleField({
   label,
   description,
   value,
   onChange,
-}: {
-  label: string;
-  description?: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-}) {
+}: ToggleFieldProps) {
   return (
     <div className="flex items-center justify-between gap-3 py-1">
       <div className="flex flex-col min-w-0">
@@ -260,18 +270,29 @@ function ToggleField({
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`relative shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-          value ? "bg-emerald-500" : "bg-bg-400"
-        }`}
+        className={`relative shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${value ? "bg-emerald-500" : "bg-bg-400"
+          }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-            value ? "translate-x-4" : "translate-x-1"
-          }`}
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-4" : "translate-x-1"
+            }`}
         />
       </button>
     </div>
   );
+}
+
+interface PanelWrapperProps {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  onSave: () => void;
+  onDelete: () => void;
+  isPending: boolean;
+  isDeleting: boolean;
+  isError: boolean;
+  children: React.ReactNode;
+  mode?: "sidebar" | "floating";
 }
 
 function PanelWrapper({
@@ -285,18 +306,7 @@ function PanelWrapper({
   isError,
   children,
   mode = "sidebar",
-}: {
-  title: string;
-  subtitle: string;
-  onClose: () => void;
-  onSave: () => void;
-  onDelete: () => void;
-  isPending: boolean;
-  isDeleting: boolean;
-  isError: boolean;
-  children: React.ReactNode;
-  mode?: "sidebar" | "floating";
-}) {
+}: PanelWrapperProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const rootCls =
     mode === "floating"
@@ -380,6 +390,19 @@ function PanelWrapper({
   );
 }
 
+interface NanoradarFormProps {
+  device: Nanoradares;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
 function NanoradarForm({
   device,
   onClose,
@@ -391,18 +414,7 @@ function NanoradarForm({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
-}: {
-  device: Nanoradares;
-  onClose: () => void;
-  liveEdit: LiveEditValues;
-  onLiveEditChange: (v: LiveEditValues) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-  mode?: "sidebar" | "floating";
-}) {
+}: NanoradarFormProps) {
   const { mutate, isPending, isError } = useUpdateNanoradar();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteNanoradar();
   const [form, setForm] = useState({
@@ -517,6 +529,19 @@ function NanoradarForm({
   );
 }
 
+interface SpotterFormProps {
+  device: Spotters;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
 function SpotterForm({
   device,
   onClose,
@@ -528,18 +553,7 @@ function SpotterForm({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
-}: {
-  device: Spotters;
-  onClose: () => void;
-  liveEdit: LiveEditValues;
-  onLiveEditChange: (v: LiveEditValues) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-  mode?: "sidebar" | "floating";
-}) {
+}: SpotterFormProps) {
   const { mutate, isPending, isError } = useUpdateSpotter();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteSpotter();
   const [form, setForm] = useState({
@@ -665,6 +679,19 @@ function SpotterForm({
   );
 }
 
+interface CamaraFormProps {
+  device: Camaras;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
 function CamaraForm({
   device,
   onClose,
@@ -676,18 +703,7 @@ function CamaraForm({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
-}: {
-  device: Camaras;
-  onClose: () => void;
-  liveEdit: LiveEditValues;
-  onLiveEditChange: (v: LiveEditValues) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-  mode?: "sidebar" | "floating";
-}) {
+}: CamaraFormProps) {
   const { mutate, isPending, isError } = useUpdateCamara();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteCamara();
   const { isEnabled, setEnabled } = useCameraActivityStore();
@@ -736,9 +752,7 @@ function CamaraForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
-      // @ts-ignore
       latitud: posForm.latitud,
-      // @ts-ignore
       longitud: posForm.longitud,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
@@ -862,6 +876,19 @@ function CamaraForm({
   );
 }
 
+interface PtzFormProps {
+  device: Ptz;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
 function PtzForm({
   device,
   onClose,
@@ -873,18 +900,7 @@ function PtzForm({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
-}: {
-  device: Ptz;
-  onClose: () => void;
-  liveEdit: LiveEditValues;
-  onLiveEditChange: (v: LiveEditValues) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-  mode?: "sidebar" | "floating";
-}) {
+}: PtzFormProps) {
   const { mutate, isPending, isError } = useUpdatePtz();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeletePtz();
   const [form, setForm] = useState({
@@ -1042,6 +1058,19 @@ function PtzForm({
   );
 }
 
+export interface DeviceEditPanelProps {
+  editing: EditingDevice;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
 export function DeviceEditPanel({
   editing,
   onClose,
@@ -1053,18 +1082,7 @@ export function DeviceEditPanel({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
-}: {
-  editing: EditingDevice;
-  onClose: () => void;
-  liveEdit: LiveEditValues;
-  onLiveEditChange: (v: LiveEditValues) => void;
-  liveEditPos?: { lat: number; lng: number } | null;
-  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
-  isPickingPosition?: boolean;
-  onPickPosition?: () => void;
-  onCancelPickPosition?: () => void;
-  mode?: "sidebar" | "floating";
-}) {
+}: DeviceEditPanelProps) {
   const posProps = {
     liveEditPos,
     onLiveEditPosChange,
