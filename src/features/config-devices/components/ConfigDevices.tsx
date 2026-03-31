@@ -3,6 +3,7 @@ import { useConfigDevices } from "../hooks/useConfigDevices";
 import { NanoradarEditModal } from "../nanoradar/components/NanoradarEditModal";
 import { SpotterEditModal } from "../spotter/components/SpotterEditModal";
 import type { Nanoradares, Spotters } from "../types/ConfigServices.type";
+import LiquidGlassCard from "@/components/ui/LiquidGlass";
 
 function ConfigDevices() {
     const { data: configDevices } = useConfigDevices();
@@ -10,8 +11,9 @@ function ConfigDevices() {
     const [editingSpotter, setEditingSpotter] = useState<Spotters | null>(null);
 
     return (
-        <div className="flex flex-col gap-5 p-5">
+        <div className="flex flex-col gap-5 p-5 bg-linear-to-bl h-full from-brand-100 to-brand-200">
             <h1>Config NanoRadar</h1>
+            <LiquidGlassCard content="dasd" title="asdadas" key={1} children="asdasdas" subtitle="asdasds" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {configDevices?.data.nanoradares.map((nanoradar) => (
                     <div key={nanoradar.id} className="bg-bg-100 rounded-md p-5 flex flex-col gap-2">

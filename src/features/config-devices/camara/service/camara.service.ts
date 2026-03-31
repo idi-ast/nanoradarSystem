@@ -16,7 +16,11 @@ export type CamaraPayload = Pick<
   | "apertura"
   | "url_stream"
   | "tipo"
->;
+> & {
+  latitud: string;
+  longitud: string;
+  idEmpresa?: number;
+};
 
 export const camaraService = {
   updateCamara: async (id: number, payload: CamaraPayload): Promise<Camaras> => {

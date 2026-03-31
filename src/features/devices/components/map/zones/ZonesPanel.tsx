@@ -24,7 +24,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
       >
         <IconMapPinX size={20} stroke={2} />
       </button>
-    </Tooltip>   
+    </Tooltip>
   );
 });
 
@@ -71,11 +71,11 @@ export const ZonesPanel = memo(function ZonesPanel() {
 
   return (
     <div className="flex flex-col border-b border-border gap-1 pb-1">
-      {isSuperAdmin || isAdmin && <ClearTargetsButton />}
+      {(isSuperAdmin || isAdmin) && <ClearTargetsButton />}
       <ConfigZones />
       <ConfigRadar />
       <ConfigTargets />
-      {isSuperAdmin || isAdmin && <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
+      {(isSuperAdmin || isAdmin) && <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}
           onClick={handleDrawToggle}
