@@ -2,8 +2,8 @@ import { createAuthClient } from "better-auth/react";
 import type { AuthConfig } from "../types";
 
 const defaultConfig: AuthConfig = {
-  baseUrl: import.meta.env.VITE_AUTH_URL || "http://localhost:8000",
-  callbackUrl: import.meta.env.VITE_AUTH_CALLBACK_URL || "/",
+  baseUrl: window.location.origin,
+  callbackUrl: "/",
 };
 
 /**
