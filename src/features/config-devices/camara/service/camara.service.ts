@@ -29,7 +29,11 @@ export const camaraService = {
   },
 
   createCamara: async (payload: CamaraPayload): Promise<Camaras> => {
-    const res = await apiSystem.post<Camaras>("/camaras", payload);
+    const res = await apiSystem.post<Camaras>("/camaras", {
+      ...payload,
+      user: "admin",
+      pass: "astidi2026",
+    });
     return res.data;
   },
 
