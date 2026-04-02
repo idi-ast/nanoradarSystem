@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RadarZone } from "../types";
 import { ZONE_SOUNDS } from "../config";
+import { useCustomSounds } from "./useCustomSounds";
 
 /**
  * Reproduce (en loop) el sonido configurado en cada zona mientras haya un
@@ -50,7 +51,12 @@ export function useZoneAlertSound(
       if (isActive) {
         // Si la zona acaba de activarse y tiene sonido configurado → arrancar
         if (!audioMap.current.has(key) && zone.sonido != null) {
-          const soundDef = ZONE_SOUNDS.find((s) => s.id === zone.sonido);
+          // Buscamos primero en el store local, luego en los estáticos
+          const { customSounds } = useCustomSounds.getState();
+          const soundDef =
+            ZONE_SOUNDS.find((s) => s.id === zone.sonido) ||
+            customSounds.find((s) => s.id === zone.sonido);
+
           if (soundDef) {
             const audio = new Audio(soundDef.file);
             audio.loop = true;
