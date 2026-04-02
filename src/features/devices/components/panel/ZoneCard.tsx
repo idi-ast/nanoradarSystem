@@ -1,9 +1,10 @@
-import { memo, useState } from "react";
-import { IconPencil, IconTrash, IconCheck, IconX } from "@tabler/icons-react";
+import { memo, useState, useRef } from "react";
+import { IconPencil, IconTrash, IconCheck, IconX, IconUpload } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
 import { useRole } from "@/context/role/hooks/useRole";
+import { useCustomSounds, MAX_CUSTOM_SOUNDS } from "../../hooks/useCustomSounds";
 
 const ALERT_LEVELS = [
   { value: 1, label: "Nivel 1: Informativa" },
@@ -22,6 +23,9 @@ export const ZoneCard = memo(function ZoneCard({
   hasAlert = false,
 }: Props) {
   const { updateZone, deleteZone, flyToZoneFn } = useRadarContext();
+  const { customSounds, isUploading, addSound, removeSound } = useCustomSounds();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -133,25 +137,74 @@ export const ZoneCard = memo(function ZoneCard({
           </select>
         </div>
         <div>
-          <label className="text-xs text-text-200 uppercase block mb-1">
-            Sonido:
+          <label className="text-xs text-text-200 uppercase flex items-center justify-between mb-1">
+            <span>Sonido:</span>
+            <button
+              title={customSounds.length >= MAX_CUSTOM_SOUNDS ? `Límite de ${MAX_CUSTOM_SOUNDS} alcanzado` : "Subir nuevo sonido"}
+              type="button"
+              disabled={isUploading || customSounds.length >= MAX_CUSTOM_SOUNDS}
+              onClick={() => fileInputRef.current?.click()}
+              className="px-1.5 py-[2px] rounded bg-bg-300 hover:bg-bg-100 text-[10px] text-text-200 hover:text-text-100 flex items-center gap-1 border border-border transition-colors disabled:opacity-50"
+            >
+              <IconUpload size={12} /> {isUploading ? "..." : "Subir"}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".mp3,audio/mpeg"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) addSound(file);
+                // reset input
+                if (e.target) e.target.value = "";
+              }}
+            />
           </label>
-          <select
-            value={editSonido ?? ""}
-            onChange={(e) =>
-              setEditSonido(
-                e.target.value === "" ? null : Number(e.target.value),
-              )
-            }
-            className="w-full bg-bg-100 border border-border text-text-100 text-xs p-1.5 rounded"
-          >
-            <option value="">Sin sonido</option>
-            {ZONE_SOUNDS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.id} — {s.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1">
+            <select
+              value={editSonido ?? ""}
+              onChange={(e) =>
+                setEditSonido(
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
+              }
+              className="flex-1 bg-bg-100 border border-border text-text-100 text-xs p-1.5 rounded truncate"
+            >
+              <option value="">Sin sonido</option>
+              <optgroup label="Sistemas predeterminados">
+                {ZONE_SOUNDS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.id} — {s.label}
+                  </option>
+                ))}
+              </optgroup>
+              {customSounds.length > 0 && (
+                <optgroup label="Sonidos Subidos">
+                  {customSounds.map((cs) => (
+                    <option key={cs.id} value={cs.id}>
+                      {cs.label}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {customSounds.some(s => s.id === editSonido) && (
+              <button
+                type="button"
+                title="Eliminar este sonido personalizado"
+                onClick={() => {
+                  if (editSonido) {
+                    removeSound(editSonido);
+                    setEditSonido(null);
+                  }
+                }}
+                className="p-1.5 rounded bg-bg-100 text-red-400 hover:bg-bg-300 border border-border transition-colors"
+              >
+                <IconTrash size={14} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between bg-bg-100/30 py-1.5 rounded border border-border">
           <label className="text-xs text-text-200 uppercase">Destello pantalla:</label>
