@@ -102,7 +102,7 @@ function useWebRtcPlayer(streamUrl: string) {
         await pc.setLocalDescription(offer);
         if (destroyed) return;
 
-        const resp = await fetch(`${streamUrl}/whep`, {
+        const resp = await fetch(`${streamUrl}/whep?user=admin&password=admin123`, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
           body: offer.sdp,
