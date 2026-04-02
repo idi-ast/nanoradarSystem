@@ -194,7 +194,7 @@ export const RADAR_INSTANCES: RadarInstanceConfig[] = [
   {
     id: "nanoradar-1",
     label: "NanoRadar Principal",
-    wsUrl: import.meta.env.VITE_SOCKET_URL as string,
+    wsUrl: "ws://" + window.location.origin + import.meta.env.VITE_SOCKET_URL as string,
   },
   // Para agregar un segundo radar, descomenta y ajusta solo lo que difiera:
   // {
@@ -233,9 +233,9 @@ export const ZONE_DETECTION_CATEGORIES: {
   label: string;
   icon: ComponentType<{ size?: number; stroke?: number; className?: string }>;
 }[] = [
-  { id: 1, label: "Persona",  icon: IconUser },
-  { id: 2, label: "Barco",    icon: IconSailboat },
-  { id: 3, label: "Vehículo", icon: IconCar },
-  { id: 4, label: "Animal",   icon: IconDog },
-  { id: 5, label: "Dron",     icon: IconDrone },
-];
+    { id: 1, label: "Persona", icon: IconUser },
+    { id: 2, label: "Barco", icon: IconSailboat },
+    { id: 3, label: "Vehículo", icon: IconCar },
+    { id: 4, label: "Animal", icon: IconDog },
+    { id: 5, label: "Dron", icon: IconDrone },
+  ];
