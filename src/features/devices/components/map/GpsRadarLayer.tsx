@@ -1,37 +1,12 @@
-import { useRef, useMemo } from "react";
+import { useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import { IconRadar2 } from "@tabler/icons-react";
 import { useRadarPolling } from "@/features/config-devices/nanoradar/hooks";
 import type { ProcessedDetection } from "@/features/config-devices/nanoradar/types/radar-detection.types";
 
 // ---------------------------------------------------------------------------
-// Tipos internos para tracking de detecciones entre polls
-// ---------------------------------------------------------------------------
-
-/** Una detección con historial acumulado entre polls */
-interface GpsTrack {
-  /** ID único asignado localmente */
-  id: string;
-  /** Historial de posiciones: [lat, lon, timestamp] */
-  history: [number, number, number][];
-  /** Última detección recibida */
-  last: ProcessedDetection;
-  /** Color asignado al track */
-  color: string;
-}
-
-// ---------------------------------------------------------------------------
 // Constantes
 // ---------------------------------------------------------------------------
-
-/** Distancia máxima (metros) para considerar que dos detecciones son el mismo track */
-const TRACK_MATCH_THRESHOLD_M = 50;
-
-/** Tiempo máximo (ms) sin actualizar antes de eliminar un track */
-const TRACK_TTL_MS = 30_000;
-
-/** Máximo de puntos en el historial de un track */
-const MAX_HISTORY_POINTS = 100;
 
 /** Colores para los tracks (se rotan) */
 const TRACK_COLORS = [
@@ -45,172 +20,156 @@ const TRACK_COLORS = [
   "#10b981", // esmeralda
 ];
 
+/**
+ * Offset de orientación del radar GPS en grados.
+ * Editalo en el .env (`VITE_GPS_RADAR_BEARING_OFFSET`) para corregir
+ * la desviación. Rota TODAS las posiciones de las detecciones
+ * alrededor del radar.
+ */
+const GPS_RADAR_BEARING_OFFSET = 241;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-let _colorIdx = 0;
-function nextColor(): string {
-  const c = TRACK_COLORS[_colorIdx % TRACK_COLORS.length];
-  _colorIdx++;
-  return c;
-}
-
-/** Distancia aproximada entre dos puntos (fórmula de Haversine simplificada) */
-function haversineMeters(
-  lat1: number, lon1: number,
-  lat2: number, lon2: number,
-): number {
-  const R = 6_371_000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 /**
- * Empareja las nuevas detecciones con los tracks existentes por proximidad.
- * - Si una detección está cerca de un track existente → se añade a su historial.
- * - Si no coincide con ningún track → se crea un track nuevo.
- * - Los tracks sin actualización en `TRACK_TTL_MS` se eliminan.
+ * Rota un punto (lat, lon) alrededor de un centro (centerLat, centerLon)
+ * por `angleDeg` grados en sentido horario.
  */
-function matchTracks(
-  prev: GpsTrack[],
-  detections: ProcessedDetection[],
-  now: number,
-): GpsTrack[] {
-  const unmatched = new Set(detections.map((_, i) => i));
-  const next: GpsTrack[] = [];
+function rotatePoint(
+  lat: number,
+  lon: number,
+  centerLat: number,
+  centerLon: number,
+  angleDeg: number,
+): { lat: number; lon: number } {
+  if (angleDeg === 0) return { lat, lon };
 
-  for (const track of prev) {
-    let bestIdx = -1;
-    let bestDist = Infinity;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
 
-    for (const i of unmatched) {
-      const d = detections[i];
-      const dist = haversineMeters(track.last.latitude, track.last.longitude, d.latitude, d.longitude);
-      if (dist < TRACK_MATCH_THRESHOLD_M && dist < bestDist) {
-        bestDist = dist;
-        bestIdx = i;
-      }
-    }
+  const mPerDegLat = 111_320;
+  const mPerDegLon = 111_320 * Math.cos((centerLat * Math.PI) / 180);
 
-    if (bestIdx !== -1) {
-      unmatched.delete(bestIdx);
-      const det = detections[bestIdx];
-      const history = [...track.history, [det.latitude, det.longitude, now] as [number, number, number]];
-      if (history.length > MAX_HISTORY_POINTS) history.shift();
-      next.push({ ...track, last: det, history });
-    } else if (now - track.last.sendTimestamp * 1000 < TRACK_TTL_MS) {
-      next.push(track); // mantener track sin actualización
-    }
-    // else: track expirado, se descarta
-  }
+  const dx = (lon - centerLon) * mPerDegLon;
+  const dy = (lat - centerLat) * mPerDegLat;
 
-  // Nuevos tracks para detecciones no emparejadas
-  for (const i of unmatched) {
-    const det = detections[i];
-    next.push({
-      id: `gps-${Date.now()}-${i}`,
-      history: [[det.latitude, det.longitude, now]],
-      last: det,
-      color: nextColor(),
-    });
-  }
+  return {
+    lat: centerLat + (dx * sinA + dy * cosA) / mPerDegLat,
+    lon: centerLon + (dx * cosA - dy * sinA) / mPerDegLon,
+  };
+}
 
-  return next;
+/** Aplica rotación y offset de bearing a una detección */
+function rotateDetection(
+  det: ProcessedDetection,
+  centerLat: number,
+  centerLon: number,
+  offsetDeg: number,
+): ProcessedDetection {
+  if (offsetDeg === 0) return det;
+  const rotated = rotatePoint(det.latitude, det.longitude, centerLat, centerLon, offsetDeg);
+  return {
+    ...det,
+    latitude: rotated.lat,
+    longitude: rotated.lon,
+    bearing: (det.bearing + offsetDeg + 360) % 360,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Componente
 // ---------------------------------------------------------------------------
 
-const GPS_LAYER_SOURCE_ID = "gps-radar-trails";
+const GPS_LAYER_SOURCE_ID = "gps-radar-points";
 
 /**
  * Capa que renderiza las detecciones del radar GPS sobre el mapa.
  * - Usa polling cada 5s al endpoint `GET /api/radar/last-detection`.
- * - Dibuja trails (estelas) y markers con orientación (bearing).
+ * - Dibuja puntos como markers con orientación (bearing).
+ * - Aplica rotación global de todas las posiciones según VITE_GPS_RADAR_BEARING_OFFSET.
  */
 export function GpsRadarLayer() {
-  const { detections, lastPayload } = useRadarPolling({ interval: 5000 });
+  const { detections, lastPayload } = useRadarPolling({ interval: 1000 });
 
-  const tracksRef = useRef<GpsTrack[]>([]);
-  const now = Date.now();
+  const radarPos = lastPayload?.radarPosition ?? null;
 
-  // Actualizar tracks con las nuevas detecciones
-  const tracks = useMemo(() => {
-    tracksRef.current = matchTracks(tracksRef.current, detections, now);
-    return tracksRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detections, now]);
+  // Rotar todas las detecciones alrededor del radar
+  const rotated = useMemo(() => {
+    if (!radarPos) return detections;
+    return detections.map((d) =>
+      rotateDetection(d, radarPos.latitude, radarPos.longitude, GPS_RADAR_BEARING_OFFSET),
+    );
+  }, [detections, radarPos]);
 
-  // GeoJSON para los trails
-  const trailsData = useMemo(
+  // GeoJSON de puntos (FeatureCollection)
+  const pointsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: tracks
-        .filter((t) => t.history.length > 1)
-        .map((t) => ({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: t.history.map(([lat, lon]) => [lon, lat]),
-          },
-          properties: {
-            id: t.id,
-            color: t.color,
-          },
-        })),
+      features: rotated.map((d, i) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [d.longitude, d.latitude],
+        },
+        properties: {
+          id: i,
+          color: TRACK_COLORS[i % TRACK_COLORS.length],
+          bearing: d.bearing,
+          snr: d.snr,
+          range: d.range,
+        },
+      })),
     }),
-    [tracks],
+    [rotated],
   );
 
-  // Capa de trails estilo "estela" (mismo patrón que RadarTargetsLayer)
-  const trailLayer = useMemo(
+  // Capa de puntos (círculos coloreados)
+  const pointsLayer = useMemo(
     () => ({
-      id: "gps-radar-trails-layer",
-      type: "line" as const,
+      id: "gps-radar-points-layer",
+      type: "circle" as const,
       paint: {
-        "line-color": ["get", "color"],
-        "line-width": 3,
-        "line-opacity": 0.65,
-        "line-blur": 0.5,
+        "circle-radius": 5,
+        "circle-color": ["get", "color"] as unknown as string,
+        "circle-opacity": 0.85,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ffffff",
       },
     }),
     [],
   );
 
+  if (rotated.length === 0) return null;
+
   return (
     <>
-      {/* Trails (estelas) */}
-      <Source id={GPS_LAYER_SOURCE_ID} type="geojson" data={trailsData}>
-        <Layer {...trailLayer} />
+      {/* Capa de puntos GeoJSON */}
+      <Source id={GPS_LAYER_SOURCE_ID} type="geojson" data={pointsData}>
+        <Layer {...pointsLayer} />
       </Source>
 
-      {/* Marcadores con orientación (bearing) */}
-      {tracks.map((track) => {
-        const { latitude, longitude, bearing } = track.last;
+      {/* Marcadores con flecha de orientación (bearing) */}
+      {rotated.map((det, i) => {
+        const color = TRACK_COLORS[i % TRACK_COLORS.length];
+        const bearing = det.bearing;
         return (
           <Marker
-            key={track.id}
-            longitude={longitude}
-            latitude={latitude}
+            key={i}
+            longitude={det.longitude}
+            latitude={det.latitude}
             anchor="center"
           >
             <div
               className="relative flex items-center justify-center cursor-pointer"
               style={{
-                width: 22,
-                height: 22,
+                width: 24,
+                height: 24,
                 transform: `rotate(${bearing}deg)`,
                 transition: "transform 0.5s ease",
               }}
-              title={`SNR: ${track.last.snr.toFixed(1)} | Range: ${track.last.range.toFixed(1)}m | ${bearing.toFixed(1)}°`}
+              title={`SNR: ${det.snr.toFixed(1)} | Range: ${det.range.toFixed(1)}m | ${bearing.toFixed(1)}°`}
             >
               {/* Punta de flecha */}
               <div
@@ -219,7 +178,7 @@ export function GpsRadarLayer() {
                   height: 0,
                   borderLeft: "7px solid transparent",
                   borderRight: "7px solid transparent",
-                  borderBottom: `14px solid ${track.color}`,
+                  borderBottom: `14px solid ${color}`,
                   filter: "drop-shadow(0 0 4px rgba(0,0,0,0.5))",
                 }}
               />
@@ -229,11 +188,11 @@ export function GpsRadarLayer() {
                 style={{
                   width: 6,
                   height: 6,
-                  backgroundColor: track.color,
+                  backgroundColor: color,
                   top: "50%",
                   left: "50%",
                   transform: "translate(-50%, -10%)",
-                  boxShadow: `0 0 6px ${track.color}`,
+                  boxShadow: `0 0 6px ${color}`,
                 }}
               />
             </div>
@@ -241,11 +200,11 @@ export function GpsRadarLayer() {
         );
       })}
 
-      {/* Indicador de posición del radar (si hay payload) */}
-      {lastPayload?.radarPosition && (
+      {/* Indicador del radar */}
+      {radarPos && (
         <Marker
-          longitude={lastPayload.radarPosition.longitude}
-          latitude={lastPayload.radarPosition.latitude}
+          longitude={radarPos.longitude}
+          latitude={radarPos.latitude}
           anchor="center"
         >
           <div className="flex flex-col items-center">

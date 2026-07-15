@@ -38,7 +38,7 @@ interface UseRadarPollingReturn {
 export function useRadarPolling(
   options: UseRadarPollingOptions = {}
 ): UseRadarPollingReturn {
-  const { interval = 5000, enabled = true } = options;
+  const { interval = 1000, enabled = true } = options;
 
   const {
     data: lastPayload,
