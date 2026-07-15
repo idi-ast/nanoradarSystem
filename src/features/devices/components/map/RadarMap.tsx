@@ -43,6 +43,7 @@ import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
+import { GpsRadarLayer } from "./GpsRadarLayer";
 import { MapPanelProvider } from "./MapPanelContext";
 import { IconCrosshair } from "@tabler/icons-react";
 import { createSectorCoords } from "./utils/geoHelpers";
@@ -495,6 +496,7 @@ export const RadarMap = memo(function RadarMap({
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
           />
+          <GpsRadarLayer />
           <CameraActivityOverlay
             mapRef={mapRef}
             defaultCenter={{
