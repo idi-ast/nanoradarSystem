@@ -13,7 +13,7 @@ const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
   messages: RawRadarPayload["nanoRadar"],
-  deviceType: "nanoRadar" | "spotter",
+  deviceType: "nanoRadar" | "magosradar" | "spotter",
   now: number,
   historyMaxPoints: number,
 ) {
@@ -51,17 +51,19 @@ export function useRadarWebSocket(
 
   const bufferRef = useRef<{
     nanoRadar: RawRadarPayload["nanoRadar"];
+    magosRadar: RawRadarPayload["magosradar"];
     spotter: RawRadarPayload["spotter"];
     camaras: CamaraActividad[];
   }>({
     nanoRadar: [],
+    magosRadar: [],
     spotter: [],
     camaras: [],
   });
 
   const clearTargets = useCallback(() => {
     setTargetsMap(new Map());
-    bufferRef.current = { nanoRadar: [], spotter: [], camaras: [] };
+    bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
   }, []);
 
   useEffect(() => {
@@ -73,14 +75,15 @@ export function useRadarWebSocket(
     let ws: WebSocket | null = null;
 
     const processingInterval = setInterval(() => {
-      const { nanoRadar, spotter, camaras } = bufferRef.current;
+      const { nanoRadar, magosRadar, spotter, camaras } = bufferRef.current;
       const now = Date.now();
 
-      if (nanoRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
+      if (nanoRadar.length === 0 && magosRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
 
       setTargetsMap((prev) => {
         const next = new Map(prev);
         processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
+        processDeviceMessages(next, magosRadar, "magosradar", now, timing.HISTORY_MAX_POINTS);
         processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
         return next;
       });
@@ -89,7 +92,7 @@ export function useRadarWebSocket(
         setCameraActivities(camaras.map((a) => ({ ...a, timestamp: now })));
       }
 
-      bufferRef.current = { nanoRadar: [], spotter: [], camaras: [] };
+      bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
     }, SET_TIME_INTERVAL_MS);
 
     const cleanupInterval = setInterval(() => {
@@ -129,9 +132,10 @@ export function useRadarWebSocket(
 
       ws.onmessage = (event: MessageEvent) => {
         try {
-          const parsed = JSON.parse(event.data as string) as RawRadarPayload;
+          const parsed = JSON.parse(event.data as string) as RawRadarPayload & { magosRadar?: RawRadarPayload["magosradar"] };
           if (parsed && typeof parsed === "object") {
             if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
+            if (parsed.magosRadar) bufferRef.current.magosRadar = parsed.magosRadar;
             if (parsed.spotter) bufferRef.current.spotter = parsed.spotter;
             if (parsed.actividad?.camaras) {
               bufferRef.current.camaras = parsed.actividad.camaras as CamaraActividad[];

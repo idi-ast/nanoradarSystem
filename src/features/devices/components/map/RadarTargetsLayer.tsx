@@ -241,7 +241,7 @@ export function RadarTargetsLayer({
           <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow-2xl p-5 min-w-64 rounded-lg">
             <div>
               <h4 className="pb-2">
-                Detección: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
+                Detección: {selected.id.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
               </h4>
               <ul className="tracking-[0.12rem]">
                 <li>
@@ -249,6 +249,8 @@ export function RadarTargetsLayer({
                   <span className="text-brand-200 font-bold">
                     {selected.deviceType === "nanoRadar"
                       ? "NanoRadar"
+                      : selected.deviceType === "magosradar"
+                      ? "MagosRadar"
                       : "Spotter"}
                   </span>
                 </li>

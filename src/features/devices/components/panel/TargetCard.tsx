@@ -3,11 +3,13 @@ import type { RadarTarget } from "../../types";
 
 const DEVICE_LABEL: Record<string, string> = {
   nanoRadar: "NanoRadar",
+  magosradar: "MagosRadar",
   spotter: "Spotter",
 };
 
 const DEVICE_COLOR: Record<string, string> = {
   nanoRadar: "bg-cyan-500/20 text-text-100 border-cyan-500/40",
+  magosradar: "bg-rose-500/20 text-text-100 border-rose-500/40",
   spotter: "bg-violet-500/10 text-text-100 border-violet-500/40",
 };
 
@@ -21,7 +23,7 @@ export const TargetCard = memo(function TargetCard({ target }: Props) {
   const deviceColor =
     DEVICE_COLOR[target.deviceType] ??
     "bg-slate-500/20 text-slate-300 border-slate-500/40";
-  const rawId = target.id.replace(/^(nanoRadar|spotter)_/, "");
+  const rawId = target.id.replace(/^(nanoRadar|magosradar|spotter)_/, "");
 
   return (
     <div className={`p-3`}>
