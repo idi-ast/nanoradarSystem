@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair } from "@tabler/icons-react";
 import type {
   Nanoradares,
+  Magosradares,
   Spotters,
   Camaras,
   Ptz,
 } from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
+import { useUpdateMagosradar, useDeleteMagosradar } from "@/features/config-devices/magosradar/hooks/useUpdateMagosradar";
+import type { MagosradarPayload } from "@/features/config-devices/magosradar/service";
 import { useUpdateSpotter, useDeleteSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
@@ -25,6 +28,7 @@ export interface LiveEditValues {
 
 export type EditingDevice =
   | { kind: "nanoradar"; device: Nanoradares }
+  | { kind: "magosradar"; device: Magosradares }
   | { kind: "spotter"; device: Spotters }
   | { kind: "camara"; device: Camaras }
   | { kind: "ptz"; device: Ptz };
@@ -461,6 +465,145 @@ function NanoradarForm({
   return (
     <PanelWrapper
       title="NanoRadar"
+      subtitle={form.nombre}
+      onClose={onClose}
+      onSave={save}
+      onDelete={remove}
+      isPending={isPending}
+      isDeleting={isDeleting}
+      isError={isError}
+      mode={mode}
+    >
+      <TextField
+        label="Nombre"
+        value={form.nombre}
+        onChange={(v) => set("nombre", v)}
+      />
+      <TextField
+        label="Dirección IP"
+        value={form.direccionIp}
+        onChange={(v) => set("direccionIp", v)}
+      />
+      <RangeNumberField
+        label="Grado"
+        value={liveEdit.grado}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
+        min={0}
+        max={360}
+        unit="°"
+      />
+      <RangeNumberField
+        label="Apertura"
+        value={liveEdit.apertura}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
+        min={1}
+        max={180}
+        unit="°"
+      />
+      <RangeNumberField
+        label="Radio"
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
+      />
+      <PositionField
+        lat={form.latitud}
+        lng={form.longitud}
+        onLatChange={(v) => {
+          set("latitud", v);
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitud) });
+        }}
+        onLngChange={(v) => {
+          set("longitud", v);
+          onLiveEditPosChange?.({ lat: Number(form.latitud), lng: Number(v) });
+        }}
+        liveEditPos={liveEditPos}
+        isPickingPosition={isPickingPosition}
+        onPickPosition={onPickPosition}
+        onCancelPickPosition={onCancelPickPosition}
+      />
+      <ColorField
+        value={liveEdit.color}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+      />
+    </PanelWrapper>
+  );
+}
+
+interface MagosradarFormProps {
+  device: Magosradares;
+  onClose: () => void;
+  liveEdit: LiveEditValues;
+  onLiveEditChange: (v: LiveEditValues) => void;
+  liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
+  isPickingPosition?: boolean;
+  onPickPosition?: () => void;
+  onCancelPickPosition?: () => void;
+  mode?: "sidebar" | "floating";
+}
+
+function MagosradarForm({
+  device,
+  onClose,
+  liveEdit,
+  onLiveEditChange,
+  liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
+  mode = "sidebar",
+}: MagosradarFormProps) {
+  const { mutate, isPending, isError } = useUpdateMagosradar();
+  const { mutate: deleteMutate, isPending: isDeleting } = useDeleteMagosradar();
+  const [form, setForm] = useState({
+    nombre: device.nombre,
+    direccionIp: device.direccionIp,
+    latitud: device.latitud,
+    longitud: device.longitud,
+    azimut: device.azimut ?? "0",
+  });
+
+  // Sync lat/lng when marker is dragged or clicked on map
+  useEffect(() => {
+    if (!liveEditPos) return;
+    setForm((p) => ({
+      ...p,
+      latitud: liveEditPos.lat.toFixed(7),
+      longitud: liveEditPos.lng.toFixed(7),
+    }));
+  }, [liveEditPos]);
+
+  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  function save() {
+    const payload: MagosradarPayload = {
+      nombre: form.nombre,
+      direccionIp: form.direccionIp,
+      latitud: form.latitud,
+      longitud: form.longitud,
+      azimut: form.azimut,
+      grado: liveEdit.grado,
+      radio: liveEdit.radio,
+      apertura: liveEdit.apertura,
+      color: liveEdit.color,
+    };
+    mutate({ id: device.id, payload }, { onSuccess: onClose });
+  }
+
+  function remove() {
+    deleteMutate(device.id, { onSuccess: onClose });
+  }
+
+  return (
+    <PanelWrapper
+      title="MagosRadar"
       subtitle={form.nombre}
       onClose={onClose}
       onSave={save}
@@ -1094,6 +1237,18 @@ export function DeviceEditPanel({
   if (editing.kind === "nanoradar") {
     return (
       <NanoradarForm
+        device={editing.device}
+        onClose={onClose}
+        liveEdit={liveEdit}
+        onLiveEditChange={onLiveEditChange}
+        mode={mode}
+        {...posProps}
+      />
+    );
+  }
+  if (editing.kind === "magosradar") {
+    return (
+      <MagosradarForm
         device={editing.device}
         onClose={onClose}
         liveEdit={liveEdit}

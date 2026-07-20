@@ -8,6 +8,7 @@ export interface Data {
   camaras: Camaras[];
   ptz: Ptz[];
   spotters: Spotters[];
+  magosradares: Magosradares[];
 }
 
 export interface Spotters {
@@ -75,6 +76,20 @@ export interface Ptz {
 
 
 export interface Nanoradares {
+  nombre: string;
+  direccionIp: string;
+  longitud: string;
+  radio: number;
+  apertura: number;
+  idEmpresa: number;
+  id: number;
+  latitud: string;
+  azimut: string;
+  grado: number;
+  color: string;
+}
+
+export interface Magosradares {
   nombre: string;
   direccionIp: string;
   longitud: string;

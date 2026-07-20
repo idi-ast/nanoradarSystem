@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useConfigDevices } from "../hooks/useConfigDevices";
 import { NanoradarEditModal } from "../nanoradar/components/NanoradarEditModal";
+import { MagosradarEditModal } from "../magosradar/components/MagosradarEditModal";
 import { SpotterEditModal } from "../spotter/components/SpotterEditModal";
-import type { Nanoradares, Spotters } from "../types/ConfigServices.type";
+import type { Nanoradares, Magosradares, Spotters } from "../types/ConfigServices.type";
 import LiquidGlassCard from "@/components/ui/LiquidGlass";
 
 function ConfigDevices() {
     const { data: configDevices } = useConfigDevices();
     const [editingNanoradar, setEditingNanoradar] = useState<Nanoradares | null>(null);
+    const [editingMagosradar, setEditingMagosradar] = useState<Magosradares | null>(null);
     const [editingSpotter, setEditingSpotter] = useState<Spotters | null>(null);
 
     return (
@@ -36,6 +38,32 @@ function ConfigDevices() {
                         </button>
                     </div>
                 ))}
+            </div>
+            <div>
+                <div>Config MagosRadar</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {configDevices?.data.magosradares.map((magosradar) => (
+                        <div key={magosradar.id} className="bg-bg-100 rounded-md p-5 flex flex-col gap-2">
+                            <div>ID: <span className="font-bold text-text-200">{magosradar.id}</span></div>
+                            <div>Nombre: <span className="font-bold text-text-200">{magosradar.nombre}</span></div>
+                            <div>Dirección IP: <span className="font-bold text-text-200">{magosradar.direccionIp}</span></div>
+                            <div>Latitud: <span className="font-bold text-text-200">{magosradar.latitud}</span></div>
+                            <div>Longitud: <span className="font-bold text-text-200">{magosradar.longitud}</span></div>
+                            <div>Azimut: <span className="font-bold text-text-200">{magosradar.azimut}</span></div>
+                            <div>Grado: <span className="font-bold text-text-200">{magosradar.grado}</span></div>
+                            <div>Radio: <span className="font-bold text-text-200">{magosradar.radio}</span></div>
+                            <div>Apertura: <span className="font-bold text-text-200">{magosradar.apertura}</span></div>
+                            <div>Color: <span className="font-bold" style={{ color: magosradar.color }}>{magosradar.color}</span></div>
+                            <div>ID Empresa: <span className="font-bold text-text-200">{magosradar.idEmpresa}</span></div>
+                            <button
+                                onClick={() => setEditingMagosradar(magosradar)}
+                                className="mt-2 w-full rounded-md bg-accent-200 hover:bg-accent-200/80 text-black text-sm font-medium py-1.5 transition"
+                            >
+                                Editar
+                            </button>
+                        </div>
+                    ))}
+                </div>
             </div>
             <div>
                 <div>Config Camaras</div>
@@ -95,6 +123,12 @@ function ConfigDevices() {
                 <NanoradarEditModal
                     nanoradar={editingNanoradar}
                     onClose={() => setEditingNanoradar(null)}
+                />
+            )}
+            {editingMagosradar && (
+                <MagosradarEditModal
+                    magosradar={editingMagosradar}
+                    onClose={() => setEditingMagosradar(null)}
                 />
             )}
             {editingSpotter && (

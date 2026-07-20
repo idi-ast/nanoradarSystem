@@ -7,7 +7,7 @@ export interface RadarConfig {
   apertura: number;
 }
 
-export type DeviceFilter = "all" | "nanoRadar" | "spotter";
+export type DeviceFilter = "all" | "nanoRadar" | "spotter" | "magosradar";
 
 export interface RadarTarget {
   id: string;
@@ -16,7 +16,7 @@ export interface RadarTarget {
   nivel: number;
   zona: string;
   lastUpdate: number;
-  deviceType: "nanoRadar" | "spotter";
+  deviceType: "nanoRadar" | "magosradar" | "spotter";
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
 }
@@ -93,6 +93,7 @@ export interface ActividadPayload {
 
 export interface RawRadarPayload {
   nanoRadar: RawRadarMessage[];
+  magosradar: RawRadarMessage[];
   spotter: RawRadarMessage[];
   actividad?: ActividadPayload;
 }

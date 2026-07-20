@@ -10,8 +10,17 @@ export const NR_PALETTE = [
   { primary: "#ec4899", pulse: "#f9a8d4" },
 ];
 
+export const MG_PALETTE = [
+  { primary: "#f43f5e", pulse: "#fb7185" },
+  { primary: "#8b5cf6", pulse: "#a78bfa" },
+  { primary: "#14b8a6", pulse: "#5eead4" },
+  { primary: "#f97316", pulse: "#fb923c" },
+  { primary: "#eab308", pulse: "#facc15" },
+];
+
 export const ALL_VISIBLE: DeviceVisibility = {
   hiddenNanoradares: new Set(),
+  hiddenMagosradares: new Set(),
   hiddenSpotters: new Set(),
   hiddenCamaras: new Set(),
   hiddenPtz: new Set(),
