@@ -111,6 +111,7 @@ export function RadarTargetsLayer({
             nivel: t.nivel,
             deviceType: t.deviceType,
             isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
+            trackColor: t.trackColor ?? null,
           },
         })),
     }),
@@ -123,6 +124,8 @@ export function RadarTargetsLayer({
     paint: {
       "line-color": [
         "case",
+        ["has", "trackColor"],
+        ["get", "trackColor"],
         ["get", "isMoving"],
         targetColors.moving,
         targetColors.stopped,

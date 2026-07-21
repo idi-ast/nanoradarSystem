@@ -13,7 +13,7 @@ const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
   messages: RawRadarPayload["nanoRadar"],
-  deviceType: "nanoRadar" | "magosradar" | "spotter",
+  deviceType: "nanoRadar" | "spotter",
   now: number,
   historyMaxPoints: number,
 ) {
@@ -37,6 +37,59 @@ function processDeviceMessages(
       history,
     });
   });
+}
+
+/**
+ * Procesa detecciones de magosRadar agrupando por trackId.
+ * El backend envía `trackId` (ej: "T3") para identificar el vehículo,
+ * junto con `trackColor` para colorear de forma estable en el frontend.
+ * Todos los puntos de un mismo track en un barrido se agrupan en una sola trayectoria.
+ */
+function processMagosradarMessages(
+  next: Map<string, RadarTarget>,
+  messages: RawRadarPayload["magosradar"],
+  now: number,
+  historyMaxPoints: number,
+) {
+  // Agrupar por trackId (enviado por el backend)
+  const byTrack = new Map<string, { points: RawRadarPayload["magosradar"]; color: string }>();
+  for (const raw of messages) {
+    const tid = raw.trackId ?? String(raw.id).split("_")[0];
+    const color = raw.trackColor ?? "#f43f5e";
+    if (!byTrack.has(tid)) byTrack.set(tid, { points: [], color });
+    byTrack.get(tid)!.points.push(raw);
+  }
+
+  for (const [trackId, { points, color }] of byTrack) {
+    const targetId = `magosradar_${trackId}`;
+
+    // Todos los puntos del barrido actual van al historial
+    const newPoints: [number, number, number][] = points.map((p) => [p.lat, p.lon, now]);
+
+    const existing = next.get(targetId);
+    const history: [number, number, number][] = existing
+      ? [...existing.history, ...newPoints].slice(-historyMaxPoints)
+      : newPoints;
+
+    // Centroide como posición principal
+    const centroidLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+    const centroidLon = points.reduce((s, p) => s + p.lon, 0) / points.length;
+
+    // Máximo nivel entre todos los puntos del track
+    const maxNivel = Math.max(...points.map((p) => p.nivel));
+
+    next.set(targetId, {
+      id: targetId,
+      lat: centroidLat,
+      lon: centroidLon,
+      nivel: maxNivel,
+      zona: points[0].zona,
+      deviceType: "magosradar",
+      lastUpdate: now,
+      history,
+      trackColor: color,
+    });
+  }
 }
 
 export type WsStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
@@ -83,7 +136,7 @@ export function useRadarWebSocket(
       setTargetsMap((prev) => {
         const next = new Map(prev);
         processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
-        processDeviceMessages(next, magosRadar, "magosradar", now, timing.HISTORY_MAX_POINTS);
+        processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS);
         processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
         return next;
       });

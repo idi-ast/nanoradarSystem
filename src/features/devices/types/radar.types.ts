@@ -19,6 +19,8 @@ export interface RadarTarget {
   deviceType: "nanoRadar" | "magosradar" | "spotter";
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
+  /** Color asignado por el backend para este track (magosRadar) */
+  trackColor?: string;
 }
 
 export interface RadarZone {
@@ -71,6 +73,12 @@ export interface RawRadarMessage {
   lon: number;
   nivel: number;
   zona: string;
+  /** ID del track al que pertenece la detección (magosRadar) */
+  trackId?: string;
+  /** Cantidad de detecciones acumuladas del track (magosRadar) */
+  trackPoints?: number;
+  /** Color estable asignado por el backend al track (magosRadar) */
+  trackColor?: string;
 }
 
 /** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */
