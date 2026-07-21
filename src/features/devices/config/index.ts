@@ -62,6 +62,8 @@ export interface TargetTimingConfig {
   TARGET_TIMEOUT_MS: number;
   /** Máximo de puntos de historial por objetivo */
   HISTORY_MAX_POINTS: number;
+  /** Cantidad de puntos recientes del track que muestran estela con opacidad decreciente */
+  TRAIL_FADE_POINTS: number;
 }
 
 export interface GeofenceConfig {
@@ -104,9 +106,10 @@ export const TARGET_COLORS: TargetColorsConfig = {
 
 export const TARGET_TIMING: TargetTimingConfig = {
   TRACKING_ACTIVE_MS: 10_000,
-  COLOR_REFRESH_MS: 1_000,
+  COLOR_REFRESH_MS: 200,
   TARGET_TIMEOUT_MS: 70_000,
   HISTORY_MAX_POINTS: 500,
+  TRAIL_FADE_POINTS: 30,
 };
 
 export const GEOFENCE: GeofenceConfig = {

@@ -4,9 +4,9 @@ import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
-const ACTIVITY_TIMEOUT_MS = 15_000;
-/** Intervalo de actualización de la UI */
-const SET_TIME_INTERVAL_MS = 3000;
+const ACTIVITY_TIMEOUT_MS = 1_000;
+/** Intervalo de procesamiento del buffer WS (5 FPS ≈ 200ms) */
+const SET_TIME_INTERVAL_MS = 2;
 /** Backoff de reconexión: [1s, 2s, 4s, 8s, 16s, 30s] */
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 

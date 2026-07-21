@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { toGeoCoord } from "./utils/geoHelpers";
+// import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
@@ -100,22 +100,40 @@ export function RadarTargetsLayer({
       type: "FeatureCollection" as const,
       features: slicedTargets
         .filter((t) => t.history.length > 1)
-        .map((t) => ({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: t.history.map(toGeoCoord),
-          },
-          properties: {
-            id: t.id,
-            nivel: t.nivel,
-            deviceType: t.deviceType,
-            isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
-            trackColor: t.trackColor ?? null,
-          },
-        })),
+        .flatMap((t) => {
+          const history = t.history;
+          // Solo los últimos TRAIL_FADE_POINTS puntos generan estela visible
+          const fadeLen = timing.TRAIL_FADE_POINTS;
+          const recentHistory = history.length > fadeLen
+            ? history.slice(-fadeLen)
+            : history;
+
+          return recentHistory.slice(1).map((point, i) => {
+            const prevPoint = recentHistory[i];
+            // i=0 → segmento más antiguo, i=recentHistory.length-2 → más reciente
+            const totalSegments = recentHistory.length - 1;
+            const opacity = totalSegments > 0
+              ? Math.max(0, (i + 1) / totalSegments)
+              : 1;
+            return {
+              type: "Feature" as const,
+              geometry: {
+                type: "LineString" as const,
+                coordinates: [
+                  [prevPoint[1], prevPoint[0]],
+                  [point[1], point[0]],
+                ],
+              },
+              properties: {
+                id: t.id,
+                opacity,
+                color: t.trackColor ?? null,
+              },
+            };
+          });
+        }),
     }),
-    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
+    [slicedTargets, timing.TRAIL_FADE_POINTS],
   );
 
   const trailLayer = {
@@ -124,16 +142,13 @@ export function RadarTargetsLayer({
     paint: {
       "line-color": [
         "case",
-        ["has", "trackColor"],
-        ["get", "trackColor"],
-        ["get", "isMoving"],
+        ["has", "color"],
+        ["get", "color"],
         targetColors.moving,
-        targetColors.stopped,
       ] as unknown as string,
-      "line-width": 4,
-      "line-dasharray": [1, 2],
-      "line-opacity": 0.72,
-      "line-blur": 0.65,
+      "line-width": 3.5,
+      "line-opacity": ["get", "opacity"],
+      "line-blur": 0.8,
     },
   };
 
