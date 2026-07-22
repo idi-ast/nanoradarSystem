@@ -22,7 +22,7 @@ import type {
 } from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { NR_PALETTE, MG_PALETTE } from "./devicesConfig";
-import { DeviceEditPanel } from "./DeviceEditPanel";
+import { DeviceEditPanel, MagosradarAdvancedPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { Tooltip } from "@/components/ui";
 import { AddDeviceModal } from "@/features/config-devices/components/AddDeviceModal";
@@ -330,22 +330,29 @@ export const DeviceSelector = memo(function DeviceSelector({
             }}
             className="flex items-start gap-2"
           >
-            {/* Panel de edición adjunto a la izquierda del panel principal */}
+            {/* Panel(es) de edición adjunto(s) a la izquierda del panel principal */}
             {editingDevice && liveEdit && (
-              <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-                <DeviceEditPanel
-                  editing={editingDevice}
-                  onClose={() => onEditClose?.()}
-                  liveEdit={liveEdit}
-                  onLiveEditChange={(v) => onLiveEditChange?.(v)}
-                  liveEditPos={liveEditPos ?? null}
-                  onLiveEditPosChange={onLiveEditPosChange}
-                  isPickingPosition={isPickingPosition}
-                  onPickPosition={onPickPosition}
-                  onCancelPickPosition={onCancelPickPosition}
-                  mode="floating"
-                />
-              </div>
+              <>
+                {/* Panel avanzado (solo MagosRadar) — a la izquierda del básico */}
+                {editingDevice.kind === "magosradar" && (
+                  <MagosradarAdvancedPanel device={editingDevice.device} />
+                )}
+
+                <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+                  <DeviceEditPanel
+                    editing={editingDevice}
+                    onClose={() => onEditClose?.()}
+                    liveEdit={liveEdit}
+                    onLiveEditChange={(v) => onLiveEditChange?.(v)}
+                    liveEditPos={liveEditPos ?? null}
+                    onLiveEditPosChange={onLiveEditPosChange}
+                    isPickingPosition={isPickingPosition}
+                    onPickPosition={onPickPosition}
+                    onCancelPickPosition={onCancelPickPosition}
+                    mode="floating"
+                  />
+                </div>
+              </>
             )}
 
             {/* Panel principal de dispositivos */}

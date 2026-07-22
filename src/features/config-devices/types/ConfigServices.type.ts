@@ -90,15 +90,40 @@ export interface Nanoradares {
 }
 
 export interface Magosradares {
+  // Campos base
+  id: number;
+  idEmpresa: number;
   nombre: string;
   direccionIp: string;
-  longitud: string;
-  radio: number;
-  apertura: number;
-  idEmpresa: number;
-  id: number;
   latitud: string;
+  longitud: string;
   azimut: string;
+  radio: number;
   grado: number;
-  color: string;
+  apertura: number;
+  color: string | null;
+
+  // Tracking
+  rcs: number | null;
+  snr: number | null;
+  speed: number | null;
+  heading: number | null;
+  trackColor: string | null;
+  minTrackPoints: number | null;
+  associationDist: number | null;
+  ttl: number | null;
+  coastTtl: number | null;
+  emaSmooth: number | null;
+  velSmooth: number | null;
+  maxDetections: number | null;
+  clusterDist: number | null;
+
+  // Metadatos
+  enabled: number | null; // 1 o 0
+  modelo: string | null;
+  frecuencia: number | null;
+  potencia: number | null;
+  elevacion: number | null;
+  altitud: number | null;
+  notas: string | null;
 }

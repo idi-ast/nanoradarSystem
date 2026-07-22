@@ -1,13 +1,49 @@
 import { apiSystem } from "@/apis";
 import type { Magosradares } from "../../types/ConfigServices.type";
 
+// Campos obligatorios para creación
 export type MagosradarPayload = Pick<
   Magosradares,
-  "nombre" | "direccionIp" | "latitud" | "longitud" | "azimut" | "grado" | "radio" | "apertura" | "color"
->;
+  | "nombre"
+  | "direccionIp"
+  | "latitud"
+  | "longitud"
+  | "azimut"
+  | "grado"
+  | "radio"
+  | "apertura"
+  | "color"
+> & {
+  // Tracking (opcional)
+  rcs?: number | null;
+  snr?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  trackColor?: string | null;
+  minTrackPoints?: number | null;
+  associationDist?: number | null;
+  ttl?: number | null;
+  coastTtl?: number | null;
+  emaSmooth?: number | null;
+  velSmooth?: number | null;
+  maxDetections?: number | null;
+  clusterDist?: number | null;
+
+  // Metadatos (opcional)
+  enabled?: number | null;
+  modelo?: string | null;
+  frecuencia?: number | null;
+  potencia?: number | null;
+  elevacion?: number | null;
+  altitud?: number | null;
+  notas?: string | null;
+};
+
+// Tipo para PUT: todos los campos son opcionales
+export type MagosradarUpdatePayload = Partial<MagosradarPayload>;
 
 export const magosradarService = {
-  updateMagosradar: async (id: number, payload: MagosradarPayload): Promise<Magosradares> => {
+  updateMagosradar: async (id: number, payload: MagosradarUpdatePayload): Promise<Magosradares> => {
     const res = await apiSystem.put<Magosradares>(`/magosradares/${id}`, payload);
     return res.data;
   },

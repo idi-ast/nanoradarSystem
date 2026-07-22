@@ -1201,6 +1201,162 @@ function PtzForm({
   );
 }
 
+// ─── Helpers for advanced form ──────────────────────
+function n(v: string | number | null | undefined): string {
+  return v == null ? "" : String(v);
+}
+function nn(v: string): number | null {
+  return v === "" ? null : Number(v);
+}
+
+interface MagosradarAdvancedFormProps {
+  device: Magosradares;
+}
+
+export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps) {
+  const { mutate, isPending } = useUpdateMagosradar();
+
+  const [form, setForm] = useState<Record<string, string>>({
+    rcs: n(device.rcs),
+    snr: n(device.snr),
+    speed: n(device.speed),
+    heading: n(device.heading),
+    trackColor: device.trackColor ?? "",
+    minTrackPoints: n(device.minTrackPoints),
+    associationDist: n(device.associationDist),
+    ttl: n(device.ttl),
+    coastTtl: n(device.coastTtl),
+    emaSmooth: n(device.emaSmooth),
+    velSmooth: n(device.velSmooth),
+    maxDetections: n(device.maxDetections),
+    clusterDist: n(device.clusterDist),
+    enabled: n(device.enabled),
+    modelo: device.modelo ?? "",
+    frecuencia: n(device.frecuencia),
+    potencia: n(device.potencia),
+    elevacion: n(device.elevacion),
+    altitud: n(device.altitud),
+    notas: device.notas ?? "",
+  });
+
+  function set(k: string, v: string) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  function save() {
+    mutate({
+      id: device.id,
+      payload: {
+        rcs: nn(form.rcs),
+        snr: nn(form.snr),
+        speed: nn(form.speed),
+        heading: nn(form.heading),
+        trackColor: form.trackColor || null,
+        minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+        associationDist: nn(form.associationDist),
+        ttl: nn(form.ttl),
+        coastTtl: nn(form.coastTtl),
+        emaSmooth: nn(form.emaSmooth),
+        velSmooth: nn(form.velSmooth),
+        maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+        clusterDist: nn(form.clusterDist),
+        enabled: form.enabled === "" ? null : Number(form.enabled),
+        modelo: form.modelo || null,
+        frecuencia: nn(form.frecuencia),
+        potencia: nn(form.potencia),
+        elevacion: nn(form.elevacion),
+        altitud: nn(form.altitud),
+        notas: form.notas || null,
+      },
+    });
+  }
+
+  const globalHint = "Vacío = valor global";
+
+  return (
+    <div className="flex flex-col w-80 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
+        <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
+          MagosRadar · Avanzado
+        </span>
+        <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
+      </div>
+
+      {/* Scrollable content — grid de 2 columnas */}
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        {/* Estado & modelo */}
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 col-span-2">
+          Estado &amp; modelo
+        </p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+              Estado
+            </span>
+            <select
+              value={form.enabled}
+              onChange={(e) => set("enabled", e.target.value)}
+              className="w-full text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
+            >
+              <option value="">— Por defecto —</option>
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </div>
+          <TextField label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} />
+          <div className="col-span-2">
+            <TextField label="Notas" value={form.notas} onChange={(v) => set("notas", v)} />
+          </div>
+        </div>
+
+        {/* Geo & RF */}
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+          Geo &amp; RF
+        </p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+          <TextField label="Elevación (°)" value={form.elevacion} onChange={(v) => set("elevacion", v)} type="number" />
+          <TextField label="Altitud (msnm)" value={form.altitud} onChange={(v) => set("altitud", v)} type="number" />
+          <TextField label="Frecuencia (GHz)" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} type="number" />
+          <TextField label="Potencia (dBm)" value={form.potencia} onChange={(v) => set("potencia", v)} type="number" />
+        </div>
+
+        {/* Tracking */}
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+          Tracking
+        </p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+          <TextField label="Color tracks" value={form.trackColor} onChange={(v) => set("trackColor", v)} />
+          <TextField label="SNR (dB)" value={form.snr} onChange={(v) => set("snr", v)} type="number" />
+          <TextField label="RCS (m²)" value={form.rcs} onChange={(v) => set("rcs", v)} type="number" />
+          <TextField label="Vel. máx (m/s)" value={form.speed} onChange={(v) => set("speed", v)} type="number" />
+          <TextField label="Rumbo (°)" value={form.heading} onChange={(v) => set("heading", v)} type="number" />
+          <TextField label="Puntos mín. track" value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} type="number" />
+          <TextField label="Dist. asociación (m)" value={form.associationDist} onChange={(v) => set("associationDist", v)} type="number" />
+          <TextField label="TTL track (seg)" value={form.ttl} onChange={(v) => set("ttl", v)} type="number" />
+          <TextField label="TTL coasting (seg)" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} type="number" />
+          <TextField label="Suavizado posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} type="number" />
+          <TextField label="Suavizado velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} type="number" />
+          <TextField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} type="number" />
+          <TextField label="Dist. clustering (m)" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} type="number" />
+        </div>
+      </div>
+
+      {/* Footer con botón guardar */}
+      <div className="px-3 py-2 border-t border-border/60 shrink-0">
+        <button
+          onClick={save}
+          disabled={isPending}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition-colors disabled:opacity-50"
+        >
+          <IconDeviceFloppy size={13} />
+          {isPending ? "Guardando..." : "Guardar avanzados"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export interface DeviceEditPanelProps {
   editing: EditingDevice;
   onClose: () => void;

@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { magosradarService, type MagosradarPayload } from "../service";
+import { magosradarService, type MagosradarPayload, type MagosradarUpdatePayload } from "../service";
 
 export function useUpdateMagosradar() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: MagosradarPayload }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: MagosradarUpdatePayload }) =>
       magosradarService.updateMagosradar(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["config-devices"] });
