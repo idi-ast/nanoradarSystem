@@ -21,6 +21,8 @@ export interface RadarTarget {
   history: [number, number, number][];
   /** Color asignado por el backend para este track (magosRadar) */
   trackColor?: string;
+  /** Velocidad más reciente del track (magosRadar) */
+  speed?: number;
 }
 
 export interface RadarZone {
@@ -75,10 +77,12 @@ export interface RawRadarMessage {
   zona: string;
   /** ID del track al que pertenece la detección (magosRadar) */
   trackId?: string;
-  /** Cantidad de detecciones acumuladas del track (magosRadar) */
+  /** Orden del punto dentro del track — ordenar ascendentemente (magosRadar) */
   trackPoints?: number;
   /** Color estable asignado por el backend al track (magosRadar) */
   trackColor?: string;
+  /** Velocidad del punto de detección (magosRadar) */
+  speed?: number;
 }
 
 /** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */

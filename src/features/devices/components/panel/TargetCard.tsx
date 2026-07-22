@@ -49,6 +49,14 @@ export const TargetCard = memo(function TargetCard({ target }: Props) {
       <p className="text-[10px] text-text-200 mt-1">
         Zona: {target.zona || "N/A"}
       </p>
+      {target.speed != null && (
+        <p className="text-[10px] text-text-200 mt-0.5">
+          Velocidad:{" "}
+          <span className="text-brand-200 font-bold">
+            {target.speed.toFixed(1)} km/h
+          </span>
+        </p>
+      )}
     </div>
   );
 });

@@ -93,7 +93,7 @@ export function RadarTargetsLayer({
       setNow(Date.now());
     }, timing.COLOR_REFRESH_MS);
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [timing.COLOR_REFRESH_MS]);
 
   const trailsData = useMemo(
     () => ({
@@ -279,6 +279,14 @@ export function RadarTargetsLayer({
                 <li>
                   Nivel: <span className="font-bold">{selected.nivel}</span>
                 </li>
+                {selected.speed != null && (
+                  <li>
+                    Velocidad:{" "}
+                    <span className="text-brand-200 font-bold">
+                      {selected.speed.toFixed(1)} km/h
+                    </span>
+                  </li>
+                )}
                 <li>
                   Pos:{" "}
                   <span className="font-bold">

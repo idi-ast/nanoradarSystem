@@ -4,7 +4,7 @@ import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
-const ACTIVITY_TIMEOUT_MS = 1_000;
+const ACTIVITY_TIMEOUT_MS = 10_000;
 /** Intervalo de procesamiento del buffer WS (5 FPS ≈ 200ms) */
 const SET_TIME_INTERVAL_MS = 2;
 /** Backoff de reconexión: [1s, 2s, 4s, 8s, 16s, 30s] */
@@ -41,8 +41,10 @@ function processDeviceMessages(
 
 /**
  * Procesa detecciones de magosRadar agrupando por trackId.
- * El backend envía `trackId` (ej: "T3") para identificar el vehículo,
- * junto con `trackColor` para colorear de forma estable en el frontend.
+ * El backend envía `trackId` (ej: "T182") para identificar el vehículo,
+ * `trackPoints` para ordenar los puntos dentro del track,
+ * `trackColor` para colorear de forma estable,
+ * y `speed` para la velocidad de cada punto.
  * Todos los puntos de un mismo track en un barrido se agrupan en una sola trayectoria.
  */
 function processMagosradarMessages(
@@ -61,6 +63,9 @@ function processMagosradarMessages(
   }
 
   for (const [trackId, { points, color }] of byTrack) {
+    // Ordenar por trackPoints ascendente para mantener el trazo correcto
+    points.sort((a, b) => (a.trackPoints ?? 0) - (b.trackPoints ?? 0));
+
     const targetId = `magosradar_${trackId}`;
 
     // Todos los puntos del barrido actual van al historial
@@ -78,6 +83,10 @@ function processMagosradarMessages(
     // Máximo nivel entre todos los puntos del track
     const maxNivel = Math.max(...points.map((p) => p.nivel));
 
+    // Velocidad del último punto (mayor trackPoints)
+    const lastPoint = points[points.length - 1];
+    const speed = lastPoint.speed;
+
     next.set(targetId, {
       id: targetId,
       lat: centroidLat,
@@ -88,6 +97,7 @@ function processMagosradarMessages(
       lastUpdate: now,
       history,
       trackColor: color,
+      speed,
     });
   }
 }
