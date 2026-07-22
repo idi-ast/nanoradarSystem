@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui";
 import type { Magosradares } from "../../types/ConfigServices.type";
 import { useUpdateMagosradar } from "../hooks/useUpdateMagosradar";
 import type { MagosradarUpdatePayload } from "../service";
@@ -18,6 +19,17 @@ function n(v: string | number | null | undefined): string {
 }
 function nn(v: string): number | null {
   return v === "" ? null : Number(v);
+}
+
+// ─── Info tooltip ──────────────────────────────────────────
+function InfoIcon({ text }: { text: string }) {
+  return (
+    <Tooltip text={text} side="top">
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-text-100/10 text-text-100/40 text-[8px] font-bold cursor-help hover:bg-brand-200/20 hover:text-brand-200/70 transition-colors shrink-0 ml-1">
+        ?
+      </span>
+    </Tooltip>
+  );
 }
 
 // ─── Section header ────────────────────────────────────────
@@ -84,6 +96,7 @@ function Field({
   step,
   required,
   note,
+  info,
 }: {
   label: string;
   name: string;
@@ -96,11 +109,13 @@ function Field({
   step?: string;
   required?: boolean;
   note?: string;
+  info?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor={name} className="text-xs text-text-100/80">
         {label}
+        {info && <InfoIcon text={info} />}
         {note && <span className="text-[10px] text-text-200/60 ml-1">({note})</span>}
       </Label>
       <Input
@@ -274,18 +289,21 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             <div className="flex flex-col gap-1">
               <Label htmlFor="enabled-mg" className="text-xs text-text-100/80">
                 Estado
+                <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
               </Label>
-              <select
-                id="enabled-mg"
-                name="enabled"
-                value={form.enabled}
-                onChange={handleChange}
-                className="h-10 rounded-lg border border-border bg-bg-100 text-text-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, enabled: p.enabled === "1" ? "0" : "1" }))}
+                className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${
+                  form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
+                }`}
               >
-                <option value="">— Usar valor global —</option>
-                <option value="1">Activo</option>
-                <option value="0">Inactivo</option>
-              </select>
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    form.enabled === "1" ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
 
             <Field
@@ -324,9 +342,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             <Field label="Apertura (°)" name="apertura" value={form.apertura}
               onChange={handleChange} type="number" min={1} max={360} />
             <Field label="Elevación (°)" name="elevacion" value={form.elevacion}
-              onChange={handleChange} type="number" step="any" placeholder="2.5" note={globalTooltip} />
+              onChange={handleChange} type="number" step="any" placeholder="2.5" note={globalTooltip}
+              info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
             <Field label="Altitud (msnm)" name="altitud" value={form.altitud}
-              onChange={handleChange} type="number" step="any" placeholder="580" note={globalTooltip} />
+              onChange={handleChange} type="number" step="any" placeholder="580" note={globalTooltip}
+              info="Altitud del radar sobre el nivel del mar. Solo informativo." />
 
             <ColorField
               label="Color del radar" id="color-mg"
@@ -348,41 +368,53 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
               onChange={(v) => setForm((p) => ({ ...p, trackColor: v }))}
             />
 
-            <Field label="SNR mínimo (dB)" name="snr" value={form.snr}
-              onChange={handleChange} type="number" step="any" placeholder="25" />
+            <Field label="SNR (dB)" name="snr" value={form.snr}
+              onChange={handleChange} type="number" step="any" placeholder="25"
+              info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan." />
             <Field label="RCS (m²)" name="rcs" value={form.rcs}
-              onChange={handleChange} type="number" step="any" placeholder="0.5" />
-            <Field label="Velocidad máx (m/s)" name="speed" value={form.speed}
-              onChange={handleChange} type="number" step="any" placeholder="55" />
-            <Field label="Rumbo de referencia (°)" name="heading" value={form.heading}
-              onChange={handleChange} type="number" step="any" placeholder="0" />
+              onChange={handleChange} type="number" step="any" placeholder="0.5"
+              info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
+            <Field label="Vel. máx (m/s)" name="speed" value={form.speed}
+              onChange={handleChange} type="number" step="any" placeholder="55"
+              info="Velocidad máxima para propagación por inercia (coasting)." />
+            <Field label="Rumbo ref. (°)" name="heading" value={form.heading}
+              onChange={handleChange} type="number" step="any" placeholder="0"
+              info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
 
             <FieldRow>
               <Field label="Puntos mín. track" name="minTrackPoints" value={form.minTrackPoints}
-                onChange={handleChange} type="number" min={1} placeholder="3" />
+                onChange={handleChange} type="number" min={1} placeholder="3"
+                info="Detecciones consecutivas para confirmar un track (tentative → confirmed)." />
               <Field label="Dist. asociación (m)" name="associationDist" value={form.associationDist}
-                onChange={handleChange} type="number" step="any" placeholder="50" />
+                onChange={handleChange} type="number" step="any" placeholder="50"
+                info="Distancia máxima para asignar una detección a un track existente." />
             </FieldRow>
 
             <FieldRow>
               <Field label="TTL track (seg)" name="ttl" value={form.ttl}
-                onChange={handleChange} type="number" step="any" placeholder="8" />
+                onChange={handleChange} type="number" step="any" placeholder="8"
+                info="Segundos sin detección antes de eliminar un track confirmado." />
               <Field label="TTL coasting (seg)" name="coastTtl" value={form.coastTtl}
-                onChange={handleChange} type="number" step="any" placeholder="3" />
+                onChange={handleChange} type="number" step="any" placeholder="3"
+                info="Tiempo de predicción por inercia sin detecciones." />
             </FieldRow>
 
             <FieldRow>
-              <Field label="Suavizado posición" name="emaSmooth" value={form.emaSmooth}
-                onChange={handleChange} type="number" step="0.01" min={0} max={1} placeholder="0.30" />
-              <Field label="Suavizado velocidad" name="velSmooth" value={form.velSmooth}
-                onChange={handleChange} type="number" step="0.01" min={0} max={1} placeholder="0.20" />
+              <Field label="Suav. posición" name="emaSmooth" value={form.emaSmooth}
+                onChange={handleChange} type="number" step="0.01" placeholder="0.30"
+                info="Factor EMA para suavizar posición. Mayor = más reactivo pero titila." />
+              <Field label="Suav. velocidad" name="velSmooth" value={form.velSmooth}
+                onChange={handleChange} type="number" step="0.01" placeholder="0.20"
+                info="Factor EMA para suavizar velocidad del track." />
             </FieldRow>
 
             <FieldRow>
               <Field label="Máx detecciones" name="maxDetections" value={form.maxDetections}
-                onChange={handleChange} type="number" min={1} placeholder="40" />
+                onChange={handleChange} type="number" min={1} placeholder="40"
+                info="Máximo de detecciones por mensaje que se pasan al tracker." />
               <Field label="Dist. clustering (m)" name="clusterDist" value={form.clusterDist}
-                onChange={handleChange} type="number" step="any" placeholder="8" />
+                onChange={handleChange} type="number" step="any" placeholder="8"
+                info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
             </FieldRow>
           </div>
 
@@ -392,9 +424,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
 
             <FieldRow>
               <Field label="Frecuencia (GHz)" name="frecuencia" value={form.frecuencia}
-                onChange={handleChange} type="number" step="any" placeholder="77" />
+                onChange={handleChange} type="number" step="any" placeholder="77"
+                info="Frecuencia de operación del hardware. Solo informativo." />
               <Field label="Potencia (dBm)" name="potencia" value={form.potencia}
-                onChange={handleChange} type="number" step="any" placeholder="20" />
+                onChange={handleChange} type="number" step="any" placeholder="20"
+                info="Potencia de transmisión del hardware. Solo informativo." />
             </FieldRow>
           </div>
 

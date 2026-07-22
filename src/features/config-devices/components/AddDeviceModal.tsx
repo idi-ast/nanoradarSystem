@@ -5,6 +5,7 @@ import { IconX, IconRadar, IconCurrentLocation, IconCamera, IconAdjustments } fr
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui";
 import { useCreateNanoradar } from "../nanoradar/hooks/useUpdateNanoradar";
 import { useCreateMagosradar } from "../magosradar/hooks/useUpdateMagosradar";
 import { useCreateSpotter } from "../spotter/hooks/useUpdateSpotter";
@@ -130,6 +131,16 @@ function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>;
 }
 
+function InfoIcon({ text }: { text: string }) {
+  return (
+    <Tooltip text={text} side="top">
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-text-100/10 text-text-100/40 text-[8px] font-bold cursor-help hover:bg-brand-200/20 hover:text-brand-200/70 transition-colors shrink-0 ml-1">
+        ?
+      </span>
+    </Tooltip>
+  );
+}
+
 function Field({
   label,
   name,
@@ -137,6 +148,7 @@ function Field({
   onChange,
   type = "text",
   placeholder,
+  info,
 }: {
   label: string;
   name: string;
@@ -144,11 +156,13 @@ function Field({
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
   placeholder?: string;
+  info?: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <Label htmlFor={name} className="text-[11px] text-text-100/60 uppercase tracking-widest">
         {label}
+        {info && <InfoIcon text={info} />}
       </Label>
       <Input
         id={name}
@@ -271,18 +285,23 @@ function MagosradarForm({ onClose }: { onClose: () => void }) {
       </FieldRow>
       <FieldRow>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="enabled-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Estado</Label>
-          <select
-            id="enabled-mg-add"
-            name="enabled"
-            value={form.enabled ?? ""}
-            onChange={handleChange}
-            className="h-8 text-sm rounded-md border border-border bg-bg-200 text-text-100 px-2 focus:outline-none focus:ring-1 focus:ring-brand-200"
+          <div className="flex items-center gap-1">
+            <Label htmlFor="enabled-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Estado</Label>
+            <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm((p) => ({ ...p, enabled: p.enabled === 1 ? 0 : 1 }))}
+            className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${
+              form.enabled === 1 ? "bg-emerald-500" : "bg-bg-400"
+            }`}
           >
-            <option value="">— Por defecto —</option>
-            <option value={1}>Activo</option>
-            <option value={0}>Inactivo</option>
-          </select>
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                form.enabled === 1 ? "translate-x-5" : "translate-x-1"
+              }`}
+            />
+          </button>
         </div>
         <Field label="Modelo" name="modelo" value={form.modelo ?? ""} onChange={handleChange} placeholder="Magos X7" />
       </FieldRow>
@@ -314,8 +333,10 @@ function MagosradarForm({ onClose }: { onClose: () => void }) {
         <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="360" />
       </FieldRow>
       <FieldRow>
-        <Field label="Elevación (°)" name="elevacion" value={form.elevacion ?? ""} onChange={handleChange} type="number" step="any" placeholder="2.5" />
-        <Field label="Altitud (msnm)" name="altitud" value={form.altitud ?? ""} onChange={handleChange} type="number" step="any" placeholder="580" />
+        <Field label="Elevación (°)" name="elevacion" value={form.elevacion ?? ""} onChange={handleChange} type="number" step="any" placeholder="2.5"
+          info="Ángulo de elevación de la antena respecto al horizonte." />
+        <Field label="Altitud (msnm)" name="altitud" value={form.altitud ?? ""} onChange={handleChange} type="number" step="any" placeholder="580"
+          info="Altitud del radar sobre el nivel del mar." />
       </FieldRow>
       <div className="flex flex-col gap-1">
         <Label htmlFor="color-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color del radar</Label>
@@ -331,28 +352,40 @@ function MagosradarForm({ onClose }: { onClose: () => void }) {
         <span className="text-text-200/50 font-normal normal-case ml-1">(vacío = valor global)</span>
       </h4>
       <FieldRow>
-        <Field label="SNR mínimo (dB)" name="snr" value={form.snr ?? ""} onChange={handleChange} type="number" step="any" placeholder="25" />
-        <Field label="RCS (m²)" name="rcs" value={form.rcs ?? ""} onChange={handleChange} type="number" step="any" placeholder="0.5" />
+        <Field label="SNR (dB)" name="snr" value={form.snr ?? ""} onChange={handleChange} type="number" step="any" placeholder="25"
+          info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan." />
+        <Field label="RCS (m²)" name="rcs" value={form.rcs ?? ""} onChange={handleChange} type="number" step="any" placeholder="0.5"
+          info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
       </FieldRow>
       <FieldRow>
-        <Field label="Velocidad máx (m/s)" name="speed" value={form.speed ?? ""} onChange={handleChange} type="number" step="any" placeholder="55" />
-        <Field label="Rumbo ref. (°)" name="heading" value={form.heading ?? ""} onChange={handleChange} type="number" step="any" placeholder="0" />
+        <Field label="Vel. máx (m/s)" name="speed" value={form.speed ?? ""} onChange={handleChange} type="number" step="any" placeholder="55"
+          info="Velocidad máxima para propagación por inercia (coasting)." />
+        <Field label="Rumbo ref. (°)" name="heading" value={form.heading ?? ""} onChange={handleChange} type="number" step="any" placeholder="0"
+          info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
       </FieldRow>
       <FieldRow>
-        <Field label="Puntos mín. track" name="minTrackPoints" value={form.minTrackPoints ?? ""} onChange={handleChange} type="number" min={1} placeholder="3" />
-        <Field label="Dist. asociación (m)" name="associationDist" value={form.associationDist ?? ""} onChange={handleChange} type="number" step="any" placeholder="50" />
+        <Field label="Puntos mín. track" name="minTrackPoints" value={form.minTrackPoints ?? ""} onChange={handleChange} type="number" min={1} placeholder="3"
+          info="Detecciones consecutivas para confirmar un track (tentative → confirmed)." />
+        <Field label="Dist. asociación (m)" name="associationDist" value={form.associationDist ?? ""} onChange={handleChange} type="number" step="any" placeholder="50"
+          info="Distancia máxima para asignar una detección a un track existente." />
       </FieldRow>
       <FieldRow>
-        <Field label="TTL track (seg)" name="ttl" value={form.ttl ?? ""} onChange={handleChange} type="number" step="any" placeholder="8" />
-        <Field label="TTL coasting (seg)" name="coastTtl" value={form.coastTtl ?? ""} onChange={handleChange} type="number" step="any" placeholder="3" />
+        <Field label="TTL track (seg)" name="ttl" value={form.ttl ?? ""} onChange={handleChange} type="number" step="any" placeholder="8"
+          info="Segundos sin detección antes de eliminar un track confirmado." />
+        <Field label="TTL coasting (seg)" name="coastTtl" value={form.coastTtl ?? ""} onChange={handleChange} type="number" step="any" placeholder="3"
+          info="Tiempo de predicción por inercia sin detecciones." />
       </FieldRow>
       <FieldRow>
-        <Field label="Suavizado posición" name="emaSmooth" value={form.emaSmooth ?? ""} onChange={handleChange} type="number" step="0.01" min={0} max={1} placeholder="0.30" />
-        <Field label="Suavizado velocidad" name="velSmooth" value={form.velSmooth ?? ""} onChange={handleChange} type="number" step="0.01" min={0} max={1} placeholder="0.20" />
+        <Field label="Suav. posición" name="emaSmooth" value={form.emaSmooth ?? ""} onChange={handleChange} type="number" step="0.01" placeholder="0.30"
+          info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
+        <Field label="Suav. velocidad" name="velSmooth" value={form.velSmooth ?? ""} onChange={handleChange} type="number" step="0.01" placeholder="0.20"
+          info="Factor EMA para suavizar velocidad del track." />
       </FieldRow>
       <FieldRow>
-        <Field label="Máx detecciones" name="maxDetections" value={form.maxDetections ?? ""} onChange={handleChange} type="number" min={1} placeholder="40" />
-        <Field label="Dist. clustering (m)" name="clusterDist" value={form.clusterDist ?? ""} onChange={handleChange} type="number" step="any" placeholder="8" />
+        <Field label="Máx detecciones" name="maxDetections" value={form.maxDetections ?? ""} onChange={handleChange} type="number" min={1} placeholder="40"
+          info="Máximo de detecciones por mensaje que se pasan al tracker." />
+        <Field label="Dist. clustering (m)" name="clusterDist" value={form.clusterDist ?? ""} onChange={handleChange} type="number" step="any" placeholder="8"
+          info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
       </FieldRow>
       <div className="flex flex-col gap-1">
         <Label htmlFor="trackColor-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color de tracks</Label>
@@ -365,8 +398,10 @@ function MagosradarForm({ onClose }: { onClose: () => void }) {
       {/* RF */}
       <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1 mt-1">RF</h4>
       <FieldRow>
-        <Field label="Frecuencia (GHz)" name="frecuencia" value={form.frecuencia ?? ""} onChange={handleChange} type="number" step="any" placeholder="77" />
-        <Field label="Potencia (dBm)" name="potencia" value={form.potencia ?? ""} onChange={handleChange} type="number" step="any" placeholder="20" />
+        <Field label="Frecuencia (GHz)" name="frecuencia" value={form.frecuencia ?? ""} onChange={handleChange} type="number" step="any" placeholder="77"
+          info="Frecuencia de operación del hardware. Solo informativo." />
+        <Field label="Potencia (dBm)" name="potencia" value={form.potencia ?? ""} onChange={handleChange} type="number" step="any" placeholder="20"
+          info="Potencia de transmisión del hardware. Solo informativo." />
       </FieldRow>
 
       {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}

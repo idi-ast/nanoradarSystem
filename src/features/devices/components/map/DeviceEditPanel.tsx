@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair } from "@tabler/icons-react";
+import { Tooltip } from "@/components/ui";
+import { useToast } from "@/libs/sonner";
 import type {
   Nanoradares,
   Magosradares,
@@ -1213,8 +1215,100 @@ interface MagosradarAdvancedFormProps {
   device: Magosradares;
 }
 
+// ─── Info tooltip ────────────────────────────────────────
+function InfoIcon({ text }: { text: string }) {
+  return (
+    <Tooltip text={text} side="top">
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-text-100/10 text-text-100/40 text-[8px] font-bold cursor-help hover:bg-brand-200/20 hover:text-brand-200/70 transition-colors shrink-0">
+        ?
+      </span>
+    </Tooltip>
+  );
+}
+
+// ─── Slider with info — slider + number input (sin límite en número) ─────
+interface SliderFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  info: string;
+}
+
+function SliderField({ label, value, onChange, min, max, step = 1, unit, info }: SliderFieldProps) {
+  const num = value === "" ? 0 : Number(value);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+          {label}
+        </span>
+        {unit && <span className="text-[8px] font-mono text-text-100/25">{unit}</span>}
+        <InfoIcon text={info} />
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={isNaN(num) ? min : Math.min(Math.max(num, min), max)}
+          onChange={(e) => onChange(e.target.value === "" ? "" : String(Number(e.target.value)))}
+          className="flex-1 accent-emerald-400 cursor-pointer"
+          style={{ height: "4px" }}
+        />
+        <input
+          type="number"
+          value={value}
+          step={step}
+          placeholder={String(min)}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-14 shrink-0 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 text-right tabular-nums focus:outline-none focus:border-emerald-500/60"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Text field with info ──────────────────────────────────
+interface TextFieldInfoProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  info?: string;
+  type?: string;
+  placeholder?: string;
+}
+
+function TextFieldInfo({ label, value, onChange, info, type, placeholder }: TextFieldInfoProps) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+          {label}
+        </span>
+        {info && <InfoIcon text={info} />}
+      </div>
+      <input
+        type={type || "text"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 placeholder-text-200/40 focus:outline-none focus:border-emerald-500/60"
+      />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ════════════════════════════════════════════════════════
 export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps) {
   const { mutate, isPending } = useUpdateMagosradar();
+  const { success, error: showError } = useToast();
 
   const [form, setForm] = useState<Record<string, string>>({
     rcs: n(device.rcs),
@@ -1244,37 +1338,43 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   }
 
   function save() {
-    mutate({
-      id: device.id,
-      payload: {
-        rcs: nn(form.rcs),
-        snr: nn(form.snr),
-        speed: nn(form.speed),
-        heading: nn(form.heading),
-        trackColor: form.trackColor || null,
-        minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
-        associationDist: nn(form.associationDist),
-        ttl: nn(form.ttl),
-        coastTtl: nn(form.coastTtl),
-        emaSmooth: nn(form.emaSmooth),
-        velSmooth: nn(form.velSmooth),
-        maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
-        clusterDist: nn(form.clusterDist),
-        enabled: form.enabled === "" ? null : Number(form.enabled),
-        modelo: form.modelo || null,
-        frecuencia: nn(form.frecuencia),
-        potencia: nn(form.potencia),
-        elevacion: nn(form.elevacion),
-        altitud: nn(form.altitud),
-        notas: form.notas || null,
+    mutate(
+      {
+        id: device.id,
+        payload: {
+          rcs: nn(form.rcs),
+          snr: nn(form.snr),
+          speed: nn(form.speed),
+          heading: nn(form.heading),
+          trackColor: form.trackColor || null,
+          minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+          associationDist: nn(form.associationDist),
+          ttl: nn(form.ttl),
+          coastTtl: nn(form.coastTtl),
+          emaSmooth: nn(form.emaSmooth),
+          velSmooth: nn(form.velSmooth),
+          maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+          clusterDist: nn(form.clusterDist),
+          enabled: form.enabled === "" ? null : Number(form.enabled),
+          modelo: form.modelo || null,
+          frecuencia: nn(form.frecuencia),
+          potencia: nn(form.potencia),
+          elevacion: nn(form.elevacion),
+          altitud: nn(form.altitud),
+          notas: form.notas || null,
+        },
       },
-    });
+      {
+        onSuccess: () => success("Parámetros avanzados guardados correctamente"),
+        onError: (err) => showError(err instanceof Error ? err.message : "Error al guardar parámetros avanzados"),
+      },
+    );
   }
 
   const globalHint = "Vacío = valor global";
 
   return (
-    <div className="flex flex-col w-80 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+    <div className="flex flex-col w-96 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
         <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
@@ -1283,62 +1383,99 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
         <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
       </div>
 
-      {/* Scrollable content — grid de 2 columnas */}
+      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        {/* Estado & modelo */}
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 col-span-2">
+        {/* ═══ Estado & modelo ═══ */}
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
           Estado &amp; modelo
         </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
-              Estado
-            </span>
-            <select
-              value={form.enabled}
-              onChange={(e) => set("enabled", e.target.value)}
-              className="w-full text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+                Estado
+              </span>
+              <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
+            </div>
+            <button
+              type="button"
+              onClick={() => set("enabled", form.enabled === "1" ? "0" : "1")}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
+              }`}
             >
-              <option value="">— Por defecto —</option>
-              <option value="1">Activo</option>
-              <option value="0">Inactivo</option>
-            </select>
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  form.enabled === "1" ? "translate-x-4" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
-          <TextField label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} />
+          <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
           <div className="col-span-2">
-            <TextField label="Notas" value={form.notas} onChange={(v) => set("notas", v)} />
+            <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
           </div>
         </div>
 
-        {/* Geo & RF */}
+        {/* ═══ Geo & RF ═══ */}
         <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
           Geo &amp; RF
         </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
-          <TextField label="Elevación (°)" value={form.elevacion} onChange={(v) => set("elevacion", v)} type="number" />
-          <TextField label="Altitud (msnm)" value={form.altitud} onChange={(v) => set("altitud", v)} type="number" />
-          <TextField label="Frecuencia (GHz)" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} type="number" />
-          <TextField label="Potencia (dBm)" value={form.potencia} onChange={(v) => set("potencia", v)} type="number" />
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
+          <SliderField label="Elevación" value={form.elevacion} onChange={(v) => set("elevacion", v)} min={-90} max={90} step={0.1} unit="°"
+            info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
+          <SliderField label="Altitud" value={form.altitud} onChange={(v) => set("altitud", v)} min={0} max={9000} step={1} unit="msnm"
+            info="Altitud del radar sobre el nivel del mar. Solo informativo." />
+          <SliderField label="Frecuencia" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} min={1} max={100} step={0.1} unit="GHz"
+            info="Frecuencia de operación del hardware. Solo informativo." />
+          <SliderField label="Potencia" value={form.potencia} onChange={(v) => set("potencia", v)} min={-20} max={50} step={0.1} unit="dBm"
+            info="Potencia de transmisión del hardware. Solo informativo." />
         </div>
 
-        {/* Tracking */}
+        {/* ═══ Tracking ═══ */}
         <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
           Tracking
         </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-          <TextField label="Color tracks" value={form.trackColor} onChange={(v) => set("trackColor", v)} />
-          <TextField label="SNR (dB)" value={form.snr} onChange={(v) => set("snr", v)} type="number" />
-          <TextField label="RCS (m²)" value={form.rcs} onChange={(v) => set("rcs", v)} type="number" />
-          <TextField label="Vel. máx (m/s)" value={form.speed} onChange={(v) => set("speed", v)} type="number" />
-          <TextField label="Rumbo (°)" value={form.heading} onChange={(v) => set("heading", v)} type="number" />
-          <TextField label="Puntos mín. track" value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} type="number" />
-          <TextField label="Dist. asociación (m)" value={form.associationDist} onChange={(v) => set("associationDist", v)} type="number" />
-          <TextField label="TTL track (seg)" value={form.ttl} onChange={(v) => set("ttl", v)} type="number" />
-          <TextField label="TTL coasting (seg)" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} type="number" />
-          <TextField label="Suavizado posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} type="number" />
-          <TextField label="Suavizado velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} type="number" />
-          <TextField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} type="number" />
-          <TextField label="Dist. clustering (m)" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} type="number" />
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+          {/* trackColor — input texto + color picker */}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
+              <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
+                className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
+              <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
+                placeholder="#00e5ff"
+                className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
+            </div>
+          </div>
+
+          <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
+            info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan. A mayor valor, menos detecciones pero más nítidas." />
+          <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0.01} max={100} step={0.1} unit="m²"
+            info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
+          <SliderField label="Vel. máx" value={form.speed} onChange={(v) => set("speed", v)} min={1} max={150} step={1} unit="m/s"
+            info="Velocidad máxima para propagación por inercia (coasting). 55 m/s ≈ 200 km/h." />
+          <SliderField label="Rumbo ref." value={form.heading} onChange={(v) => set("heading", v)} min={0} max={360} step={1} unit="°"
+            info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
+          <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
+            info="Detecciones consecutivas necesarias para confirmar un track (tentative → confirmed)." />
+          <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
+            info="Distancia máxima para asignar una detección a un track existente." />
+          <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
+            info="Segundos sin detección antes de eliminar un track confirmado." />
+          <SliderField label="TTL coasting" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} min={0.5} max={15} step={0.5} unit="seg"
+            info="Tiempo que un track puede seguir moviéndose por inercia (predicción) sin detecciones." />
+          <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
+            info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
+          <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
+            info="Factor EMA para suavizar velocidad del track. Mayor = más reactivo pero menos estable." />
+          <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
+            info="Máximo de detecciones por mensaje que se pasan al tracker." />
+          <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
+            info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
         </div>
       </div>
 
