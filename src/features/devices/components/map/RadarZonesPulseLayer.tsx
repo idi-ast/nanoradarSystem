@@ -33,7 +33,10 @@ export const RadarZonesPulseLayer = memo(function RadarZonesPulseLayer() {
         return {
           type: "Feature" as const,
           geometry: { type: "Polygon" as const, coordinates: [coords] },
-          properties: { color: zone.poligono.color, id: idx },
+          properties: {
+            color: zone.idTipoAlerta === 6 ? "transparent" : zone.poligono.color,
+            id: idx
+          },
         };
       }),
     }),

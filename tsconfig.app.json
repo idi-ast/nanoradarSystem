@@ -13,13 +13,12 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/libs/*": ["libs/*"],
-      "@/libs": ["libs"],
-      "@/apis/*": ["src/apis/*"],
-      "@/apis": ["src/apis"]
+      "@/*": ["./src/*"],
+      "@/libs/*": ["./libs/*"],
+      "@/libs": ["./libs"],
+      "@/apis/*": ["./src/apis/*"],
+      "@/apis": ["./src/apis"]
     },
     "strict": true,
     "noUnusedLocals": true,

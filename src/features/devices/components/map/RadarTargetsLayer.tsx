@@ -147,7 +147,7 @@ export function RadarTargetsLayer({
         targetColors.moving,
       ] as unknown as string,
       "line-width": 3.5,
-      "line-opacity": ["get", "opacity"],
+      "line-opacity": ["get", "opacity"] as ["get", string],
       "line-blur": 0.8,
     },
   };
@@ -232,11 +232,16 @@ export function RadarTargetsLayer({
                   className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
                 >
                   {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
-                    <Icon
-                      size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
-                      stroke={2}
-                      style={{ color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor }}
-                    />
+                    <span
+                      style={{
+                        color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor,
+                      }}
+                    >
+                      <Icon
+                        size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
+                        stroke={2}
+                      />
+                    </span>
                   )}
                   {t.nivel === 4 && (
                     <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />

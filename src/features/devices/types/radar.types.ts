@@ -25,6 +25,12 @@ export interface RadarTarget {
   speed?: number;
 }
 
+export interface TiposAlertas {
+  id: number;
+  nombre: string;
+  nivelCriticidad: number;
+}
+
 export interface RadarZone {
   id?: number;
   nombre: string;

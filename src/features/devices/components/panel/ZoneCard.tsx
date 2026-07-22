@@ -5,13 +5,9 @@ import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
 import { useRole } from "@/context/role/hooks/useRole";
 import { useCustomSounds, MAX_CUSTOM_SOUNDS } from "../../hooks/useCustomSounds";
+import { useTiposAlertas } from "../../hooks/useTiposAlertas";
 
-const ALERT_LEVELS = [
-  { value: 1, label: "Nivel 1: Informativa" },
-  { value: 2, label: "Nivel 2: Precaución" },
-  { value: 3, label: "Nivel 3: Peligro" },
-  { value: 4, label: "Nivel 4: CRÍTICO" },
-] as const;
+
 
 interface Props {
   zone: RadarZone;
@@ -25,12 +21,12 @@ export const ZoneCard = memo(function ZoneCard({
   const { updateZone, deleteZone, flyToZoneFn } = useRadarContext();
   const { customSounds, isUploading, addSound, removeSound } = useCustomSounds();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const { isSuperAdmin } = useRole();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
+  const { tiposAlertas } = useTiposAlertas();
   const [editName, setEditName] = useState(zone.nombre);
   const [editColor, setEditColor] = useState(zone.poligono.color);
   const [editLevel, setEditLevel] = useState<1 | 2 | 3 | 4>(
@@ -129,9 +125,10 @@ export const ZoneCard = memo(function ZoneCard({
             }
             className="flex-1 bg-bg-100 border border-border text-text-100 text-xs p-1.5 rounded"
           >
-            {ALERT_LEVELS.map((lvl) => (
-              <option key={lvl.value} value={lvl.value}>
-                {lvl.label}
+
+            {tiposAlertas.map((lvl) => (
+              <option key={lvl.id} value={lvl.id}>
+                {lvl.nombre}
               </option>
             ))}
           </select>
@@ -144,7 +141,7 @@ export const ZoneCard = memo(function ZoneCard({
               type="button"
               disabled={isUploading || customSounds.length >= MAX_CUSTOM_SOUNDS}
               onClick={() => fileInputRef.current?.click()}
-              className="px-1.5 py-[2px] rounded bg-bg-300 hover:bg-bg-100 text-[10px] text-text-200 hover:text-text-100 flex items-center gap-1 border border-border transition-colors disabled:opacity-50"
+              className="px-1.5 py-0.5 rounded bg-bg-300 hover:bg-bg-100 text-[10px] text-text-200 hover:text-text-100 flex items-center gap-1 border border-border transition-colors disabled:opacity-50"
             >
               <IconUpload size={12} /> {isUploading ? "..." : "Subir"}
             </button>
@@ -263,7 +260,6 @@ export const ZoneCard = memo(function ZoneCard({
       </div>
     );
   }
-  const { isSuperAdmin } = useRole();
 
   return (
     <div

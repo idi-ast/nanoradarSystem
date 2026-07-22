@@ -3,13 +3,8 @@ import { IconArrowBackUp, IconHexagon, IconUpload, IconTrash } from "@tabler/ico
 import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
 import { useCustomSounds, MAX_CUSTOM_SOUNDS } from "../../hooks/useCustomSounds";
+import { useTiposAlertas } from "../../hooks/useTiposAlertas";
 
-const ALERT_LEVELS = [
-  { value: 1, label: "Nivel 1: Informativa" },
-  { value: 2, label: "Nivel 2: Precaución" },
-  { value: 3, label: "Nivel 3: Peligro" },
-  { value: 4, label: "Nivel 4: CRÍTICO" },
-] as const;
 
 export function ZoneDrawingPanel() {
   const {
@@ -32,7 +27,9 @@ export function ZoneDrawingPanel() {
   } = useRadarContext();
   const { customSounds, isUploading, addSound, removeSound } = useCustomSounds();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { tiposAlertas } = useTiposAlertas();
 
+  
   return (
     <div className="p-5 min-w-80 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl space-y-3">
       <div className="flex items-center justify-between">
@@ -83,9 +80,9 @@ export function ZoneDrawingPanel() {
             setAlertLevel(Number(e.target.value) as 1 | 2 | 3 | 4)
           }
         >
-          {ALERT_LEVELS.map((lvl) => (
-            <option key={lvl.value} value={lvl.value}>
-              {lvl.label}
+          {tiposAlertas.map((lvl) => (
+            <option key={lvl.id} value={lvl.id}>
+              {lvl.nombre}
             </option>
           ))}
         </select>
@@ -187,8 +184,8 @@ export function ZoneDrawingPanel() {
                 type="button"
                 onClick={() => setCategoriaDeteccion(cat.id)}
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${active
-                    ? "border-brand-100 bg-brand-100/10 text-text-100"
-                    : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                  ? "border-brand-100 bg-brand-100/10 text-text-100"
+                  : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
                   }`}
               >
                 <cat.icon size={20} stroke={1.5} />

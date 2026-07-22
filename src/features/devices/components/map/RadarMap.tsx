@@ -49,7 +49,6 @@ import { createSectorCoords } from "./utils/geoHelpers";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { PageLoader } from "@/components/ui";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useRole } from "@/context/role";
 
