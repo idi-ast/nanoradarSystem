@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-// import { toGeoCoord } from "./utils/geoHelpers";
+import { isPointInPolygon } from "./utils/geoHelpers";
 import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
@@ -42,6 +42,29 @@ export function RadarTargetsLayer({
     [allTargets, deviceFilter],
   );
 
+  // Zonas con tipo de alerta 6: restringir targets solo dentro de esos polígonos
+  const alert6Zones = useMemo(
+    () => zones.filter((z) => z.idTipoAlerta === 6),
+    [zones],
+  );
+
+  const zoneFilteredTargets = useMemo(() => {
+    if (alert6Zones.length === 0) return targets;
+    const zoneVerticesList = alert6Zones.map((zone) => {
+      const rawVertices = Array.isArray(zone.poligono.vertices)
+        ? zone.poligono.vertices
+        : Object.values(zone.poligono.vertices);
+      return rawVertices;
+    });
+    return targets.filter((t) => {
+      const lastPoint = t.history[t.history.length - 1];
+      if (!lastPoint) return false;
+      return !zoneVerticesList.some((vertices) =>
+        isPointInPolygon(lastPoint[0], lastPoint[1], vertices),
+      );
+    });
+  }, [targets, alert6Zones]);
+
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
 
@@ -52,7 +75,7 @@ export function RadarTargetsLayer({
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
   const categoryMap = useTargetCategoryResolution(
-    targets,
+    zoneFilteredTargets,
     zones,
     defaultCategoria,
     instanceConfig.geofence.ACTIVE_MS,
@@ -61,7 +84,7 @@ export function RadarTargetsLayer({
   const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
-    for (const t of targets) {
+    for (const t of zoneFilteredTargets) {
       for (const p of t.history) {
         if (p[2] < tMin) tMin = p[2];
         if (p[2] > tMax) tMax = p[2];
@@ -69,24 +92,24 @@ export function RadarTargetsLayer({
     }
     if (!isFinite(tMin) || tMax === tMin) return null;
     return { tMin, tRange: tMax - tMin };
-  }, [targets]);
+  }, [zoneFilteredTargets]);
 
   const slicedTargets = useMemo(() => {
-    if (!timeBounds) return targets;
+    if (!timeBounds) return zoneFilteredTargets;
     const tStart =
       timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
     const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
-    return targets
+    return zoneFilteredTargets
       .map((t) => ({
         ...t,
         history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
-  }, [targets, historyRange, timeBounds]);
+  }, [zoneFilteredTargets, historyRange, timeBounds]);
 
   const [now, setNow] = useState(0);
-  const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
+  const selected = zoneFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
