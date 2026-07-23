@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Tooltip } from "@/components/ui";
 import type { Magosradares } from "../../types/ConfigServices.type";
 import { useUpdateMagosradar } from "../hooks/useUpdateMagosradar";
-import type { MagosradarUpdatePayload } from "../service";
+import type { MagosradarPayload } from "../service";
+import { useMagosradarProfiles, findProfileById } from "../config/magosradarProfiles";
+import type { MagosradarProfileValues } from "../config/magosradarProfiles";
+import { useToast } from "@/libs/sonner";
 
 interface MagosradarEditModalProps {
   magosradar: Magosradares;
@@ -143,6 +146,8 @@ function FieldRow({ children }: { children: React.ReactNode }) {
 // ═══════════════════════════════════════════════════════════
 export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModalProps) {
   const { mutate, isPending, isError, error } = useUpdateMagosradar();
+  const { success } = useToast();
+  const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
 
   const [form, setForm] = useState<Record<string, string>>(() => ({
     nombre: magosradar.nombre,
@@ -178,6 +183,80 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     notas: magosradar.notas ?? "",
   }));
 
+  const [selectedProfileId, setSelectedProfileId] = useState("custom");
+
+  function applyProfile(values: MagosradarProfileValues) {
+    setForm((prev) => ({
+      ...prev,
+      grado: String(values.grado),
+      radio: String(values.radio),
+      apertura: String(values.apertura),
+      color: values.color,
+      rcs: values.rcs != null ? String(values.rcs) : "",
+      snr: values.snr != null ? String(values.snr) : "",
+      speed: values.speed != null ? String(values.speed) : "",
+      heading: values.heading != null ? String(values.heading) : "",
+      trackColor: values.trackColor ?? "",
+      minTrackPoints: values.minTrackPoints != null ? String(values.minTrackPoints) : "",
+      associationDist: values.associationDist != null ? String(values.associationDist) : "",
+      ttl: values.ttl != null ? String(values.ttl) : "",
+      coastTtl: values.coastTtl != null ? String(values.coastTtl) : "",
+      emaSmooth: values.emaSmooth != null ? String(values.emaSmooth) : "",
+      velSmooth: values.velSmooth != null ? String(values.velSmooth) : "",
+      maxDetections: values.maxDetections != null ? String(values.maxDetections) : "",
+      clusterDist: values.clusterDist != null ? String(values.clusterDist) : "",
+      frecuencia: values.frecuencia != null ? String(values.frecuencia) : "",
+      potencia: values.potencia != null ? String(values.potencia) : "",
+      elevacion: values.elevacion != null ? String(values.elevacion) : "",
+      altitud: values.altitud != null ? String(values.altitud) : "",
+    }));
+  }
+
+  function buildProfilePayload(values: MagosradarProfileValues): Partial<MagosradarPayload> {
+    return {
+      grado: values.grado,
+      radio: values.radio,
+      apertura: values.apertura,
+      color: values.color || null,
+      rcs: values.rcs ?? null,
+      snr: values.snr ?? null,
+      speed: values.speed ?? null,
+      heading: values.heading ?? null,
+      trackColor: values.trackColor ?? null,
+      minTrackPoints: values.minTrackPoints ?? null,
+      associationDist: values.associationDist ?? null,
+      ttl: values.ttl ?? null,
+      coastTtl: values.coastTtl ?? null,
+      emaSmooth: values.emaSmooth ?? null,
+      velSmooth: values.velSmooth ?? null,
+      maxDetections: values.maxDetections ?? null,
+      clusterDist: values.clusterDist ?? null,
+      frecuencia: values.frecuencia ?? null,
+      potencia: values.potencia ?? null,
+      elevacion: values.elevacion ?? null,
+      altitud: values.altitud ?? null,
+    };
+  }
+
+  function handleProfileChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const profileId = e.target.value;
+    setSelectedProfileId(profileId);
+    if (profileId === "custom") return;
+    const profile = findProfileById(MAGOSRADAR_PROFILES, profileId);
+    if (!profile) return;
+    applyProfile(profile.values);
+    // Guardar el perfil directamente en la BD
+    mutate(
+      { id: magosradar.id, payload: buildProfilePayload(profile.values) },
+      {
+        onSuccess: () => {
+          setSelectedProfileId(profileId);
+          success(`Perfil "${profile.name}" aplicado y guardado correctamente`);
+        },
+      },
+    );
+  }
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -187,14 +266,14 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
   }, [onClose]);
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target;
       setForm((prev) => ({ ...prev, [name]: value }));
     },
     [],
   );
 
-  function buildPayload(): MagosradarUpdatePayload {
+  function buildPayload(): Partial<MagosradarPayload> {
     return {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
@@ -272,6 +351,30 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
               {(error as Error)?.message ?? "Error al guardar los cambios."}
             </div>
           )}
+
+          {/* ════════ PERFILES PREDEFINIDOS ════════ */}
+          <div className="flex flex-col gap-1.5 pb-3 border-b border-border/50">
+            <Label htmlFor="profile-mg-edit" className="text-xs text-brand-200/80 uppercase tracking-widest font-semibold">
+              Perfil de configuración
+            </Label>
+            <select
+              id="profile-mg-edit"
+              value={selectedProfileId}
+              onChange={handleProfileChange}
+              className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
+            >
+              {MAGOSRADAR_PROFILES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.description}
+                </option>
+              ))}
+            </select>
+            {selectedProfileId !== "custom" && (
+              <p className="text-[10px] text-brand-200/60 italic">
+                Los campos se han preconfigurado con el perfil. Puedes ajustarlos manualmente si lo deseas.
+              </p>
+            )}
+          </div>
 
           {/* ════════ SECCIÓN: GENERAL ════════ */}
           <div className="grid grid-cols-2 gap-3">

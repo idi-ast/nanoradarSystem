@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair } from "@tabler/icons-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
 import type {
@@ -8,11 +9,15 @@ import type {
   Spotters,
   Camaras,
   Ptz,
+  PerfilMagos,
 } from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
 import { useUpdateMagosradar, useDeleteMagosradar } from "@/features/config-devices/magosradar/hooks/useUpdateMagosradar";
 import type { MagosradarPayload } from "@/features/config-devices/magosradar/service";
+import { useCreatePerfilMagos } from "@/features/config-devices/magosradar/hooks/usePerfilMagos";
+import { useMagosradarProfiles, findProfileById } from "@/features/config-devices/magosradar/config/magosradarProfiles";
+import { GestionarPerfilesModal } from "@/features/config-devices/magosradar/components/GestionarPerfilesModal";
 import { useUpdateSpotter, useDeleteSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
@@ -431,15 +436,9 @@ function NanoradarForm({
     azimut: device.azimut ?? "0",
   });
 
-  // Sync lat/lng when marker is dragged or clicked on map
-  useEffect(() => {
-    if (!liveEditPos) return;
-    setForm((p) => ({
-      ...p,
-      latitud: liveEditPos.lat.toFixed(7),
-      longitud: liveEditPos.lng.toFixed(7),
-    }));
-  }, [liveEditPos]);
+  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
+  const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
+  const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -449,8 +448,8 @@ function NanoradarForm({
     const payload: NanoradarPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitud: form.latitud,
-      longitud: form.longitud,
+      latitud: effectiveLat,
+      longitud: effectiveLng,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -570,15 +569,9 @@ function MagosradarForm({
     azimut: device.azimut ?? "0",
   });
 
-  // Sync lat/lng when marker is dragged or clicked on map
-  useEffect(() => {
-    if (!liveEditPos) return;
-    setForm((p) => ({
-      ...p,
-      latitud: liveEditPos.lat.toFixed(7),
-      longitud: liveEditPos.lng.toFixed(7),
-    }));
-  }, [liveEditPos]);
+  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
+  const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
+  const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -588,8 +581,8 @@ function MagosradarForm({
     const payload: MagosradarPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitud: form.latitud,
-      longitud: form.longitud,
+      latitud: effectiveLat,
+      longitud: effectiveLng,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -651,15 +644,15 @@ function MagosradarForm({
         unit="m"
       />
       <PositionField
-        lat={form.latitud}
-        lng={form.longitud}
+        lat={effectiveLat}
+        lng={effectiveLng}
         onLatChange={(v) => {
           set("latitud", v);
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitud) });
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(effectiveLng) });
         }}
         onLngChange={(v) => {
           set("longitud", v);
-          onLiveEditPosChange?.({ lat: Number(form.latitud), lng: Number(v) });
+          onLiveEditPosChange?.({ lat: Number(effectiveLat), lng: Number(v) });
         }}
         liveEditPos={liveEditPos}
         isPickingPosition={isPickingPosition}
@@ -709,14 +702,9 @@ function SpotterForm({
     azimut: device.azimut ?? "0",
   });
 
-  useEffect(() => {
-    if (!liveEditPos) return;
-    setForm((p) => ({
-      ...p,
-      latitude: liveEditPos.lat.toFixed(7),
-      longitude: liveEditPos.lng.toFixed(7),
-    }));
-  }, [liveEditPos]);
+  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
+  const effectiveLatSP = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitude;
+  const effectiveLngSP = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitude;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -726,8 +714,8 @@ function SpotterForm({
     const payload: SpotterPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitude: form.latitude,
-      longitude: form.longitude,
+      latitude: effectiveLatSP,
+      longitude: effectiveLngSP,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -801,15 +789,15 @@ function SpotterForm({
         unit="m"
       />
       <PositionField
-        lat={form.latitude}
-        lng={form.longitude}
+        lat={effectiveLatSP}
+        lng={effectiveLngSP}
         onLatChange={(v) => {
           set("latitude", v);
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitude) });
+          onLiveEditPosChange?.({ lat: Number(v), lng: Number(effectiveLngSP) });
         }}
         onLngChange={(v) => {
           set("longitude", v);
-          onLiveEditPosChange?.({ lat: Number(form.latitude), lng: Number(v) });
+          onLiveEditPosChange?.({ lat: Number(effectiveLatSP), lng: Number(v) });
         }}
         liveEditPos={liveEditPos}
         isPickingPosition={isPickingPosition}
@@ -870,13 +858,9 @@ function CamaraForm({
     longitud: String(device.ubicacion.lng),
   });
 
-  useEffect(() => {
-    if (!liveEditPos) return;
-    setPosForm({
-      latitud: liveEditPos.lat.toFixed(7),
-      longitud: liveEditPos.lng.toFixed(7),
-    });
-  }, [liveEditPos]);
+  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
+  const effectiveLatCF = liveEditPos ? liveEditPos.lat.toFixed(7) : posForm.latitud;
+  const effectiveLngCF = liveEditPos ? liveEditPos.lng.toFixed(7) : posForm.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -897,8 +881,8 @@ function CamaraForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
-      latitud: posForm.latitud,
-      longitud: posForm.longitud,
+      latitud: effectiveLatCF,
+      longitud: effectiveLngCF,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -1065,13 +1049,9 @@ function PtzForm({
     longitud: String(device.ubicacion.lng),
   });
 
-  useEffect(() => {
-    if (!liveEditPos) return;
-    setPosForm({
-      latitud: liveEditPos.lat.toFixed(7),
-      longitud: liveEditPos.lng.toFixed(7),
-    });
-  }, [liveEditPos]);
+  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
+  const effectiveLatPTZ = liveEditPos ? liveEditPos.lat.toFixed(7) : posForm.latitud;
+  const effectiveLngPTZ = liveEditPos ? liveEditPos.lng.toFixed(7) : posForm.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -1092,8 +1072,8 @@ function PtzForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
-      latitud: posForm.latitud,
-      longitud: posForm.longitud,
+      latitud: effectiveLatPTZ,
+      longitud: effectiveLngPTZ,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -1332,8 +1312,83 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     altitud: n(device.altitud),
     notas: device.notas ?? "",
   });
+  const [selectedProfileId, setSelectedProfileId] = useState("custom");
+  const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
+  const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
+  const { mutate: createProfile } = useCreatePerfilMagos();
+  const [profileModal, setProfileModal] = useState<{ open: true; perfil?: PerfilMagos } | { open: false }>({ open: false });
+  const [saveDialog, setSaveDialog] = useState<{ open: boolean }>({ open: false });
+  const [newProfileName, setNewProfileName] = useState("");
+  const [newProfileDesc, setNewProfileDesc] = useState("");
+
+  function handleProfileChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const profileId = e.target.value;
+    setSelectedProfileId(profileId);
+    if (profileId === "custom") {
+      setAppliedProfileId(null);
+      return;
+    }
+    const profile = findProfileById(MAGOSRADAR_PROFILES, profileId);
+    if (!profile) return;
+    const v = profile.values;
+    setForm((prev) => ({
+      ...prev,
+      rcs: v.rcs != null ? String(v.rcs) : "",
+      snr: v.snr != null ? String(v.snr) : "",
+      speed: v.speed != null ? String(v.speed) : "",
+      heading: v.heading != null ? String(v.heading) : "",
+      trackColor: v.trackColor ?? "",
+      minTrackPoints: v.minTrackPoints != null ? String(v.minTrackPoints) : "",
+      associationDist: v.associationDist != null ? String(v.associationDist) : "",
+      ttl: v.ttl != null ? String(v.ttl) : "",
+      coastTtl: v.coastTtl != null ? String(v.coastTtl) : "",
+      emaSmooth: v.emaSmooth != null ? String(v.emaSmooth) : "",
+      velSmooth: v.velSmooth != null ? String(v.velSmooth) : "",
+      maxDetections: v.maxDetections != null ? String(v.maxDetections) : "",
+      clusterDist: v.clusterDist != null ? String(v.clusterDist) : "",
+      frecuencia: v.frecuencia != null ? String(v.frecuencia) : "",
+      potencia: v.potencia != null ? String(v.potencia) : "",
+      elevacion: v.elevacion != null ? String(v.elevacion) : "",
+      altitud: v.altitud != null ? String(v.altitud) : "",
+    }));
+    setAppliedProfileId(profileId);
+    // Guardar en BD
+    mutate(
+      {
+        id: device.id,
+        payload: {
+          rcs: v.rcs ?? null,
+          snr: v.snr ?? null,
+          speed: v.speed ?? null,
+          heading: v.heading ?? null,
+          trackColor: v.trackColor ?? null,
+          minTrackPoints: v.minTrackPoints ?? null,
+          associationDist: v.associationDist ?? null,
+          ttl: v.ttl ?? null,
+          coastTtl: v.coastTtl ?? null,
+          emaSmooth: v.emaSmooth ?? null,
+          velSmooth: v.velSmooth ?? null,
+          maxDetections: v.maxDetections ?? null,
+          clusterDist: v.clusterDist ?? null,
+          frecuencia: v.frecuencia ?? null,
+          potencia: v.potencia ?? null,
+          elevacion: v.elevacion ?? null,
+          altitud: v.altitud ?? null,
+        },
+      },
+      {
+        onSuccess: () => success(`Perfil "${profile.name}" aplicado`),
+        onError: (err) => showError(err instanceof Error ? err.message : "Error al aplicar perfil"),
+      },
+    );
+  }
 
   function set(k: string, v: string) {
+    // Si hay un perfil aplicado y se cambia algún campo → volver a Personalizado
+    if (appliedProfileId !== null && selectedProfileId !== "custom") {
+      setSelectedProfileId("custom");
+      setAppliedProfileId(null);
+    }
     setForm((p) => ({ ...p, [k]: v }));
   }
 
@@ -1374,124 +1429,255 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   const globalHint = "Vacío = valor global";
 
   return (
-    <div className="flex flex-col w-96 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
-          MagosRadar · Avanzado
-        </span>
-        <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
-      </div>
+    <>
+      <div className="flex flex-col w-96 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
+            MagosRadar · Avanzado
+          </span>
+          <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
+        </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
-        {/* ═══ Estado & modelo ═══ */}
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-          Estado &amp; modelo
-        </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
-                Estado
-              </span>
-              <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
-            </div>
+        {/* Selector de perfil */}
+        <div className="px-3 py-2 border-b border-border/40">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold uppercase tracking-widest text-white/60 block">
+              Perfil de configuración
+            </label>
             <button
               type="button"
-              onClick={() => set("enabled", form.enabled === "1" ? "0" : "1")}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
-              }`}
+              onClick={() => setProfileModal({ open: true })}
+              className="text-xs text-text-200 hover:text-brand-200 transition flex items-center gap-0.5"
             >
-              <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                  form.enabled === "1" ? "translate-x-4" : "translate-x-1"
-                }`}
-              />
+              <IconSettings size={13} stroke={1.5} />
+              Gestionar
             </button>
           </div>
-          <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
-          <div className="col-span-2">
-            <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
+          <select
+            value={selectedProfileId}
+            onChange={handleProfileChange}
+            className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
+          >
+            {MAGOSRADAR_PROFILES.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          {selectedProfileId !== "custom" && (
+            <p className="text-[10px] text-text-200/70 italic mt-1">Ajustes del perfil aplicados</p>
+          )}
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {/* ═══ Estado & modelo ═══ */}
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+            Estado &amp; modelo
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+                  Estado
+                </span>
+                <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
+              </div>
+              <button
+                type="button"
+                onClick={() => set("enabled", form.enabled === "1" ? "0" : "1")}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
+                  }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${form.enabled === "1" ? "translate-x-4" : "translate-x-1"
+                    }`}
+                />
+              </button>
+            </div>
+            <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
+            <div className="col-span-2">
+              <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
+            </div>
+          </div>
+
+          {/* ═══ Geo & RF ═══ */}
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+            Geo &amp; RF
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
+            <SliderField label="Elevación" value={form.elevacion} onChange={(v) => set("elevacion", v)} min={-90} max={90} step={0.1} unit="°"
+              info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
+            <SliderField label="Altitud" value={form.altitud} onChange={(v) => set("altitud", v)} min={0} max={9000} step={1} unit="msnm"
+              info="Altitud del radar sobre el nivel del mar. Solo informativo." />
+            <SliderField label="Frecuencia" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} min={1} max={100} step={0.1} unit="GHz"
+              info="Frecuencia de operación del hardware. Solo informativo." />
+            <SliderField label="Potencia" value={form.potencia} onChange={(v) => set("potencia", v)} min={-20} max={50} step={0.1} unit="dBm"
+              info="Potencia de transmisión del hardware. Solo informativo." />
+          </div>
+
+          {/* ═══ Tracking ═══ */}
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+            Tracking
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+            {/* trackColor — input texto + color picker */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
+                <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
+                  className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
+                <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
+                  placeholder="#00e5ff"
+                  className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
+              </div>
+            </div>
+
+            <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
+              info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan. A mayor valor, menos detecciones pero más nítidas." />
+            <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0.01} max={100} step={0.1} unit="m²"
+              info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
+            <SliderField label="Vel. máx" value={form.speed} onChange={(v) => set("speed", v)} min={1} max={150} step={1} unit="m/s"
+              info="Velocidad máxima para propagación por inercia (coasting). 55 m/s ≈ 200 km/h." />
+            <SliderField label="Rumbo ref." value={form.heading} onChange={(v) => set("heading", v)} min={0} max={360} step={1} unit="°"
+              info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
+            <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
+              info="Detecciones consecutivas necesarias para confirmar un track (tentative → confirmed)." />
+            <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
+              info="Distancia máxima para asignar una detección a un track existente." />
+            <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
+              info="Segundos sin detección antes de eliminar un track confirmado." />
+            <SliderField label="TTL coasting" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} min={0.5} max={15} step={0.5} unit="seg"
+              info="Tiempo que un track puede seguir moviéndose por inercia (predicción) sin detecciones." />
+            <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
+              info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
+            <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
+              info="Factor EMA para suavizar velocidad del track. Mayor = más reactivo pero menos estable." />
+            <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
+              info="Máximo de detecciones por mensaje que se pasan al tracker." />
+            <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
+              info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
           </div>
         </div>
 
-        {/* ═══ Geo & RF ═══ */}
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-          Geo &amp; RF
-        </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
-          <SliderField label="Elevación" value={form.elevacion} onChange={(v) => set("elevacion", v)} min={-90} max={90} step={0.1} unit="°"
-            info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
-          <SliderField label="Altitud" value={form.altitud} onChange={(v) => set("altitud", v)} min={0} max={9000} step={1} unit="msnm"
-            info="Altitud del radar sobre el nivel del mar. Solo informativo." />
-          <SliderField label="Frecuencia" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} min={1} max={100} step={0.1} unit="GHz"
-            info="Frecuencia de operación del hardware. Solo informativo." />
-          <SliderField label="Potencia" value={form.potencia} onChange={(v) => set("potencia", v)} min={-20} max={50} step={0.1} unit="dBm"
-            info="Potencia de transmisión del hardware. Solo informativo." />
-        </div>
-
-        {/* ═══ Tracking ═══ */}
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-          Tracking
-        </p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-          {/* trackColor — input texto + color picker */}
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
-              <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
-                className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
-              <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
-                placeholder="#00e5ff"
-                className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
-            </div>
-          </div>
-
-          <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
-            info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan. A mayor valor, menos detecciones pero más nítidas." />
-          <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0.01} max={100} step={0.1} unit="m²"
-            info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
-          <SliderField label="Vel. máx" value={form.speed} onChange={(v) => set("speed", v)} min={1} max={150} step={1} unit="m/s"
-            info="Velocidad máxima para propagación por inercia (coasting). 55 m/s ≈ 200 km/h." />
-          <SliderField label="Rumbo ref." value={form.heading} onChange={(v) => set("heading", v)} min={0} max={360} step={1} unit="°"
-            info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
-          <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
-            info="Detecciones consecutivas necesarias para confirmar un track (tentative → confirmed)." />
-          <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
-            info="Distancia máxima para asignar una detección a un track existente." />
-          <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
-            info="Segundos sin detección antes de eliminar un track confirmado." />
-          <SliderField label="TTL coasting" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} min={0.5} max={15} step={0.5} unit="seg"
-            info="Tiempo que un track puede seguir moviéndose por inercia (predicción) sin detecciones." />
-          <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
-            info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
-          <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
-            info="Factor EMA para suavizar velocidad del track. Mayor = más reactivo pero menos estable." />
-          <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
-            info="Máximo de detecciones por mensaje que se pasan al tracker." />
-          <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
-            info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
+        {/* Footer con botones */}
+        <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
+          <button
+            onClick={save}
+            disabled={isPending}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition-colors disabled:opacity-50"
+          >
+            <IconDeviceFloppy size={13} />
+            {isPending ? "Guardando..." : "Guardar avanzados"}
+          </button>
+          <button
+            onClick={() => {
+              setNewProfileName("");
+              setNewProfileDesc("");
+              setSaveDialog({ open: true });
+            }}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold  hover:bg-brand-200/25 text-text-100 transition-colors"
+          >
+            <IconSettings size={13} />
+            Guardar como perfil
+          </button>
         </div>
       </div>
 
-      {/* Footer con botón guardar */}
-      <div className="px-3 py-2 border-t border-border/60 shrink-0">
-        <button
-          onClick={save}
-          disabled={isPending}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 transition-colors disabled:opacity-50"
+      {/* Diálogo para guardar como perfil */}
+      {saveDialog.open && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && setSaveDialog({ open: false })}
         >
-          <IconDeviceFloppy size={13} />
-          {isPending ? "Guardando..." : "Guardar avanzados"}
-        </button>
-      </div>
-    </div>
-  );
+          <div className="bg-bg-200 border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold text-text-100">Guardar como perfil</h3>
+              <button onClick={() => setSaveDialog({ open: false })} className="text-text-200 hover:text-text-100 transition">
+                <IconX size={16} />
+              </button>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-text-100/70 font-semibold uppercase tracking-wider">Nombre</label>
+                <input
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Ej: Configuración costera"
+                  className="w-full rounded-lg border border-border bg-bg-100 text-text-100 placeholder-text-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-text-100/70 font-semibold uppercase tracking-wider">Descripción</label>
+                <input
+                  value={newProfileDesc}
+                  onChange={(e) => setNewProfileDesc(e.target.value)}
+                  placeholder="Opcional: describa el escenario de uso"
+                  className="w-full rounded-lg border border-border bg-bg-100 text-text-100 placeholder-text-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  onClick={() => setSaveDialog({ open: false })}
+                  className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-bg-400/50 hover:bg-bg-400/70 text-text-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (!newProfileName.trim()) return;
+                    createProfile(
+                      {
+                        nombre: newProfileName.trim(),
+                        descripcion: newProfileDesc.trim(),
+                        snr: nn(form.snr),
+                        rcs: nn(form.rcs),
+                        speed: nn(form.speed),
+                        heading: nn(form.heading),
+                        trackColor: form.trackColor || null,
+                        minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+                        associationDist: nn(form.associationDist),
+                        ttl: nn(form.ttl),
+                        coastTtl: nn(form.coastTtl),
+                        emaSmooth: nn(form.emaSmooth),
+                        velSmooth: nn(form.velSmooth),
+                        maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+                        clusterDist: nn(form.clusterDist),
+                      },
+                      {
+                        onSuccess: (newPerfil) => {
+                          success(`Perfil "${newProfileName.trim()}" creado`);
+                          setSaveDialog({ open: false });
+                          setSelectedProfileId(String(newPerfil.id));
+                          setAppliedProfileId(String(newPerfil.id));
+                        },
+                        onError: (err) => showError(err instanceof Error ? err.message : "Error al crear perfil"),
+                      },
+                    );
+                  }}
+                  disabled={!newProfileName.trim()}
+                  className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-brand-200 hover:bg-brand-200/80 text-black transition-colors disabled:opacity-50"
+                >
+                  Guardar perfil
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {profileModal.open && createPortal(
+        <GestionarPerfilesModal
+          onClose={() => setProfileModal({ open: false })}
+        />,
+        document.body,
+      )}
+    </>);
 }
 
 export interface DeviceEditPanelProps {

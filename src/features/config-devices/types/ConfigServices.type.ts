@@ -127,3 +127,47 @@ export interface Magosradares {
   altitud: number | null;
   notas: string | null;
 }
+
+/** Perfil de configuración para MagosRadar (desde API) */
+export interface PerfilMagos {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  is_default: boolean;
+  idEmpresa: number;
+  snr: number | null;
+  rcs: number | null;
+  speed: number | null;
+  heading: number | null;
+  trackColor: string | null;
+  minTrackPoints: number | null;
+  associationDist: number | null;
+  ttl: number | null;
+  coastTtl: number | null;
+  emaSmooth: number | null;
+  velSmooth: number | null;
+  maxDetections: number | null;
+  clusterDist: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PerfilMagosPayload {
+  nombre: string;
+  descripcion: string;
+  is_default?: boolean;
+  idEmpresa?: number;
+  snr?: number | null;
+  rcs?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  trackColor?: string | null;
+  minTrackPoints?: number | null;
+  associationDist?: number | null;
+  ttl?: number | null;
+  coastTtl?: number | null;
+  emaSmooth?: number | null;
+  velSmooth?: number | null;
+  maxDetections?: number | null;
+  clusterDist?: number | null;
+}
