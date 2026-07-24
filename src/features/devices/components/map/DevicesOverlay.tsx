@@ -1,10 +1,12 @@
 import React, { memo } from "react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
-import { NR_PALETTE, ALL_VISIBLE } from "./devicesConfig";
+import { NR_PALETTE, MG_PALETTE, ALL_VISIBLE } from "./devicesConfig";
 import type { DeviceFilter } from "../../types";
 import {
   NanoradarDeviceLayer,
   NanoradarPulseLayer,
+  MagosradarDeviceLayer,
+  MagosradarPulseLayer,
   SpotterDeviceLayer,
   SpotterPulseLayer,
   CameraDeviceLayers,
@@ -12,6 +14,7 @@ import {
 
 export interface DeviceVisibility {
   hiddenNanoradares: Set<number>;
+  hiddenMagosradares: Set<number>;
   hiddenSpotters: Set<number>;
   hiddenCamaras: Set<number>;
   hiddenPtz: Set<number>;
@@ -28,10 +31,11 @@ export const DevicesOverlay = memo(function DevicesOverlay({
 
   if (!data?.data) return null;
 
-  const { nanoradares, spotters, camaras, ptz } = data.data;
+  const { nanoradares, magosradares, spotters, camaras, ptz } = data.data;
 
-  const showNanoradares = deviceFilter !== "spotter";
-  const showSpotters = deviceFilter !== "nanoRadar";
+  const showNanoradares = deviceFilter !== "spotter" && deviceFilter !== "magosradar";
+  const showMagosradares = deviceFilter !== "spotter" && deviceFilter !== "nanoRadar";
+  const showSpotters = deviceFilter !== "nanoRadar" && deviceFilter !== "magosradar";
 
   return (
     <>
@@ -58,6 +62,35 @@ export const DevicesOverlay = memo(function DevicesOverlay({
                 radio={nr.radio}
                 startAngle={nr.grado - nr.apertura / 2}
                 endAngle={nr.grado + nr.apertura / 2}
+                colorPulse={colorPulse}
+              />
+            </React.Fragment>
+          );
+        })}
+
+      {showMagosradares && magosradares
+        .filter((mg) => !visibility.hiddenMagosradares.has(mg.id))
+        .map((mg, idx) => {
+          const palette = MG_PALETTE[idx % MG_PALETTE.length];
+          const colorPrimary = mg.color || palette.primary;
+          const colorPulse = mg.color || palette.pulse;
+          const lat = Number(mg.latitud);
+          const lon = Number(mg.longitud);
+          const sid = `dev-mg-${mg.id}`;
+          return (
+            <React.Fragment key={mg.id}>
+              <MagosradarDeviceLayer
+                mg={mg}
+                colorPrimary={colorPrimary}
+                colorPulse={colorPulse}
+              />
+              <MagosradarPulseLayer
+                sid={sid}
+                lat={lat}
+                lon={lon}
+                radio={mg.radio}
+                startAngle={mg.grado - mg.apertura / 2}
+                endAngle={mg.grado + mg.apertura / 2}
                 colorPulse={colorPulse}
               />
             </React.Fragment>

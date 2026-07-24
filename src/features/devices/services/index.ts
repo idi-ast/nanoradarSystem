@@ -1,5 +1,6 @@
 export {
   fetchRadarConfig,
+  fetchTiposAlertas,
   fetchRadarZones,
   createRadarZone,
   updateRadarZone,

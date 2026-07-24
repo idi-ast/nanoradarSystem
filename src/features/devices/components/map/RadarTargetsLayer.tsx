@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { toGeoCoord } from "./utils/geoHelpers";
+import { isPointInPolygon } from "./utils/geoHelpers";
 import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
@@ -42,6 +42,29 @@ export function RadarTargetsLayer({
     [allTargets, deviceFilter],
   );
 
+  // Zonas con tipo de alerta 6: restringir targets solo dentro de esos polígonos
+  const alert6Zones = useMemo(
+    () => zones.filter((z) => z.idTipoAlerta === 6),
+    [zones],
+  );
+
+  const zoneFilteredTargets = useMemo(() => {
+    if (alert6Zones.length === 0) return targets;
+    const zoneVerticesList = alert6Zones.map((zone) => {
+      const rawVertices = Array.isArray(zone.poligono.vertices)
+        ? zone.poligono.vertices
+        : Object.values(zone.poligono.vertices);
+      return rawVertices;
+    });
+    return targets.filter((t) => {
+      const lastPoint = t.history[t.history.length - 1];
+      if (!lastPoint) return false;
+      return !zoneVerticesList.some((vertices) =>
+        isPointInPolygon(lastPoint[0], lastPoint[1], vertices),
+      );
+    });
+  }, [targets, alert6Zones]);
+
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
 
@@ -52,7 +75,7 @@ export function RadarTargetsLayer({
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
   const categoryMap = useTargetCategoryResolution(
-    targets,
+    zoneFilteredTargets,
     zones,
     defaultCategoria,
     instanceConfig.geofence.ACTIVE_MS,
@@ -61,7 +84,7 @@ export function RadarTargetsLayer({
   const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
-    for (const t of targets) {
+    for (const t of zoneFilteredTargets) {
       for (const p of t.history) {
         if (p[2] < tMin) tMin = p[2];
         if (p[2] > tMax) tMax = p[2];
@@ -69,52 +92,71 @@ export function RadarTargetsLayer({
     }
     if (!isFinite(tMin) || tMax === tMin) return null;
     return { tMin, tRange: tMax - tMin };
-  }, [targets]);
+  }, [zoneFilteredTargets]);
 
   const slicedTargets = useMemo(() => {
-    if (!timeBounds) return targets;
+    if (!timeBounds) return zoneFilteredTargets;
     const tStart =
       timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
     const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
-    return targets
+    return zoneFilteredTargets
       .map((t) => ({
         ...t,
         history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
-  }, [targets, historyRange, timeBounds]);
+  }, [zoneFilteredTargets, historyRange, timeBounds]);
 
   const [now, setNow] = useState(0);
-  const selected = targets.find((t) => t.id === selectedTargetId) ?? null;
+  const selected = zoneFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
     }, timing.COLOR_REFRESH_MS);
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [timing.COLOR_REFRESH_MS]);
 
   const trailsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
       features: slicedTargets
         .filter((t) => t.history.length > 1)
-        .map((t) => ({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: t.history.map(toGeoCoord),
-          },
-          properties: {
-            id: t.id,
-            nivel: t.nivel,
-            deviceType: t.deviceType,
-            isMoving: isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS),
-          },
-        })),
+        .flatMap((t) => {
+          const history = t.history;
+          // Solo los últimos TRAIL_FADE_POINTS puntos generan estela visible
+          const fadeLen = timing.TRAIL_FADE_POINTS;
+          const recentHistory = history.length > fadeLen
+            ? history.slice(-fadeLen)
+            : history;
+
+          return recentHistory.slice(1).map((point, i) => {
+            const prevPoint = recentHistory[i];
+            // i=0 → segmento más antiguo, i=recentHistory.length-2 → más reciente
+            const totalSegments = recentHistory.length - 1;
+            const opacity = totalSegments > 0
+              ? Math.max(0, (i + 1) / totalSegments)
+              : 1;
+            return {
+              type: "Feature" as const,
+              geometry: {
+                type: "LineString" as const,
+                coordinates: [
+                  [prevPoint[1], prevPoint[0]],
+                  [point[1], point[0]],
+                ],
+              },
+              properties: {
+                id: t.id,
+                opacity,
+                color: t.trackColor ?? null,
+              },
+            };
+          });
+        }),
     }),
-    [slicedTargets, now, timing.TRACKING_ACTIVE_MS],
+    [slicedTargets, timing.TRAIL_FADE_POINTS],
   );
 
   const trailLayer = {
@@ -123,14 +165,13 @@ export function RadarTargetsLayer({
     paint: {
       "line-color": [
         "case",
-        ["get", "isMoving"],
+        ["has", "color"],
+        ["get", "color"],
         targetColors.moving,
-        targetColors.stopped,
       ] as unknown as string,
-      "line-width": 4,
-      "line-dasharray": [1, 2],
-      "line-opacity": 0.72,
-      "line-blur": 0.65,
+      "line-width": 3.5,
+      "line-opacity": ["get", "opacity"] as ["get", string],
+      "line-blur": 0.8,
     },
   };
 
@@ -214,11 +255,16 @@ export function RadarTargetsLayer({
                   className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
                 >
                   {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
-                    <Icon
-                      size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
-                      stroke={2}
-                      style={{ color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor }}
-                    />
+                    <span
+                      style={{
+                        color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor,
+                      }}
+                    >
+                      <Icon
+                        size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
+                        stroke={2}
+                      />
+                    </span>
                   )}
                   {t.nivel === 4 && (
                     <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
@@ -241,7 +287,7 @@ export function RadarTargetsLayer({
           <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow-2xl p-5 min-w-64 rounded-lg">
             <div>
               <h4 className="pb-2">
-                Detección: {selected.id.replace(/^(nanoRadar|spotter)_/, "")}
+                Detección: {selected.id.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
               </h4>
               <ul className="tracking-[0.12rem]">
                 <li>
@@ -249,6 +295,8 @@ export function RadarTargetsLayer({
                   <span className="text-brand-200 font-bold">
                     {selected.deviceType === "nanoRadar"
                       ? "NanoRadar"
+                      : selected.deviceType === "magosradar"
+                      ? "MagosRadar"
                       : "Spotter"}
                   </span>
                 </li>
@@ -259,6 +307,14 @@ export function RadarTargetsLayer({
                 <li>
                   Nivel: <span className="font-bold">{selected.nivel}</span>
                 </li>
+                {selected.speed != null && (
+                  <li>
+                    Velocidad:{" "}
+                    <span className="text-brand-200 font-bold">
+                      {selected.speed.toFixed(1)} km/h
+                    </span>
+                  </li>
+                )}
                 <li>
                   Pos:{" "}
                   <span className="font-bold">

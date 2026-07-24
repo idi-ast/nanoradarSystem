@@ -1,5 +1,11 @@
 import { apiSystem } from "@/apis/apiSystem";
-import type { RadarConfig, RadarZone, CreateZonePayload, UpdateZonePayload } from "../types";
+import type {
+  RadarConfig,
+  RadarZone,
+  CreateZonePayload,
+  UpdateZonePayload,
+  TiposAlertas,
+} from "../types";
 
 interface ListResponse<T> {
   data: T[];
@@ -10,6 +16,11 @@ export async function fetchRadarConfig(): Promise<RadarConfig> {
   const res =
     await apiSystem.get<ListResponse<RadarConfig>>("/configuraciones");
   return res.data.data[0];
+}
+// Tipos de Alertas
+export async function fetchTiposAlertas(): Promise<TiposAlertas[]> {
+  const res = await apiSystem.get<ListResponse<TiposAlertas>>("/tipos-alertas");
+  return res.data.data;
 }
 
 // Zonas de alerta

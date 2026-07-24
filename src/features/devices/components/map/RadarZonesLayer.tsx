@@ -30,7 +30,7 @@ export function RadarZonesLayer({ zones }: Props) {
             coordinates: [coords],
           },
           properties: {
-            color: zone.poligono.color,
+            color: zone.idTipoAlerta === 6  ? "transparent" : zone.poligono.color,
             name: zone.nombre,
             id: idx,
           },

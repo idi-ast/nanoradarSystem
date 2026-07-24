@@ -299,6 +299,7 @@ type TabFilter = DeviceFilter;
 const TABS: { key: TabFilter; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "nanoRadar", label: "NanoRadar" },
+  { key: "magosradar", label: "MagosRadar" },
   { key: "spotter", label: "Spotter" },
 ];
 
@@ -315,10 +316,12 @@ const TargetsSection = memo(function TargetsSection({
     const nextCounts: Record<TabFilter, number> = {
       all: targets.length,
       nanoRadar: 0,
+      magosradar: 0,
       spotter: 0,
     };
     for (const t of targets) {
       if (t.deviceType === "nanoRadar") nextCounts.nanoRadar += 1;
+      if (t.deviceType === "magosradar") nextCounts.magosradar += 1;
       if (t.deviceType === "spotter") nextCounts.spotter += 1;
     }
     const nextFiltered =

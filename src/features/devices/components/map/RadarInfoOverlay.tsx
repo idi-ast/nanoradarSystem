@@ -45,10 +45,11 @@ export const RadarInfoOverlay = memo(function RadarInfoOverlay({
 }: Props) {
   const { data } = useConfigDevices();
   const nanoradares = data?.data?.nanoradares ?? [];
+  const magosradares = data?.data?.magosradares ?? [];
   const spotters = data?.data?.spotters ?? [];
   const camaras = data?.data?.camaras ?? [];
 
-  const total = nanoradares.length + spotters.length + camaras.length;
+  const total = nanoradares.length + magosradares.length + spotters.length + camaras.length;
   // Todos los dispositivos configurados se consideran activos hasta que la API provea estado
   const activos = total;
   const inactivos = 0;
@@ -68,6 +69,11 @@ export const RadarInfoOverlay = memo(function RadarInfoOverlay({
         <span className="uppercase tracking-[0.2em] text-[9px] text-text-400">
           NR:{" "}
           <span className="font-light">{nanoradares.length}</span>
+        </span>
+        <span className="text-text-400/30">·</span>
+        <span className="uppercase tracking-[0.2em] text-[9px] text-text-400">
+          MG:{" "}
+          <span className="font-light">{magosradares.length}</span>
         </span>
         <span className="text-text-400/30">·</span>
         <span className="uppercase tracking-[0.2em] text-[9px] text-text-400">

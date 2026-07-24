@@ -15,13 +15,14 @@ import {
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import type {
   Nanoradares,
+  Magosradares,
   Spotters,
   Camaras,
   Ptz,
 } from "@/features/config-devices/types/ConfigServices.type";
 import type { DeviceVisibility } from "./DevicesOverlay";
-import { NR_PALETTE } from "./devicesConfig";
-import { DeviceEditPanel } from "./DeviceEditPanel";
+import { NR_PALETTE, MG_PALETTE } from "./devicesConfig";
+import { DeviceEditPanel, MagosradarAdvancedPanel } from "./DeviceEditPanel";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { Tooltip } from "@/components/ui";
 import { AddDeviceModal } from "@/features/config-devices/components/AddDeviceModal";
@@ -31,6 +32,7 @@ interface DeviceSelectorProps {
   visibility: DeviceVisibility;
   onChange: (v: DeviceVisibility) => void;
   onEditNanoradar?: (device: Nanoradares) => void;
+  onEditMagosradar?: (device: Magosradares) => void;
   onEditSpotter?: (device: Spotters) => void;
   onEditCamara?: (device: Camaras) => void;
   onEditPtz?: (device: Ptz) => void;
@@ -150,6 +152,7 @@ export const DeviceSelector = memo(function DeviceSelector({
   visibility,
   onChange,
   onEditNanoradar,
+  onEditMagosradar,
   onEditSpotter,
   onEditCamara,
   onEditPtz,
@@ -189,13 +192,15 @@ export const DeviceSelector = memo(function DeviceSelector({
   }, [open]);
 
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
+  const magosradares = useMemo(() => data?.data?.magosradares ?? [], [data]);
   const spotters = useMemo(() => data?.data?.spotters ?? [], [data]);
   const camaras = useMemo(() => data?.data?.camaras ?? [], [data]);
   const ptzList = useMemo(() => data?.data?.ptz ?? [], [data]);
 
-  const totalDevices = nanoradares.length + spotters.length + camaras.length + ptzList.length;
+  const totalDevices = nanoradares.length + magosradares.length + spotters.length + camaras.length + ptzList.length;
   const totalHidden =
     visibility.hiddenNanoradares.size +
+    visibility.hiddenMagosradares.size +
     visibility.hiddenSpotters.size +
     visibility.hiddenCamaras.size +
     visibility.hiddenPtz.size;
@@ -245,6 +250,24 @@ export const DeviceSelector = memo(function DeviceSelector({
     });
   }, [nanoradares, visibility, onChange]);
 
+  const toggleMG = useCallback(
+    (id: number) =>
+      onChange({
+        ...visibility,
+        hiddenMagosradares: toggleId(visibility.hiddenMagosradares, id),
+      }),
+    [visibility, onChange],
+  );
+
+  const toggleAllMG = useCallback(() => {
+    const ids = magosradares.map((mg) => mg.id);
+    const hideAll = !allHidden(ids, visibility.hiddenMagosradares);
+    onChange({
+      ...visibility,
+      hiddenMagosradares: hideAll ? new Set(ids) : new Set(),
+    });
+  }, [magosradares, visibility, onChange]);
+
   const toggleAllSpotters = useCallback(() => {
     const ids = spotters.map((s) => s.id);
     const hideAll = !allHidden(ids, visibility.hiddenSpotters);
@@ -275,6 +298,7 @@ export const DeviceSelector = memo(function DeviceSelector({
   const showAll = useCallback(() => {
     onChange({
       hiddenNanoradares: new Set(),
+      hiddenMagosradares: new Set(),
       hiddenSpotters: new Set(),
       hiddenCamaras: new Set(),
       hiddenPtz: new Set(),
@@ -306,22 +330,29 @@ export const DeviceSelector = memo(function DeviceSelector({
             }}
             className="flex items-start gap-2"
           >
-            {/* Panel de edición adjunto a la izquierda del panel principal */}
+            {/* Panel(es) de edición adjunto(s) a la izquierda del panel principal */}
             {editingDevice && liveEdit && (
-              <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-                <DeviceEditPanel
-                  editing={editingDevice}
-                  onClose={() => onEditClose?.()}
-                  liveEdit={liveEdit}
-                  onLiveEditChange={(v) => onLiveEditChange?.(v)}
-                  liveEditPos={liveEditPos ?? null}
-                  onLiveEditPosChange={onLiveEditPosChange}
-                  isPickingPosition={isPickingPosition}
-                  onPickPosition={onPickPosition}
-                  onCancelPickPosition={onCancelPickPosition}
-                  mode="floating"
-                />
-              </div>
+              <>
+                {/* Panel avanzado (solo MagosRadar) — a la izquierda del básico */}
+                {editingDevice.kind === "magosradar" && (
+                  <MagosradarAdvancedPanel device={editingDevice.device} />
+                )}
+
+                <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+                  <DeviceEditPanel
+                    editing={editingDevice}
+                    onClose={() => onEditClose?.()}
+                    liveEdit={liveEdit}
+                    onLiveEditChange={(v) => onLiveEditChange?.(v)}
+                    liveEditPos={liveEditPos ?? null}
+                    onLiveEditPosChange={onLiveEditPosChange}
+                    isPickingPosition={isPickingPosition}
+                    onPickPosition={onPickPosition}
+                    onCancelPickPosition={onCancelPickPosition}
+                    mode="floating"
+                  />
+                </div>
+              </>
             )}
 
             {/* Panel principal de dispositivos */}
@@ -387,6 +418,41 @@ export const DeviceSelector = memo(function DeviceSelector({
                           onEdit={
                             onEditNanoradar
                               ? () => onEditNanoradar(nr)
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Magosradares */}
+                  {magosradares.length > 0 && (
+                    <div>
+                      <GroupHeader
+                        icon={<IconRadar size={11} />}
+                        title="MagosRadares"
+                        count={magosradares.length}
+                        allGroupHidden={allHidden(
+                          magosradares.map((mg) => mg.id),
+                          visibility.hiddenMagosradares,
+                        )}
+                        onToggleAll={toggleAllMG}
+                      />
+                      {magosradares.map((mg, idx) => (
+                        <DeviceRow
+                          key={mg.id}
+                          id={mg.id}
+                          label={mg.nombre}
+                          subtitle={`Az ${mg.azimut}° · R ${mg.radio}m`}
+                          accentColor={
+                            mg.color ||
+                            MG_PALETTE[idx % MG_PALETTE.length].primary
+                          }
+                          isHidden={visibility.hiddenMagosradares.has(mg.id)}
+                          onToggle={toggleMG}
+                          onEdit={
+                            onEditMagosradar
+                              ? () => onEditMagosradar(mg)
                               : undefined
                           }
                         />

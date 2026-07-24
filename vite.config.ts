@@ -88,6 +88,7 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_SYSTEM_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
+          ws:true,
         },
         // Rutas del backend principal — regex para NO capturar /api-system
         "^/api(?!-system)": {

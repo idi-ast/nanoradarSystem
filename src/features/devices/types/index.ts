@@ -9,4 +9,5 @@ export type {
   RawRadarPayload,
   CamaraActividad,
   ActividadPayload,
+  TiposAlertas,
 } from "./radar.types";

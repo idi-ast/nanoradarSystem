@@ -7,7 +7,7 @@ export interface RadarConfig {
   apertura: number;
 }
 
-export type DeviceFilter = "all" | "nanoRadar" | "spotter";
+export type DeviceFilter = "all" | "nanoRadar" | "spotter" | "magosradar";
 
 export interface RadarTarget {
   id: string;
@@ -16,9 +16,31 @@ export interface RadarTarget {
   nivel: number;
   zona: string;
   lastUpdate: number;
-  deviceType: "nanoRadar" | "spotter";
+  deviceType: "nanoRadar" | "magosradar" | "spotter";
   /** Cada punto es [lat, lon, timestamp_ms] */
   history: [number, number, number][];
+  /** Color asignado por el backend para este track (magosRadar) */
+  trackColor?: string;
+  /** Velocidad más reciente del track (magosRadar) */
+  speed?: number;
+  /** SNR — relación señal/ruido (magosRadar) */
+  snr?: number;
+  /** RCS — sección transversal radar (magosRadar) */
+  rcs?: number;
+  /** Rumbo/dirección en grados (magosRadar) */
+  heading?: number;
+  /** Estado del track: "tentative" | "confirmed" | "lost" (magosRadar) */
+  trackState?: string;
+  /** Confianza 0-100 (magosRadar) */
+  confidence?: number;
+  /** Indica si el objeto está detenido (magosRadar) */
+  isStationary?: boolean;
+}
+
+export interface TiposAlertas {
+  id: number;
+  nombre: string;
+  nivelCriticidad: number;
 }
 
 export interface RadarZone {
@@ -71,6 +93,30 @@ export interface RawRadarMessage {
   lon: number;
   nivel: number;
   zona: string;
+  /** ID del track al que pertenece la detección (magosRadar) */
+  trackId?: string;
+  /** Orden del punto dentro del track — ordenar ascendentemente (magosRadar) */
+  trackPoints?: number;
+  /** Color estable asignado por el backend al track (magosRadar) */
+  trackColor?: string;
+  /** Velocidad del punto de detección (magosRadar) */
+  speed?: number;
+  /** SNR — relación señal/ruido (magosRadar) */
+  snr?: number;
+  /** RCS — sección transversal radar (magosRadar) */
+  rcs?: number;
+  /** Coordenada X cruda del sensor (magosRadar) */
+  x_raw?: number;
+  /** Coordenada Y cruda del sensor (magosRadar) */
+  y_raw?: number;
+  /** Rumbo/dirección en grados (magosRadar) */
+  heading?: number;
+  /** Estado del track: "tentative" | "confirmed" | "lost" (magosRadar) */
+  trackState?: string;
+  /** Confianza de la detección 0-100 (magosRadar) */
+  confidence?: number;
+  /** Indica si el objeto detectado está detenido (magosRadar) */
+  isStationary?: boolean;
 }
 
 /** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */
@@ -93,6 +139,7 @@ export interface ActividadPayload {
 
 export interface RawRadarPayload {
   nanoRadar: RawRadarMessage[];
+  magosradar: RawRadarMessage[];
   spotter: RawRadarMessage[];
   actividad?: ActividadPayload;
 }

@@ -49,7 +49,6 @@ import { createSectorCoords } from "./utils/geoHelpers";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
-import { PageLoader } from "@/components/ui";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useRole } from "@/context/role";
 
@@ -224,6 +223,15 @@ export const RadarMap = memo(function RadarMap({
         apertura: d.apertura ?? 0,
         radio: d.radio ?? 0,
         color: d.color || "#22c55e",
+      });
+      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+    } else if (ed.kind === "magosradar") {
+      const d = ed.device;
+      setLiveEdit({
+        grado: d.grado ?? 0,
+        apertura: d.apertura ?? 0,
+        radio: d.radio ?? 0,
+        color: d.color || "#f43f5e",
       });
       setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
     } else if (ed.kind === "spotter") {
@@ -600,6 +608,9 @@ export const RadarMap = memo(function RadarMap({
               onChange={handleVisibilityChange}
               onEditNanoradar={(device) =>
                 openEdit({ kind: "nanoradar", device })
+              }
+              onEditMagosradar={(device) =>
+                openEdit({ kind: "magosradar", device })
               }
               onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
               onEditCamara={(device) => openEdit({ kind: "camara", device })}
