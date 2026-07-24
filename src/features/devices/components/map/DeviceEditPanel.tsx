@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
@@ -1311,9 +1311,30 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     elevacion: n(device.elevacion),
     altitud: n(device.altitud),
     notas: device.notas ?? "",
+    maxSpeed: n(device.maxSpeed),
+    stationaryTtl: n(device.stationaryTtl),
+    minConfidence: n(device.minConfidence),
+    confidenceWindow: n(device.confidenceWindow),
+    rcsRangeRef: n(device.rcsRangeRef),
   });
-  const [selectedProfileId, setSelectedProfileId] = useState("custom");
-  const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
+  const storageKey = `magos-profile-${device.id}`;
+  const [selectedProfileId, setSelectedProfileId] = useState(() => {
+    try { return localStorage.getItem(storageKey) ?? "custom"; } catch { return "custom"; }
+  });
+  const [appliedProfileId, setAppliedProfileId] = useState<string | null>(() => {
+    try { return localStorage.getItem(storageKey); } catch { return null; }
+  });
+
+  // Persistir perfil seleccionado en localStorage
+  useEffect(() => {
+    try {
+      if (selectedProfileId === "custom") {
+        localStorage.removeItem(storageKey);
+      } else {
+        localStorage.setItem(storageKey, selectedProfileId);
+      }
+    } catch { /* ignore */ }
+  }, [selectedProfileId, storageKey]);
   const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
   const { mutate: createProfile } = useCreatePerfilMagos();
   const [profileModal, setProfileModal] = useState<{ open: true; perfil?: PerfilMagos } | { open: false }>({ open: false });
@@ -1374,6 +1395,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           potencia: v.potencia ?? null,
           elevacion: v.elevacion ?? null,
           altitud: v.altitud ?? null,
+          maxSpeed: v.maxSpeed ?? null,
+          stationaryTtl: v.stationaryTtl ?? null,
+          minConfidence: v.minConfidence ?? null,
+          confidenceWindow: v.confidenceWindow ?? null,
+          rcsRangeRef: v.rcsRangeRef ?? null,
         },
       },
       {
@@ -1417,6 +1443,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           elevacion: nn(form.elevacion),
           altitud: nn(form.altitud),
           notas: form.notas || null,
+          maxSpeed: nn(form.maxSpeed),
+          stationaryTtl: nn(form.stationaryTtl),
+          minConfidence: nn(form.minConfidence),
+          confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+          rcsRangeRef: nn(form.rcsRangeRef),
         },
       },
       {
@@ -1430,7 +1461,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
 
   return (
     <>
-      <div className="flex flex-col w-96 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative flex flex-col min-w-120 -top-30 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
           <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
@@ -1474,16 +1505,15 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {/* ═══ Estado & modelo ═══ */}
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-            Estado &amp; modelo
+            Estado & modelo
           </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
-                  Estado
-                </span>
-                <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
-              </div>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
+
+            <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
+            <div>
+              <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
+            </div>
+            <div className="flex items-center gap-3 w-full justify-end">
               <button
                 type="button"
                 onClick={() => set("enabled", form.enabled === "1" ? "0" : "1")}
@@ -1495,18 +1525,18 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                     }`}
                 />
               </button>
+              <div>
+                <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
+              </div>
             </div>
-            <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
-            <div className="col-span-2">
-              <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
-            </div>
+
           </div>
 
           {/* ═══ Geo & RF ═══ */}
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-            Geo &amp; RF
+          <p className="text-[9px] hidden font-semibold uppercase tracking-widest text-text-100/30 mb-2">
+            Geo & RF
           </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5 hidden">
             <SliderField label="Elevación" value={form.elevacion} onChange={(v) => set("elevacion", v)} min={-90} max={90} step={0.1} unit="°"
               info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
             <SliderField label="Altitud" value={form.altitud} onChange={(v) => set("altitud", v)} min={0} max={9000} step={1} unit="msnm"
@@ -1521,7 +1551,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
             Tracking
           </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-3">
             {/* trackColor — input texto + color picker */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5">
@@ -1561,6 +1591,32 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
               info="Máximo de detecciones por mensaje que se pasan al tracker." />
             <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
               info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
+          </div>
+        </div>
+
+        {/* ═══ Velocidad & Tiempo ═══ */}
+        <div className="p-3">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
+            Velocidad & Tiempo
+          </p>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
+            <SliderField label="Vel. máx escenario" value={form.maxSpeed} onChange={(v) => set("maxSpeed", v)} min={1} max={200} step={1} unit="m/s"
+              info="Velocidad máxima esperada en el escenario. Usado para filtrar detecciones y calcular confianza." />
+            <SliderField label="TTL detenido" value={form.stationaryTtl} onChange={(v) => set("stationaryTtl", v)} min={1} max={120} step={1} unit="seg"
+              info="TTL extendido para objetos detectados como detenidos (isStationary). Mantiene el track visible más tiempo." />
+          </div>
+
+          {/* ═══ Scoring / Confianza ═══ */}
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
+            Scoring & Confianza
+          </p>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
+            <SliderField label="Confianza mín." value={form.minConfidence} onChange={(v) => set("minConfidence", v)} min={0} max={100} step={1} unit="%"
+              info="Confianza mínima (0-100) para mostrar un track en el mapa. Por debajo de este umbral se oculta." />
+            <SliderField label="Ventana confianza" value={form.confidenceWindow} onChange={(v) => set("confidenceWindow", v)} min={1} max={50} step={1}
+              info="Número de puntos recientes del track que se evalúan para calcular la confianza promedio." />
+            <SliderField label="Rango ref. RCS" value={form.rcsRangeRef} onChange={(v) => set("rcsRangeRef", v)} min={100} max={5000} step={50} unit="m"
+              info="Rango de referencia (metros) usado para normalizar el valor de RCS según la distancia." />
           </div>
         </div>
 
@@ -1647,6 +1703,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                         velSmooth: nn(form.velSmooth),
                         maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
                         clusterDist: nn(form.clusterDist),
+                        maxSpeed: nn(form.maxSpeed),
+                        stationaryTtl: nn(form.stationaryTtl),
+                        minConfidence: nn(form.minConfidence),
+                        confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+                        rcsRangeRef: nn(form.rcsRangeRef),
                       },
                       {
                         onSuccess: (newPerfil) => {

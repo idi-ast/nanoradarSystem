@@ -14,16 +14,21 @@ export interface MagosradarProfileValues {
   rcs?: number | null;
   snr?: number | null;
   speed?: number | null;
+  maxSpeed?: number | null;
   heading?: number | null;
   trackColor?: string | null;
   minTrackPoints?: number | null;
   associationDist?: number | null;
   ttl?: number | null;
   coastTtl?: number | null;
+  stationaryTtl?: number | null;
   emaSmooth?: number | null;
   velSmooth?: number | null;
   maxDetections?: number | null;
   clusterDist?: number | null;
+  minConfidence?: number | null;
+  confidenceWindow?: number | null;
+  rcsRangeRef?: number | null;
   elevacion?: number | null;
   altitud?: number | null;
   frecuencia?: number | null;
@@ -52,16 +57,21 @@ const CUSTOM_PROFILE: MagosradarProfile = {
     rcs: null,
     snr: null,
     speed: null,
+    maxSpeed: null,
     heading: null,
     trackColor: null,
     minTrackPoints: null,
     associationDist: null,
     ttl: null,
     coastTtl: null,
+    stationaryTtl: null,
     emaSmooth: null,
     velSmooth: null,
     maxDetections: null,
     clusterDist: null,
+    minConfidence: null,
+    confidenceWindow: null,
+    rcsRangeRef: null,
     elevacion: null,
     altitud: null,
     frecuencia: null,
@@ -84,16 +94,21 @@ function apiToProfile(p: PerfilMagos): MagosradarProfile {
       rcs: p.rcs ?? null,
       snr: p.snr ?? null,
       speed: p.speed ?? null,
+      maxSpeed: p.maxSpeed ?? null,
       heading: p.heading ?? null,
       trackColor: p.trackColor ?? null,
       minTrackPoints: p.minTrackPoints ?? null,
       associationDist: p.associationDist ?? null,
       ttl: p.ttl ?? null,
       coastTtl: p.coastTtl ?? null,
+      stationaryTtl: p.stationaryTtl ?? null,
       emaSmooth: p.emaSmooth ?? null,
       velSmooth: p.velSmooth ?? null,
       maxDetections: p.maxDetections ?? null,
       clusterDist: p.clusterDist ?? null,
+      minConfidence: p.minConfidence ?? null,
+      confidenceWindow: p.confidenceWindow ?? null,
+      rcsRangeRef: p.rcsRangeRef ?? null,
       elevacion: null,
       altitud: null,
       frecuencia: null,

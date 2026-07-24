@@ -86,6 +86,23 @@ function processMagosradarMessages(
     // Velocidad del último punto (mayor trackPoints)
     const lastPoint = points[points.length - 1];
     const speed = lastPoint.speed;
+    const confidence = lastPoint.confidence;
+    const isStationary = lastPoint.isStationary;
+    // Tomar SNR, RCS, heading, trackState del punto con mejor SNR dentro del track
+    let bestSnr = -Infinity;
+    let snr = points[0].snr;
+    let rcs = points[0].rcs;
+    let heading = points[0].heading;
+    let trackState = points[0].trackState;
+    for (const p of points) {
+      if ((p.snr ?? -Infinity) > bestSnr) {
+        bestSnr = p.snr ?? -Infinity;
+        snr = p.snr;
+        rcs = p.rcs;
+        heading = p.heading;
+        trackState = p.trackState;
+      }
+    }
 
     next.set(targetId, {
       id: targetId,
@@ -98,6 +115,12 @@ function processMagosradarMessages(
       history,
       trackColor: color,
       speed,
+      snr,
+      rcs,
+      heading,
+      trackState,
+      confidence,
+      isStationary,
     });
   }
 }

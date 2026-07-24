@@ -95,6 +95,11 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
     velSmooth: n(perfil?.velSmooth),
     maxDetections: n(perfil?.maxDetections),
     clusterDist: n(perfil?.clusterDist),
+    maxSpeed: n(perfil?.maxSpeed),
+    stationaryTtl: n(perfil?.stationaryTtl),
+    minConfidence: n(perfil?.minConfidence),
+    confidenceWindow: n(perfil?.confidenceWindow),
+    rcsRangeRef: n(perfil?.rcsRangeRef),
   });
 
   useEffect(() => {
@@ -127,6 +132,11 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
       velSmooth: nn(form.velSmooth),
       maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
       clusterDist: nn(form.clusterDist),
+      maxSpeed: nn(form.maxSpeed),
+      stationaryTtl: nn(form.stationaryTtl),
+      minConfidence: nn(form.minConfidence),
+      confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+      rcsRangeRef: nn(form.rcsRangeRef),
     };
   }
 
@@ -253,9 +263,35 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
               info="Distancia para agrupar detecciones cercanas." />
           </FieldRow>
 
-          {/* Color */}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="trackColor" className="text-xs text-text-100/80">Color de tracks</Label>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-200/80 mt-3">
+          Velocidad &amp; Tiempo
+        </h3>
+        <div className="h-px bg-border/60 -mt-2" />
+
+        <FieldRow>
+          <Field label="Vel. máx escenario (m/s)" name="maxSpeed" value={form.maxSpeed} onChange={handleChange} type="number" step="any" placeholder="55"
+            info="Velocidad máxima esperada en el escenario." />
+          <Field label="TTL detenido (seg)" name="stationaryTtl" value={form.stationaryTtl} onChange={handleChange} type="number" step="any" placeholder="30"
+            info="TTL extendido para objetos detenidos (isStationary)." />
+        </FieldRow>
+
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-brand-200/80 mt-3">
+          Scoring &amp; Confianza
+        </h3>
+        <div className="h-px bg-border/60 -mt-2" />
+
+        <FieldRow>
+          <Field label="Confianza mín. (%)" name="minConfidence" value={form.minConfidence} onChange={handleChange} type="number" step="any" placeholder="30"
+            info="Confianza mínima (0-100) para mostrar un track." />
+          <Field label="Ventana confianza" name="confidenceWindow" value={form.confidenceWindow} onChange={handleChange} type="number" min={1} placeholder="10"
+            info="Nº de puntos recientes para evaluar confianza." />
+          <Field label="Rango ref. RCS (m)" name="rcsRangeRef" value={form.rcsRangeRef} onChange={handleChange} type="number" step="any" placeholder="1000"
+            info="Rango de referencia para normalizar RSC según distancia." />
+        </FieldRow>
+
+        {/* Color */}
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="trackColor" className="text-xs text-text-100/80">Color de tracks</Label>
             <div className="flex items-center gap-2">
               <input
                 id="trackColor"

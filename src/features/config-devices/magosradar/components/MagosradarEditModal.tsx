@@ -181,6 +181,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     elevacion: n(magosradar.elevacion),
     altitud: n(magosradar.altitud),
     notas: magosradar.notas ?? "",
+    maxSpeed: n(magosradar.maxSpeed),
+    stationaryTtl: n(magosradar.stationaryTtl),
+    minConfidence: n(magosradar.minConfidence),
+    confidenceWindow: n(magosradar.confidenceWindow),
+    rcsRangeRef: n(magosradar.rcsRangeRef),
   }));
 
   const [selectedProfileId, setSelectedProfileId] = useState("custom");
@@ -209,6 +214,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       potencia: values.potencia != null ? String(values.potencia) : "",
       elevacion: values.elevacion != null ? String(values.elevacion) : "",
       altitud: values.altitud != null ? String(values.altitud) : "",
+      maxSpeed: values.maxSpeed != null ? String(values.maxSpeed) : "",
+      stationaryTtl: values.stationaryTtl != null ? String(values.stationaryTtl) : "",
+      minConfidence: values.minConfidence != null ? String(values.minConfidence) : "",
+      confidenceWindow: values.confidenceWindow != null ? String(values.confidenceWindow) : "",
+      rcsRangeRef: values.rcsRangeRef != null ? String(values.rcsRangeRef) : "",
     }));
   }
 
@@ -235,6 +245,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       potencia: values.potencia ?? null,
       elevacion: values.elevacion ?? null,
       altitud: values.altitud ?? null,
+      maxSpeed: values.maxSpeed ?? null,
+      stationaryTtl: values.stationaryTtl ?? null,
+      minConfidence: values.minConfidence ?? null,
+      confidenceWindow: values.confidenceWindow ?? null,
+      rcsRangeRef: values.rcsRangeRef ?? null,
     };
   }
 
@@ -306,6 +321,11 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       elevacion: nn(form.elevacion),
       altitud: nn(form.altitud),
       notas: form.notas || null,
+      maxSpeed: nn(form.maxSpeed),
+      stationaryTtl: nn(form.stationaryTtl),
+      minConfidence: nn(form.minConfidence),
+      confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+      rcsRangeRef: nn(form.rcsRangeRef),
     };
   }
 
@@ -532,6 +552,33 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
               <Field label="Potencia (dBm)" name="potencia" value={form.potencia}
                 onChange={handleChange} type="number" step="any" placeholder="20"
                 info="Potencia de transmisión del hardware. Solo informativo." />
+            </FieldRow>
+
+            <SectionTitle>Velocidad &amp; Tiempo</SectionTitle>
+
+            <FieldRow>
+              <Field label="Vel. máx escenario (m/s)" name="maxSpeed" value={form.maxSpeed}
+                onChange={handleChange} type="number" step="any" placeholder="55"
+                info="Velocidad máxima esperada en el escenario." />
+              <Field label="TTL detenido (seg)" name="stationaryTtl" value={form.stationaryTtl}
+                onChange={handleChange} type="number" step="any" placeholder="30"
+                info="TTL extendido para objetos detenidos (isStationary)." />
+            </FieldRow>
+
+            <SectionTitle>Scoring &amp; Confianza</SectionTitle>
+
+            <FieldRow>
+              <Field label="Confianza mín. (%)" name="minConfidence" value={form.minConfidence}
+                onChange={handleChange} type="number" step="any" placeholder="30"
+                info="Confianza mínima (0-100) para mostrar track." />
+              <Field label="Ventana confianza" name="confidenceWindow" value={form.confidenceWindow}
+                onChange={handleChange} type="number" min={1} placeholder="10"
+                info="Nº de puntos recientes para evaluar confianza." />
+            </FieldRow>
+            <FieldRow>
+              <Field label="Rango ref. RCS (m)" name="rcsRangeRef" value={form.rcsRangeRef}
+                onChange={handleChange} type="number" step="any" placeholder="1000"
+                info="Rango de referencia para normalizar RCS según distancia." />
             </FieldRow>
           </div>
 

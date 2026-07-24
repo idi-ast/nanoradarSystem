@@ -18,16 +18,23 @@ export type MagosradarPayload = Pick<
   rcs?: number | null;
   snr?: number | null;
   speed?: number | null;
+  maxSpeed?: number | null;
   heading?: number | null;
   trackColor?: string | null;
   minTrackPoints?: number | null;
   associationDist?: number | null;
   ttl?: number | null;
   coastTtl?: number | null;
+  stationaryTtl?: number | null;
   emaSmooth?: number | null;
   velSmooth?: number | null;
   maxDetections?: number | null;
   clusterDist?: number | null;
+
+  // Scoring / Confianza (opcional)
+  minConfidence?: number | null;
+  confidenceWindow?: number | null;
+  rcsRangeRef?: number | null;
 
   // Metadatos (opcional)
   enabled?: number | null;
@@ -37,6 +44,11 @@ export type MagosradarPayload = Pick<
   elevacion?: number | null;
   altitud?: number | null;
   notas?: string | null;
+
+  // Nuevos campos backend
+  trackState?: string | null;
+  confidence?: number | null;
+  isStationary?: boolean | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

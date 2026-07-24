@@ -23,6 +23,18 @@ export interface RadarTarget {
   trackColor?: string;
   /** Velocidad más reciente del track (magosRadar) */
   speed?: number;
+  /** SNR — relación señal/ruido (magosRadar) */
+  snr?: number;
+  /** RCS — sección transversal radar (magosRadar) */
+  rcs?: number;
+  /** Rumbo/dirección en grados (magosRadar) */
+  heading?: number;
+  /** Estado del track: "tentative" | "confirmed" | "lost" (magosRadar) */
+  trackState?: string;
+  /** Confianza 0-100 (magosRadar) */
+  confidence?: number;
+  /** Indica si el objeto está detenido (magosRadar) */
+  isStationary?: boolean;
 }
 
 export interface TiposAlertas {
@@ -89,6 +101,22 @@ export interface RawRadarMessage {
   trackColor?: string;
   /** Velocidad del punto de detección (magosRadar) */
   speed?: number;
+  /** SNR — relación señal/ruido (magosRadar) */
+  snr?: number;
+  /** RCS — sección transversal radar (magosRadar) */
+  rcs?: number;
+  /** Coordenada X cruda del sensor (magosRadar) */
+  x_raw?: number;
+  /** Coordenada Y cruda del sensor (magosRadar) */
+  y_raw?: number;
+  /** Rumbo/dirección en grados (magosRadar) */
+  heading?: number;
+  /** Estado del track: "tentative" | "confirmed" | "lost" (magosRadar) */
+  trackState?: string;
+  /** Confianza de la detección 0-100 (magosRadar) */
+  confidence?: number;
+  /** Indica si el objeto detectado está detenido (magosRadar) */
+  isStationary?: boolean;
 }
 
 /** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */
