@@ -34,7 +34,6 @@ export type MagosradarPayload = Pick<
   // Scoring / Confianza (opcional)
   minConfidence?: number | null;
   confidenceWindow?: number | null;
-  rcsRangeRef?: number | null;
 
   // Metadatos (opcional)
   enabled?: number | null;

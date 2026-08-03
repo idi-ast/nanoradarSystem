@@ -1315,7 +1315,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     stationaryTtl: n(device.stationaryTtl),
     minConfidence: n(device.minConfidence),
     confidenceWindow: n(device.confidenceWindow),
-    rcsRangeRef: n(device.rcsRangeRef),
   });
   const storageKey = `magos-profile-${device.id}`;
   const [selectedProfileId, setSelectedProfileId] = useState(() => {
@@ -1399,7 +1398,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           stationaryTtl: v.stationaryTtl ?? null,
           minConfidence: v.minConfidence ?? null,
           confidenceWindow: v.confidenceWindow ?? null,
-          rcsRangeRef: v.rcsRangeRef ?? null,
         },
       },
       {
@@ -1447,7 +1445,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           stationaryTtl: nn(form.stationaryTtl),
           minConfidence: nn(form.minConfidence),
           confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-          rcsRangeRef: nn(form.rcsRangeRef),
         },
       },
       {
@@ -1599,7 +1596,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Velocidad & Tiempo
           </p>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
             <SliderField label="Vel. máx escenario" value={form.maxSpeed} onChange={(v) => set("maxSpeed", v)} min={1} max={200} step={1} unit="m/s"
               info="Velocidad máxima esperada en el escenario. Usado para filtrar detecciones y calcular confianza." />
             <SliderField label="TTL detenido" value={form.stationaryTtl} onChange={(v) => set("stationaryTtl", v)} min={1} max={120} step={1} unit="seg"
@@ -1610,13 +1607,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Scoring & Confianza
           </p>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
             <SliderField label="Confianza mín." value={form.minConfidence} onChange={(v) => set("minConfidence", v)} min={0} max={100} step={1} unit="%"
               info="Confianza mínima (0-100) para mostrar un track en el mapa. Por debajo de este umbral se oculta." />
             <SliderField label="Ventana confianza" value={form.confidenceWindow} onChange={(v) => set("confidenceWindow", v)} min={1} max={50} step={1}
               info="Número de puntos recientes del track que se evalúan para calcular la confianza promedio." />
-            <SliderField label="Rango ref. RCS" value={form.rcsRangeRef} onChange={(v) => set("rcsRangeRef", v)} min={100} max={5000} step={50} unit="m"
-              info="Rango de referencia (metros) usado para normalizar el valor de RCS según la distancia." />
           </div>
         </div>
 
@@ -1707,7 +1702,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                         stationaryTtl: nn(form.stationaryTtl),
                         minConfidence: nn(form.minConfidence),
                         confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-                        rcsRangeRef: nn(form.rcsRangeRef),
                       },
                       {
                         onSuccess: (newPerfil) => {

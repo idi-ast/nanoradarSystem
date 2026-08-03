@@ -185,7 +185,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     stationaryTtl: n(magosradar.stationaryTtl),
     minConfidence: n(magosradar.minConfidence),
     confidenceWindow: n(magosradar.confidenceWindow),
-    rcsRangeRef: n(magosradar.rcsRangeRef),
   }));
 
   const [selectedProfileId, setSelectedProfileId] = useState("custom");
@@ -218,7 +217,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       stationaryTtl: values.stationaryTtl != null ? String(values.stationaryTtl) : "",
       minConfidence: values.minConfidence != null ? String(values.minConfidence) : "",
       confidenceWindow: values.confidenceWindow != null ? String(values.confidenceWindow) : "",
-      rcsRangeRef: values.rcsRangeRef != null ? String(values.rcsRangeRef) : "",
     }));
   }
 
@@ -249,7 +247,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       stationaryTtl: values.stationaryTtl ?? null,
       minConfidence: values.minConfidence ?? null,
       confidenceWindow: values.confidenceWindow ?? null,
-      rcsRangeRef: values.rcsRangeRef ?? null,
     };
   }
 
@@ -325,7 +322,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       stationaryTtl: nn(form.stationaryTtl),
       minConfidence: nn(form.minConfidence),
       confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-      rcsRangeRef: nn(form.rcsRangeRef),
     };
   }
 
@@ -417,14 +413,12 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
               <button
                 type="button"
                 onClick={() => setForm((p) => ({ ...p, enabled: p.enabled === "1" ? "0" : "1" }))}
-                className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${
-                  form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
-                }`}
+                className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
+                  }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    form.enabled === "1" ? "translate-x-5" : "translate-x-1"
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.enabled === "1" ? "translate-x-5" : "translate-x-1"
+                    }`}
                 />
               </button>
             </div>
@@ -576,10 +570,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
                 info="Nº de puntos recientes para evaluar confianza." />
             </FieldRow>
             <FieldRow>
-              <Field label="Rango ref. RCS (m)" name="rcsRangeRef" value={form.rcsRangeRef}
-                onChange={handleChange} type="number" step="any" placeholder="1000"
-                info="Rango de referencia para normalizar RCS según distancia." />
-            </FieldRow>
           </div>
 
           {/* Footer */}

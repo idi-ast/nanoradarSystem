@@ -99,7 +99,6 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
     stationaryTtl: n(perfil?.stationaryTtl),
     minConfidence: n(perfil?.minConfidence),
     confidenceWindow: n(perfil?.confidenceWindow),
-    rcsRangeRef: n(perfil?.rcsRangeRef),
   });
 
   useEffect(() => {
@@ -136,7 +135,6 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
       stationaryTtl: nn(form.stationaryTtl),
       minConfidence: nn(form.minConfidence),
       confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-      rcsRangeRef: nn(form.rcsRangeRef),
     };
   }
 
@@ -285,8 +283,6 @@ export function PerfilMagosModal({ perfil, onClose }: PerfilMagosModalProps) {
             info="Confianza mínima (0-100) para mostrar un track." />
           <Field label="Ventana confianza" name="confidenceWindow" value={form.confidenceWindow} onChange={handleChange} type="number" min={1} placeholder="10"
             info="Nº de puntos recientes para evaluar confianza." />
-          <Field label="Rango ref. RCS (m)" name="rcsRangeRef" value={form.rcsRangeRef} onChange={handleChange} type="number" step="any" placeholder="1000"
-            info="Rango de referencia para normalizar RSC según distancia." />
         </FieldRow>
 
         {/* Color */}

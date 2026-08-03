@@ -123,7 +123,6 @@ export interface Magosradares {
   // Scoring / Confianza
   minConfidence: number | null;
   confidenceWindow: number | null;
-  rcsRangeRef: number | null;
 
   // Metadatos
   enabled: number | null; // 1 o 0
@@ -164,7 +163,6 @@ export interface PerfilMagos {
   clusterDist: number | null;
   minConfidence: number | null;
   confidenceWindow: number | null;
-  rcsRangeRef: number | null;
   created_at: string;
   updated_at: string;
   trackState?: string | null;
@@ -194,7 +192,6 @@ export interface PerfilMagosPayload {
   clusterDist?: number | null;
   minConfidence?: number | null;
   confidenceWindow?: number | null;
-  rcsRangeRef?: number | null;
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;

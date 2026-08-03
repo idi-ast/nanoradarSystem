@@ -28,7 +28,6 @@ export interface MagosradarProfileValues {
   clusterDist?: number | null;
   minConfidence?: number | null;
   confidenceWindow?: number | null;
-  rcsRangeRef?: number | null;
   elevacion?: number | null;
   altitud?: number | null;
   frecuencia?: number | null;
@@ -71,7 +70,6 @@ const CUSTOM_PROFILE: MagosradarProfile = {
     clusterDist: null,
     minConfidence: null,
     confidenceWindow: null,
-    rcsRangeRef: null,
     elevacion: null,
     altitud: null,
     frecuencia: null,
@@ -108,7 +106,6 @@ function apiToProfile(p: PerfilMagos): MagosradarProfile {
       clusterDist: p.clusterDist ?? null,
       minConfidence: p.minConfidence ?? null,
       confidenceWindow: p.confidenceWindow ?? null,
-      rcsRangeRef: p.rcsRangeRef ?? null,
       elevacion: null,
       altitud: null,
       frecuencia: null,

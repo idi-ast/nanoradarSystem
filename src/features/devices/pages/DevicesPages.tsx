@@ -15,7 +15,7 @@ import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
 import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter } from "../types";
 import type { DeviceVisibility } from "../components/map/DevicesOverlay";
-import { ALL_VISIBLE } from "../components/map/devicesConfig";
+import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
@@ -247,12 +247,19 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   onDeviceFilterChange: (f: DeviceFilter) => void;
 }) {
   const { stableTargets } = useRadarStableTargets();
+  const { data: configData } = useConfigDevices();
+  const activeTypes = useMemo(
+    () => getActiveDeviceTypes(configData?.data),
+    [configData],
+  );
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <TargetsSection
         targets={stableTargets}
         deviceFilter={deviceFilter}
         onDeviceFilterChange={onDeviceFilterChange}
+        activeTypes={activeTypes}
       />
     </div>
   );
@@ -296,46 +303,49 @@ const GeofenceFlash = memo(function GeofenceFlash() {
 
 type TabFilter = DeviceFilter;
 
-const TABS: { key: TabFilter; label: string }[] = [
-  { key: "all", label: "Todos" },
-  { key: "nanoRadar", label: "NanoRadar" },
-  { key: "magosradar", label: "MagosRadar" },
-  { key: "spotter", label: "Spotter" },
-];
-
 const TargetsSection = memo(function TargetsSection({
   targets,
   deviceFilter,
   onDeviceFilterChange,
+  activeTypes,
 }: {
   targets: import("../types").RadarTarget[];
   deviceFilter: DeviceFilter;
   onDeviceFilterChange: (f: DeviceFilter) => void;
+  activeTypes: string[];
 }) {
+  const TABS = useMemo(() => {
+    const tabs: { key: TabFilter; label: string }[] = [
+      { key: "all", label: "Todos" },
+    ];
+    for (const dt of activeTypes) {
+      tabs.push({ key: dt as DeviceFilter, label: DEVICE_LABEL[dt] ?? dt });
+    }
+    return tabs;
+  }, [activeTypes]);
+
+  const activeTypeSet = useMemo(() => new Set(activeTypes), [activeTypes]);
+
   const { counts, filtered } = useMemo(() => {
-    const nextCounts: Record<TabFilter, number> = {
-      all: targets.length,
-      nanoRadar: 0,
-      magosradar: 0,
-      spotter: 0,
-    };
+    const nextCounts: Record<string, number> = { all: targets.length };
+    for (const dt of activeTypes) nextCounts[dt] = 0;
     for (const t of targets) {
-      if (t.deviceType === "nanoRadar") nextCounts.nanoRadar += 1;
-      if (t.deviceType === "magosradar") nextCounts.magosradar += 1;
-      if (t.deviceType === "spotter") nextCounts.spotter += 1;
+      if (activeTypeSet.has(t.deviceType)) {
+        nextCounts[t.deviceType] = (nextCounts[t.deviceType] ?? 0) + 1;
+      }
     }
     const nextFiltered =
       deviceFilter === "all"
         ? targets
         : targets.filter((t) => t.deviceType === deviceFilter);
     return { counts: nextCounts, filtered: nextFiltered };
-  }, [targets, deviceFilter]);
+  }, [targets, deviceFilter, activeTypes, activeTypeSet]);
 
   return (
     <>
       <div className="shrink-0 flex border-b border-border-200 mb-2">
         {TABS.map(({ key, label }) => {
-          const count = counts[key];
+          const count = counts[key] ?? 0;
           const isActive = deviceFilter === key;
           return (
             <button
@@ -361,8 +371,8 @@ const TargetsSection = memo(function TargetsSection({
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
         {filtered.length === 0 ? (
           <p className="text-text-100/40 text-[10px] italic">
-            {deviceFilter === "spotter"
-              ? "Spotter desconectado..."
+            {deviceFilter !== "all"
+              ? `${DEVICE_LABEL[deviceFilter] ?? deviceFilter} sin detecciones...`
               : "No hay objetivos en el área..."}
           </p>
         ) : (
