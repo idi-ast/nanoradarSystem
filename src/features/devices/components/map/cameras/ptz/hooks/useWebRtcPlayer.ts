@@ -1,12 +1,25 @@
 import { useCallback, useRef, useState } from "react";
 
 export function getWhepBaseUrl(urlStream: string): string {
+  const base = import.meta.env.VITE_MEDIAMTX_BASE_URL || "";
+
   try {
+    // Intentar como URL absoluta
     const u = new URL(urlStream);
-    u.pathname = u.pathname.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
+    u.pathname = u.pathname
+      .replace(/\/index\.m3u8$/, "")
+      .replace(/^\/streams\//, "/")
+      .replace(/\/$/, "");
     return u.toString();
   } catch {
-    return "";
+    // url_stream es relativa: construir con la base de MediaMTX
+    if (!base) return "";
+    const path = urlStream
+      .replace(/\/index\.m3u8$/, "")
+      .replace(/^\/streams\//, "/")
+      .replace(/\/$/, "");
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${normalized}`;
   }
 }
 
