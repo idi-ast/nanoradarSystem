@@ -10,6 +10,65 @@ const SET_TIME_INTERVAL_MS = 2;
 /** Backoff de reconexión: [1s, 2s, 4s, 8s, 16s, 30s] */
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
+// ─────────────────────────────────────────────
+// Suavizado y validación de tracks MagosRadar
+// ─────────────────────────────────────────────
+
+/** 1 grado de latitud ≈ 111,320 metros */
+const METERS_PER_DEG_LAT = 111_320;
+/** Ajuste por latitud para longitud (aproximado para ~41°S, latitud típica) */
+const METERS_PER_DEG_LON = METERS_PER_DEG_LAT * Math.cos((-41.5 * Math.PI) / 180);
+
+/** Velocidad máxima realista para tráfico denso en avenida (m/s).
+ *  60 km/h ≈ 16.67 m/s. Por encima de esto, se aplica clamp. */
+const MAX_REALISTIC_SPEED_MS = 16.67;
+
+/** Factor de suavizado EMA para posición (0-1). Valores más bajos = más suavizado.
+ *  0.25 significa que cada nuevo punto pesa 25% y el histórico 75%. */
+const EMA_SMOOTH_FACTOR = 0.25;
+
+/** Cada cuántos ciclos de procesamiento se limpian los tracks inactivos (~30s) */
+const TRACK_STATE_CLEANUP_INTERVAL = 15_000;
+/** Tiempo sin actividad para eliminar el estado de un track */
+const TRACK_STATE_TTL_MS = 120_000;
+
+/** Estado persistente por track para suavizado y validación de velocidad */
+interface TrackKinematicState {
+  /** Última posición suavizada (EMA) */
+  smoothedLat: number;
+  smoothedLon: number;
+  /** Última posición cruda recibida */
+  lastRawLat: number;
+  lastRawLon: number;
+  /** Timestamp de la última actualización */
+  lastUpdateMs: number;
+  /** Velocidad estimada en grados/ms (lat, lon) */
+  velLat: number;
+  velLon: number;
+  /** Contador de puntos consecutivos clampados (para detectar tracks ruidosos) */
+  clampCount: number;
+}
+
+/** Mapa global de estado cinemático por trackId. Persiste entre barridos. */
+const trackKinematics = new Map<string, TrackKinematicState>();
+let lastCleanupTime = Date.now();
+
+/** Distancia aproximada en metros entre dos puntos (fórmula plana, suficiente para tracks cercanos) */
+function distMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const dLat = (lat2 - lat1) * METERS_PER_DEG_LAT;
+  const dLon = (lon2 - lon1) * METERS_PER_DEG_LON;
+  return Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+/** Limpia tracks inactivos del mapa de estado cinemático */
+function cleanupTrackStates(now: number): void {
+  for (const [tid, state] of trackKinematics) {
+    if (now - state.lastUpdateMs > TRACK_STATE_TTL_MS) {
+      trackKinematics.delete(tid);
+    }
+  }
+}
+
 function processDeviceMessages(
   next: Map<string, RadarTarget>,
   messages: RawRadarPayload["nanoRadar"],
@@ -41,6 +100,13 @@ function processDeviceMessages(
 
 /**
  * Procesa detecciones de magosRadar agrupando por trackId.
+ *
+ * Mejoras de realismo:
+ * - Suavizado EMA de posición para eliminar jitter.
+ * - Validación de velocidad máxima: si un punto implicaría >60 km/h en tráfico
+ *   denso, se aplica clamp a la posición máxima permitida por la velocidad realista.
+ * - Estado cinemático persistente entre barridos (predicción por velocidad).
+ *
  * El backend envía `trackId` (ej: "T182") para identificar el vehículo,
  * `trackPoints` para ordenar los puntos dentro del track,
  * `trackColor` para colorear de forma estable,
@@ -53,6 +119,12 @@ function processMagosradarMessages(
   now: number,
   historyMaxPoints: number,
 ) {
+  // Limpieza periódica de estados inactivos
+  if (now - lastCleanupTime > TRACK_STATE_CLEANUP_INTERVAL) {
+    cleanupTrackStates(now);
+    lastCleanupTime = now;
+  }
+
   // Agrupar por trackId (enviado por el backend)
   const byTrack = new Map<string, { points: RawRadarPayload["magosradar"]; color: string }>();
   for (const raw of messages) {
@@ -68,17 +140,95 @@ function processMagosradarMessages(
 
     const targetId = `magosradar_${trackId}`;
 
-    // Todos los puntos del barrido actual van al historial
-    const newPoints: [number, number, number][] = points.map((p) => [p.lat, p.lon, now]);
+    // ── Obtener o inicializar estado cinemático del track ──
+    let kin = trackKinematics.get(trackId);
+    if (!kin) {
+      const first = points[0];
+      kin = {
+        smoothedLat: first.lat,
+        smoothedLon: first.lon,
+        lastRawLat: first.lat,
+        lastRawLon: first.lon,
+        lastUpdateMs: now,
+        velLat: 0,
+        velLon: 0,
+        clampCount: 0,
+      };
+      trackKinematics.set(trackId, kin);
+    }
+
+    // ── Procesar cada punto con validación de velocidad y suavizado ──
+    const dt = Math.max(now - kin.lastUpdateMs, 1); // al menos 1ms para evitar división por cero
+
+    const smoothedPoints: typeof points = [];
+    let totalClampedThisSweep = 0;
+
+    for (const p of points) {
+      // Distancia desde la última posición suavizada
+      const d = distMeters(kin.smoothedLat, kin.smoothedLon, p.lat, p.lon);
+      const impliedSpeedMs = d / (dt / 1000); // m/s
+
+      let useLat: number;
+      let useLon: number;
+
+      if (impliedSpeedMs > MAX_REALISTIC_SPEED_MS && kin.clampCount < 3) {
+        // ── CLAMP: el punto implicaría una velocidad irreal (>60 km/h) ──
+        // Lo limitamos al desplazamiento máximo permitido desde la última posición suavizada
+        const maxDistMeters = MAX_REALISTIC_SPEED_MS * (dt / 1000);
+        const scale = d > 0 ? maxDistMeters / d : 0;
+
+        const predictedLat = kin.smoothedLat + kin.velLat * dt;
+        const predictedLon = kin.smoothedLon + kin.velLon * dt;
+
+        useLat = predictedLat + (p.lat - predictedLat) * scale;
+        useLon = predictedLon + (p.lon - predictedLon) * scale;
+
+        kin.clampCount++;
+        totalClampedThisSweep++;
+      } else {
+        // ── Suavizado EMA: mezclar posición cruda con la suavizada anterior ──
+        useLat = kin.smoothedLat + EMA_SMOOTH_FACTOR * (p.lat - kin.smoothedLat);
+        useLon = kin.smoothedLon + EMA_SMOOTH_FACTOR * (p.lon - kin.smoothedLon);
+
+        // Resetear contador de clamp si el punto es válido
+        if (kin.clampCount > 0 && impliedSpeedMs <= MAX_REALISTIC_SPEED_MS) {
+          kin.clampCount = Math.max(0, kin.clampCount - 1);
+        }
+      }
+
+      // Actualizar estado cinemático
+      const prevSmoothedLat = kin.smoothedLat;
+      const prevSmoothedLon = kin.smoothedLon;
+
+      kin.smoothedLat = useLat;
+      kin.smoothedLon = useLon;
+      kin.lastRawLat = p.lat;
+      kin.lastRawLon = p.lon;
+      kin.lastUpdateMs = now;
+      kin.velLat = (useLat - prevSmoothedLat) / dt;
+      kin.velLon = (useLon - prevSmoothedLon) / dt;
+
+      // Punto suavizado para el historial
+      smoothedPoints.push({ ...p, lat: useLat, lon: useLon });
+    }
+
+    // Si más del 50% de los puntos fueron clampados, es un track ruidoso: usar solo el último válido
+    const effectivePoints =
+      totalClampedThisSweep > points.length * 0.5 && smoothedPoints.length > 1
+        ? [smoothedPoints[smoothedPoints.length - 1]]
+        : smoothedPoints;
+
+    // Todos los puntos del barrido actual (ya suavizados) van al historial
+    const newPoints: [number, number, number][] = effectivePoints.map((p) => [p.lat, p.lon, now]);
 
     const existing = next.get(targetId);
     const history: [number, number, number][] = existing
       ? [...existing.history, ...newPoints].slice(-historyMaxPoints)
       : newPoints;
 
-    // Centroide como posición principal
-    const centroidLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-    const centroidLon = points.reduce((s, p) => s + p.lon, 0) / points.length;
+    // Posición principal: última posición suavizada del track
+    const mainLat = kin.smoothedLat;
+    const mainLon = kin.smoothedLon;
 
     // Máximo nivel entre todos los puntos del track
     const maxNivel = Math.max(...points.map((p) => p.nivel));
@@ -106,8 +256,8 @@ function processMagosradarMessages(
 
     next.set(targetId, {
       id: targetId,
-      lat: centroidLat,
-      lon: centroidLon,
+      lat: mainLat,
+      lon: mainLon,
       nivel: maxNivel,
       zona: points[0].zona,
       deviceType: "magosradar",
