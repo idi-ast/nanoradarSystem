@@ -59,7 +59,7 @@ let _ambientLight: THREE.AmbientLight | null = null;
 let _dirLight: THREE.DirectionalLight | null = null;
 let _movingRing: THREE.Mesh | null = null;
 let _selectedRing: THREE.Mesh | null = null;
-const _clock = new THREE.Clock();
+const _timer = new THREE.Timer();
 let _config: Boat3DConfig = { ...DEFAULT_BOAT3D_CONFIG };
 const _entries = new Map<string, BoatEntry>();
 /** Cache de modelos cargados: path → objeto Three.js listo para usar */
@@ -224,7 +224,7 @@ const _layer: CustomLayerInterface = {
     if (!_renderer || !_scene || !_camera || !_modelGroup || _entries.size === 0)
       return;
 
-    const delta = _clock.getDelta();
+    const delta = _timer.getDelta();
 
     // Actualizar animaciones de todos los modelos cargados
     for (const [, cached] of _modelCache) {
