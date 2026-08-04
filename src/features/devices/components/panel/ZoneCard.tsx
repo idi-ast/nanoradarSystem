@@ -41,6 +41,9 @@ export const ZoneCard = memo(function ZoneCard({
   const [editCategoria, setEditCategoria] = useState<number>(
     zone.categoriaDeteccion ?? 1,
   );
+  const [editActivarPtz, setEditActivarPtz] = useState<boolean>(
+    zone.activarPtz ?? false,
+  );
 
   const handleEdit = () => {
     setEditName(zone.nombre);
@@ -49,6 +52,7 @@ export const ZoneCard = memo(function ZoneCard({
     setEditSonido(zone.sonido ?? null);
     setEditDestello(zone.destello ?? true);
     setEditCategoria(zone.categoriaDeteccion ?? 1);
+    setEditActivarPtz(zone.activarPtz ?? false);
     setIsEditing(true);
   };
 
@@ -63,6 +67,7 @@ export const ZoneCard = memo(function ZoneCard({
         sonido: editSonido,
         destello: editDestello,
         categoriaDeteccion: editCategoria,
+        activarPtz: editActivarPtz,
         poligono: { color: editColor, vertices: zone.poligono.vertices },
       });
       setIsEditing(false);
@@ -240,6 +245,24 @@ export const ZoneCard = memo(function ZoneCard({
               );
             })}
           </div>
+        </div>
+        {/* Activar seguimiento PTZ */}
+        <div className="flex items-center justify-between bg-bg-100/30 py-1.5 rounded border border-border">
+          <div className="flex flex-col">
+            <label className="text-xs text-text-200 uppercase">Seguimiento PTZ</label>
+            <p className="text-[9px] text-text-200/50 leading-tight">
+              La cámara seguirá tracks que entren en esta zona.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditActivarPtz(!editActivarPtz)}
+            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${editActivarPtz ? "bg-brand-100" : "bg-bg-300"}`}
+          >
+            <span
+              className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${editActivarPtz ? "translate-x-4" : "translate-x-0.5"}`}
+            />
+          </button>
         </div>
         <div className="flex gap-2">
           <button

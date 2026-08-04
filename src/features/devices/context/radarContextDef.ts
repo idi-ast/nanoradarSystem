@@ -35,6 +35,7 @@ export interface RadarContextValue {
   zoneSound: number | null;
   destello: boolean;
   categoriaDeteccion: number;
+  activarPtz: boolean;
   canSave: boolean;
   startDrawing: () => void;
   cancelDrawing: () => void;
@@ -46,6 +47,7 @@ export interface RadarContextValue {
   setZoneSound: (sound: number | null) => void;
   setDestello: (value: boolean) => void;
   setCategoriaDeteccion: (value: number) => void;
+  setActivarPtz: (value: boolean) => void;
   saveZone: () => Promise<void>;
   /** Estable (useCallback sin deps) — vive en contexto estático para no arrastrar re-renders desde WS. */
   clearTargets: () => void;

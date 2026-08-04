@@ -17,6 +17,7 @@ export function useZoneDrawing() {
   const [zoneSound, setZoneSound] = useState<number | null>(null);
   const [destello, setdestello] = useState<boolean>(true);
   const [categoriaDeteccion, setCategoriaDeteccion] = useState<number>(1);
+  const [activarPtz, setActivarPtz] = useState<boolean>(false);
 
   const startDrawing = useCallback(() => {
     setIsDrawing(true);
@@ -27,6 +28,7 @@ export function useZoneDrawing() {
     setZoneSound(null);
     setdestello(true);
     setCategoriaDeteccion(1);
+    setActivarPtz(false);
   }, []);
 
   const cancelDrawing = useCallback(() => {
@@ -54,12 +56,13 @@ export function useZoneDrawing() {
       sonido: zoneSound,
       destello,
       categoriaDeteccion,
+      activarPtz,
       poligono: {
         color,
         vertices: points,
       },
     };
-  }, [name, color, alertLevel, zoneSound, destello, categoriaDeteccion, points]);
+}, [name, color, alertLevel, zoneSound, destello, categoriaDeteccion, activarPtz, points]);
 
   return {
     isDrawing,
@@ -70,6 +73,7 @@ export function useZoneDrawing() {
     zoneSound,
     destello,
     categoriaDeteccion,
+    activarPtz,
     startDrawing,
     cancelDrawing,
     addPoint,
@@ -81,6 +85,7 @@ export function useZoneDrawing() {
     setZoneSound,
     setdestello,
     setCategoriaDeteccion,
+    setActivarPtz,
     buildPayload,
     canSave: points.length >= 3,
   };

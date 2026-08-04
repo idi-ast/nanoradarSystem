@@ -59,6 +59,8 @@ export interface RadarZone {
   destello?: boolean;
   /** Categoría del icono de detección: corresponde al id de ZONE_DETECTION_CATEGORIES */
   categoriaDeteccion?: number;
+  /** Activar seguimiento PTZ automático al detectar tracks en esta zona */
+  activarPtz?: boolean;
 }
 
 export interface CreateZonePayload {
@@ -68,6 +70,7 @@ export interface CreateZonePayload {
   sonido?: number | null;
   destello?: boolean;
   categoriaDeteccion?: number;
+  activarPtz?: boolean;
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -81,6 +84,7 @@ export interface UpdateZonePayload {
   sonido?: number | null;
   destello?: boolean;
   categoriaDeteccion?: number;
+  activarPtz?: boolean;
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;
