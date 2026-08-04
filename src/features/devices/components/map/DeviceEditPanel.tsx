@@ -25,6 +25,8 @@ import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
 import { useUpdatePtz, useDeletePtz } from "@/features/config-devices/ptz/hooks";
 import type { PtzPayload } from "@/features/config-devices/ptz/service";
+import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
+import { magosradarService } from "@/features/config-devices/magosradar/service/magosradar.service";
 
 export interface LiveEditValues {
   grado: number;
@@ -1316,6 +1318,55 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     minConfidence: n(device.minConfidence),
     confidenceWindow: n(device.confidenceWindow),
   });
+
+  // ─── PTZ Auto-Tracking ───
+  const { data: configData } = useConfigDevices();
+  const ptzCameras = configData?.data?.ptz ?? [];
+  const [selectedPtzId, setSelectedPtzId] = useState<number | null>(device.idPtz ?? null);
+  const [autoTracking, setAutoTracking] = useState(device.ptzAutoTracking ?? false);
+  const [ptzLoading, setPtzLoading] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+
+  async function handlePtzChange(ptzId: number | null) {
+    setPtzLoading(true);
+    try {
+      const updated = await magosradarService.assignPtz(device.id, ptzId);
+      setSelectedPtzId(updated.idPtz ?? null);
+      setAutoTracking(updated.ptzAutoTracking ?? false);
+      if (ptzId === null) {
+        success("Cámara PTZ desasignada");
+      } else {
+        const cam = ptzCameras.find((p) => p.id === ptzId);
+        success(`PTZ "${cam?.nombre ?? ptzId}" asignada`);
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Error al asignar PTZ");
+      setSelectedPtzId(device.idPtz ?? null); // revertir
+    } finally {
+      setPtzLoading(false);
+    }
+  }
+
+  async function handleAutoTrackingToggle() {
+    const next = !autoTracking;
+    setTrackingLoading(true);
+    try {
+      const updated = await magosradarService.setAutoTracking(device.id, next);
+      setAutoTracking(updated.ptzAutoTracking ?? false);
+      success(next ? "Auto-tracking activado" : "Auto-tracking desactivado");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error";
+      if (msg.includes("sin una cámara PTZ")) {
+        showError("Asigna una cámara PTZ primero");
+      } else {
+        showError(msg);
+      }
+      setAutoTracking(device.ptzAutoTracking ?? false); // revertir
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
+
   const storageKey = `magos-profile-${device.id}`;
   const [selectedProfileId, setSelectedProfileId] = useState(() => {
     try { return localStorage.getItem(storageKey) ?? "custom"; } catch { return "custom"; }
@@ -1459,7 +1510,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   return (
     <>
       <div className="relative flex flex-col min-w-120 -top-30 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
           <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
             MagosRadar · Avanzado
@@ -1467,7 +1517,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
         </div>
 
-        {/* Selector de perfil */}
         <div className="px-3 py-2 border-b border-border/40">
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs font-semibold uppercase tracking-widest text-white/60 block">
@@ -1529,7 +1578,57 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
 
           </div>
 
-          {/* ═══ Geo & RF ═══ */}
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-5">
+            Seguimiento PTZ
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Cámara PTZ</span>
+                <InfoIcon text="Asigna una cámara PTZ para que siga automáticamente los tracks del radar en zonas de alerta." />
+              </div>
+              <select
+                value={selectedPtzId ?? ""}
+                disabled={ptzLoading}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handlePtzChange(val === "" ? null : Number(val));
+                }}
+                className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-2 py-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition disabled:opacity-50"
+              >
+                <option value="">Sin asignar</option>
+                {ptzCameras.map((ptz) => (
+                  <option key={ptz.id} value={ptz.id}>
+                    {ptz.nombre} ({ptz.direccionIp})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Auto-tracking</span>
+                <InfoIcon text="La cámara PTZ seguirá automáticamente los tracks del radar dentro de las zonas de alerta." />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={selectedPtzId === null || trackingLoading}
+                  onClick={handleAutoTrackingToggle}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${selectedPtzId === null ? "bg-bg-400 opacity-40 cursor-not-allowed" : autoTracking ? "bg-emerald-500" : "bg-bg-400"}`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${autoTracking ? "translate-x-4" : "translate-x-1"}`}
+                  />
+                </button>
+                <span className={`text-[10px] ${selectedPtzId === null ? "text-text-200/30" : autoTracking ? "text-emerald-400" : "text-text-200/60"}`}>
+                  {selectedPtzId === null ? "Asigna una PTZ" : autoTracking ? "Activo" : "Inactivo"}
+                </span>
+                {trackingLoading && <span className="text-[9px] text-text-200/50 animate-pulse">···</span>}
+              </div>
+            </div>
+          </div>
+
           <p className="text-[9px] hidden font-semibold uppercase tracking-widest text-text-100/30 mb-2">
             Geo & RF
           </p>
@@ -1544,7 +1643,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
               info="Potencia de transmisión del hardware. Solo informativo." />
           </div>
 
-          {/* ═══ Tracking ═══ */}
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
             Tracking
           </p>
@@ -1591,7 +1689,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           </div>
         </div>
 
-        {/* ═══ Velocidad & Tiempo ═══ */}
         <div className="p-3">
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Velocidad & Tiempo
@@ -1603,7 +1700,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
               info="TTL extendido para objetos detectados como detenidos (isStationary). Mantiene el track visible más tiempo." />
           </div>
 
-          {/* ═══ Scoring / Confianza ═══ */}
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Scoring & Confianza
           </p>
@@ -1615,7 +1711,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           </div>
         </div>
 
-        {/* Footer con botones */}
         <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
           <button
             onClick={save}
@@ -1639,7 +1734,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
         </div>
       </div>
 
-      {/* Diálogo para guardar como perfil */}
       {saveDialog.open && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"

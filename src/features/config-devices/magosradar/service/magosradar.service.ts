@@ -67,4 +67,28 @@ export const magosradarService = {
   deleteMagosradar: async (id: number): Promise<void> => {
     await apiSystem.delete(`/magosradares/${id}`);
   },
+
+  /** Asignar o desasignar cámara PTZ al MagosRadar */
+  assignPtz: async (magosId: number, ptzId: number | null): Promise<Magosradares> => {
+    const res = await apiSystem.put<Magosradares>(`/magosradares/${magosId}/ptz-assign`, { ptz_id: ptzId });
+    return res.data;
+  },
+
+  /** Activar/desactivar auto-tracking */
+  setAutoTracking: async (magosId: number, enabled: boolean): Promise<Magosradares> => {
+    const res = await apiSystem.put<Magosradares>(`/magosradares/${magosId}/auto-tracking`, { enabled });
+    return res.data;
+  },
+
+  /** Obtener estado de tracking activo (badge opcional) */
+  getTrackingStatus: async (): Promise<{
+    sessions: { radar_ip: string; ptz_id: number; mode: string; tracks_in_zone: number; last_command_time: number }[];
+    total_active: number;
+  }> => {
+    const res = await apiSystem.get<{
+      sessions: { radar_ip: string; ptz_id: number; mode: string; tracks_in_zone: number; last_command_time: number }[];
+      total_active: number;
+    }>("/tracking/status");
+    return res.data;
+  },
 };

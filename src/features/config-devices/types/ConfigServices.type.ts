@@ -137,6 +137,10 @@ export interface Magosradares {
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
+
+  // Auto-tracking PTZ
+  idPtz?: number | null;
+  ptzAutoTracking?: boolean;
 }
 
 /** Perfil de configuración para MagosRadar (desde API) */
