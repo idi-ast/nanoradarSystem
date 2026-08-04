@@ -16,7 +16,6 @@ interface MagosradarEditModalProps {
   onClose: () => void;
 }
 
-// ─── Helpers ───────────────────────────────────────────────
 function n(v: string | number | null | undefined): string {
   return v == null ? "" : String(v);
 }
@@ -24,7 +23,6 @@ function nn(v: string): number | null {
   return v === "" ? null : Number(v);
 }
 
-// ─── Info tooltip ──────────────────────────────────────────
 function InfoIcon({ text }: { text: string }) {
   return (
     <Tooltip text={text} side="top">
@@ -35,7 +33,6 @@ function InfoIcon({ text }: { text: string }) {
   );
 }
 
-// ─── Section header ────────────────────────────────────────
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="col-span-2 mt-2 mb-1">
@@ -47,7 +44,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Color field with picker ───────────────────────────────
 function ColorField({
   label,
   id,
@@ -86,7 +82,6 @@ function ColorField({
   );
 }
 
-// ─── Field row helper ──────────────────────────────────────
 function Field({
   label,
   name,
@@ -141,9 +136,6 @@ function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>;
 }
 
-// ═══════════════════════════════════════════════════════════
-// M A I N   C O M P O N E N T
-// ═══════════════════════════════════════════════════════════
 export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModalProps) {
   const { mutate, isPending, isError, error } = useUpdateMagosradar();
   const { success } = useToast();
@@ -368,7 +360,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             </div>
           )}
 
-          {/* ════════ PERFILES PREDEFINIDOS ════════ */}
           <div className="flex flex-col gap-1.5 pb-3 border-b border-border/50">
             <Label htmlFor="profile-mg-edit" className="text-xs text-brand-200/80 uppercase tracking-widest font-semibold">
               Perfil de configuración
@@ -392,7 +383,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             )}
           </div>
 
-          {/* ════════ SECCIÓN: GENERAL ════════ */}
           <div className="grid grid-cols-2 gap-3">
             <SectionTitle>General</SectionTitle>
 
@@ -442,7 +432,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             </div>
           </div>
 
-          {/* ════════ SECCIÓN: GEOPOSICIONAMIENTO ════════ */}
           <div className="grid grid-cols-2 gap-3">
             <SectionTitle>Geoposicionamiento</SectionTitle>
 
@@ -472,7 +461,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             />
           </div>
 
-          {/* ════════ SECCIÓN: TRACKING AVANZADO ════════ */}
           <div className="grid grid-cols-2 gap-3">
             <SectionTitle>Tracking avanzado</SectionTitle>
             <p className="col-span-2 text-[11px] text-text-200/60 -mt-1">
@@ -535,7 +523,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
             </FieldRow>
           </div>
 
-          {/* ════════ SECCIÓN: RF ════════ */}
           <div className="grid grid-cols-2 gap-3">
             <SectionTitle>RF &mdash; Especificaciones técnicas</SectionTitle>
 
@@ -569,10 +556,8 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
                 onChange={handleChange} type="number" min={1} placeholder="10"
                 info="Nº de puntos recientes para evaluar confianza." />
             </FieldRow>
-            <FieldRow>
           </div>
 
-          {/* Footer */}
           <div className="flex justify-end gap-3 pt-2 border-t border-border mt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancelar

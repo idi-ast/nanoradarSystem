@@ -13,7 +13,7 @@ export const DEVICE_LABEL: Record<string, string> = {
 /** Colores de badge para cada tipo de dispositivo radar */
 export const DEVICE_COLOR: Record<string, string> = {
   nanoRadar: "bg-cyan-500/20 text-text-100 border-cyan-500/40",
-  magosradar: "bg-rose-500/20 text-text-100 border-rose-500/40",
+  magosradar: "bg-sky-500/20 text-text-100 border-sky-500/40",
   spotter: "bg-violet-500/10 text-text-100 border-violet-500/40",
 };
 

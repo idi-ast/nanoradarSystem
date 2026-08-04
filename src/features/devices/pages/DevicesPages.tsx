@@ -353,13 +353,13 @@ const TargetsSection = memo(function TargetsSection({
               onClick={() => onDeviceFilterChange(key)}
               className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
                 isActive
-                  ? "border-emerald-500 text-emerald-400"
+                  ? "border-sky-400 text-sky-400"
                   : "border-transparent text-text-100/40 hover:text-text-100/70"
               }`}
             >
               {label}
               <span
-                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-emerald-500/20" : "bg-bg-300"}`}
+                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-sky-500/30" : "bg-bg-300"}`}
               >
                 {count}
               </span>
