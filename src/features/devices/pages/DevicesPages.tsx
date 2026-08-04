@@ -19,6 +19,7 @@ import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/m
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
+import { useTargetVisualStore } from "../stores/targetVisualStore";
 import PtzCameraOverlay from "./PtzCameraOverlay";
 
 function NanoPages() {
@@ -140,11 +141,10 @@ const RadarStatusBar = memo(() => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${
-            criticalCount > 0
+          className={`font-bold text-xl leading-tight ${criticalCount > 0
               ? "text-red-500 animate-pulse"
               : "text-text-100/30"
-          }`}
+            }`}
         >
           {criticalCount}
         </span>
@@ -314,6 +314,7 @@ const TargetsSection = memo(function TargetsSection({
   onDeviceFilterChange: (f: DeviceFilter) => void;
   activeTypes: string[];
 }) {
+  const maxVisibleTracks = useTargetVisualStore((s) => s.maxVisibleTracks);
   const TABS = useMemo(() => {
     const tabs: { key: TabFilter; label: string }[] = [
       { key: "all", label: "Todos" },
@@ -351,11 +352,10 @@ const TargetsSection = memo(function TargetsSection({
             <button
               key={key}
               onClick={() => onDeviceFilterChange(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
-                isActive
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
                   ? "border-sky-400 text-sky-400"
                   : "border-transparent text-text-100/40 hover:text-text-100/70"
-              }`}
+                }`}
             >
               {label}
               <span
@@ -376,7 +376,12 @@ const TargetsSection = memo(function TargetsSection({
               : "No hay objetivos en el área..."}
           </p>
         ) : (
-          filtered.map((t) => <TargetCard key={t.id} target={t} />)
+          filtered.slice(0, maxVisibleTracks).map((t) => <TargetCard key={t.id} target={t} />)
+        )}
+        {filtered.length > maxVisibleTracks && (
+          <p className="text-text-100/30 text-[9px] italic text-center pt-1">
+            Mostrando {maxVisibleTracks} de {filtered.length} tracks
+          </p>
         )}
       </div>
     </>

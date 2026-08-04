@@ -74,6 +74,7 @@ export function RadarTargetsLayer({
   const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
+  const maxVisibleTracks = useTargetVisualStore((s) => s.maxVisibleTracks);
   const categoryMap = useTargetCategoryResolution(
     zoneFilteredTargets,
     zones,
@@ -108,6 +109,12 @@ export function RadarTargetsLayer({
       .filter((t) => t.history.length > 0);
   }, [zoneFilteredTargets, historyRange, timeBounds]);
 
+  // Aplicar límite de tracks visibles (mismo límite que el panel lateral)
+  const visibleSlicedTargets = useMemo(
+    () => slicedTargets.slice(0, maxVisibleTracks),
+    [slicedTargets, maxVisibleTracks],
+  );
+
   const [now, setNow] = useState(0);
   const selected = zoneFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
@@ -121,7 +128,7 @@ export function RadarTargetsLayer({
   const trailsData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: slicedTargets
+      features: visibleSlicedTargets
         .filter((t) => t.history.length > 1)
         .flatMap((t) => {
           const history = t.history;
@@ -156,7 +163,7 @@ export function RadarTargetsLayer({
           });
         }),
     }),
-    [slicedTargets, timing.TRAIL_FADE_POINTS],
+    [visibleSlicedTargets, timing.TRAIL_FADE_POINTS],
   );
 
   const trailLayer = {
@@ -184,7 +191,7 @@ export function RadarTargetsLayer({
         <Layer {...trailLayer} />
       </Source>
 
-      {slicedTargets
+      {visibleSlicedTargets
         .filter((t) => t.history.length > 0)
         .map((t) => {
           const lastPoint = t.history[t.history.length - 1];
