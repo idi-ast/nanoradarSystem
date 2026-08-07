@@ -61,6 +61,8 @@ export interface Ptz {
   nombre: string;
   ubicacion: Ubicacion;
   direccionIp: string;
+  puertoOnvif?: number;
+  puertoRtsp?: number;
   channel: number;
   subtype: number;
   azimut: string;
@@ -70,8 +72,12 @@ export interface Ptz {
   grado: number;
   radio: number;
   apertura: number;
+  altitud?: string;
+  panInvertido?: number;
+  tiltInvertido?: number;
   url_stream: string;
   tipo: string;
+  idEmpresa?: number;
 }
 
 

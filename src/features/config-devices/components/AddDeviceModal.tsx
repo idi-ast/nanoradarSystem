@@ -113,6 +113,8 @@ const defaultCamara: CamaraPayload = {
 const defaultPtz: PtzPayload = {
   nombre: "",
   direccionIp: "",
+  puertoOnvif: 80,
+  puertoRtsp: 554,
   channel: 1,
   subtype: 0,
   azimut: "0",
@@ -122,6 +124,9 @@ const defaultPtz: PtzPayload = {
   grado: 0,
   radio: 100,
   apertura: 90,
+  altitud: "0",
+  panInvertido: 0,
+  tiltInvertido: 0,
   url_stream: "",
   tipo: "IP",
   latitud: "",
@@ -646,8 +651,12 @@ function PtzForm({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<PtzPayload>(defaultPtz);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    const isCheckbox = type === "checkbox";
+    setForm((prev) => ({
+      ...prev,
+      [name]: isCheckbox ? ((e.target as HTMLInputElement).checked ? 1 : 0) : value,
+    }));
   }
 
   function handleSubmit(e: FormEvent) {
@@ -660,7 +669,12 @@ function PtzForm({ onClose }: { onClose: () => void }) {
         grado: Number(form.grado),
         radio: Number(form.radio),
         apertura: Number(form.apertura),
+        puertoOnvif: Number(form.puertoOnvif),
+        puertoRtsp: Number(form.puertoRtsp),
+        panInvertido: Number(form.panInvertido),
+        tiltInvertido: Number(form.tiltInvertido),
         azimut: String(form.azimut),
+        altitud: String(form.altitud),
       },
       { onSuccess: onClose },
     );
@@ -668,52 +682,33 @@ function PtzForm({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      {/* ── Identificación ── */}
       <FieldRow>
         <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="PTZ-01" />
         <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.103" />
       </FieldRow>
+
+      {/* ── Conexión ── */}
       <FieldRow>
-        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
+        <Field label="Puerto ONVIF" name="puertoOnvif" value={form.puertoOnvif} onChange={handleChange} type="number" placeholder="80" info="Solo cambiar si la cámara está nateada" />
+        <Field label="Puerto RTSP" name="puertoRtsp" value={form.puertoRtsp} onChange={handleChange} type="number" placeholder="554" info="Solo cambiar si está nateada" />
       </FieldRow>
       <FieldRow>
         <Field label="Usuario" name="usuario" value={form.usuario} onChange={handleChange} placeholder="admin" />
         <Field label="Contraseña" name="password" value={form.password} onChange={handleChange} type="password" placeholder="••••••" />
       </FieldRow>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="url_stream_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">URL Stream</Label>
-        <Input
-          id="url_stream_ptz"
-          name="url_stream"
-          value={form.url_stream}
-          onChange={handleChange}
-          placeholder="http://10.0.0.1:8889/ptz_1/index.m3u8"
-          className="h-8 text-sm"
-        />
-      </div>
+
+      {/* ── Posición Geográfica ── */}
       <FieldRow>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="tipo_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">Tipo</Label>
-          <select
-            id="tipo_ptz"
-            name="tipo"
-            value={form.tipo}
-            onChange={handleChange}
-            className="h-8 text-sm rounded-md border border-border bg-bg-200 text-text-100 px-2 focus:outline-none focus:ring-1 focus:ring-brand-200"
-          >
-            <option value="IP">IP</option>
-            <option value="RTSP">RTSP</option>
-            <option value="ONVIF">ONVIF</option>
-            <option value="Hikvision">Hikvision</option>
-            <option value="Dahua">Dahua</option>
-          </select>
-        </div>
-        <Field label="Azimut (°)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" />
+        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
+        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
       </FieldRow>
       <FieldRow>
-        <Field label="Canal" name="channel" value={form.channel} onChange={handleChange} type="number" placeholder="1" />
-        <Field label="Subtipo" name="subtype" value={form.subtype} onChange={handleChange} type="number" placeholder="0" />
+        <Field label="Altitud (msnm)" name="altitud" value={form.altitud} onChange={handleChange} placeholder="108" info="Suelo + altura del poste. 0 = default 105m" />
+        <Field label="Azimut (0°=N)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" info="0°=N, 90°=E, 180°=S, 270°=W" />
       </FieldRow>
+
+      {/* ── Cobertura ── */}
       <FieldRow>
         <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
         <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="90" />
@@ -725,6 +720,69 @@ function PtzForm({ onClose }: { onClose: () => void }) {
           <span className="text-xs text-text-100/50">{form.color}</span>
         </div>
       </div>
+
+      {/* ── Video ── */}
+      <FieldRow>
+        <Field label="Canal" name="channel" value={form.channel} onChange={handleChange} type="number" placeholder="1" />
+        <Field label="Subtipo" name="subtype" value={form.subtype} onChange={handleChange} type="number" placeholder="0" />
+      </FieldRow>
+
+      {/* ── URL Stream + Tipo ── */}
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="url_stream_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">URL Stream</Label>
+        <Input
+          id="url_stream_ptz"
+          name="url_stream"
+          value={form.url_stream}
+          onChange={handleChange}
+          placeholder="http://10.0.0.1:8889/ptz_1/index.m3u8"
+          className="h-8 text-sm"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="tipo_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">Tipo</Label>
+        <select
+          id="tipo_ptz"
+          name="tipo"
+          value={form.tipo}
+          onChange={handleChange}
+          className="h-8 text-sm rounded-md border border-border bg-bg-200 text-text-100 px-2 focus:outline-none focus:ring-1 focus:ring-brand-200"
+        >
+          <option value="IP">IP</option>
+          <option value="RTSP">RTSP</option>
+          <option value="ONVIF">ONVIF</option>
+          <option value="Hikvision">Hikvision</option>
+          <option value="Dahua">Dahua</option>
+        </select>
+      </div>
+
+      {/* ── Corrección ONVIF ── */}
+      <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
+        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección ONVIF</span>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            name="panInvertido"
+            checked={form.panInvertido === 1}
+            onChange={handleChange}
+            className="w-3.5 h-3.5 rounded accent-brand-200 cursor-pointer"
+          />
+          <span className="text-xs text-text-100/70">Pan invertido</span>
+          <InfoIcon text="Activar si la cámara gira en dirección opuesta a la esperada" />
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            name="tiltInvertido"
+            checked={form.tiltInvertido === 1}
+            onChange={handleChange}
+            className="w-3.5 h-3.5 rounded accent-brand-200 cursor-pointer"
+          />
+          <span className="text-xs text-text-100/70">Tilt invertido</span>
+          <InfoIcon text="Activar si el tilt sube cuando debería bajar" />
+        </label>
+      </div>
+
       {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>

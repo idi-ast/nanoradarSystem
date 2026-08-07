@@ -1037,11 +1037,16 @@ function PtzForm({
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
+    puertoOnvif: device.puertoOnvif ?? 80,
+    puertoRtsp: device.puertoRtsp ?? 554,
     channel: device.channel ?? 1,
     subtype: device.subtype ?? 0,
     azimut: device.azimut ?? "0",
     usuario: device.usuario,
     password: device.password,
+    altitud: device.altitud ?? "0",
+    panInvertido: device.panInvertido ?? 0,
+    tiltInvertido: device.tiltInvertido ?? 0,
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
@@ -1063,12 +1068,17 @@ function PtzForm({
     const payload: PtzPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
+      puertoOnvif: form.puertoOnvif,
+      puertoRtsp: form.puertoRtsp,
       channel: form.channel,
       subtype: form.subtype,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
       apertura: liveEdit.apertura,
+      altitud: form.altitud,
+      panInvertido: form.panInvertido,
+      tiltInvertido: form.tiltInvertido,
       usuario: form.usuario,
       password: form.password,
       color: liveEdit.color,
@@ -1096,71 +1106,24 @@ function PtzForm({
       isError={isError}
       mode={mode}
     >
-      <TextField
-        label="Nombre"
-        value={form.nombre}
-        onChange={(v) => set("nombre", v)}
-      />
-      <TextField
-        label="Dirección IP"
-        value={form.direccionIp}
-        onChange={(v) => set("direccionIp", v)}
-      />
-      <RangeNumberField
-        label="Grado"
-        value={liveEdit.grado}
-        onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })}
-        min={0}
-        max={360}
-        unit="°"
-      />
-      <RangeNumberField
-        label="Apertura"
-        value={liveEdit.apertura}
-        onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
-        min={1}
-        max={180}
-        unit="°"
-      />
-      <RangeNumberField
-        label="Radio"
-        value={liveEdit.radio}
-        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
-        min={0}
-        max={10000}
-        step={50}
-        unit="m"
-      />
-      <RangeNumberField
-        label="Channel"
-        value={form.channel}
-        onChange={(v) => set("channel", v)}
-        min={1}
-        max={64}
-      />
-      <RangeNumberField
-        label="Subtype"
-        value={form.subtype}
-        onChange={(v) => set("subtype", v)}
-        min={0}
-        max={10}
-      />
-      <TextField
-        label="URL Stream"
-        value={form.url_stream}
-        onChange={(v) => set("url_stream", v)}
-      />
-      <TextField
-        label="Usuario"
-        value={form.usuario}
-        onChange={(v) => set("usuario", v)}
-      />
-      <TextField
-        label="Password"
-        type="password"
-        value={form.password}
-        onChange={(v) => set("password", v)}
-      />
+      {/* ── Identificación ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
+        <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
+      </div>
+
+      {/* ── Conexión ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Puerto ONVIF" value={String(form.puertoOnvif)} onChange={(v) => set("puertoOnvif", v === "" ? 80 : Number(v))} />
+        <TextField label="Puerto RTSP" value={String(form.puertoRtsp)} onChange={(v) => set("puertoRtsp", v === "" ? 554 : Number(v))} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Usuario" value={form.usuario} onChange={(v) => set("usuario", v)} />
+        <TextField label="Password" type="password" value={form.password} onChange={(v) => set("password", v)} />
+      </div>
+      <TextField label="URL Stream" value={form.url_stream} onChange={(v) => set("url_stream", v)} />
+
+      {/* ── Posición ── */}
       <PositionField
         lat={posForm.latitud}
         lng={posForm.longitud}
@@ -1177,10 +1140,39 @@ function PtzForm({
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
       />
-      <ColorField
-        value={liveEdit.color}
-        onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
-      />
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Altitud (msnm)" value={form.altitud} onChange={(v) => set("altitud", v)} />
+        <TextField label="Azimut" value={form.azimut} onChange={(v) => set("azimut", v)} />
+      </div>
+
+      {/* ── Cobertura ── */}
+      <div className="grid grid-cols-1 gap-2">
+        <RangeNumberField label="Grado" value={liveEdit.grado} onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })} min={0} max={360} unit="°" />
+        <RangeNumberField label="Apertura" value={liveEdit.apertura} onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })} min={1} max={180} unit="°" />
+      </div>
+      <RangeNumberField label="Radio" value={liveEdit.radio} onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })} min={0} max={10000} step={50} unit="m" />
+      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
+
+      {/* ── Video ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <RangeNumberField label="Channel" value={form.channel} onChange={(v) => set("channel", v)} min={1} max={64} />
+        <RangeNumberField label="Subtype" value={form.subtype} onChange={(v) => set("subtype", v)} min={0} max={10} />
+      </div>
+
+      {/* ── Corrección ONVIF ── */}
+      <div className="flex flex-col gap-2 border-t border-border/30">
+        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección ONVIF</span>
+        <div className="grid grid-cols-2 gap-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.panInvertido === 1} onChange={(e) => set("panInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
+            <span className="text-[11px] text-text-100/70">Pan invertido</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.tiltInvertido === 1} onChange={(e) => set("tiltInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
+            <span className="text-[11px] text-text-100/70">Tilt invertido</span>
+          </label>
+        </div>
+      </div>
     </PanelWrapper>
   );
 }

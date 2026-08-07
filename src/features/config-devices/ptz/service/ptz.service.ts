@@ -5,6 +5,8 @@ export type PtzPayload = Pick<
   Ptz,
   | "nombre"
   | "direccionIp"
+  | "puertoOnvif"
+  | "puertoRtsp"
   | "channel"
   | "subtype"
   | "azimut"
@@ -14,6 +16,9 @@ export type PtzPayload = Pick<
   | "grado"
   | "radio"
   | "apertura"
+  | "altitud"
+  | "panInvertido"
+  | "tiltInvertido"
   | "url_stream"
   | "tipo"
 > & {
