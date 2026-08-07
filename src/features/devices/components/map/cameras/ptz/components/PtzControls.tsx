@@ -10,7 +10,7 @@ import {
   IconDroplet,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { ptzMove, ptzStop, ptzZoom, ptzLuz, ptzLimpiaVidrio, PTZ_SPEED_X, PTZ_SPEED_Y } from "../service";
+import { ptzMove, ptzStop, ptzZoom, ptzLuz, ptzLimpiaVidrio, PTZ_SPEED_X, PTZ_SPEED_Y, ptzHome } from "../service";
 
 const BTN_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm";
@@ -98,9 +98,9 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
           <IconArrowLeft size={14} stroke={1.5} />
         </button>
         <button
-          className={`${BTN_CLS} bg-red-600/60 hover:bg-red-600/80`}
-          title="Detener"
-          onClick={() => ptzStop(ptz_id)}
+          className={`${BTN_CLS} bg-sky-600/60 hover:bg-sky-600/80`}
+          title="Home"
+          onClick={() => ptzHome(ptz_id)}
         >
           <IconPlayerStop size={14} stroke={1.5} />
         </button>
