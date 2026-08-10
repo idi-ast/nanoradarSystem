@@ -32,6 +32,10 @@ export interface MagosradarProfileValues {
   altitud?: number | null;
   frecuencia?: number | null;
   potencia?: number | null;
+  // ── Macro-parámetros ──
+  modo_operacion?: string | null;
+  sensibilidad?: number | null;
+  persistencia?: number | null;
 }
 
 export interface MagosradarProfile {
@@ -74,6 +78,9 @@ const CUSTOM_PROFILE: MagosradarProfile = {
     altitud: null,
     frecuencia: null,
     potencia: null,
+    modo_operacion: "personalizado",
+    sensibilidad: 3,
+    persistencia: 3,
   },
 };
 
@@ -110,6 +117,9 @@ function apiToProfile(p: PerfilMagos): MagosradarProfile {
       altitud: null,
       frecuencia: null,
       potencia: null,
+      modo_operacion: p.modo_operacion ?? "personalizado",
+      sensibilidad: p.sensibilidad ?? 3,
+      persistencia: p.persistencia ?? 3,
     },
   };
 }

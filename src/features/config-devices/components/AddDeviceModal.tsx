@@ -16,8 +16,9 @@ import type { MagosradarPayload } from "../magosradar/service";
 import type { SpotterPayload } from "../spotter/service";
 import type { CamaraPayload } from "../camara/service";
 import type { PtzPayload } from "../ptz/service";
-import { useMagosradarProfiles, findProfileById } from "../magosradar/config/magosradarProfiles";
-import type { MagosradarProfileValues } from "../magosradar/config/magosradarProfiles";
+import { useMagosradarProfiles } from "../magosradar/config/magosradarProfiles";
+import { MagosradarSimpleForm } from "../magosradar/components/MagosradarSimpleForm";
+import type { SimpleMagosradarFormData } from "../magosradar/components/MagosradarSimpleForm";
 
 type DeviceTab = "nanoradar" | "magosradar" | "spotter" | "camara" | "ptz";
 
@@ -46,7 +47,7 @@ const defaultNanoradar: NanoradarPayload = {
   color: "#22c55e",
 };
 
-const defaultMagosradar: MagosradarPayload = {
+const defaultMagosradar: SimpleMagosradarFormData = {
   nombre: "",
   direccionIp: "",
   latitud: "",
@@ -56,21 +57,10 @@ const defaultMagosradar: MagosradarPayload = {
   radio: 100,
   apertura: 360,
   color: "#f43f5e",
-  // Opcionales — se envían solo si se completan
-  rcs: null,
-  snr: null,
-  speed: null,
-  heading: null,
-  trackColor: null,
-  minTrackPoints: null,
-  associationDist: null,
-  ttl: null,
-  coastTtl: null,
-  emaSmooth: null,
-  velSmooth: null,
-  maxDetections: null,
-  clusterDist: null,
-  enabled: null,
+  modo_operacion: "urbano",
+  sensibilidad: 3,
+  persistencia: 3,
+  enabled: 1,
   modelo: null,
   frecuencia: null,
   potencia: null,
@@ -253,243 +243,36 @@ function NanoradarForm({ onClose }: { onClose: () => void }) {
 function MagosradarForm({ onClose }: { onClose: () => void }) {
   const { mutate, isPending, error } = useCreateMagosradar();
   const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
-  const [form, setForm] = useState<MagosradarPayload>(defaultMagosradar);
-  const [selectedProfileId, setSelectedProfileId] = useState("custom");
+  const [initialData] = useState<SimpleMagosradarFormData>(defaultMagosradar);
 
-  function applyProfile(values: MagosradarProfileValues) {
-    setForm((prev) => ({
-      ...prev,
-      grado: values.grado,
-      radio: values.radio,
-      apertura: values.apertura,
-      color: values.color,
-      rcs: values.rcs ?? null,
-      snr: values.snr ?? null,
-      speed: values.speed ?? null,
-      heading: values.heading ?? null,
-      trackColor: values.trackColor ?? null,
-      minTrackPoints: values.minTrackPoints ?? null,
-      associationDist: values.associationDist ?? null,
-      ttl: values.ttl ?? null,
-      coastTtl: values.coastTtl ?? null,
-      emaSmooth: values.emaSmooth ?? null,
-      velSmooth: values.velSmooth ?? null,
-      maxDetections: values.maxDetections ?? null,
-      clusterDist: values.clusterDist ?? null,
-      frecuencia: values.frecuencia ?? null,
-      potencia: values.potencia ?? null,
-      elevacion: values.elevacion ?? null,
-      altitud: values.altitud ?? null,
-    }));
-  }
-
-  function handleProfileChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const profileId = e.target.value;
-    setSelectedProfileId(profileId);
-    if (profileId === "custom") return;
-    const profile = findProfileById(MAGOSRADAR_PROFILES, profileId);
-    if (profile) applyProfile(profile.values);
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(data: SimpleMagosradarFormData) {
     const payload: MagosradarPayload = {
-      ...form,
-      grado: Number(form.grado),
-      radio: Number(form.radio),
-      apertura: Number(form.apertura),
-      azimut: String(form.azimut),
-      rcs: form.rcs ?? null,
-      snr: form.snr ?? null,
-      speed: form.speed ?? null,
-      heading: form.heading ?? null,
-      trackColor: form.trackColor || null,
-      minTrackPoints: form.minTrackPoints ?? null,
-      associationDist: form.associationDist ?? null,
-      ttl: form.ttl ?? null,
-      coastTtl: form.coastTtl ?? null,
-      emaSmooth: form.emaSmooth ?? null,
-      velSmooth: form.velSmooth ?? null,
-      maxDetections: form.maxDetections ?? null,
-      clusterDist: form.clusterDist ?? null,
-      enabled: form.enabled ?? null,
-      modelo: form.modelo || null,
-      frecuencia: form.frecuencia ?? null,
-      potencia: form.potencia ?? null,
-      elevacion: form.elevacion ?? null,
-      altitud: form.altitud ?? null,
-      notas: form.notas || null,
+      ...data,
+      azimut: String(data.azimut),
+      grado: Number(data.grado),
+      radio: Number(data.radio),
+      apertura: Number(data.apertura),
     };
-    mutate(payload, { onSuccess: onClose });
+    await new Promise<void>((resolve, reject) => {
+      mutate(payload, {
+        onSuccess: () => {
+          onClose();
+          resolve();
+        },
+        onError: (err) => reject(err),
+      });
+    });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      {/* Perfiles predefinidos */}
-      <div className="flex flex-col gap-1.5 pb-2 border-b border-border/50">
-        <Label htmlFor="profile-mg-add" className="text-[11px] text-brand-200/80 uppercase tracking-widest font-semibold">
-          Perfil de configuración
-        </Label>
-        <select
-          id="profile-mg-add"
-          value={selectedProfileId}
-          onChange={handleProfileChange}
-          className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
-        >
-          {MAGOSRADAR_PROFILES.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} — {p.description}
-            </option>
-          ))}
-        </select>
-        {selectedProfileId !== "custom" && (
-          <p className="text-[10px] text-brand-200/60 italic">
-            Los campos se han preconfigurado. Puedes ajustarlos manualmente si lo deseas.
-          </p>
-        )}
-      </div>
-
-      {/* General */}
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1">General</h4>
-      <FieldRow>
-        <Field label="Nombre" name="nombre" value={form.nombre ?? ""} onChange={handleInputChange} placeholder="MagosRadar-01" />
-        <Field label="Dirección IP" name="direccionIp" value={form.direccionIp ?? ""} onChange={handleInputChange} placeholder="192.168.1.200" />
-      </FieldRow>
-      <FieldRow>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1">
-            <Label htmlFor="enabled-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Estado</Label>
-            <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
-          </div>
-          <button
-            type="button"
-            onClick={() => setForm((p) => ({ ...p, enabled: p.enabled === 1 ? 0 : 1 }))}
-            className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${form.enabled === 1 ? "bg-emerald-500" : "bg-bg-400"
-              }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.enabled === 1 ? "translate-x-5" : "translate-x-1"
-                }`}
-            />
-          </button>
-        </div>
-        <Field label="Modelo" name="modelo" value={form.modelo ?? ""} onChange={handleInputChange} placeholder="Magos X7" />
-      </FieldRow>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="notas-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Notas</Label>
-        <textarea
-          id="notas-mg-add"
-          name="notas"
-          value={form.notas ?? ""}
-          onChange={handleChange}
-          placeholder="Radar principal sector norte"
-          rows={2}
-          className="w-full rounded-lg border border-border bg-bg-100 text-text-100 placeholder-text-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-        />
-      </div>
-
-      {/* Geoposicionamiento */}
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1 mt-1">Geoposicionamiento</h4>
-      <FieldRow>
-        <Field label="Latitud" name="latitud" value={form.latitud ?? ""} onChange={handleInputChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitud" value={form.longitud ?? ""} onChange={handleInputChange} placeholder="-70.6693" />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Azimut (°)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" />
-        <Field label="Grado (°)" name="grado" value={form.grado} onChange={handleChange} type="number" placeholder="0" />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
-        <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="360" />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Elevación (°)" name="elevacion" value={form.elevacion ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="2.5"
-          info="Ángulo de elevación de la antena respecto al horizonte." />
-        <Field label="Altitud (msnm)" name="altitud" value={form.altitud ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="580"
-          info="Altitud del radar sobre el nivel del mar." />
-      </FieldRow>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="color-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color del radar</Label>
-        <div className="flex items-center gap-2">
-          <input id="color-mg-add" type="color" name="color" value={form.color ?? ""} onChange={handleChange} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
-          <span className="text-xs text-text-100/50">{form.color}</span>
-        </div>
-      </div>
-
-      {/* Tracking avanzado */}
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1 mt-1">
-        Tracking avanzado
-        <span className="text-text-200/50 font-normal normal-case ml-1">(vacío = valor global)</span>
-      </h4>
-      <FieldRow>
-        <Field label="SNR (dB)" name="snr" value={form.snr ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="25"
-          info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan." />
-        <Field label="RCS (m²)" name="rcs" value={form.rcs ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="0.5"
-          info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Vel. máx (m/s)" name="speed" value={form.speed ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="55"
-          info="Velocidad máxima para propagación por inercia (coasting)." />
-        <Field label="Rumbo ref. (°)" name="heading" value={form.heading ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="0"
-          info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Puntos mín. track" name="minTrackPoints" value={form.minTrackPoints ?? ""} onChange={handleInputChange} type="number" min={1} placeholder="3"
-          info="Detecciones consecutivas para confirmar un track (tentative → confirmed)." />
-        <Field label="Dist. asociación (m)" name="associationDist" value={form.associationDist ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="50"
-          info="Distancia máxima para asignar una detección a un track existente." />
-      </FieldRow>
-      <FieldRow>
-        <Field label="TTL track (seg)" name="ttl" value={form.ttl ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="8"
-          info="Segundos sin detección antes de eliminar un track confirmado." />
-        <Field label="TTL coasting (seg)" name="coastTtl" value={form.coastTtl ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="3"
-          info="Tiempo de predicción por inercia sin detecciones." />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Suav. posición" name="emaSmooth" value={form.emaSmooth ?? ""} onChange={handleInputChange} type="number" step="0.01" placeholder="0.30"
-          info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
-        <Field label="Suav. velocidad" name="velSmooth" value={form.velSmooth ?? ""} onChange={handleInputChange} type="number" step="0.01" placeholder="0.20"
-          info="Factor EMA para suavizar velocidad del track." />
-      </FieldRow>
-      <FieldRow>
-        <Field label="Máx detecciones" name="maxDetections" value={form.maxDetections ?? ""} onChange={handleInputChange} type="number" min={1} placeholder="40"
-          info="Máximo de detecciones por mensaje que se pasan al tracker." />
-        <Field label="Dist. clustering (m)" name="clusterDist" value={form.clusterDist ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="8"
-          info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
-      </FieldRow>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="trackColor-mg-add" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color de tracks</Label>
-        <div className="flex items-center gap-2">
-          <input id="trackColor-mg-add" type="color" name="trackColor" value={form.trackColor ?? "#00e5ff"} onChange={(e) => setForm((p) => ({ ...p, trackColor: e.target.value }))} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
-          <span className="text-xs text-text-100/50">{form.trackColor || "—"}</span>
-        </div>
-      </div>
-
-      {/* RF */}
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1 mt-1">RF</h4>
-      <FieldRow>
-        <Field label="Frecuencia (GHz)" name="frecuencia" value={form.frecuencia ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="77"
-          info="Frecuencia de operación del hardware. Solo informativo." />
-        <Field label="Potencia (dBm)" name="potencia" value={form.potencia ?? ""} onChange={handleInputChange} type="number" step="any" placeholder="20"
-          info="Potencia de transmisión del hardware. Solo informativo." />
-      </FieldRow>
-
-      {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Agregar MagosRadar"}</Button>
-      </div>
-    </form>
+    <MagosradarSimpleForm
+      initialData={initialData}
+      onSubmit={handleSubmit}
+      onCancel={onClose}
+      isLoading={isPending}
+      error={error ? String((error as Error).message) : undefined}
+      submitLabel="Agregar MagosRadar"
+    />
   );
 }
 

@@ -1309,6 +1309,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     stationaryTtl: n(device.stationaryTtl),
     minConfidence: n(device.minConfidence),
     confidenceWindow: n(device.confidenceWindow),
+    // ── Macro-parámetros ──
+    modo_operacion: device.modo_operacion ?? "personalizado",
+    sensibilidad: n(device.sensibilidad ?? 3),
+    persistencia: n(device.persistencia ?? 3),
+    _showAdvanced: "0",
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1413,6 +1418,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
       potencia: v.potencia != null ? String(v.potencia) : "",
       elevacion: v.elevacion != null ? String(v.elevacion) : "",
       altitud: v.altitud != null ? String(v.altitud) : "",
+      modo_operacion: v.modo_operacion ?? "personalizado",
+      sensibilidad: v.sensibilidad != null ? String(v.sensibilidad) : "3",
+      persistencia: v.persistencia != null ? String(v.persistencia) : "3",
     }));
     setAppliedProfileId(profileId);
     // Guardar en BD
@@ -1441,6 +1449,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           stationaryTtl: v.stationaryTtl ?? null,
           minConfidence: v.minConfidence ?? null,
           confidenceWindow: v.confidenceWindow ?? null,
+          modo_operacion: v.modo_operacion ?? null,
+          sensibilidad: v.sensibilidad ?? null,
+          persistencia: v.persistencia ?? null,
         },
       },
       {
@@ -1488,6 +1499,10 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           stationaryTtl: nn(form.stationaryTtl),
           minConfidence: nn(form.minConfidence),
           confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+          // ── Macro-parámetros ──
+          modo_operacion: form.modo_operacion || null,
+          sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
+          persistencia: form.persistencia === "" ? null : Number(form.persistencia),
         },
       },
       {
@@ -1638,6 +1653,49 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
             Tracking
           </p>
+
+          {/* ═══ MACRO-PARÁMETROS (simplificado) ═══ */}
+          <div className="bg-bg-200/30 rounded-lg p-2 border border-brand-200/20 mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] font-semibold text-brand-200/70 uppercase tracking-widest">Modo de operación</span>
+            </div>
+            <select
+              value={form.modo_operacion ?? "personalizado"}
+              onChange={(e) => set("modo_operacion", e.target.value)}
+              className="w-full rounded-md border border-border bg-bg-100 text-text-100 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-brand-200/50 transition mb-2"
+            >
+              <option value="urbano"> Urbano</option>
+              <option value="carretera"> Carretera</option>
+              <option value="industrial"> Industrial</option>
+              <option value="maritimo"> Marítimo</option>
+              <option value="personalizado"> Personalizado</option>
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] text-text-100/40">Sensibilidad: {form.sensibilidad ?? 3}/5</span>
+                <input type="range" min={1} max={5} value={form.sensibilidad ?? 3} onChange={(e) => set("sensibilidad", e.target.value)}
+                  className="w-full accent-amber-400 cursor-pointer" style={{height:"3px"}} />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] text-text-100/40">Persistencia: {form.persistencia ?? 3}/5</span>
+                <input type="range" min={1} max={5} value={form.persistencia ?? 3} onChange={(e) => set("persistencia", e.target.value)}
+                  className="w-full accent-cyan-400 cursor-pointer" style={{height:"3px"}} />
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ TOGGLE AVANZADO ═══ */}
+          <button
+            type="button"
+            onClick={() => set("_showAdvanced", form._showAdvanced === "1" ? "0" : "1")}
+            className="text-[9px] text-text-200/60 hover:text-brand-200/80 transition-colors mb-2 flex items-center gap-1"
+          >
+            <IconSettings size={11} />
+            {form._showAdvanced === "1" ? "Ocultar opciones avanzadas" : "Mostrar opciones avanzadas"}
+          </button>
+
+          {(form._showAdvanced === "1" || (form.modo_operacion ?? "personalizado") === "personalizado") && (
+          <>
           <div className="grid grid-cols-3 gap-x-3 gap-y-3">
             {/* trackColor — input texto + color picker */}
             <div className="flex flex-col gap-1">
@@ -1679,9 +1737,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
               info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
           </div>
-        </div>
-
-        <div className="p-3">
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Velocidad & Tiempo
           </p>
@@ -1701,6 +1756,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             <SliderField label="Ventana confianza" value={form.confidenceWindow} onChange={(v) => set("confidenceWindow", v)} min={1} max={50} step={1}
               info="Número de puntos recientes del track que se evalúan para calcular la confianza promedio." />
           </div>
+          </>
+          )}
         </div>
 
         <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
@@ -1788,6 +1845,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                         stationaryTtl: nn(form.stationaryTtl),
                         minConfidence: nn(form.minConfidence),
                         confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
+                        modo_operacion: form.modo_operacion || null,
+                        sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
+                        persistencia: form.persistencia === "" ? null : Number(form.persistencia),
                       },
                       {
                         onSuccess: (newPerfil) => {

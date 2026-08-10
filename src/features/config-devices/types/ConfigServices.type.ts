@@ -147,6 +147,11 @@ export interface Magosradares {
   // Auto-tracking PTZ
   idPtz?: number | null;
   ptzAutoTracking?: boolean;
+
+  // ── Macro-parámetros ──
+  modo_operacion?: string | null;
+  sensibilidad?: number | null;
+  persistencia?: number | null;
 }
 
 /** Perfil de configuración para MagosRadar (desde API) */
@@ -178,6 +183,10 @@ export interface PerfilMagos {
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
+  // ── Macro-parámetros ──
+  modo_operacion?: string | null;
+  sensibilidad?: number | null;
+  persistencia?: number | null;
 }
 
 export interface PerfilMagosPayload {
@@ -205,4 +214,8 @@ export interface PerfilMagosPayload {
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
+  // ── Macro-parámetros ──
+  modo_operacion?: string | null;
+  sensibilidad?: number | null;
+  persistencia?: number | null;
 }

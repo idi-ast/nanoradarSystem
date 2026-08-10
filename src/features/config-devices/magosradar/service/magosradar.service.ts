@@ -48,6 +48,11 @@ export type MagosradarPayload = Pick<
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
+
+  // ── Macro-parámetros ──
+  modo_operacion?: string | null;
+  sensibilidad?: number | null;
+  persistencia?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales
