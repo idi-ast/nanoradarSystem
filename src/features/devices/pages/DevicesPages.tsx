@@ -314,7 +314,6 @@ const TargetsSection = memo(function TargetsSection({
   onDeviceFilterChange: (f: DeviceFilter) => void;
   activeTypes: string[];
 }) {
-  const maxVisibleTracks = useTargetVisualStore((s) => s.maxVisibleTracks);
   const TABS = useMemo(() => {
     const tabs: { key: TabFilter; label: string }[] = [
       { key: "all", label: "Todos" },
@@ -376,12 +375,7 @@ const TargetsSection = memo(function TargetsSection({
               : "No hay objetivos en el área..."}
           </p>
         ) : (
-          filtered.slice(0, maxVisibleTracks).map((t) => <TargetCard key={t.id} target={t} />)
-        )}
-        {filtered.length > maxVisibleTracks && (
-          <p className="text-text-100/30 text-[9px] italic text-center pt-1">
-            Mostrando {maxVisibleTracks} de {filtered.length} tracks
-          </p>
+          filtered.map((t) => <TargetCard key={t.id} target={t} />)
         )}
       </div>
     </>

@@ -102,8 +102,6 @@ interface TargetVisualState {
   currentViewportCenter: MapCenter | null;
   /** Zoom del viewport actual (runtime, no persistido). */
   currentViewportZoom: number | null;
-  /** Máximo de tracks visibles en el panel lateral (default 40). */
-  maxVisibleTracks: number;
 }
 
 interface TargetVisualStore extends TargetVisualState {
@@ -116,7 +114,6 @@ interface TargetVisualStore extends TargetVisualState {
   setCustomMapZoom: (zoom: number | null) => void;
   setCurrentViewportCenter: (center: MapCenter | null) => void;
   setCurrentViewportZoom: (zoom: number | null) => void;
-  setMaxVisibleTracks: (max: number) => void;
   reset: () => void;
 }
 
@@ -130,7 +127,6 @@ const DEFAULTS: TargetVisualState = {
   customMapZoom: null,
   currentViewportCenter: null,
   currentViewportZoom: null,
-  maxVisibleTracks: 40,
 };
 
 export const useTargetVisualStore = create<TargetVisualStore>()(
@@ -149,7 +145,6 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
       setCustomMapZoom: (zoom) => set({ customMapZoom: zoom }),
       setCurrentViewportCenter: (center) => set({ currentViewportCenter: center }),
       setCurrentViewportZoom: (zoom) => set({ currentViewportZoom: zoom }),
-      setMaxVisibleTracks: (max) => set({ maxVisibleTracks: max }),
       reset: () => set(DEFAULTS),
     }),
     {
@@ -162,7 +157,7 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
         iconStyle2D: state.iconStyle2D,
         customMapCenter: state.customMapCenter,
         customMapZoom: state.customMapZoom,
-        maxVisibleTracks: state.maxVisibleTracks,
+
       }),
     },
   ),

@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { memo, useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconRefresh, IconTarget, IconBox, IconMapPin, IconMapPinFilled, IconChevronDown, IconChevronRight, IconEye, IconEyeOff } from "@tabler/icons-react";
 import { useTargetVisualStore } from "../../../stores/targetVisualStore";
@@ -160,51 +160,6 @@ function Preview2D({
   );
 }
 
-function MaxTracksInput({
-  maxVisibleTracks,
-  setMaxVisibleTracks,
-}: {
-  maxVisibleTracks: number;
-  setMaxVisibleTracks: (v: number) => void;
-}) {
-  const [raw, setRaw] = useState(String(maxVisibleTracks));
-
-  // Sincronizar desde el store solo si cambió externamente (ej: reset)
-  useEffect(() => {
-    setRaw(String(maxVisibleTracks));
-  }, [maxVisibleTracks]);
-
-  const commit = useCallback(() => {
-    const n = Number(raw);
-    if (Number.isNaN(n)) {
-      setRaw(String(maxVisibleTracks)); // revertir
-      return;
-    }
-    const clamped = Math.max(5, Math.min(500, Math.round(n)));
-    setRaw(String(clamped));
-    setMaxVisibleTracks(clamped);
-  }, [raw, maxVisibleTracks, setMaxVisibleTracks]);
-
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        type="number"
-        min={5}
-        max={500}
-        step={5}
-        value={raw}
-        onChange={(e) => setRaw(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-        }}
-        className="w-20 bg-bg-300 border border-border rounded px-2 py-1 text-xs text-text-100 text-center tabular-nums focus:outline-none focus:border-brand-100"
-      />
-      <span className="text-[10px] text-text-200/50">tracks (5 – 500)</span>
-    </div>
-  );
-}
-
 function TargetVisualPanel({ onClose }: { onClose: () => void }) {
   const {
     defaultCategoriaDeteccion,
@@ -221,8 +176,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
     customMapZoom,
     currentViewportCenter,
     currentViewportZoom,
-    maxVisibleTracks,
-    setMaxVisibleTracks,
     setCustomMapCenter,
     setCustomMapZoom,
     reset,
@@ -452,11 +405,6 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
             >↺ Resetear ajustes 3D</button>
           </div>
         )}
-      </Section>
-
-      {/* Máximo de tracks visibles */}
-      <Section title="Máximo de tracks en panel" defaultOpen={false}>
-        <MaxTracksInput maxVisibleTracks={maxVisibleTracks} setMaxVisibleTracks={setMaxVisibleTracks} />
       </Section>
 
       <button onClick={reset}
