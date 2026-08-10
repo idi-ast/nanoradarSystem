@@ -70,9 +70,6 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${clamped.toFixed(2)})`;
 }
 
-/** SNR máxima esperada para normalización (~40 dB es una señal excelente) */
-const SNR_MAX = 40;
-
 /** Limpia tracks inactivos del mapa de estado cinemático */
 function cleanupTrackStates(now: number): void {
   for (const [tid, state] of trackKinematics) {
@@ -256,14 +253,13 @@ function processMagosradarMessages(
       }
     }
 
-    // ── Intensidad de color dinámica según SNR y longitud del track ──
-    // A mayor SNR (señal más fuerte) y más puntos de historial (track más largo),
-    // el color es más intenso (alpha → 1). Señal débil o track corto = más tenue (alpha → 0.2).
-    const snrNorm = Math.min((snr ?? 0) / SNR_MAX, 1);
-    const historyNorm = Math.min(history.length / historyMaxPoints, 1);
-    const intensity = snrNorm * 0.5 + historyNorm * 0.5;
-    const alpha = 0.2 + intensity * 0.8;
-    const dynamicColor = hexToRgba(trackColor, alpha);
+    // ── Color según categoría del backend, con intensidad por largo de cola ──
+    // Prioridad: categoriaColor (backend) > trackColor (config del dispositivo)
+    const baseColor = track.categoriaColor || trackColor;
+    const trailLen = sorted.length;
+    const trackIntensity = Math.min(trailLen / 10, 1);
+    const alpha = 0.20 + trackIntensity * 0.80;
+    const dynamicColor = hexToRgba(baseColor, alpha);
 
     next.set(targetId, {
       id: targetId,
@@ -278,6 +274,9 @@ function processMagosradarMessages(
       speed: lastPos.speed,
       snr,
       heading,
+      trackIntensity,
+      categoria: track.categoria,
+      categoriaNombre: track.categoriaNombre,
     });
   }
 }

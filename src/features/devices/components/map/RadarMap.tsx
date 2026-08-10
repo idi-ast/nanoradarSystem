@@ -39,6 +39,7 @@ import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
 import { ALL_VISIBLE, DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 import { DeviceSelector } from "./DeviceSelector";
+import { MagosCategoryFilter } from "./MagosCategoryFilter";
 import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
@@ -176,6 +177,9 @@ export const RadarMap = memo(function RadarMap({
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(
+    () => new Set(),
+  );
   const effectiveVisibility = controlledVisibility ?? deviceVisibility;
   const handleVisibilityChange = useCallback(
     (v: DeviceVisibility) => {
@@ -502,6 +506,7 @@ export const RadarMap = memo(function RadarMap({
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
+            hiddenCategories={hiddenCategories}
           />
           <CameraActivityOverlay
             mapRef={mapRef}
@@ -603,6 +608,10 @@ export const RadarMap = memo(function RadarMap({
         <MapPanelProvider>
           <div className="flex flex-col gap-1 p-2 ">
             <ZonesPanel />
+            <MagosCategoryFilter
+              hiddenCategories={hiddenCategories}
+              onChange={setHiddenCategories}
+            />
             {(isSuperAdmin || isAdmin) && <DeviceSelector
               visibility={effectiveVisibility}
               onChange={handleVisibilityChange}

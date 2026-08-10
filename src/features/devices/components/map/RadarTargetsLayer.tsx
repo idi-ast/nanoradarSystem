@@ -10,6 +10,7 @@ import { ZONE_DETECTION_CATEGORIES } from "../../config";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
+import { DEVICES_BELOW_LAYER_ID, MAGOS_CATEGORIES } from "./devicesConfig";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -24,6 +25,8 @@ interface Props {
   historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
+  /** Categorías MagosRadar ocultas (Set de IDs de categoría) */
+  hiddenCategories?: Set<number>;
 }
 
 export function RadarTargetsLayer({
@@ -31,6 +34,7 @@ export function RadarTargetsLayer({
   historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
+  hiddenCategories,
 }: Props) {
   const { instanceConfig, zones } = useRadarContext();
   const { targets: allTargets } = useRadarTargets();
@@ -65,6 +69,16 @@ export function RadarTargetsLayer({
     });
   }, [targets, alert6Zones]);
 
+  // Filtrar por categorías MagosRadar ocultas
+  const categoryFilteredTargets = useMemo(() => {
+    if (!hiddenCategories || hiddenCategories.size === 0) return zoneFilteredTargets;
+    return zoneFilteredTargets.filter((t) => {
+      if (t.deviceType !== "magosradar") return true;
+      const cat = t.categoria ?? 0;
+      return !hiddenCategories.has(cat);
+    });
+  }, [zoneFilteredTargets, hiddenCategories]);
+
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
 
@@ -75,7 +89,7 @@ export function RadarTargetsLayer({
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
   const categoryMap = useTargetCategoryResolution(
-    zoneFilteredTargets,
+    categoryFilteredTargets,
     zones,
     defaultCategoria,
     instanceConfig.geofence.ACTIVE_MS,
@@ -84,7 +98,7 @@ export function RadarTargetsLayer({
   const timeBounds = useMemo(() => {
     let tMin = Infinity;
     let tMax = -Infinity;
-    for (const t of zoneFilteredTargets) {
+    for (const t of categoryFilteredTargets) {
       for (const p of t.history) {
         if (p[2] < tMin) tMin = p[2];
         if (p[2] > tMax) tMax = p[2];
@@ -92,24 +106,24 @@ export function RadarTargetsLayer({
     }
     if (!isFinite(tMin) || tMax === tMin) return null;
     return { tMin, tRange: tMax - tMin };
-  }, [zoneFilteredTargets]);
+  }, [categoryFilteredTargets]);
 
   const slicedTargets = useMemo(() => {
-    if (!timeBounds) return zoneFilteredTargets;
+    if (!timeBounds) return categoryFilteredTargets;
     const tStart =
       timeBounds.tMin + (historyRange.start / 100) * timeBounds.tRange;
     const tEnd = timeBounds.tMin + (historyRange.end / 100) * timeBounds.tRange;
 
-    return zoneFilteredTargets
+    return categoryFilteredTargets
       .map((t) => ({
         ...t,
         history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
-  }, [zoneFilteredTargets, historyRange, timeBounds]);
+  }, [categoryFilteredTargets, historyRange, timeBounds]);
 
   const [now, setNow] = useState(0);
-  const selected = zoneFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
+  const selected = categoryFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -133,11 +147,18 @@ export function RadarTargetsLayer({
 
           return recentHistory.slice(1).map((point, i) => {
             const prevPoint = recentHistory[i];
-            // i=0 → segmento más antiguo, i=recentHistory.length-2 → más reciente
             const totalSegments = recentHistory.length - 1;
             const opacity = totalSegments > 0
               ? Math.max(0, (i + 1) / totalSegments)
               : 1;
+            const ti = t.trackIntensity ?? 1;
+            const lineWidth = 3.5 * (0.5 + ti * 0.5);
+            // Para el trazo usar color sólido (sin alpha, line-opacity ya controla el fade)
+            let trailColor = t.trackColor ?? null;
+            if (trailColor && trailColor.startsWith("rgba")) {
+              const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
+              if (m) trailColor = `rgb(${m[1]},${m[2]},${m[3]})`;
+            }
             return {
               type: "Feature" as const,
               geometry: {
@@ -150,7 +171,8 @@ export function RadarTargetsLayer({
               properties: {
                 id: t.id,
                 opacity,
-                color: t.trackColor ?? null,
+                color: trailColor,
+                lineWidth,
               },
             };
           });
@@ -169,7 +191,7 @@ export function RadarTargetsLayer({
         ["get", "color"],
         targetColors.moving,
       ] as unknown as string,
-      "line-width": 3.5,
+      "line-width": ["get", "lineWidth"] as ["get", string],
       "line-opacity": ["get", "opacity"] as ["get", string],
       "line-blur": 0.8,
     },
@@ -181,7 +203,7 @@ export function RadarTargetsLayer({
       {use3DBoat && <BoatsSharedCanvas />}
 
       <Source id={`targets-trails-${id}`} type="geojson" data={trailsData}>
-        <Layer {...trailLayer} />
+        <Layer {...trailLayer} beforeId={DEVICES_BELOW_LAYER_ID} />
       </Source>
 
       {slicedTargets
@@ -233,43 +255,68 @@ export function RadarTargetsLayer({
                   )}
                 </div>
               ) : (
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectTarget(isSelected ? null : t.id);
-                  }}
-                  style={{
-                    width: moving ? iconStyle2D.movingSize : iconStyle2D.size,
-                    height: moving ? iconStyle2D.movingSize : iconStyle2D.size,
-                    borderRadius: `${moving ? iconStyle2D.movingBorderRadius : iconStyle2D.borderRadius}%`,
-                    borderWidth: moving ? iconStyle2D.movingBorderWidth : iconStyle2D.borderWidth,
-                    borderStyle: "solid",
-                    borderColor: moving ? iconStyle2D.movingBorderColor : iconStyle2D.borderColor,
-                    backgroundColor: iconStyle2D.bgColor + Math.round((moving ? iconStyle2D.movingBgOpacity : iconStyle2D.bgOpacity) * 255).toString(16).padStart(2, "0"),
-                    boxShadow: moving
-                      ? `0 0 0 4px ${iconStyle2D.movingBorderColor}40`
-                      : undefined,
-                    outline: isSelected ? "2px solid white" : undefined,
-                    transform: isSelected ? "scale(1.2)" : undefined,
-                  }}
-                  className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
-                >
-                  {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
-                    <span
-                      style={{
-                        color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor,
+                (() => {
+                  const mgIntensity = t.deviceType === "magosradar" ? (t.trackIntensity ?? 1) : 1;
+                  const sizeScale = 0.5 + mgIntensity * 0.5;
+                  const baseW = moving ? iconStyle2D.movingSize : iconStyle2D.size;
+                  const baseH = moving ? iconStyle2D.movingSize : iconStyle2D.size;
+                  const borderCol = moving ? iconStyle2D.movingBorderColor : iconStyle2D.borderColor;
+                  // Color de categoría para el anillo interior (magosradar)
+                  const catInfo = MAGOS_CATEGORIES.find((c) => c.id === t.categoria);
+                  const catColor = catInfo?.color
+                    ?? (t.trackColor?.startsWith("rgba") ? t.trackColor.replace(/rgba\((\d+),\s*(\d+),\s*(\d+).*/, "rgb($1,$2,$3)") : (t.trackColor ?? null));
+
+                  return (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTarget(isSelected ? null : t.id);
                       }}
+                      style={{
+                        width: baseW * sizeScale,
+                        height: baseH * sizeScale,
+                        borderRadius: `${moving ? iconStyle2D.movingBorderRadius : iconStyle2D.borderRadius}%`,
+                        borderWidth: moving ? iconStyle2D.movingBorderWidth : iconStyle2D.borderWidth,
+                        borderStyle: "solid",
+                        borderColor: borderCol,
+                        backgroundColor: iconStyle2D.bgColor + Math.round((moving ? iconStyle2D.movingBgOpacity : iconStyle2D.bgOpacity) * 255).toString(16).padStart(2, "0"),
+                        boxShadow: moving
+                          ? `0 0 0 4px ${borderCol}40`
+                          : undefined,
+                        outline: isSelected ? "2px solid white" : undefined,
+                        transform: isSelected ? "scale(1.2)" : undefined,
+                      }}
+                      className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
                     >
-                      <Icon
-                        size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
-                        stroke={2}
-                      />
-                    </span>
-                  )}
-                  {t.nivel === 4 && (
-                    <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
-                  )}
-                </div>
+                      {/* Anillo interior del color de la categoría (solo magosradar) */}
+                      {t.deviceType === "magosradar" && catColor && (
+                        <span
+                          className="absolute rounded-full pointer-events-none"
+                          style={{
+                            inset: Math.max(2, (baseW * sizeScale) * 0.12),
+                            border: `2px solid ${catColor}`,
+                            opacity: 1,
+                          }}
+                        />
+                      )}
+                      {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
+                        <span
+                          style={{
+                            color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor,
+                          }}
+                        >
+                          <Icon
+                            size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
+                            stroke={2}
+                          />
+                        </span>
+                      )}
+                      {t.nivel === 4 && (
+                        <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </Marker>
           );
@@ -296,8 +343,8 @@ export function RadarTargetsLayer({
                     {selected.deviceType === "nanoRadar"
                       ? "NanoRadar"
                       : selected.deviceType === "magosradar"
-                      ? "MagosRadar"
-                      : "Spotter"}
+                        ? "MagosRadar"
+                        : "Spotter"}
                   </span>
                 </li>
                 <li>
