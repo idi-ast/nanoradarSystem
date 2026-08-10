@@ -10,4 +10,6 @@ export type {
   CamaraActividad,
   ActividadPayload,
   TiposAlertas,
+  MagosRadarPosition,
+  MagosRadarTrack,
 } from "./radar.types";

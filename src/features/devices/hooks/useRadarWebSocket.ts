@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { RadarTarget, RawRadarPayload, CamaraActividad } from "../types";
+import type { RadarTarget, RawRadarPayload, CamaraActividad, MagosRadarTrack } from "../types";
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 
@@ -60,6 +60,19 @@ function distMeters(lat1: number, lon1: number, lat2: number, lon2: number): num
   return Math.sqrt(dLat * dLat + dLon * dLon);
 }
 
+/** Convierte un color hex (#rrggbb) a rgba con alpha dinámico */
+function hexToRgba(hex: string, alpha: number): string {
+  const clamped = Math.max(0, Math.min(1, alpha));
+  const raw = hex.replace("#", "");
+  const r = parseInt(raw.substring(0, 2), 16);
+  const g = parseInt(raw.substring(2, 4), 16);
+  const b = parseInt(raw.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${clamped.toFixed(2)})`;
+}
+
+/** SNR máxima esperada para normalización (~40 dB es una señal excelente) */
+const SNR_MAX = 40;
+
 /** Limpia tracks inactivos del mapa de estado cinemático */
 function cleanupTrackStates(now: number): void {
   for (const [tid, state] of trackKinematics) {
@@ -99,25 +112,26 @@ function processDeviceMessages(
 }
 
 /**
- * Procesa detecciones de magosRadar agrupando por trackId.
+ * Procesa tracks de magosRadar en el nuevo formato agrupado.
+ *
+ * El backend envía un array de tracks, cada uno con `trackId` y `positions`.
+ * Cada posición tiene lat, lon, speed, heading, snr, zona, nivel, ts.
  *
  * Mejoras de realismo:
  * - Suavizado EMA de posición para eliminar jitter.
  * - Validación de velocidad máxima: si un punto implicaría >60 km/h en tráfico
  *   denso, se aplica clamp a la posición máxima permitida por la velocidad realista.
  * - Estado cinemático persistente entre barridos (predicción por velocidad).
- *
- * El backend envía `trackId` (ej: "T182") para identificar el vehículo,
- * `trackPoints` para ordenar los puntos dentro del track,
- * `trackColor` para colorear de forma estable,
- * y `speed` para la velocidad de cada punto.
- * Todos los puntos de un mismo track en un barrido se agrupan en una sola trayectoria.
+ * - Intensidad de color dinámica: a mayor SNR y mayor historial,
+ *   el color es más intenso (más opaco). Señal débil o track corto
+ *   produce un color más tenue (translúcido).
  */
 function processMagosradarMessages(
   next: Map<string, RadarTarget>,
-  messages: RawRadarPayload["magosradar"],
+  tracks: MagosRadarTrack[],
   now: number,
   historyMaxPoints: number,
+  trackColor: string,
 ) {
   // Limpieza periódica de estados inactivos
   if (now - lastCleanupTime > TRACK_STATE_CLEANUP_INTERVAL) {
@@ -125,25 +139,20 @@ function processMagosradarMessages(
     lastCleanupTime = now;
   }
 
-  // Agrupar por trackId (enviado por el backend)
-  const byTrack = new Map<string, { points: RawRadarPayload["magosradar"]; color: string }>();
-  for (const raw of messages) {
-    const tid = raw.trackId ?? String(raw.id).split("_")[0];
-    const color = raw.trackColor ?? "#f43f5e";
-    if (!byTrack.has(tid)) byTrack.set(tid, { points: [], color });
-    byTrack.get(tid)!.points.push(raw);
-  }
-
-  for (const [trackId, { points, color }] of byTrack) {
-    // Ordenar por trackPoints ascendente para mantener el trazo correcto
-    points.sort((a, b) => (a.trackPoints ?? 0) - (b.trackPoints ?? 0));
+  for (const track of tracks) {
+    const { trackId, positions } = track;
+    if (!positions || positions.length === 0) continue;
 
     const targetId = `magosradar_${trackId}`;
+    const trackIdStr = String(trackId);
+
+    // Ordenar posiciones por timestamp ascendente para el trazo correcto
+    const sorted = [...positions].sort((a, b) => a.ts - b.ts);
 
     // ── Obtener o inicializar estado cinemático del track ──
-    let kin = trackKinematics.get(trackId);
+    let kin = trackKinematics.get(trackIdStr);
     if (!kin) {
-      const first = points[0];
+      const first = sorted[0];
       kin = {
         smoothedLat: first.lat,
         smoothedLon: first.lon,
@@ -154,16 +163,16 @@ function processMagosradarMessages(
         velLon: 0,
         clampCount: 0,
       };
-      trackKinematics.set(trackId, kin);
+      trackKinematics.set(trackIdStr, kin);
     }
 
-    // ── Procesar cada punto con validación de velocidad y suavizado ──
+    // ── Procesar cada posición con validación de velocidad y suavizado ──
     const dt = Math.max(now - kin.lastUpdateMs, 1); // al menos 1ms para evitar división por cero
 
-    const smoothedPoints: typeof points = [];
+    const smoothedPoints: typeof sorted = [];
     let totalClampedThisSweep = 0;
 
-    for (const p of points) {
+    for (const p of sorted) {
       // Distancia desde la última posición suavizada
       const d = distMeters(kin.smoothedLat, kin.smoothedLon, p.lat, p.lon);
       const impliedSpeedMs = d / (dt / 1000); // m/s
@@ -173,7 +182,6 @@ function processMagosradarMessages(
 
       if (impliedSpeedMs > MAX_REALISTIC_SPEED_MS && kin.clampCount < 3) {
         // ── CLAMP: el punto implicaría una velocidad irreal (>60 km/h) ──
-        // Lo limitamos al desplazamiento máximo permitido desde la última posición suavizada
         const maxDistMeters = MAX_REALISTIC_SPEED_MS * (dt / 1000);
         const scale = d > 0 ? maxDistMeters / d : 0;
 
@@ -214,12 +222,12 @@ function processMagosradarMessages(
 
     // Si más del 50% de los puntos fueron clampados, es un track ruidoso: usar solo el último válido
     const effectivePoints =
-      totalClampedThisSweep > points.length * 0.5 && smoothedPoints.length > 1
+      totalClampedThisSweep > sorted.length * 0.5 && smoothedPoints.length > 1
         ? [smoothedPoints[smoothedPoints.length - 1]]
         : smoothedPoints;
 
-    // Todos los puntos del barrido actual (ya suavizados) van al historial
-    const newPoints: [number, number, number][] = effectivePoints.map((p) => [p.lat, p.lon, now]);
+    // Puntos del historial: usar el timestamp real de cada posición (convertido a ms)
+    const newPoints: [number, number, number][] = effectivePoints.map((p) => [p.lat, p.lon, p.ts * 1000]);
 
     const existing = next.get(targetId);
     const history: [number, number, number][] = existing
@@ -230,47 +238,46 @@ function processMagosradarMessages(
     const mainLat = kin.smoothedLat;
     const mainLon = kin.smoothedLon;
 
-    // Máximo nivel entre todos los puntos del track
-    const maxNivel = Math.max(...points.map((p) => p.nivel));
+    // Máximo nivel entre todas las posiciones del track
+    const maxNivel = Math.max(...sorted.map((p) => p.nivel));
 
-    // Velocidad del último punto (mayor trackPoints)
-    const lastPoint = points[points.length - 1];
-    const speed = lastPoint.speed;
-    const confidence = lastPoint.confidence;
-    const isStationary = lastPoint.isStationary;
-    // Tomar SNR, RCS, heading, trackState del punto con mejor SNR dentro del track
+    // Última posición del track (mayor ts)
+    const lastPos = sorted[sorted.length - 1];
+
+    // Tomar SNR y heading del punto con mejor SNR dentro del track
     let bestSnr = -Infinity;
-    let snr = points[0].snr;
-    let rcs = points[0].rcs;
-    let heading = points[0].heading;
-    let trackState = points[0].trackState;
-    for (const p of points) {
+    let snr = sorted[0].snr;
+    let heading = sorted[0].heading;
+    for (const p of sorted) {
       if ((p.snr ?? -Infinity) > bestSnr) {
         bestSnr = p.snr ?? -Infinity;
         snr = p.snr;
-        rcs = p.rcs;
         heading = p.heading;
-        trackState = p.trackState;
       }
     }
+
+    // ── Intensidad de color dinámica según SNR y longitud del track ──
+    // A mayor SNR (señal más fuerte) y más puntos de historial (track más largo),
+    // el color es más intenso (alpha → 1). Señal débil o track corto = más tenue (alpha → 0.2).
+    const snrNorm = Math.min((snr ?? 0) / SNR_MAX, 1);
+    const historyNorm = Math.min(history.length / historyMaxPoints, 1);
+    const intensity = snrNorm * 0.5 + historyNorm * 0.5;
+    const alpha = 0.2 + intensity * 0.8;
+    const dynamicColor = hexToRgba(trackColor, alpha);
 
     next.set(targetId, {
       id: targetId,
       lat: mainLat,
       lon: mainLon,
       nivel: maxNivel,
-      zona: points[0].zona,
+      zona: lastPos.zona,
       deviceType: "magosradar",
       lastUpdate: now,
       history,
-      trackColor: color,
-      speed,
+      trackColor: dynamicColor,
+      speed: lastPos.speed,
       snr,
-      rcs,
       heading,
-      trackState,
-      confidence,
-      isStationary,
     });
   }
 }
@@ -280,6 +287,7 @@ export type WsStatus = "connecting" | "connected" | "disconnected" | "reconnecti
 export function useRadarWebSocket(
   url: string,
   timing: TargetTimingConfig = TARGET_TIMING,
+  trackColor = "#f43f5e",
 ) {
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(new Map());
   const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
@@ -287,7 +295,7 @@ export function useRadarWebSocket(
 
   const bufferRef = useRef<{
     nanoRadar: RawRadarPayload["nanoRadar"];
-    magosRadar: RawRadarPayload["magosradar"];
+    magosRadar: MagosRadarTrack[];
     spotter: RawRadarPayload["spotter"];
     camaras: CamaraActividad[];
   }>({
@@ -319,7 +327,7 @@ export function useRadarWebSocket(
       setTargetsMap((prev) => {
         const next = new Map(prev);
         processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
-        processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS);
+        processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS, trackColor);
         processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
         return next;
       });
@@ -368,7 +376,7 @@ export function useRadarWebSocket(
 
       ws.onmessage = (event: MessageEvent) => {
         try {
-          const parsed = JSON.parse(event.data as string) as RawRadarPayload & { magosRadar?: RawRadarPayload["magosradar"] };
+          const parsed = JSON.parse(event.data as string) as RawRadarPayload;
           if (parsed && typeof parsed === "object") {
             if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
             if (parsed.magosRadar) bufferRef.current.magosRadar = parsed.magosRadar;
@@ -410,7 +418,7 @@ export function useRadarWebSocket(
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };
-  }, [url, timing.HISTORY_MAX_POINTS, timing.TARGET_TIMEOUT_MS]);
+  }, [url, timing.HISTORY_MAX_POINTS, timing.TARGET_TIMEOUT_MS, trackColor]);
 
   const targets = useMemo(() => Array.from(targetsMap.values()), [targetsMap]);
 
