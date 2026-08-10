@@ -1471,35 +1471,40 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   }
 
   function save() {
+    // Si el modo NO es personalizado, el backend recalcula los micro-params
+    // automáticamente. Enviamos null para que la traducción sea la fuente de verdad.
+    const esPreset = (form.modo_operacion ?? "personalizado") !== "personalizado";
+
     mutate(
       {
         id: device.id,
         payload: {
-          rcs: nn(form.rcs),
-          snr: nn(form.snr),
-          speed: nn(form.speed),
-          heading: nn(form.heading),
+          // ── Micro-parámetros: solo si modo personalizado ──
+          rcs: esPreset ? null : nn(form.rcs),
+          snr: esPreset ? null : nn(form.snr),
+          speed: esPreset ? null : nn(form.speed),
+          heading: esPreset ? null : nn(form.heading),
           trackColor: form.trackColor || null,
-          minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
-          associationDist: nn(form.associationDist),
-          ttl: nn(form.ttl),
-          coastTtl: nn(form.coastTtl),
-          emaSmooth: nn(form.emaSmooth),
-          velSmooth: nn(form.velSmooth),
-          maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
-          clusterDist: nn(form.clusterDist),
+          minTrackPoints: esPreset ? null : (form.minTrackPoints === "" ? null : Number(form.minTrackPoints)),
+          associationDist: esPreset ? null : nn(form.associationDist),
+          ttl: esPreset ? null : nn(form.ttl),
+          coastTtl: esPreset ? null : nn(form.coastTtl),
+          emaSmooth: esPreset ? null : nn(form.emaSmooth),
+          velSmooth: esPreset ? null : nn(form.velSmooth),
+          maxDetections: esPreset ? null : (form.maxDetections === "" ? null : Number(form.maxDetections)),
+          clusterDist: esPreset ? null : nn(form.clusterDist),
           enabled: form.enabled === "" ? null : Number(form.enabled),
           modelo: form.modelo || null,
-          frecuencia: nn(form.frecuencia),
-          potencia: nn(form.potencia),
-          elevacion: nn(form.elevacion),
-          altitud: nn(form.altitud),
+          frecuencia: esPreset ? null : nn(form.frecuencia),
+          potencia: esPreset ? null : nn(form.potencia),
+          elevacion: esPreset ? null : nn(form.elevacion),
+          altitud: esPreset ? null : nn(form.altitud),
           notas: form.notas || null,
-          maxSpeed: nn(form.maxSpeed),
-          stationaryTtl: nn(form.stationaryTtl),
-          minConfidence: nn(form.minConfidence),
-          confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-          // ── Macro-parámetros ──
+          maxSpeed: esPreset ? null : nn(form.maxSpeed),
+          stationaryTtl: esPreset ? null : nn(form.stationaryTtl),
+          minConfidence: esPreset ? null : nn(form.minConfidence),
+          confidenceWindow: esPreset ? null : (form.confidenceWindow === "" ? null : Number(form.confidenceWindow)),
+          // ── Macro-parámetros (siempre) ──
           modo_operacion: form.modo_operacion || null,
           sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
           persistencia: form.persistencia === "" ? null : Number(form.persistencia),
