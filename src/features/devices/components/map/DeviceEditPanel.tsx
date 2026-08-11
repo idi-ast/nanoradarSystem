@@ -547,6 +547,8 @@ interface MagosradarFormProps {
   onPickPosition?: () => void;
   onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
+  showAdvanced?: boolean;
+  onToggleAdvanced?: () => void;
 }
 
 function MagosradarForm({
@@ -560,6 +562,8 @@ function MagosradarForm({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
+  showAdvanced,
+  onToggleAdvanced,
 }: MagosradarFormProps) {
   const { mutate, isPending, isError } = useUpdateMagosradar();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteMagosradar();
@@ -571,6 +575,18 @@ function MagosradarForm({
     azimut: device.azimut ?? "0",
   });
 
+  // ── Sincronizar form.latitud/longitud cuando el marker se arrastra en el mapa ──
+  // (liveEditPos cambia en el padre RadarMap, pero form es la fuente de verdad local)
+  useEffect(() => {
+    if (liveEditPos) {
+      setForm((p) => ({
+        ...p,
+        latitud: liveEditPos.lat.toFixed(7),
+        longitud: liveEditPos.lng.toFixed(7),
+      }));
+    }
+  }, [liveEditPos?.lat, liveEditPos?.lng]);
+
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
   const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
@@ -580,11 +596,12 @@ function MagosradarForm({
   }
 
   function save() {
+    // Fuente de verdad: form.latitud/form.longitud (sincronizados con el marker vía useEffect)
     const payload: MagosradarPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitud: effectiveLat,
-      longitud: effectiveLng,
+      latitud: form.latitud,
+      longitud: form.longitud,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -665,6 +682,21 @@ function MagosradarForm({
         value={liveEdit.color}
         onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
       />
+      {/* Botón para desplegar/ocultar configuraciones avanzadas (solo MagosRadar) */}
+      {onToggleAdvanced && (
+        <button
+          type="button"
+          onClick={onToggleAdvanced}
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+            showAdvanced
+              ? "bg-brand-200/20 text-brand-200"
+              : "bg-bg-300/50 text-text-100/50 hover:text-text-100/80 hover:bg-bg-300"
+          }`}
+        >
+          <IconSettings size={13} />
+          {showAdvanced ? "Ocultar avanzado" : "Configuración avanzada"}
+        </button>
+      )}
     </PanelWrapper>
   );
 }
@@ -1897,6 +1929,8 @@ export interface DeviceEditPanelProps {
   onPickPosition?: () => void;
   onCancelPickPosition?: () => void;
   mode?: "sidebar" | "floating";
+  showAdvanced?: boolean;
+  onToggleAdvanced?: () => void;
 }
 
 export function DeviceEditPanel({
@@ -1910,6 +1944,8 @@ export function DeviceEditPanel({
   onPickPosition,
   onCancelPickPosition,
   mode = "sidebar",
+  showAdvanced,
+  onToggleAdvanced,
 }: DeviceEditPanelProps) {
   const posProps = {
     liveEditPos,
@@ -1939,6 +1975,8 @@ export function DeviceEditPanel({
         liveEdit={liveEdit}
         onLiveEditChange={onLiveEditChange}
         mode={mode}
+        showAdvanced={showAdvanced}
+        onToggleAdvanced={onToggleAdvanced}
         {...posProps}
       />
     );

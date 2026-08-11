@@ -170,9 +170,17 @@ export const DeviceSelector = memo(function DeviceSelector({
   const open = isOpen("devices");
   const toggleOpen = () => open ? closePanel("devices") : openPanel("devices");
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const portalRef = useRef<HTMLDivElement>(null);
   const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
     top: 0,
     right: 0,
+  });
+  // Offset de arrastre del panel (se acumula al draggear)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ active: boolean; startX: number; startY: number; offsetX: number; offsetY: number }>({
+    active: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0,
   });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
@@ -185,10 +193,44 @@ export const DeviceSelector = memo(function DeviceSelector({
         top: rect.top,
         right: window.innerWidth - rect.left + 8,
       });
+      setDragOffset({ x: 0, y: 0 });
     };
     updatePos();
     window.addEventListener("resize", updatePos);
     return () => window.removeEventListener("resize", updatePos);
+  }, [open]);
+
+  // Drag del panel completo
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: dragOffset.x,
+      offsetY: dragOffset.y,
+    };
+    setIsDragging(true);
+  }, [dragOffset]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current.active) return;
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      setDragOffset({
+        x: dragRef.current.offsetX + dx,
+        y: dragRef.current.offsetY + dy,
+      });
+    };
+    const onUp = () => { dragRef.current.active = false; setIsDragging(false); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
   }, [open]);
 
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
@@ -305,6 +347,46 @@ export const DeviceSelector = memo(function DeviceSelector({
     });
   }, [onChange]);
 
+  // Cerrar TODO: panel de edición, avanzado, y lista de dispositivos
+  const closeAll = useCallback(() => {
+    onEditClose?.();
+    setShowAdvanced(false);
+    closePanel("devices");
+  }, [onEditClose, closePanel]);
+
+  // Escape → cerrar todo
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeAll();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, closeAll]);
+
+  // Click fuera del portal → cerrar todo (excepto en marcadores del mapa y modo pick)
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // No cerrar si se hizo clic en un marcador del mapa (drag de posición) o en el knob de ajuste
+      if (target.closest(".mapboxgl-marker") || target.closest(".maplibregl-marker")) return;
+      // No cerrar si se está en modo "pick position"
+      if (isPickingPosition) return;
+      if (portalRef.current && !portalRef.current.contains(target)) {
+        closeAll();
+      }
+    };
+    const timer = setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [open, closeAll, isPickingPosition]);
+
   return (
     <div>
       <Tooltip text="Dispositivos en mapa">
@@ -323,25 +405,27 @@ export const DeviceSelector = memo(function DeviceSelector({
       {open &&
         createPortal(
           <div
+            ref={portalRef}
             style={{
               position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
+              top: panelStyle.top + dragOffset.y,
+              right: panelStyle.right - dragOffset.x,
+              userSelect: isDragging ? "none" : "auto",
             }}
             className="flex items-start gap-2"
           >
-            {/* Panel(es) de edición adjunto(s) a la izquierda del panel principal */}
+            {/* Panel(es) de edición — se despliegan a la izquierda, uno a uno */}
             {editingDevice && liveEdit && (
               <>
-                {/* Panel avanzado (solo MagosRadar) — a la izquierda del básico */}
-                {editingDevice.kind === "magosradar" && (
+                {/* Panel avanzado (solo MagosRadar) — solo si se activó desde el botón */}
+                {editingDevice.kind === "magosradar" && showAdvanced && (
                   <MagosradarAdvancedPanel device={editingDevice.device} />
                 )}
 
                 <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
                   <DeviceEditPanel
                     editing={editingDevice}
-                    onClose={() => onEditClose?.()}
+                    onClose={() => closeAll()}
                     liveEdit={liveEdit}
                     onLiveEditChange={(v) => onLiveEditChange?.(v)}
                     liveEditPos={liveEditPos ?? null}
@@ -350,6 +434,8 @@ export const DeviceSelector = memo(function DeviceSelector({
                     onPickPosition={onPickPosition}
                     onCancelPickPosition={onCancelPickPosition}
                     mode="floating"
+                    showAdvanced={showAdvanced}
+                    onToggleAdvanced={() => setShowAdvanced((p) => !p)}
                   />
                 </div>
               </>
@@ -357,7 +443,9 @@ export const DeviceSelector = memo(function DeviceSelector({
 
             {/* Panel principal de dispositivos */}
             <div className="w-62 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+              <div
+                onMouseDown={onDragStart}
+                className="flex items-center justify-between px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing select-none">
                 <span className="text-xs font-bold uppercase tracking-widest text-text-100/70">
                   Dispositivos
                 </span>
@@ -375,8 +463,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                   </Tooltip>
                   <button
                     onClick={() => {
-                      closePanel("devices");
-                      onEditClose?.();
+                      closeAll();
                     }}
                     className="text-text-100/30 hover:text-text-100/70 ml-1"
                   >
