@@ -25,9 +25,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     radio: magosradar.radio,
     apertura: magosradar.apertura,
     color: magosradar.color ?? "#f43f5e",
-    modo_operacion: magosradar.modo_operacion ?? "personalizado",
-    sensibilidad: magosradar.sensibilidad ?? 3,
-    persistencia: magosradar.persistencia ?? 3,
     // Avanzados
     rcs: magosradar.rcs,
     snr: magosradar.snr,
@@ -71,8 +68,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       radio: Number(data.radio),
       apertura: Number(data.apertura),
       azimut: String(data.azimut),
-      sensibilidad: Number(data.sensibilidad),
-      persistencia: Number(data.persistencia),
     };
     await new Promise<void>((resolve, reject) => {
       mutate(

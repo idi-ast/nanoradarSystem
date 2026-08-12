@@ -1361,10 +1361,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     stationaryTtl: n(device.stationaryTtl),
     minConfidence: n(device.minConfidence),
     confidenceWindow: n(device.confidenceWindow),
-    // ── Macro-parámetros ──
-    modo_operacion: device.modo_operacion ?? "personalizado",
-    sensibilidad: n(device.sensibilidad ?? 3),
-    persistencia: n(device.persistencia ?? 3),
     // ── Toggle sin filtro ──
     sinFiltro: device.sinFiltro ? "1" : "0",
     // ── Cola/buffer de tracks ──
@@ -1475,9 +1471,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
       potencia: v.potencia != null ? String(v.potencia) : "",
       elevacion: v.elevacion != null ? String(v.elevacion) : "",
       altitud: v.altitud != null ? String(v.altitud) : "",
-      modo_operacion: v.modo_operacion ?? "personalizado",
-      sensibilidad: v.sensibilidad != null ? String(v.sensibilidad) : "3",
-      persistencia: v.persistencia != null ? String(v.persistencia) : "3",
     }));
     setAppliedProfileId(profileId);
     // Guardar en BD
@@ -1506,9 +1499,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           stationaryTtl: v.stationaryTtl ?? null,
           minConfidence: v.minConfidence ?? null,
           confidenceWindow: v.confidenceWindow ?? null,
-          modo_operacion: v.modo_operacion ?? null,
-          sensibilidad: v.sensibilidad ?? null,
-          persistencia: v.persistencia ?? null,
         },
       },
       {
@@ -1528,43 +1518,35 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   }
 
   function save() {
-    // Si el modo NO es personalizado, el backend recalcula los micro-params
-    // automáticamente. Enviamos null para que la traducción sea la fuente de verdad.
-    const esPreset = (form.modo_operacion ?? "personalizado") !== "personalizado";
-
     mutate(
       {
         id: device.id,
         payload: {
-          // ── Micro-parámetros: solo si modo personalizado ──
-          rcs: esPreset ? null : nn(form.rcs),
-          snr: esPreset ? null : nn(form.snr),
-          speed: esPreset ? null : nn(form.speed),
-          heading: esPreset ? null : nn(form.heading),
+          // ── Micro-parámetros ──
+          rcs: nn(form.rcs),
+          snr: nn(form.snr),
+          speed: nn(form.speed),
+          heading: nn(form.heading),
           trackColor: form.trackColor || null,
-          minTrackPoints: esPreset ? null : (form.minTrackPoints === "" ? null : Number(form.minTrackPoints)),
-          associationDist: esPreset ? null : nn(form.associationDist),
-          ttl: esPreset ? null : nn(form.ttl),
-          coastTtl: esPreset ? null : nn(form.coastTtl),
-          emaSmooth: esPreset ? null : nn(form.emaSmooth),
-          velSmooth: esPreset ? null : nn(form.velSmooth),
-          maxDetections: esPreset ? null : (form.maxDetections === "" ? null : Number(form.maxDetections)),
-          clusterDist: esPreset ? null : nn(form.clusterDist),
+          minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+          associationDist: nn(form.associationDist),
+          ttl: nn(form.ttl),
+          coastTtl: nn(form.coastTtl),
+          emaSmooth: nn(form.emaSmooth),
+          velSmooth: nn(form.velSmooth),
+          maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+          clusterDist: nn(form.clusterDist),
           enabled: form.enabled === "" ? null : Number(form.enabled),
           modelo: form.modelo || null,
-          frecuencia: esPreset ? null : nn(form.frecuencia),
-          potencia: esPreset ? null : nn(form.potencia),
-          elevacion: esPreset ? null : nn(form.elevacion),
-          altitud: esPreset ? null : nn(form.altitud),
+          frecuencia: nn(form.frecuencia),
+          potencia: nn(form.potencia),
+          elevacion: nn(form.elevacion),
+          altitud: nn(form.altitud),
           notas: form.notas || null,
-          maxSpeed: esPreset ? null : nn(form.maxSpeed),
-          stationaryTtl: esPreset ? null : nn(form.stationaryTtl),
-          minConfidence: esPreset ? null : nn(form.minConfidence),
-          confidenceWindow: esPreset ? null : (form.confidenceWindow === "" ? null : Number(form.confidenceWindow)),
-          // ── Macro-parámetros (siempre) ──
-          modo_operacion: form.modo_operacion || null,
-          sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
-          persistencia: form.persistencia === "" ? null : Number(form.persistencia),
+          maxSpeed: nn(form.maxSpeed),
+          stationaryTtl: nn(form.stationaryTtl),
+          minConfidence: nn(form.minConfidence),
+          confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
           // ── Toggle sin filtro ──
           sinFiltro: form.sinFiltro === "1" ? 1 : 0,
           // ── Cola/buffer de tracks ──
@@ -1721,35 +1703,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             Tracking
           </p>
 
-          {/* ═══ MACRO-PARÁMETROS (simplificado) ═══ */}
+          {/* ═══ TOGGLES ═══ */}
           <div className="bg-bg-200/30 rounded-lg p-2 border border-brand-200/20 mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[9px] font-semibold text-brand-200/70 uppercase tracking-widest">Modo de operación</span>
-            </div>
-            <select
-              value={form.modo_operacion ?? "personalizado"}
-              onChange={(e) => set("modo_operacion", e.target.value)}
-              className="w-full rounded-md border border-border bg-bg-100 text-text-100 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-brand-200/50 transition mb-2"
-            >
-              <option value="urbano"> Urbano</option>
-              <option value="carretera"> Carretera</option>
-              <option value="industrial"> Industrial</option>
-              <option value="maritimo"> Marítimo</option>
-              <option value="personalizado"> Personalizado</option>
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-100/40">Sensibilidad: {form.sensibilidad ?? 3}/5</span>
-                <input type="range" min={1} max={5} value={form.sensibilidad ?? 3} onChange={(e) => set("sensibilidad", e.target.value)}
-                  className="w-full accent-amber-400 cursor-pointer" style={{height:"3px"}} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-100/40">Persistencia: {form.persistencia ?? 3}/5</span>
-                <input type="range" min={1} max={5} value={form.persistencia ?? 3} onChange={(e) => set("persistencia", e.target.value)}
-                  className="w-full accent-cyan-400 cursor-pointer" style={{height:"3px"}} />
-              </div>
-            </div>
-
             {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
             <div className={`mt-2 flex items-center justify-between gap-2 rounded-md px-2 py-1.5 border transition-colors ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}>
               <div className="flex items-center gap-1.5">
@@ -1831,7 +1786,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             {form._showAdvanced === "1" ? "Ocultar opciones avanzadas" : "Mostrar opciones avanzadas"}
           </button>
 
-          {(form._showAdvanced === "1" || (form.modo_operacion ?? "personalizado") === "personalizado") && (
+          {form._showAdvanced === "1" && (
           <>
           <div className="grid grid-cols-3 gap-x-3 gap-y-3">
             {/* trackColor — input texto + color picker */}
@@ -1982,9 +1937,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                         stationaryTtl: nn(form.stationaryTtl),
                         minConfidence: nn(form.minConfidence),
                         confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-                        modo_operacion: form.modo_operacion || null,
-                        sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
-                        persistencia: form.persistencia === "" ? null : Number(form.persistencia),
                       },
                       {
                         onSuccess: (newPerfil) => {

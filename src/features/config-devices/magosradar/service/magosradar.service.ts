@@ -49,11 +49,6 @@ export type MagosradarPayload = Pick<
   confidence?: number | null;
   isStationary?: boolean | null;
 
-  // ── Macro-parámetros ──
-  modo_operacion?: string | null;
-  sensibilidad?: number | null;
-  persistencia?: number | null;
-
   // ── Toggle sin filtro ──
   sinFiltro?: number | null;
 

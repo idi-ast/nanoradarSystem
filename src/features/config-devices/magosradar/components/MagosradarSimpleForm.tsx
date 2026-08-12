@@ -1,22 +1,16 @@
 /**
  * Formulario simplificado para configuración de MagosRadar.
  *
- * Reduce 17 parámetros a 3 controles intuitivos:
- *   1. Modo de operación (preset)
- *   2. Sensibilidad (1-5)
- *   3. Persistencia (1-5)
- *
- * Incluye toggle "Avanzado" que muestra todos los parámetros.
+ * Incluye toggle "Ver tracks sin filtros", cola de tracks (buffer)
+ * y toggle "Avanzado" que muestra todos los parámetros.
  */
-import { useState, useEffect, useCallback } from "react";
-import { IconShield, IconEye, IconClock, IconSettings, IconFilterOff, IconFilter, IconStack } from "@tabler/icons-react";
+import { useState } from "react";
+import { IconSettings, IconFilterOff, IconFilter, IconStack } from "@tabler/icons-react";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
 import { Tooltip } from "@/components/ui";
-import { apiSystem } from "@/apis";
 import { useMagosradarProfiles } from "../config/magosradarProfiles";
-import type { MagosradarProfileValues } from "../config/magosradarProfiles";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -31,11 +25,6 @@ export interface SimpleMagosradarFormData {
   radio: number;
   apertura: number;
   color: string;
-
-  // Macro-parámetros
-  modo_operacion: string;
-  sensibilidad: number;
-  persistencia: number;
 
   // Toggle "sin filtro" (ver tracks crudos post-procesados)
   sinFiltro?: number | null;
@@ -73,47 +62,10 @@ export interface SimpleMagosradarFormData {
   notas?: string | null;
 }
 
-interface ModoInfo {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  icono: string;
-}
-
-// ── Modos disponibles ──────────────────────────────────────────────────────
-
-const MODOS_DEFAULT: ModoInfo[] = [
-  { id: "urbano", nombre: "🏙️ Urbano", descripcion: "Calles, peatones, tráfico lento", icono: "building" },
-  { id: "carretera", nombre: "🛣️ Carretera", descripcion: "Vehículos rápidos, autopistas", icono: "road" },
-  { id: "industrial", nombre: "🏭 Industrial", descripcion: "Maquinaria pesada, movimiento lento", icono: "factory" },
-  { id: "maritimo", nombre: "⚓ Marítimo", descripcion: "Barcos, costa, puertos", icono: "anchor" },
-  { id: "personalizado", nombre: "🔧 Personalizado", descripcion: "Configuración manual avanzada", icono: "settings" },
-];
-
-const SENSIBILIDAD_LABELS: Record<number, string> = {
-  1: "Muy baja — Solo objetos grandes y claros, cero falsos",
-  2: "Baja — Pocos falsos, puede perder blancos débiles",
-  3: "Media — Balance recomendado",
-  4: "Alta — Detecta más, algunos falsos",
-  5: "Muy alta — Detecta todo, más falsos positivos",
-};
-
-const PERSISTENCIA_LABELS: Record<number, string> = {
-  1: "Efímera — Tracks desaparecen rápido, mapa limpio",
-  2: "Corta — Tracks se mantienen poco tiempo",
-  3: "Normal — Balance recomendado",
-  4: "Larga — Tracks persisten bastante",
-  5: "Muy larga — Seguimiento continuo, ideal para barcos",
-};
-
 // ── Utilidades ─────────────────────────────────────────────────────────────
 
 function n(v: string | number | null | undefined): string {
   return v == null ? "" : String(v);
-}
-
-function nn(v: string): number | null {
-  return v === "" ? null : Number(v);
 }
 
 function InfoIcon({ text }: { text: string }) {
@@ -210,9 +162,6 @@ export function MagosradarSimpleForm({
     radio: initialData?.radio ?? 100,
     apertura: initialData?.apertura ?? 360,
     color: initialData?.color ?? "#f43f5e",
-    modo_operacion: initialData?.modo_operacion ?? "personalizado",
-    sensibilidad: initialData?.sensibilidad ?? 3,
-    persistencia: initialData?.persistencia ?? 3,
     sinFiltro: initialData?.sinFiltro ?? 0,
     bufferActivo: initialData?.bufferActivo ?? 1,
     bufferIntervalo: initialData?.bufferIntervalo ?? 3,
@@ -244,66 +193,15 @@ export function MagosradarSimpleForm({
     notas: initialData?.notas ?? null,
   });
 
-  const [showAdvanced, setShowAdvanced] = useState(
-    form.modo_operacion === "personalizado"
-  );
-  const [modos, setModos] = useState<ModoInfo[]>(MODOS_DEFAULT);
-  const [previewParams, setPreviewParams] = useState<Record<string, number> | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState("custom");
 
   // ── Cargar perfiles desde BD ──
   const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
 
-  // Cargar modos desde API
-  useEffect(() => {
-    apiSystem
-      .get<{ data: ModoInfo[] }>("/magosradares/modos")
-      .then((res) => {
-        if (res.data?.data?.length) setModos(res.data.data);
-      })
-      .catch(() => {}); // fallback a defaults
-  }, []);
-
-  // Auto-avanzado cuando se selecciona "personalizado"
-  useEffect(() => {
-    if (form.modo_operacion === "personalizado") {
-      setShowAdvanced(true);
-    }
-  }, [form.modo_operacion]);
-
-  // Previsualizar parámetros traducidos
-  const fetchPreview = useCallback(async () => {
-    if (form.modo_operacion === "personalizado") {
-      setPreviewParams(null);
-      return;
-    }
-    try {
-      const res = await apiSystem.post<{
-        data: { parametros: Record<string, number> };
-      }>("/magosradares/translate-params", {
-        modo_operacion: form.modo_operacion,
-        sensibilidad: form.sensibilidad,
-        persistencia: form.persistencia,
-      });
-      setPreviewParams(res.data?.data?.parametros ?? null);
-    } catch {
-      setPreviewParams(null);
-    }
-  }, [form.modo_operacion, form.sensibilidad, form.persistencia]);
-
-  useEffect(() => {
-    fetchPreview();
-  }, [fetchPreview]);
-
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function handleNumberChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target;
-    const num = value === "" ? null : Number(value);
-    setForm((prev) => ({ ...prev, [name]: num }));
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -314,35 +212,12 @@ export function MagosradarSimpleForm({
       radio: Number(form.radio),
       apertura: Number(form.apertura),
       azimut: String(form.azimut),
-      sensibilidad: Number(form.sensibilidad),
-      persistencia: Number(form.persistencia),
       sinFiltro: form.sinFiltro ? 1 : 0,
       bufferActivo: form.bufferActivo ? 1 : 0,
       bufferIntervalo: Number(form.bufferIntervalo) || 3,
     };
-
-    // Si no es personalizado, no enviar params avanzados
-    if (form.modo_operacion !== "personalizado") {
-      data.rcs = null;
-      data.snr = null;
-      data.speed = null;
-      data.maxSpeed = null;
-      data.minTrackPoints = null;
-      data.associationDist = null;
-      data.ttl = null;
-      data.coastTtl = null;
-      data.stationaryTtl = null;
-      data.emaSmooth = null;
-      data.velSmooth = null;
-      data.maxDetections = null;
-      data.clusterDist = null;
-      data.minConfidence = null;
-      data.confidenceWindow = null;
-    }
     onSubmit(data);
   }
-
-  const isAdvanced = form.modo_operacion === "personalizado";
 
   // ── Aplicar perfil desde BD ──
   function handleProfileChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -352,12 +227,9 @@ export function MagosradarSimpleForm({
     const profile = MAGOSRADAR_PROFILES.find((p) => p.id === profileId);
     if (!profile) return;
 
-    // Aplicar macro-parámetros del perfil
+    // Aplicar valores del perfil
     setForm((prev) => ({
       ...prev,
-      modo_operacion: profile.values.modo_operacion ?? "personalizado",
-      sensibilidad: profile.values.sensibilidad ?? 3,
-      persistencia: profile.values.persistencia ?? 3,
       // También aplicar avanzados si existen en el perfil
       grado: profile.values.grado ?? prev.grado,
       radio: profile.values.radio ?? prev.radio,
@@ -408,88 +280,6 @@ export function MagosradarSimpleForm({
             Perfil aplicado. Los controles de abajo reflejan sus valores. Puedes ajustarlos.
           </p>
         )}
-      </div>
-
-      {/* ═══ MODO DE OPERACIÓN ═══ */}
-      <div className="bg-bg-200/30 rounded-lg p-3 border border-brand-200/20">
-        <div className="flex items-center gap-2 mb-2">
-          <IconShield size={16} className="text-brand-200/70" />
-          <Label className="text-xs font-semibold uppercase tracking-wider text-brand-200/80">
-            Modo de Operación
-          </Label>
-        </div>
-        <select
-          name="modo_operacion"
-          value={form.modo_operacion}
-          onChange={handleChange}
-          className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
-        >
-          {modos.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.nombre}
-            </option>
-          ))}
-        </select>
-        <p className="text-[10px] text-text-200/60 mt-1 italic">
-          {modos.find((m) => m.id === form.modo_operacion)?.descripcion ??
-            "Selecciona el escenario que mejor describe tu entorno"}
-        </p>
-      </div>
-
-      {/* ═══ SENSIBILIDAD ═══ */}
-      <div className="bg-bg-200/30 rounded-lg p-3 border border-amber-500/20">
-        <div className="flex items-center gap-2 mb-2">
-          <IconEye size={16} className="text-amber-400/70" />
-          <Label className="text-xs font-semibold uppercase tracking-wider text-amber-400/80">
-            Sensibilidad: {form.sensibilidad}/5
-          </Label>
-        </div>
-        <input
-          type="range"
-          name="sensibilidad"
-          min={1}
-          max={5}
-          value={form.sensibilidad}
-          onChange={handleChange}
-          className="w-full h-2 bg-bg-300 rounded-lg appearance-none cursor-pointer accent-amber-400"
-          disabled={isAdvanced}
-        />
-        <div className="flex justify-between text-[9px] text-text-200/50 mt-0.5">
-          <span>1 — Baja</span>
-          <span>3 — Media</span>
-          <span>5 — Alta</span>
-        </div>
-        <p className="text-[10px] text-amber-300/60 mt-1 italic">
-          {SENSIBILIDAD_LABELS[form.sensibilidad] ?? ""}
-        </p>
-      </div>
-
-      {/* ═══ PERSISTENCIA ═══ */}
-      <div className="bg-bg-200/30 rounded-lg p-3 border border-cyan-500/20">
-        <div className="flex items-center gap-2 mb-2">
-          <IconClock size={16} className="text-cyan-400/70" />
-          <Label className="text-xs font-semibold uppercase tracking-wider text-cyan-400/80">
-            Persistencia: {form.persistencia}/5
-          </Label>
-        </div>
-        <input
-          type="range"
-          name="persistencia"
-          min={1}
-          max={5}
-          value={form.persistencia}
-          onChange={handleChange}
-          className="w-full h-2 bg-bg-300 rounded-lg appearance-none cursor-pointer accent-cyan-400"
-          disabled={isAdvanced}
-        />
-        <div className="flex justify-between text-[9px] text-text-200/50 mt-0.5">
-          <span>1 — Efímero</span>
-          <span>3 — Normal</span>
-          <span>5 — Persistente</span>
-        </div>
-        <p className="text-[10px] text-cyan-300/60 mt-1 italic">
-          {PERSISTENCIA_LABELS[form.persistencia] ?? ""}
-        </p>
       </div>
 
       {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
@@ -587,23 +377,6 @@ export function MagosradarSimpleForm({
           </p>
         )}
       </div>
-
-      {/* ═══ PREVISUALIZACIÓN DE PARÁMETROS (no personalizado) ═══ */}
-      {!isAdvanced && previewParams && (
-        <div className="bg-bg-200/20 rounded-lg p-2 border border-border/30">
-          <p className="text-[10px] text-text-200/50 uppercase tracking-wider mb-1">
-            Parámetros resultantes:
-          </p>
-          <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] text-text-200/70">
-            <span>SNR: {previewParams.snr} dB</span>
-            <span>RCS: {previewParams.rcs} m²</span>
-            <span>TTL: {previewParams.ttl}s</span>
-            <span>Conf: {previewParams.minConfidence}%</span>
-            <span>Vel máx: {previewParams.maxSpeed} m/s</span>
-            <span>Pts: {previewParams.minTrackPoints}</span>
-          </div>
-        </div>
-      )}
 
       {/* ═══ GENERAL ═══ */}
       <h4 className="text-[11px] font-semibold uppercase tracking-wider text-brand-200/70 -mb-1 mt-1">General</h4>
