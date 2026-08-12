@@ -38,6 +38,10 @@ export interface SimpleMagosradarFormData {
 
   // Toggle "sin filtro" (ver tracks crudos)
   sinFiltro?: number | null;
+
+  // Modo espejo (orientación)
+  espejoX?: number | null;
+  espejoY?: number | null;
 }
 
 // ── Utilidades ─────────────────────────────────────────────────────────────
@@ -143,6 +147,8 @@ export function MagosradarSimpleForm({
     altitud: initialData?.altitud ?? null,
     notas: initialData?.notas ?? null,
     sinFiltro: initialData?.sinFiltro ?? 0,
+    espejoX: initialData?.espejoX ?? 0,
+    espejoY: initialData?.espejoY ?? 0,
   });
 
   function handleChange(
@@ -161,6 +167,8 @@ export function MagosradarSimpleForm({
       apertura: Number(form.apertura),
       azimut: String(form.azimut),
       sinFiltro: form.sinFiltro ? 1 : 0,
+      espejoX: form.espejoX ? 1 : 0,
+      espejoY: form.espejoY ? 1 : 0,
     });
   }
 
@@ -200,6 +208,50 @@ export function MagosradarSimpleForm({
               }`}
             />
           </button>
+        </div>
+      </div>
+
+      {/* ═══ ORIENTACIÓN (MODO ESPEJO) ═══ */}
+      <div className="bg-bg-200/30 rounded-lg p-3 border border-border/40">
+        <div className="flex items-center gap-2 mb-1">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-text-100/80">
+            Modo espejo
+          </Label>
+        </div>
+        <p className="text-[10px] text-text-200/60 italic mb-2">
+          Invierte los ejes de las detecciones para alinear los tracks con la realidad.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 border border-border/40 bg-bg-100/40">
+            <div>
+              <span className="text-[10px] font-semibold text-text-100/80">Eje X</span>
+              <p className="text-[8px] text-text-200/60 italic">Lateral (izq./der.)</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!form.espejoX}
+              onClick={() => setForm((prev) => ({ ...prev, espejoX: prev.espejoX ? 0 : 1 }))}
+              className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoX ? "bg-brand-200" : "bg-bg-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoX ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 border border-border/40 bg-bg-100/40">
+            <div>
+              <span className="text-[10px] font-semibold text-text-100/80">Eje Y</span>
+              <p className="text-[8px] text-text-200/60 italic">Boresight (adel./atrás)</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!form.espejoY}
+              onClick={() => setForm((prev) => ({ ...prev, espejoY: prev.espejoY ? 0 : 1 }))}
+              className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoY ? "bg-brand-200" : "bg-bg-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoY ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
         </div>
       </div>
 

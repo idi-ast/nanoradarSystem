@@ -32,6 +32,10 @@ export type MagosradarPayload = Pick<
 
   // ── Toggle sin filtro ──
   sinFiltro?: number | null;
+
+  // ── Modo espejo (orientación) ──
+  espejoX?: number | null;
+  espejoY?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

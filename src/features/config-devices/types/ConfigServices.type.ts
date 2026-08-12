@@ -132,4 +132,7 @@ export interface Magosradares {
 
   // ── Toggle sin filtro ──
   sinFiltro?: number | null;
+  // ── Modo espejo (orientación) ──
+  espejoX?: number | null;
+  espejoY?: number | null;
 }

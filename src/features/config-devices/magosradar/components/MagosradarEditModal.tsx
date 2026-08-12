@@ -35,6 +35,8 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     altitud: magosradar.altitud,
     notas: magosradar.notas,
     sinFiltro: magosradar.sinFiltro ?? 0,
+    espejoX: magosradar.espejoX ?? 0,
+    espejoY: magosradar.espejoY ?? 0,
   };
 
   useEffect(() => {

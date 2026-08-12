@@ -1342,6 +1342,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     notas: device.notas ?? "",
     // ── Toggle sin filtro ──
     sinFiltro: device.sinFiltro ? "1" : "0",
+    // ── Modo espejo (orientación) ──
+    espejoX: device.espejoX ? "1" : "0",
+    espejoY: device.espejoY ? "1" : "0",
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1412,6 +1415,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           altitud: nn(form.altitud),
           notas: form.notas || null,
           sinFiltro: form.sinFiltro === "1" ? 1 : 0,
+          espejoX: form.espejoX === "1" ? 1 : 0,
+          espejoY: form.espejoY === "1" ? 1 : 0,
         },
       },
       {
@@ -1572,6 +1577,40 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                   className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.sinFiltro === "1" ? "translate-x-4" : "translate-x-0"}`}
                 />
               </button>
+            </div>
+          </div>
+
+          {/* ═══ MODO ESPEJO (ORIENTACIÓN) ═══ */}
+          <div className="rounded-md px-2 py-1.5 border border-border/40 mb-3 bg-bg-100/40">
+            <div className="leading-tight mb-1.5">
+              <span className="text-[10px] font-semibold text-text-100/80">Modo espejo</span>
+              <p className="text-[8px] text-text-200/60 italic">Invierte los ejes para alinear los tracks con la realidad</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center justify-between gap-1.5 rounded border border-border/40 px-1.5 py-1">
+                <span className="text-[9px] text-text-100/60">Eje X</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.espejoX === "1"}
+                  onClick={() => set("espejoX", form.espejoX === "1" ? "0" : "1")}
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoX === "1" ? "bg-brand-200" : "bg-bg-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoX === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-1.5 rounded border border-border/40 px-1.5 py-1">
+                <span className="text-[9px] text-text-100/60">Eje Y</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.espejoY === "1"}
+                  onClick={() => set("espejoY", form.espejoY === "1" ? "0" : "1")}
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoY === "1" ? "bg-brand-200" : "bg-bg-300"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoY === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
             </div>
           </div>
 

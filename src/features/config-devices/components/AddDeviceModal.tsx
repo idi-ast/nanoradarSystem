@@ -64,6 +64,8 @@ const defaultMagosradar: SimpleMagosradarFormData = {
   elevacion: null,
   altitud: null,
   notas: null,
+  espejoX: 0,
+  espejoY: 0,
 };
 
 const defaultSpotter: SpotterPayload = {
