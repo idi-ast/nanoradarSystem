@@ -4,7 +4,11 @@ import { useWebRtcPlayer, getWhepBaseUrl } from "./hooks/useWebRtcPlayer";
 import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
+import { CalibrationPanel } from "./components/CalibrationPanel";
 import type { PtzCameraProps, CameraMode } from "./types";
+import {
+  useCameraCalibrationStore,
+} from "../../../../stores/cameraCalibrationStore";
 
 const SLOT_HEIGHT = 360;
 const BASE_BOTTOM = 80;
@@ -23,15 +27,30 @@ const PtzCamera = memo(
     const { videoRef, streamRef, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
 
-    function toggleMaximize() {
-      if (mode === "minimized") {
-        setMode("maximized");
-        onBecomeMaximized?.();
-      } else {
-        setMode("minimized");
-        onBecomeMinimized?.();
-      }
+  // ── Calibración ──
+  const calibratingCameraId = useCameraCalibrationStore(
+    (s) => s.calibratingCameraId,
+  );
+  const lastResult = useCameraCalibrationStore((s) => s.lastResult);
+  const calibrationMode = useCameraCalibrationStore((s) => s.mode);
+  const setCalibrationMode = useCameraCalibrationStore((s) => s.setMode);
+  const isThisCalibrating = calibratingCameraId === camera.id;
+
+  function toggleCalibrationMode() {
+    setCalibrationMode(
+      calibrationMode === "setPointZero" ? "goto" : "setPointZero",
+    );
+  }
+
+  function toggleMaximize() {
+    if (mode === "minimized") {
+      setMode("maximized");
+      onBecomeMaximized?.();
+    } else {
+      setMode("minimized");
+      onBecomeMinimized?.();
     }
+  }
 
     const maximizedStyle: React.CSSProperties = position
       ? {
@@ -50,7 +69,7 @@ const PtzCamera = memo(
     return (
       <>
         {mode === "minimized" && (
-          <div className="w-full rounded-xl overflow-hidden border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
+          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
             <PtzToolbar
               name={camera.nombre}
               mode="minimized"
@@ -73,7 +92,7 @@ const PtzCamera = memo(
           createPortal(
             <div
               style={maximizedStyle}
-              className="z-9000 overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
+              className="z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
             >
               <PtzToolbar
                 name={camera.nombre}
@@ -82,6 +101,20 @@ const PtzCamera = memo(
                 onToggleFullscreen={() => setMode("fullscreen")}
                 onHide={onClose}
               />
+
+              {/* Panel de calibración */}
+              {isThisCalibrating && (
+                <CalibrationPanel
+                  cameraName={camera.nombre}
+                  result={lastResult}
+                  mode={calibrationMode}
+                  onToggleMode={toggleCalibrationMode}
+                  onCancel={() =>
+                    useCameraCalibrationStore.getState().stopCalibrating()
+                  }
+                />
+              )}
+
               <PtzVideo
                 videoRef={videoRef}
                 connectionError={connectionError}

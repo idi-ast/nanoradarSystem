@@ -8,9 +8,21 @@ import {
   IconZoomOut,
   IconBulb,
   IconDroplet,
+  IconTarget,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { ptzMove, ptzStop, ptzZoom, ptzLuz, ptzLimpiaVidrio, PTZ_SPEED_X, PTZ_SPEED_Y, ptzHome } from "../service";
+import {
+  ptzMove,
+  ptzZoom,
+  ptzLuz,
+  ptzLimpiaVidrio,
+  PTZ_SPEED_X,
+  PTZ_SPEED_Y,
+  ptzHome,
+} from "../service";
+import {
+  useCameraCalibrationStore,
+} from "../../../../../stores/cameraCalibrationStore";
 
 const BTN_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm";
@@ -21,9 +33,32 @@ const BTN_ON_CLS =
 const BTN_WIPER_ON_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-cyan-500/70 hover:bg-cyan-400/80 text-white transition-colors border border-cyan-400/50 backdrop-blur-sm";
 
+const BTN_CALIB_CLS =
+  "flex items-center justify-center w-8 h-8 rounded-md bg-amber-500/70 hover:bg-amber-400/80 text-white transition-colors border border-amber-400/50 backdrop-blur-sm animate-pulse";
+
 export function PtzControls({ ptz_id }: { ptz_id: number }) {
   const [luz, setLuz] = useState(false);
   const [limpiaVidrio, setLimpiaVidrio] = useState(false);
+
+  const calibratingCameraId = useCameraCalibrationStore(
+    (s) => s.calibratingCameraId,
+  );
+  const startCalibrating = useCameraCalibrationStore(
+    (s) => s.startCalibrating,
+  );
+  const stopCalibrating = useCameraCalibrationStore(
+    (s) => s.stopCalibrating,
+  );
+
+  const isThisCalibrating = calibratingCameraId === ptz_id;
+
+  function toggleCalibrar() {
+    if (isThisCalibrating) {
+      stopCalibrating();
+    } else {
+      startCalibrating(ptz_id, true);
+    }
+  }
 
   function toggleLuz() {
     const next = !luz;
@@ -57,6 +92,15 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
           onClick={() => ptzZoom(ptz_id, PTZ_SPEED_X)}
         >
           <IconZoomIn size={14} stroke={1.5} />
+        </button>
+
+        {/* Calibración */}
+        <button
+          className={isThisCalibrating ? BTN_CALIB_CLS : BTN_CLS}
+          title={isThisCalibrating ? "Detener calibración" : "Calibrar cámara"}
+          onClick={toggleCalibrar}
+        >
+          <IconTarget size={14} stroke={1.5} />
         </button>
 
         {/* Luz toggle */}

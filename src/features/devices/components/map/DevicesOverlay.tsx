@@ -11,6 +11,8 @@ import {
   SpotterPulseLayer,
   CameraDeviceLayers,
 } from "./devices";
+import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
+import { CameraCalibrationOverlay } from "./CameraCalibrationOverlay";
 
 export interface DeviceVisibility {
   hiddenNanoradares: Set<number>;
@@ -28,6 +30,11 @@ export const DevicesOverlay = memo(function DevicesOverlay({
   deviceFilter?: DeviceFilter;
 }) {
   const { data } = useConfigDevices();
+  const calibratingCameraId = useCameraCalibrationStore(
+    (s) => s.calibratingCameraId,
+  );
+  const lastResult = useCameraCalibrationStore((s) => s.lastResult);
+  const liveBearing = useCameraCalibrationStore((s) => s.previewBearing);
 
   if (!data?.data) return null;
 
@@ -129,7 +136,40 @@ export const DevicesOverlay = memo(function DevicesOverlay({
       {(ptz ?? [])
         .filter((p) => !visibility.hiddenPtz.has(p.id))
         .map((p) => (
-          <CameraDeviceLayers key={`ptz-${p.id}`} camera={p} />
+          <React.Fragment key={`ptz-${p.id}`}>
+            <CameraDeviceLayers camera={p} />
+            {calibratingCameraId === p.id && (
+              <CameraCalibrationOverlay
+                cameraLat={Number(p.ubicacion.lat)}
+                cameraLon={Number(p.ubicacion.lng)}
+                currentBearing={Number(p.azimut || p.grado || 0)}
+                liveBearing={liveBearing}
+                rangeM={p.radio > 0 ? p.radio : 200}
+                color={p.color || "#8207d5"}
+                result={lastResult}
+              />
+            )}
+          </React.Fragment>
+        ))}
+
+      {/* Calibración para cámaras fijas */}
+      {camaras
+        .filter((c) => !visibility.hiddenCamaras.has(c.id))
+        .map((c) => (
+          <React.Fragment key={`cam-${c.id}`}>
+            <CameraDeviceLayers camera={c} />
+            {calibratingCameraId === c.id && (
+              <CameraCalibrationOverlay
+                cameraLat={Number(c.ubicacion.lat)}
+                cameraLon={Number(c.ubicacion.lng)}
+                currentBearing={Number(c.azimut || c.grado || 0)}
+                liveBearing={liveBearing}
+                rangeM={c.radio > 0 ? c.radio : 200}
+                color={c.color || "#f59e0b"}
+                result={lastResult}
+              />
+            )}
+          </React.Fragment>
         ))}
     </>
   );

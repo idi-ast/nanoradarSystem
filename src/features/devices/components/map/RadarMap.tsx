@@ -51,6 +51,8 @@ import { createSectorCoords } from "./utils/geoHelpers";
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
+import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
+import { useCameraCalibration } from "../../hooks/useCameraCalibration";
 import { useRole } from "@/context/role";
 
 interface RadarMapProps {
@@ -198,10 +200,23 @@ export const RadarMap = memo(function RadarMap({
   } | null>(null);
   const [isPickingPosition, setIsPickingPosition] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+  console.log(mapLoaded);
+
   const [mapCenter, setMapCenter] = useState(() => ({
     lat: parseFloat(config?.latitud ?? "0"),
     lng: parseFloat(config?.longitud ?? "0"),
   }));
+
+  // ── Calibración de cámara ──
+  const { calibrate, gotoGps, setPointZero } = useCameraCalibration();
+  const calibratingCameraId = useCameraCalibrationStore(
+    (s) => s.calibratingCameraId,
+  );
+  const calibratingIsPtz = useCameraCalibrationStore(
+    (s) => s.calibratingIsPtz,
+  );
+  const calibrationMode = useCameraCalibrationStore((s) => s.mode);
+  const isCalibrating = calibratingCameraId !== null;
 
   const setCurrentViewportCenter = useTargetVisualStore((s) => s.setCurrentViewportCenter);
   const setCurrentViewportZoom = useTargetVisualStore((s) => s.setCurrentViewportZoom);
@@ -394,6 +409,37 @@ export const RadarMap = memo(function RadarMap({
 
   const handleMapClick = useCallback(
     (e: MapLayerMouseEvent) => {
+      // ── Modo calibración: prioridad máxima ──
+      if (isCalibrating && calibratingCameraId !== null) {
+        if (!calibratingIsPtz) {
+          // Cámaras fijas: solo vista previa (no pueden girar)
+          calibrate(
+            calibratingCameraId,
+            false,
+            e.lngLat.lat,
+            e.lngLat.lng,
+          );
+          return;
+        }
+
+        if (calibrationMode === "setPointZero") {
+          // Fijar el punto 0 (azimut) en el punto clickeado
+          setPointZero(
+            calibratingCameraId,
+            e.lngLat.lat,
+            e.lngLat.lng,
+          );
+        } else {
+          // Giro: la cámara apunta físicamente al punto clickeado
+          gotoGps(
+            calibratingCameraId,
+            e.lngLat.lat,
+            e.lngLat.lng,
+          );
+        }
+        return;
+      }
+
       if (isDrawing) {
         addDrawingPoint(e.lngLat.lat, e.lngLat.lng);
         return;
@@ -415,7 +461,18 @@ export const RadarMap = memo(function RadarMap({
         setSelectedTargetId(null);
       }
     },
-    [isDrawing, addDrawingPoint, isPickingPosition],
+    [
+      isCalibrating,
+      calibratingCameraId,
+      calibratingIsPtz,
+      calibrationMode,
+      calibrate,
+      gotoGps,
+      setPointZero,
+      isDrawing,
+      addDrawingPoint,
+      isPickingPosition,
+    ],
   );
 
 
@@ -459,7 +516,15 @@ export const RadarMap = memo(function RadarMap({
           onMoveEnd={handleMoveEnd}
           onLoad={() => setMapLoaded(true)}
           cursor={
-            isDrawing ? "crosshair" : isPickingPosition ? "crosshair" : editingDevice ? "default" : undefined
+            isCalibrating
+              ? "crosshair"
+              : isDrawing
+                ? "crosshair"
+                : isPickingPosition
+                  ? "crosshair"
+                  : editingDevice
+                    ? "default"
+                    : undefined
           }
           scrollZoom={!editingDevice || isPickingPosition}
           dragPan={!editingDevice || isPickingPosition}
@@ -607,11 +672,6 @@ export const RadarMap = memo(function RadarMap({
       <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
         <MapPanelProvider>
           <div className="flex flex-col gap-1 p-2 ">
-            <ZonesPanel />
-            <MagosCategoryFilter
-              hiddenCategories={hiddenCategories}
-              onChange={setHiddenCategories}
-            />
             {(isSuperAdmin || isAdmin) && <DeviceSelector
               visibility={effectiveVisibility}
               onChange={handleVisibilityChange}
@@ -634,8 +694,14 @@ export const RadarMap = memo(function RadarMap({
               onPickPosition={() => setIsPickingPosition(true)}
               onCancelPickPosition={() => setIsPickingPosition(false)}
             />}
+            <ZonesPanel />
+            <MagosCategoryFilter
+              hiddenCategories={hiddenCategories}
+              onChange={setHiddenCategories}
+            />
+
             <div className="flex justify-center items-center flex-1">
-              <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-emerald-300/70 font-light uppercase">
+              <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-text-200 font-light uppercase">
                 Configuraciones de dispositivos
               </span>
             </div>

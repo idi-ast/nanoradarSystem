@@ -53,6 +53,13 @@ export type MagosradarPayload = Pick<
   modo_operacion?: string | null;
   sensibilidad?: number | null;
   persistencia?: number | null;
+
+  // ── Toggle sin filtro ──
+  sinFiltro?: number | null;
+
+  // ── Cola/buffer de tracks ──
+  bufferActivo?: number | null;
+  bufferIntervalo?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

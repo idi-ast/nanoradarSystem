@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings } from "@tabler/icons-react";
+import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff, IconStack } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
 import type {
@@ -1174,12 +1174,32 @@ function PtzForm({
       />
       <div className="grid grid-cols-2 gap-2">
         <TextField label="Altitud (msnm)" value={form.altitud} onChange={(v) => set("altitud", v)} />
-        <TextField label="Azimut" value={form.azimut} onChange={(v) => set("azimut", v)} />
+        <TextField
+          label="Azimut (punto 0)"
+          value={form.azimut}
+          onChange={(v) => {
+            set("azimut", v);
+            // Mantener el cono visual (grado) sincronizado con el azimut
+            const g = Math.round(Number(v) || 0) % 360;
+            onLiveEditChange({ ...liveEdit, grado: g });
+          }}
+        />
       </div>
 
       {/* ── Cobertura ── */}
       <div className="grid grid-cols-1 gap-2">
-        <RangeNumberField label="Grado" value={liveEdit.grado} onChange={(v) => onLiveEditChange({ ...liveEdit, grado: v })} min={0} max={360} unit="°" />
+        <RangeNumberField
+          label="Grado"
+          value={liveEdit.grado}
+          onChange={(v) => {
+            onLiveEditChange({ ...liveEdit, grado: v });
+            // Mantener el azimut (punto 0) sincronizado con el cono visual
+            set("azimut", String(v));
+          }}
+          min={0}
+          max={360}
+          unit="°"
+        />
         <RangeNumberField label="Apertura" value={liveEdit.apertura} onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })} min={1} max={180} unit="°" />
       </div>
       <RangeNumberField label="Radio" value={liveEdit.radio} onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })} min={0} max={10000} step={50} unit="m" />
@@ -1345,6 +1365,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     modo_operacion: device.modo_operacion ?? "personalizado",
     sensibilidad: n(device.sensibilidad ?? 3),
     persistencia: n(device.persistencia ?? 3),
+    // ── Toggle sin filtro ──
+    sinFiltro: device.sinFiltro ? "1" : "0",
+    // ── Cola/buffer de tracks ──
+    bufferActivo: device.bufferActivo != null ? String(device.bufferActivo) : "1",
+    bufferIntervalo: n(device.bufferIntervalo ?? 3),
     _showAdvanced: "0",
   });
 
@@ -1540,6 +1565,11 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           modo_operacion: form.modo_operacion || null,
           sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
           persistencia: form.persistencia === "" ? null : Number(form.persistencia),
+          // ── Toggle sin filtro ──
+          sinFiltro: form.sinFiltro === "1" ? 1 : 0,
+          // ── Cola/buffer de tracks ──
+          bufferActivo: form.bufferActivo === "1" ? 1 : 0,
+          bufferIntervalo: form.bufferIntervalo === "" ? null : Number(form.bufferIntervalo),
         },
       },
       {
@@ -1553,7 +1583,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
 
   return (
     <>
-      <div className="relative flex flex-col min-w-120 -top-30 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative flex flex-col min-w-120 top-0 max-h-[calc(100vh-6rem)] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0">
           <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
             MagosRadar · Avanzado
@@ -1718,6 +1748,76 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 <input type="range" min={1} max={5} value={form.persistencia ?? 3} onChange={(e) => set("persistencia", e.target.value)}
                   className="w-full accent-cyan-400 cursor-pointer" style={{height:"3px"}} />
               </div>
+            </div>
+
+            {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
+            <div className={`mt-2 flex items-center justify-between gap-2 rounded-md px-2 py-1.5 border transition-colors ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}>
+              <div className="flex items-center gap-1.5">
+                {form.sinFiltro === "1" ? (
+                  <IconFilterOff size={13} className="text-rose-400 shrink-0" />
+                ) : (
+                  <IconFilter size={13} className="text-text-100/60 shrink-0" />
+                )}
+                <div className="leading-tight">
+                  <span className="text-[10px] font-semibold text-text-100/80">Ver tracks sin filtros</span>
+                  <p className="text-[8px] text-text-200/60 italic">Detecciones crudas post-procesadas (sin SNR, RCS, clustering ni tracking)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.sinFiltro === "1"}
+                onClick={() => set("sinFiltro", form.sinFiltro === "1" ? "0" : "1")}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.sinFiltro === "1" ? "bg-rose-500" : "bg-bg-300"}`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.sinFiltro === "1" ? "translate-x-4" : "translate-x-0"}`}
+                />
+              </button>
+            </div>
+
+            {/* ═══ TOGGLE: COLA DE TRACKS (BUFFER) ═══ */}
+            <div className={`mt-2 rounded-md px-2 py-1.5 border transition-colors ${form.bufferActivo === "1" ? "bg-emerald-500/10 border-emerald-500/30" : "bg-bg-100/40 border-border/40"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <IconStack size={13} className={form.bufferActivo === "1" ? "text-emerald-400 shrink-0" : "text-text-100/60 shrink-0"} />
+                  <div className="leading-tight">
+                    <span className="text-[10px] font-semibold text-text-100/80">Cola de tracks (buffer)</span>
+                    <p className="text-[8px] text-text-200/60 italic">Agrupa los tracks y los envía en bloques cada cierto tiempo</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.bufferActivo === "1"}
+                  onClick={() => set("bufferActivo", form.bufferActivo === "1" ? "0" : "1")}
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.bufferActivo === "1" ? "bg-emerald-500" : "bg-bg-300"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.bufferActivo === "1" ? "translate-x-4" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+
+              {form.bufferActivo === "1" ? (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="text-[8px] text-text-100/50">Tiempo de cola (s):</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    max={60}
+                    step={0.5}
+                    value={form.bufferIntervalo}
+                    onChange={(e) => set("bufferIntervalo", e.target.value)}
+                    className="w-16 rounded border border-border bg-bg-100 text-text-100 px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                  <span className="text-[8px] text-text-200/50 italic">segundos</span>
+                </div>
+              ) : (
+                <p className="mt-1 text-[8px] text-text-200/50 italic">
+                  Cola desactivada: tracks se envían inmediatamente, sin agrupar.
+                </p>
+              )}
             </div>
           </div>
 

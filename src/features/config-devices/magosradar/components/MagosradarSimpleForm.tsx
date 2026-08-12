@@ -9,7 +9,7 @@
  * Incluye toggle "Avanzado" que muestra todos los parámetros.
  */
 import { useState, useEffect, useCallback } from "react";
-import { IconShield, IconEye, IconClock, IconSettings } from "@tabler/icons-react";
+import { IconShield, IconEye, IconClock, IconSettings, IconFilterOff, IconFilter, IconStack } from "@tabler/icons-react";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +36,13 @@ export interface SimpleMagosradarFormData {
   modo_operacion: string;
   sensibilidad: number;
   persistencia: number;
+
+  // Toggle "sin filtro" (ver tracks crudos post-procesados)
+  sinFiltro?: number | null;
+
+  // Cola/buffer de tracks
+  bufferActivo?: number | null;
+  bufferIntervalo?: number | null;
 
   // Avanzados (solo si modo = "personalizado" y toggle activado)
   rcs?: number | null;
@@ -206,6 +213,9 @@ export function MagosradarSimpleForm({
     modo_operacion: initialData?.modo_operacion ?? "personalizado",
     sensibilidad: initialData?.sensibilidad ?? 3,
     persistencia: initialData?.persistencia ?? 3,
+    sinFiltro: initialData?.sinFiltro ?? 0,
+    bufferActivo: initialData?.bufferActivo ?? 1,
+    bufferIntervalo: initialData?.bufferIntervalo ?? 3,
     // Avanzados
     rcs: initialData?.rcs ?? null,
     snr: initialData?.snr ?? null,
@@ -306,6 +316,9 @@ export function MagosradarSimpleForm({
       azimut: String(form.azimut),
       sensibilidad: Number(form.sensibilidad),
       persistencia: Number(form.persistencia),
+      sinFiltro: form.sinFiltro ? 1 : 0,
+      bufferActivo: form.bufferActivo ? 1 : 0,
+      bufferIntervalo: Number(form.bufferIntervalo) || 3,
     };
 
     // Si no es personalizado, no enviar params avanzados
@@ -477,6 +490,102 @@ export function MagosradarSimpleForm({
         <p className="text-[10px] text-cyan-300/60 mt-1 italic">
           {PERSISTENCIA_LABELS[form.persistencia] ?? ""}
         </p>
+      </div>
+
+      {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
+      <div className={`rounded-lg p-3 border transition-colors ${form.sinFiltro ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-200/30 border-border/40"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {form.sinFiltro ? (
+              <IconFilterOff size={16} className="text-rose-400" />
+            ) : (
+              <IconFilter size={16} className="text-text-100/60" />
+            )}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-text-100/80">
+                Ver tracks sin filtros
+              </Label>
+              <p className="text-[10px] text-text-200/60 italic">
+                Muestra las detecciones crudas post-procesadas (sin SNR, RCS, clustering ni tracking)
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!form.sinFiltro}
+            onClick={() => setForm((prev) => ({ ...prev, sinFiltro: prev.sinFiltro ? 0 : 1 }))}
+            className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+              form.sinFiltro ? "bg-rose-500" : "bg-bg-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                form.sinFiltro ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ TOGGLE: COLA DE TRACKS (BUFFER) ═══ */}
+      <div className={`rounded-lg p-3 border transition-colors ${form.bufferActivo ? "bg-emerald-500/10 border-emerald-500/30" : "bg-bg-200/30 border-border/40"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <IconStack size={16} className={form.bufferActivo ? "text-emerald-400" : "text-text-100/60"} />
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-text-100/80">
+                Cola de tracks (buffer)
+              </Label>
+              <p className="text-[10px] text-text-200/60 italic">
+                Agrupa los tracks en el backend y los envía en bloques cada cierto tiempo
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!form.bufferActivo}
+            onClick={() => setForm((prev) => ({ ...prev, bufferActivo: prev.bufferActivo ? 0 : 1 }))}
+            className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+              form.bufferActivo ? "bg-emerald-500" : "bg-bg-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                form.bufferActivo ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Tiempo de la cola */}
+        {form.bufferActivo ? (
+          <div className="mt-2 flex items-center gap-2">
+            <Label htmlFor="bufferIntervalo" className="text-[10px] text-text-100/70 shrink-0">
+              Tiempo de cola (s):
+            </Label>
+            <input
+              id="bufferIntervalo"
+              type="number"
+              min={0.5}
+              max={60}
+              step={0.5}
+              value={form.bufferIntervalo ?? 3}
+              onChange={(e) => setForm((prev) => ({ ...prev, bufferIntervalo: Number(e.target.value) || 3 }))}
+              className="w-20 rounded-md border border-border bg-bg-100 text-text-100 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition"
+            />
+            <span className="text-[10px] text-text-200/60 italic">segundos antes de enviar</span>
+          </div>
+        ) : (
+          <p className="mt-2 text-[10px] text-text-200/60 italic">
+            Cola desactivada: los tracks se envían inmediatamente, sin agrupar.
+          </p>
+        )}
       </div>
 
       {/* ═══ PREVISUALIZACIÓN DE PARÁMETROS (no personalizado) ═══ */}
