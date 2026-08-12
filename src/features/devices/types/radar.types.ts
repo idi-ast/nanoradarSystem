@@ -37,10 +37,6 @@ export interface RadarTarget {
   isStationary?: boolean;
   /** Intensidad del track (0-1) según largo de cola (magosRadar) */
   trackIntensity?: number;
-  /** ID de categoría asignada por el backend (magosRadar) */
-  categoria?: number;
-  /** Nombre legible de la categoría (magosRadar) */
-  categoriaNombre?: string;
 }
 
 export interface TiposAlertas {
@@ -152,8 +148,6 @@ export interface MagosRadarPosition {
   snr: number;
   zona: string;
   nivel: number;
-  /** ID de categoría asignada por el backend */
-  categoria?: number;
   /** Timestamp Unix en segundos */
   ts: number;
 }
@@ -161,12 +155,8 @@ export interface MagosRadarPosition {
 /** Track agrupado de MagosRadar con su historial de posiciones (nuevo formato del WebSocket) */
 export interface MagosRadarTrack {
   trackId: number;
-  /** ID de categoría del track (0=Desconocido, 1=Persona, 2=Bicicleta, 3=Moto, 4=Auto, 5=Camión, 6=Animal) */
-  categoria?: number;
-  /** Nombre legible de la categoría */
-  categoriaNombre?: string;
-  /** Color asignado por el backend según la categoría */
-  categoriaColor?: string;
+  /** Color estable asignado por el backend al track */
+  trackColor?: string;
   positions: MagosRadarPosition[];
 }
 

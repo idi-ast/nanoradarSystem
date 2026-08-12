@@ -14,26 +14,7 @@ export type MagosradarPayload = Pick<
   | "apertura"
   | "color"
 > & {
-  // Tracking (opcional)
-  rcs?: number | null;
-  snr?: number | null;
-  speed?: number | null;
-  maxSpeed?: number | null;
-  heading?: number | null;
   trackColor?: string | null;
-  minTrackPoints?: number | null;
-  associationDist?: number | null;
-  ttl?: number | null;
-  coastTtl?: number | null;
-  stationaryTtl?: number | null;
-  emaSmooth?: number | null;
-  velSmooth?: number | null;
-  maxDetections?: number | null;
-  clusterDist?: number | null;
-
-  // Scoring / Confianza (opcional)
-  minConfidence?: number | null;
-  confidenceWindow?: number | null;
 
   // Metadatos (opcional)
   enabled?: number | null;
@@ -49,17 +30,8 @@ export type MagosradarPayload = Pick<
   confidence?: number | null;
   isStationary?: boolean | null;
 
-  // ── Macro-parámetros ──
-  modo_operacion?: string | null;
-  sensibilidad?: number | null;
-  persistencia?: number | null;
-
   // ── Toggle sin filtro ──
   sinFiltro?: number | null;
-
-  // ── Cola/buffer de tracks ──
-  bufferActivo?: number | null;
-  bufferIntervalo?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

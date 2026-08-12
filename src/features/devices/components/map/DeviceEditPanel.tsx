@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff, IconStack } from "@tabler/icons-react";
+import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
 import type {
@@ -9,15 +8,11 @@ import type {
   Spotters,
   Camaras,
   Ptz,
-  PerfilMagos,
 } from "@/features/config-devices/types/ConfigServices.type";
 import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
 import { useUpdateMagosradar, useDeleteMagosradar } from "@/features/config-devices/magosradar/hooks/useUpdateMagosradar";
 import type { MagosradarPayload } from "@/features/config-devices/magosradar/service";
-import { useCreatePerfilMagos } from "@/features/config-devices/magosradar/hooks/usePerfilMagos";
-import { useMagosradarProfiles, findProfileById } from "@/features/config-devices/magosradar/config/magosradarProfiles";
-import { GestionarPerfilesModal } from "@/features/config-devices/magosradar/components/GestionarPerfilesModal";
 import { useUpdateSpotter, useDeleteSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
 import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
@@ -1337,19 +1332,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   const { success, error: showError } = useToast();
 
   const [form, setForm] = useState<Record<string, string>>({
-    rcs: n(device.rcs),
-    snr: n(device.snr),
-    speed: n(device.speed),
-    heading: n(device.heading),
     trackColor: device.trackColor ?? "",
-    minTrackPoints: n(device.minTrackPoints),
-    associationDist: n(device.associationDist),
-    ttl: n(device.ttl),
-    coastTtl: n(device.coastTtl),
-    emaSmooth: n(device.emaSmooth),
-    velSmooth: n(device.velSmooth),
-    maxDetections: n(device.maxDetections),
-    clusterDist: n(device.clusterDist),
     enabled: n(device.enabled),
     modelo: device.modelo ?? "",
     frecuencia: n(device.frecuencia),
@@ -1357,20 +1340,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     elevacion: n(device.elevacion),
     altitud: n(device.altitud),
     notas: device.notas ?? "",
-    maxSpeed: n(device.maxSpeed),
-    stationaryTtl: n(device.stationaryTtl),
-    minConfidence: n(device.minConfidence),
-    confidenceWindow: n(device.confidenceWindow),
-    // ── Macro-parámetros ──
-    modo_operacion: device.modo_operacion ?? "personalizado",
-    sensibilidad: n(device.sensibilidad ?? 3),
-    persistencia: n(device.persistencia ?? 3),
     // ── Toggle sin filtro ──
     sinFiltro: device.sinFiltro ? "1" : "0",
-    // ── Cola/buffer de tracks ──
-    bufferActivo: device.bufferActivo != null ? String(device.bufferActivo) : "1",
-    bufferIntervalo: n(device.bufferIntervalo ?? 3),
-    _showAdvanced: "0",
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1421,155 +1392,26 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     }
   }
 
-  const storageKey = `magos-profile-${device.id}`;
-  const [selectedProfileId, setSelectedProfileId] = useState(() => {
-    try { return localStorage.getItem(storageKey) ?? "custom"; } catch { return "custom"; }
-  });
-  const [appliedProfileId, setAppliedProfileId] = useState<string | null>(() => {
-    try { return localStorage.getItem(storageKey); } catch { return null; }
-  });
 
-  // Persistir perfil seleccionado en localStorage
-  useEffect(() => {
-    try {
-      if (selectedProfileId === "custom") {
-        localStorage.removeItem(storageKey);
-      } else {
-        localStorage.setItem(storageKey, selectedProfileId);
-      }
-    } catch { /* ignore */ }
-  }, [selectedProfileId, storageKey]);
-  const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
-  const { mutate: createProfile } = useCreatePerfilMagos();
-  const [profileModal, setProfileModal] = useState<{ open: true; perfil?: PerfilMagos } | { open: false }>({ open: false });
-  const [saveDialog, setSaveDialog] = useState<{ open: boolean }>({ open: false });
-  const [newProfileName, setNewProfileName] = useState("");
-  const [newProfileDesc, setNewProfileDesc] = useState("");
-
-  function handleProfileChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const profileId = e.target.value;
-    setSelectedProfileId(profileId);
-    if (profileId === "custom") {
-      setAppliedProfileId(null);
-      return;
-    }
-    const profile = findProfileById(MAGOSRADAR_PROFILES, profileId);
-    if (!profile) return;
-    const v = profile.values;
-    setForm((prev) => ({
-      ...prev,
-      rcs: v.rcs != null ? String(v.rcs) : "",
-      snr: v.snr != null ? String(v.snr) : "",
-      speed: v.speed != null ? String(v.speed) : "",
-      heading: v.heading != null ? String(v.heading) : "",
-      trackColor: v.trackColor ?? "",
-      minTrackPoints: v.minTrackPoints != null ? String(v.minTrackPoints) : "",
-      associationDist: v.associationDist != null ? String(v.associationDist) : "",
-      ttl: v.ttl != null ? String(v.ttl) : "",
-      coastTtl: v.coastTtl != null ? String(v.coastTtl) : "",
-      emaSmooth: v.emaSmooth != null ? String(v.emaSmooth) : "",
-      velSmooth: v.velSmooth != null ? String(v.velSmooth) : "",
-      maxDetections: v.maxDetections != null ? String(v.maxDetections) : "",
-      clusterDist: v.clusterDist != null ? String(v.clusterDist) : "",
-      frecuencia: v.frecuencia != null ? String(v.frecuencia) : "",
-      potencia: v.potencia != null ? String(v.potencia) : "",
-      elevacion: v.elevacion != null ? String(v.elevacion) : "",
-      altitud: v.altitud != null ? String(v.altitud) : "",
-      modo_operacion: v.modo_operacion ?? "personalizado",
-      sensibilidad: v.sensibilidad != null ? String(v.sensibilidad) : "3",
-      persistencia: v.persistencia != null ? String(v.persistencia) : "3",
-    }));
-    setAppliedProfileId(profileId);
-    // Guardar en BD
-    mutate(
-      {
-        id: device.id,
-        payload: {
-          rcs: v.rcs ?? null,
-          snr: v.snr ?? null,
-          speed: v.speed ?? null,
-          heading: v.heading ?? null,
-          trackColor: v.trackColor ?? null,
-          minTrackPoints: v.minTrackPoints ?? null,
-          associationDist: v.associationDist ?? null,
-          ttl: v.ttl ?? null,
-          coastTtl: v.coastTtl ?? null,
-          emaSmooth: v.emaSmooth ?? null,
-          velSmooth: v.velSmooth ?? null,
-          maxDetections: v.maxDetections ?? null,
-          clusterDist: v.clusterDist ?? null,
-          frecuencia: v.frecuencia ?? null,
-          potencia: v.potencia ?? null,
-          elevacion: v.elevacion ?? null,
-          altitud: v.altitud ?? null,
-          maxSpeed: v.maxSpeed ?? null,
-          stationaryTtl: v.stationaryTtl ?? null,
-          minConfidence: v.minConfidence ?? null,
-          confidenceWindow: v.confidenceWindow ?? null,
-          modo_operacion: v.modo_operacion ?? null,
-          sensibilidad: v.sensibilidad ?? null,
-          persistencia: v.persistencia ?? null,
-        },
-      },
-      {
-        onSuccess: () => success(`Perfil "${profile.name}" aplicado`),
-        onError: (err) => showError(err instanceof Error ? err.message : "Error al aplicar perfil"),
-      },
-    );
-  }
 
   function set(k: string, v: string) {
-    // Si hay un perfil aplicado y se cambia algún campo → volver a Personalizado
-    if (appliedProfileId !== null && selectedProfileId !== "custom") {
-      setSelectedProfileId("custom");
-      setAppliedProfileId(null);
-    }
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function save() {
-    // Si el modo NO es personalizado, el backend recalcula los micro-params
-    // automáticamente. Enviamos null para que la traducción sea la fuente de verdad.
-    const esPreset = (form.modo_operacion ?? "personalizado") !== "personalizado";
-
     mutate(
       {
         id: device.id,
         payload: {
-          // ── Micro-parámetros: solo si modo personalizado ──
-          rcs: esPreset ? null : nn(form.rcs),
-          snr: esPreset ? null : nn(form.snr),
-          speed: esPreset ? null : nn(form.speed),
-          heading: esPreset ? null : nn(form.heading),
           trackColor: form.trackColor || null,
-          minTrackPoints: esPreset ? null : (form.minTrackPoints === "" ? null : Number(form.minTrackPoints)),
-          associationDist: esPreset ? null : nn(form.associationDist),
-          ttl: esPreset ? null : nn(form.ttl),
-          coastTtl: esPreset ? null : nn(form.coastTtl),
-          emaSmooth: esPreset ? null : nn(form.emaSmooth),
-          velSmooth: esPreset ? null : nn(form.velSmooth),
-          maxDetections: esPreset ? null : (form.maxDetections === "" ? null : Number(form.maxDetections)),
-          clusterDist: esPreset ? null : nn(form.clusterDist),
           enabled: form.enabled === "" ? null : Number(form.enabled),
           modelo: form.modelo || null,
-          frecuencia: esPreset ? null : nn(form.frecuencia),
-          potencia: esPreset ? null : nn(form.potencia),
-          elevacion: esPreset ? null : nn(form.elevacion),
-          altitud: esPreset ? null : nn(form.altitud),
+          frecuencia: nn(form.frecuencia),
+          potencia: nn(form.potencia),
+          elevacion: nn(form.elevacion),
+          altitud: nn(form.altitud),
           notas: form.notas || null,
-          maxSpeed: esPreset ? null : nn(form.maxSpeed),
-          stationaryTtl: esPreset ? null : nn(form.stationaryTtl),
-          minConfidence: esPreset ? null : nn(form.minConfidence),
-          confidenceWindow: esPreset ? null : (form.confidenceWindow === "" ? null : Number(form.confidenceWindow)),
-          // ── Macro-parámetros (siempre) ──
-          modo_operacion: form.modo_operacion || null,
-          sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
-          persistencia: form.persistencia === "" ? null : Number(form.persistencia),
-          // ── Toggle sin filtro ──
           sinFiltro: form.sinFiltro === "1" ? 1 : 0,
-          // ── Cola/buffer de tracks ──
-          bufferActivo: form.bufferActivo === "1" ? 1 : 0,
-          bufferIntervalo: form.bufferIntervalo === "" ? null : Number(form.bufferIntervalo),
         },
       },
       {
@@ -1589,36 +1431,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             MagosRadar · Avanzado
           </span>
           <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
-        </div>
-
-        <div className="px-3 py-2 border-b border-border/40">
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-semibold uppercase tracking-widest text-white/60 block">
-              Perfil de configuración
-            </label>
-            <button
-              type="button"
-              onClick={() => setProfileModal({ open: true })}
-              className="text-xs text-text-200 hover:text-brand-200 transition flex items-center gap-0.5"
-            >
-              <IconSettings size={13} stroke={1.5} />
-              Gestionar
-            </button>
-          </div>
-          <select
-            value={selectedProfileId}
-            onChange={handleProfileChange}
-            className="w-full rounded-lg border border-border bg-bg-100 text-text-100 px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
-          >
-            {MAGOSRADAR_PROFILES.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          {selectedProfileId !== "custom" && (
-            <p className="text-[10px] text-text-200/70 italic mt-1">Ajustes del perfil aplicados</p>
-          )}
         </div>
 
         {/* Scrollable content */}
@@ -1717,41 +1529,27 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
               info="Potencia de transmisión del hardware. Solo informativo." />
           </div>
 
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2">
-            Tracking
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-5">
+            Visualización
           </p>
-
-          {/* ═══ MACRO-PARÁMETROS (simplificado) ═══ */}
-          <div className="bg-bg-200/30 rounded-lg p-2 border border-brand-200/20 mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[9px] font-semibold text-brand-200/70 uppercase tracking-widest">Modo de operación</span>
+          {/* trackColor — input texto + color picker */}
+          <div className="flex flex-col gap-1 mb-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
+              <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
             </div>
-            <select
-              value={form.modo_operacion ?? "personalizado"}
-              onChange={(e) => set("modo_operacion", e.target.value)}
-              className="w-full rounded-md border border-border bg-bg-100 text-text-100 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-brand-200/50 transition mb-2"
-            >
-              <option value="urbano"> Urbano</option>
-              <option value="carretera"> Carretera</option>
-              <option value="industrial"> Industrial</option>
-              <option value="maritimo"> Marítimo</option>
-              <option value="personalizado"> Personalizado</option>
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-100/40">Sensibilidad: {form.sensibilidad ?? 3}/5</span>
-                <input type="range" min={1} max={5} value={form.sensibilidad ?? 3} onChange={(e) => set("sensibilidad", e.target.value)}
-                  className="w-full accent-amber-400 cursor-pointer" style={{height:"3px"}} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-100/40">Persistencia: {form.persistencia ?? 3}/5</span>
-                <input type="range" min={1} max={5} value={form.persistencia ?? 3} onChange={(e) => set("persistencia", e.target.value)}
-                  className="w-full accent-cyan-400 cursor-pointer" style={{height:"3px"}} />
-              </div>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
+                className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
+              <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
+                placeholder="#00e5ff"
+                className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
             </div>
+          </div>
 
-            {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
-            <div className={`mt-2 flex items-center justify-between gap-2 rounded-md px-2 py-1.5 border transition-colors ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}>
+          {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
+          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-3 ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}>
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 {form.sinFiltro === "1" ? (
                   <IconFilterOff size={13} className="text-rose-400 shrink-0" />
@@ -1775,126 +1573,15 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 />
               </button>
             </div>
-
-            {/* ═══ TOGGLE: COLA DE TRACKS (BUFFER) ═══ */}
-            <div className={`mt-2 rounded-md px-2 py-1.5 border transition-colors ${form.bufferActivo === "1" ? "bg-emerald-500/10 border-emerald-500/30" : "bg-bg-100/40 border-border/40"}`}>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <IconStack size={13} className={form.bufferActivo === "1" ? "text-emerald-400 shrink-0" : "text-text-100/60 shrink-0"} />
-                  <div className="leading-tight">
-                    <span className="text-[10px] font-semibold text-text-100/80">Cola de tracks (buffer)</span>
-                    <p className="text-[8px] text-text-200/60 italic">Agrupa los tracks y los envía en bloques cada cierto tiempo</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={form.bufferActivo === "1"}
-                  onClick={() => set("bufferActivo", form.bufferActivo === "1" ? "0" : "1")}
-                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.bufferActivo === "1" ? "bg-emerald-500" : "bg-bg-300"}`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.bufferActivo === "1" ? "translate-x-4" : "translate-x-0"}`}
-                  />
-                </button>
-              </div>
-
-              {form.bufferActivo === "1" ? (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-[8px] text-text-100/50">Tiempo de cola (s):</span>
-                  <input
-                    type="number"
-                    min={0.5}
-                    max={60}
-                    step={0.5}
-                    value={form.bufferIntervalo}
-                    onChange={(e) => set("bufferIntervalo", e.target.value)}
-                    className="w-16 rounded border border-border bg-bg-100 text-text-100 px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-                  />
-                  <span className="text-[8px] text-text-200/50 italic">segundos</span>
-                </div>
-              ) : (
-                <p className="mt-1 text-[8px] text-text-200/50 italic">
-                  Cola desactivada: tracks se envían inmediatamente, sin agrupar.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ═══ TOGGLE AVANZADO ═══ */}
-          <button
-            type="button"
-            onClick={() => set("_showAdvanced", form._showAdvanced === "1" ? "0" : "1")}
-            className="text-[9px] text-text-200/60 hover:text-brand-200/80 transition-colors mb-2 flex items-center gap-1"
-          >
-            <IconSettings size={11} />
-            {form._showAdvanced === "1" ? "Ocultar opciones avanzadas" : "Mostrar opciones avanzadas"}
-          </button>
-
-          {(form._showAdvanced === "1" || (form.modo_operacion ?? "personalizado") === "personalizado") && (
-          <>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-3">
-            {/* trackColor — input texto + color picker */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
-                <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
-                  className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
-                <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
-                  placeholder="#00e5ff"
-                  className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
-              </div>
-            </div>
-
-            <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
-              info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan. A mayor valor, menos detecciones pero más nítidas." />
-            <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0.01} max={100} step={0.1} unit="m²"
-              info="Tamaño estimado del blanco radar. Persona ≈ 0.5–1 m², auto ≈ 5–10 m²." />
-            <SliderField label="Vel. máx" value={form.speed} onChange={(v) => set("speed", v)} min={1} max={150} step={1} unit="m/s"
-              info="Velocidad máxima para propagación por inercia (coasting). 55 m/s ≈ 200 km/h." />
-            <SliderField label="Rumbo ref." value={form.heading} onChange={(v) => set("heading", v)} min={0} max={360} step={1} unit="°"
-              info="Rumbo geográfico de referencia del radar (0=N, 90=E, 180=S, 270=W)." />
-            <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
-              info="Detecciones consecutivas necesarias para confirmar un track (tentative → confirmed)." />
-            <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
-              info="Distancia máxima para asignar una detección a un track existente." />
-            <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
-              info="Segundos sin detección antes de eliminar un track confirmado." />
-            <SliderField label="TTL coasting" value={form.coastTtl} onChange={(v) => set("coastTtl", v)} min={0.5} max={15} step={0.5} unit="seg"
-              info="Tiempo que un track puede seguir moviéndose por inercia (predicción) sin detecciones." />
-            <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
-              info="Factor EMA para suavizar posición del track. Mayor = más reactivo pero titila." />
-            <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
-              info="Factor EMA para suavizar velocidad del track. Mayor = más reactivo pero menos estable." />
-            <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
-              info="Máximo de detecciones por mensaje que se pasan al tracker." />
-            <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
-              info="Distancia para agrupar detecciones cercanas y quedarse con la de mejor SNR." />
-          </div>
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
-            Velocidad & Tiempo
-          </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
-            <SliderField label="Vel. máx escenario" value={form.maxSpeed} onChange={(v) => set("maxSpeed", v)} min={1} max={200} step={1} unit="m/s"
-              info="Velocidad máxima esperada en el escenario. Usado para filtrar detecciones y calcular confianza." />
-            <SliderField label="TTL detenido" value={form.stationaryTtl} onChange={(v) => set("stationaryTtl", v)} min={1} max={120} step={1} unit="seg"
-              info="TTL extendido para objetos detectados como detenidos (isStationary). Mantiene el track visible más tiempo." />
           </div>
 
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
-            Scoring & Confianza
+            Tracking
           </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3 mb-5">
-            <SliderField label="Confianza mín." value={form.minConfidence} onChange={(v) => set("minConfidence", v)} min={0} max={100} step={1} unit="%"
-              info="Confianza mínima (0-100) para mostrar un track en el mapa. Por debajo de este umbral se oculta." />
-            <SliderField label="Ventana confianza" value={form.confidenceWindow} onChange={(v) => set("confidenceWindow", v)} min={1} max={50} step={1}
-              info="Número de puntos recientes del track que se evalúan para calcular la confianza promedio." />
-          </div>
-          </>
-          )}
+          <p className="text-[9px] text-text-200/40 italic">
+            El tracking usa parámetros fijos del sistema (no configurables).
+          </p>
+
         </div>
 
         <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
@@ -1906,115 +1593,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             <IconDeviceFloppy size={13} />
             {isPending ? "Guardando..." : "Guardar avanzados"}
           </button>
-          <button
-            onClick={() => {
-              setNewProfileName("");
-              setNewProfileDesc("");
-              setSaveDialog({ open: true });
-            }}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold  hover:bg-brand-200/25 text-text-100 transition-colors"
-          >
-            <IconSettings size={13} />
-            Guardar como perfil
-          </button>
         </div>
       </div>
-
-      {saveDialog.open && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setSaveDialog({ open: false })}
-        >
-          <div className="bg-bg-200 border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h3 className="text-sm font-semibold text-text-100">Guardar como perfil</h3>
-              <button onClick={() => setSaveDialog({ open: false })} className="text-text-200 hover:text-text-100 transition">
-                <IconX size={16} />
-              </button>
-            </div>
-            <div className="p-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-text-100/70 font-semibold uppercase tracking-wider">Nombre</label>
-                <input
-                  value={newProfileName}
-                  onChange={(e) => setNewProfileName(e.target.value)}
-                  placeholder="Ej: Configuración costera"
-                  className="w-full rounded-lg border border-border bg-bg-100 text-text-100 placeholder-text-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-text-100/70 font-semibold uppercase tracking-wider">Descripción</label>
-                <input
-                  value={newProfileDesc}
-                  onChange={(e) => setNewProfileDesc(e.target.value)}
-                  placeholder="Opcional: describa el escenario de uso"
-                  className="w-full rounded-lg border border-border bg-bg-100 text-text-100 placeholder-text-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200/50 transition"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  onClick={() => setSaveDialog({ open: false })}
-                  className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-bg-400/50 hover:bg-bg-400/70 text-text-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    if (!newProfileName.trim()) return;
-                    createProfile(
-                      {
-                        nombre: newProfileName.trim(),
-                        descripcion: newProfileDesc.trim(),
-                        snr: nn(form.snr),
-                        rcs: nn(form.rcs),
-                        speed: nn(form.speed),
-                        heading: nn(form.heading),
-                        trackColor: form.trackColor || null,
-                        minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
-                        associationDist: nn(form.associationDist),
-                        ttl: nn(form.ttl),
-                        coastTtl: nn(form.coastTtl),
-                        emaSmooth: nn(form.emaSmooth),
-                        velSmooth: nn(form.velSmooth),
-                        maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
-                        clusterDist: nn(form.clusterDist),
-                        maxSpeed: nn(form.maxSpeed),
-                        stationaryTtl: nn(form.stationaryTtl),
-                        minConfidence: nn(form.minConfidence),
-                        confidenceWindow: form.confidenceWindow === "" ? null : Number(form.confidenceWindow),
-                        modo_operacion: form.modo_operacion || null,
-                        sensibilidad: form.sensibilidad === "" ? null : Number(form.sensibilidad),
-                        persistencia: form.persistencia === "" ? null : Number(form.persistencia),
-                      },
-                      {
-                        onSuccess: (newPerfil) => {
-                          success(`Perfil "${newProfileName.trim()}" creado`);
-                          setSaveDialog({ open: false });
-                          setSelectedProfileId(String(newPerfil.id));
-                          setAppliedProfileId(String(newPerfil.id));
-                        },
-                        onError: (err) => showError(err instanceof Error ? err.message : "Error al crear perfil"),
-                      },
-                    );
-                  }}
-                  disabled={!newProfileName.trim()}
-                  className="px-3 py-1.5 rounded-md text-[11px] font-semibold bg-brand-200 hover:bg-brand-200/80 text-black transition-colors disabled:opacity-50"
-                >
-                  Guardar perfil
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-
-      {profileModal.open && createPortal(
-        <GestionarPerfilesModal
-          onClose={() => setProfileModal({ open: false })}
-        />,
-        document.body,
-      )}
     </>);
 }
 

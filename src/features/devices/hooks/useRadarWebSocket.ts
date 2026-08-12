@@ -6,7 +6,7 @@ import type { TargetTimingConfig } from "../config";
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 10_000;
 /** Intervalo de procesamiento del buffer WS (5 FPS ≈ 200ms) */
-const SET_TIME_INTERVAL_MS = 2;
+const SET_TIME_INTERVAL_MS = 200;
 /** Backoff de reconexión: [1s, 2s, 4s, 8s, 16s, 30s] */
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
@@ -40,8 +40,10 @@ interface TrackKinematicState {
   /** Última posición cruda recibida */
   lastRawLat: number;
   lastRawLon: number;
-  /** Timestamp de la última actualización */
+  /** Timestamp de la última actualización (receipt, ms del cliente) */
   lastUpdateMs: number;
+  /** Timestamp de la última posición procesada (ms, según ts del backend) */
+  lastPointTsMs: number;
   /** Velocidad estimada en grados/ms (lat, lon) */
   velLat: number;
   velLon: number;
@@ -156,6 +158,7 @@ function processMagosradarMessages(
         lastRawLat: first.lat,
         lastRawLon: first.lon,
         lastUpdateMs: now,
+        lastPointTsMs: first.ts * 1000,
         velLat: 0,
         velLon: 0,
         clampCount: 0,
@@ -164,12 +167,15 @@ function processMagosradarMessages(
     }
 
     // ── Procesar cada posición con validación de velocidad y suavizado ──
-    const dt = Math.max(now - kin.lastUpdateMs, 1); // al menos 1ms para evitar división por cero
-
     const smoothedPoints: typeof sorted = [];
     let totalClampedThisSweep = 0;
 
     for (const p of sorted) {
+      // Timestamp real de la posición (el backend envía ts en segundos).
+      const pointTsMs = p.ts * 1000;
+      // dt real desde la última posición procesada (mínimo 1ms).
+      const dt = Math.max(pointTsMs - kin.lastPointTsMs, 1);
+
       // Distancia desde la última posición suavizada
       const d = distMeters(kin.smoothedLat, kin.smoothedLon, p.lat, p.lon);
       const impliedSpeedMs = d / (dt / 1000); // m/s
@@ -210,6 +216,7 @@ function processMagosradarMessages(
       kin.lastRawLat = p.lat;
       kin.lastRawLon = p.lon;
       kin.lastUpdateMs = now;
+      kin.lastPointTsMs = pointTsMs;
       kin.velLat = (useLat - prevSmoothedLat) / dt;
       kin.velLon = (useLon - prevSmoothedLon) / dt;
 
@@ -253,9 +260,8 @@ function processMagosradarMessages(
       }
     }
 
-    // ── Color según categoría del backend, con intensidad por largo de cola ──
-    // Prioridad: categoriaColor (backend) > trackColor (config del dispositivo)
-    const baseColor = track.categoriaColor || trackColor;
+    // ── Color estable por track, con intensidad por largo de cola ──
+    const baseColor = track.trackColor || trackColor;
     const trailLen = sorted.length;
     const trackIntensity = Math.min(trailLen / 10, 1);
     const alpha = 0.20 + trackIntensity * 0.80;
@@ -275,8 +281,6 @@ function processMagosradarMessages(
       snr,
       heading,
       trackIntensity,
-      categoria: track.categoria,
-      categoriaNombre: track.categoriaNombre,
     });
   }
 }

@@ -109,26 +109,8 @@ export interface Magosradares {
   apertura: number;
   color: string | null;
 
-  // Tracking
-  rcs: number | null;
-  snr: number | null;
-  speed: number | null;
-  maxSpeed: number | null;
-  heading: number | null;
+  // Visualización / operación
   trackColor: string | null;
-  minTrackPoints: number | null;
-  associationDist: number | null;
-  ttl: number | null;
-  coastTtl: number | null;
-  stationaryTtl: number | null;
-  emaSmooth: number | null;
-  velSmooth: number | null;
-  maxDetections: number | null;
-  clusterDist: number | null;
-
-  // Scoring / Confianza
-  minConfidence: number | null;
-  confidenceWindow: number | null;
 
   // Metadatos
   enabled: number | null; // 1 o 0
@@ -148,79 +130,6 @@ export interface Magosradares {
   idPtz?: number | null;
   ptzAutoTracking?: boolean;
 
-  // ── Macro-parámetros ──
-  modo_operacion?: string | null;
-  sensibilidad?: number | null;
-  persistencia?: number | null;
   // ── Toggle sin filtro ──
   sinFiltro?: number | null;
-  // ── Cola/buffer de tracks ──
-  bufferActivo?: number | null;
-  bufferIntervalo?: number | null;
-}
-
-/** Perfil de configuración para MagosRadar (desde API) */
-export interface PerfilMagos {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  is_default: boolean;
-  idEmpresa: number;
-  snr: number | null;
-  rcs: number | null;
-  speed: number | null;
-  maxSpeed: number | null;
-  heading: number | null;
-  trackColor: string | null;
-  minTrackPoints: number | null;
-  associationDist: number | null;
-  ttl: number | null;
-  coastTtl: number | null;
-  stationaryTtl: number | null;
-  emaSmooth: number | null;
-  velSmooth: number | null;
-  maxDetections: number | null;
-  clusterDist: number | null;
-  minConfidence: number | null;
-  confidenceWindow: number | null;
-  created_at: string;
-  updated_at: string;
-  trackState?: string | null;
-  confidence?: number | null;
-  isStationary?: boolean | null;
-  // ── Macro-parámetros ──
-  modo_operacion?: string | null;
-  sensibilidad?: number | null;
-  persistencia?: number | null;
-}
-
-export interface PerfilMagosPayload {
-  nombre: string;
-  descripcion: string;
-  is_default?: boolean;
-  idEmpresa?: number;
-  snr?: number | null;
-  rcs?: number | null;
-  speed?: number | null;
-  maxSpeed?: number | null;
-  heading?: number | null;
-  trackColor?: string | null;
-  minTrackPoints?: number | null;
-  associationDist?: number | null;
-  ttl?: number | null;
-  coastTtl?: number | null;
-  stationaryTtl?: number | null;
-  emaSmooth?: number | null;
-  velSmooth?: number | null;
-  maxDetections?: number | null;
-  clusterDist?: number | null;
-  minConfidence?: number | null;
-  confidenceWindow?: number | null;
-  trackState?: string | null;
-  confidence?: number | null;
-  isStationary?: boolean | null;
-  // ── Macro-parámetros ──
-  modo_operacion?: string | null;
-  sensibilidad?: number | null;
-  persistencia?: number | null;
 }

@@ -16,7 +16,6 @@ import type { MagosradarPayload } from "../magosradar/service";
 import type { SpotterPayload } from "../spotter/service";
 import type { CamaraPayload } from "../camara/service";
 import type { PtzPayload } from "../ptz/service";
-import { useMagosradarProfiles } from "../magosradar/config/magosradarProfiles";
 import { MagosradarSimpleForm } from "../magosradar/components/MagosradarSimpleForm";
 import type { SimpleMagosradarFormData } from "../magosradar/components/MagosradarSimpleForm";
 
@@ -57,9 +56,7 @@ const defaultMagosradar: SimpleMagosradarFormData = {
   radio: 100,
   apertura: 360,
   color: "#f43f5e",
-  modo_operacion: "urbano",
-  sensibilidad: 3,
-  persistencia: 3,
+  trackColor: null,
   enabled: 1,
   modelo: null,
   frecuencia: null,
@@ -242,7 +239,6 @@ function NanoradarForm({ onClose }: { onClose: () => void }) {
 
 function MagosradarForm({ onClose }: { onClose: () => void }) {
   const { mutate, isPending, error } = useCreateMagosradar();
-  const { profiles: MAGOSRADAR_PROFILES } = useMagosradarProfiles();
   const [initialData] = useState<SimpleMagosradarFormData>(defaultMagosradar);
 
   async function handleSubmit(data: SimpleMagosradarFormData) {

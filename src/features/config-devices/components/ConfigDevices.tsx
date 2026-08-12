@@ -3,21 +3,14 @@ import { useConfigDevices } from "../hooks/useConfigDevices";
 import { NanoradarEditModal } from "../nanoradar/components/NanoradarEditModal";
 import { MagosradarEditModal } from "../magosradar/components/MagosradarEditModal";
 import { SpotterEditModal } from "../spotter/components/SpotterEditModal";
-import { usePerfilesMagos, useDeletePerfilMagos } from "../magosradar/hooks/usePerfilMagos";
-import { PerfilMagosModal } from "../magosradar/components/PerfilMagosModal";
-import type { Nanoradares, Magosradares, Spotters, PerfilMagos } from "../types/ConfigServices.type";
+import type { Nanoradares, Magosradares, Spotters } from "../types/ConfigServices.type";
 import LiquidGlassCard from "@/components/ui/LiquidGlass";
-import { useToast } from "@/libs/sonner";
 
 function ConfigDevices() {
     const { data: configDevices } = useConfigDevices();
-    const { data: perfiles, isLoading: perfilesLoading } = usePerfilesMagos();
-    const { mutate: deletePerfil } = useDeletePerfilMagos();
-    const { success } = useToast();
     const [editingNanoradar, setEditingNanoradar] = useState<Nanoradares | null>(null);
     const [editingMagosradar, setEditingMagosradar] = useState<Magosradares | null>(null);
     const [editingSpotter, setEditingSpotter] = useState<Spotters | null>(null);
-    const [profileModal, setProfileModal] = useState<{ open: true; perfil?: PerfilMagos } | { open: false }>({ open: false });
 
     return (
         <div className="flex flex-col gap-5 p-5 bg-linear-to-bl h-full from-brand-100 to-brand-200">
@@ -60,7 +53,7 @@ function ConfigDevices() {
                             <div>Grado: <span className="font-bold text-text-200">{magosradar.grado}</span></div>
                             <div>Radio: <span className="font-bold text-text-200">{magosradar.radio}</span></div>
                             <div>Apertura: <span className="font-bold text-text-200">{magosradar.apertura}</span></div>
-                            <div>Color: <span className="font-bold" style={{ color: magosradar.color }}>{magosradar.color}</span></div>
+                            <div>Color: <span className="font-bold" style={{ color: magosradar.color ?? "#f43f5e" }}>{magosradar.color}</span></div>
                             <div>ID Empresa: <span className="font-bold text-text-200">{magosradar.idEmpresa}</span></div>
                             <button
                                 onClick={() => setEditingMagosradar(magosradar)}
@@ -126,68 +119,6 @@ function ConfigDevices() {
                 </div>
             </div>
 
-            {/* ════════ PERFILES MAGOS ════════ */}
-            <div>
-                <div className="flex items-center justify-between mb-3">
-                    <div className="text-lg font-semibold text-text-100">Perfiles MagosRadar</div>
-                    <button
-                        onClick={() => setProfileModal({ open: true })}
-                        className="rounded-md bg-brand-200 hover:bg-brand-200/80 text-black text-sm font-medium px-4 py-1.5 transition"
-                    >
-                        + Nuevo perfil
-                    </button>
-                </div>
-                {perfilesLoading ? (
-                    <div className="text-sm text-text-200 animate-pulse">Cargando perfiles...</div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {perfiles?.map((perfil) => (
-                            <div key={perfil.id} className="bg-bg-100 rounded-md p-5 flex flex-col gap-2 border border-border/50">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-bold text-text-100">{perfil.nombre}</span>
-                                    {perfil.is_default && (
-                                        <span className="text-[10px] bg-brand-200/20 text-brand-200 px-2 py-0.5 rounded-full font-semibold">
-                                            Default
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-xs text-text-200/80">{perfil.descripcion}</p>
-                                <div className="h-px bg-border/40 my-1" />
-                                <div className="text-[11px] text-text-200 space-y-0.5">
-                                    <div>SNR: <span className="font-semibold text-text-100">{perfil.snr ?? "—"}</span></div>
-                                    <div>RCS: <span className="font-semibold text-text-100">{perfil.rcs ?? "—"}</span></div>
-                                    <div>Vel. máx: <span className="font-semibold text-text-100">{perfil.speed ?? "—"} m/s</span></div>
-                                    <div>TTL: <span className="font-semibold text-text-100">{perfil.ttl ?? "—"}s</span></div>
-                                    <div>Dist. clustering: <span className="font-semibold text-text-100">{perfil.clusterDist ?? "—"}m</span></div>
-                                </div>
-                                <div className="flex gap-2 mt-1">
-                                    <button
-                                        onClick={() => setProfileModal({ open: true, perfil })}
-                                        className="flex-1 rounded-md bg-accent-200 hover:bg-accent-200/80 text-black text-sm font-medium py-1.5 transition"
-                                    >
-                                        Editar
-                                    </button>
-                                    {!perfil.is_default && (
-                                        <button
-                                            onClick={() => {
-                                                if (confirm(`¿Eliminar el perfil "${perfil.nombre}"?`)) {
-                                                    deletePerfil(perfil.id, {
-                                                        onSuccess: () => success("Perfil eliminado"),
-                                                    });
-                                                }
-                                            }}
-                                            className="rounded-md bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm font-medium px-3 py-1.5 transition"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
             {editingNanoradar && (
                 <NanoradarEditModal
                     nanoradar={editingNanoradar}
@@ -204,13 +135,6 @@ function ConfigDevices() {
                 <SpotterEditModal
                     spotter={editingSpotter}
                     onClose={() => setEditingSpotter(null)}
-                />
-            )}
-
-            {profileModal.open && (
-                <PerfilMagosModal
-                    perfil={profileModal.perfil ?? null}
-                    onClose={() => setProfileModal({ open: false })}
                 />
             )}
         </div>

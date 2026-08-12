@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import type { Magosradares } from "../../types/ConfigServices.type";
 import { useUpdateMagosradar } from "../hooks/useUpdateMagosradar";
 import type { MagosradarPayload } from "../service";
@@ -25,27 +25,7 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     radio: magosradar.radio,
     apertura: magosradar.apertura,
     color: magosradar.color ?? "#f43f5e",
-    modo_operacion: magosradar.modo_operacion ?? "personalizado",
-    sensibilidad: magosradar.sensibilidad ?? 3,
-    persistencia: magosradar.persistencia ?? 3,
-    // Avanzados
-    rcs: magosradar.rcs,
-    snr: magosradar.snr,
-    speed: magosradar.speed,
-    maxSpeed: magosradar.maxSpeed,
-    heading: magosradar.heading,
     trackColor: magosradar.trackColor,
-    minTrackPoints: magosradar.minTrackPoints,
-    associationDist: magosradar.associationDist,
-    ttl: magosradar.ttl,
-    coastTtl: magosradar.coastTtl,
-    stationaryTtl: magosradar.stationaryTtl,
-    emaSmooth: magosradar.emaSmooth,
-    velSmooth: magosradar.velSmooth,
-    maxDetections: magosradar.maxDetections,
-    clusterDist: magosradar.clusterDist,
-    minConfidence: magosradar.minConfidence,
-    confidenceWindow: magosradar.confidenceWindow,
     // Metadatos
     enabled: magosradar.enabled,
     modelo: magosradar.modelo,
@@ -54,6 +34,7 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
     elevacion: magosradar.elevacion,
     altitud: magosradar.altitud,
     notas: magosradar.notas,
+    sinFiltro: magosradar.sinFiltro ?? 0,
   };
 
   useEffect(() => {
@@ -71,8 +52,6 @@ export function MagosradarEditModal({ magosradar, onClose }: MagosradarEditModal
       radio: Number(data.radio),
       apertura: Number(data.apertura),
       azimut: String(data.azimut),
-      sensibilidad: Number(data.sensibilidad),
-      persistencia: Number(data.persistencia),
     };
     await new Promise<void>((resolve, reject) => {
       mutate(

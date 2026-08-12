@@ -61,14 +61,3 @@ export const ALL_VISIBLE: DeviceVisibility = {
   hiddenCamaras: new Set(),
   hiddenPtz: new Set(),
 };
-
-/** Categorías de detección de MagosRadar (definidas por el backend) */
-export const MAGOS_CATEGORIES: { id: number; nombre: string; color: string; icon: string }[] = [
-  { id: 0, nombre: "Desconocido",  color: "#9e9e9e", icon: "help" },
-  { id: 1, nombre: "Persona",      color: "#00e5ff", icon: "person" },
-  { id: 2, nombre: "Bicicleta",    color: "#76ff03", icon: "pedal_bike" },
-  { id: 3, nombre: "Motocicleta",  color: "#ff9100", icon: "motorcycle" },
-  { id: 4, nombre: "Auto",         color: "#ff1744", icon: "directions_car" },
-  { id: 5, nombre: "Camión",       color: "#d50000", icon: "local_shipping" },
-  { id: 6, nombre: "Animal",       color: "#ffea00", icon: "pets" },
-];

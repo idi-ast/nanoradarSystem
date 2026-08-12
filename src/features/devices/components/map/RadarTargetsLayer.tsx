@@ -10,7 +10,7 @@ import { ZONE_DETECTION_CATEGORIES } from "../../config";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
-import { DEVICES_BELOW_LAYER_ID, MAGOS_CATEGORIES } from "./devicesConfig";
+import { DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 
 function isTargetMoving(
   target: RadarTarget,
@@ -25,8 +25,6 @@ interface Props {
   historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
-  /** Categorías MagosRadar ocultas (Set de IDs de categoría) */
-  hiddenCategories?: Set<number>;
 }
 
 export function RadarTargetsLayer({
@@ -34,7 +32,6 @@ export function RadarTargetsLayer({
   historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
-  hiddenCategories,
 }: Props) {
   const { instanceConfig, zones } = useRadarContext();
   const { targets: allTargets } = useRadarTargets();
@@ -69,15 +66,7 @@ export function RadarTargetsLayer({
     });
   }, [targets, alert6Zones]);
 
-  // Filtrar por categorías MagosRadar ocultas
-  const categoryFilteredTargets = useMemo(() => {
-    if (!hiddenCategories || hiddenCategories.size === 0) return zoneFilteredTargets;
-    return zoneFilteredTargets.filter((t) => {
-      if (t.deviceType !== "magosradar") return true;
-      const cat = t.categoria ?? 0;
-      return !hiddenCategories.has(cat);
-    });
-  }, [zoneFilteredTargets, hiddenCategories]);
+  const categoryFilteredTargets = zoneFilteredTargets;
 
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
@@ -261,10 +250,6 @@ export function RadarTargetsLayer({
                   const baseW = moving ? iconStyle2D.movingSize : iconStyle2D.size;
                   const baseH = moving ? iconStyle2D.movingSize : iconStyle2D.size;
                   const borderCol = moving ? iconStyle2D.movingBorderColor : iconStyle2D.borderColor;
-                  // Color de categoría para el anillo interior (magosradar)
-                  const catInfo = MAGOS_CATEGORIES.find((c) => c.id === t.categoria);
-                  const catColor = catInfo?.color
-                    ?? (t.trackColor?.startsWith("rgba") ? t.trackColor.replace(/rgba\((\d+),\s*(\d+),\s*(\d+).*/, "rgb($1,$2,$3)") : (t.trackColor ?? null));
 
                   return (
                     <div
@@ -288,17 +273,6 @@ export function RadarTargetsLayer({
                       }}
                       className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
                     >
-                      {/* Anillo interior del color de la categoría (solo magosradar) */}
-                      {t.deviceType === "magosradar" && catColor && (
-                        <span
-                          className="absolute rounded-full pointer-events-none"
-                          style={{
-                            inset: Math.max(2, (baseW * sizeScale) * 0.12),
-                            border: `2px solid ${catColor}`,
-                            opacity: 1,
-                          }}
-                        />
-                      )}
                       {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
                         <span
                           style={{
