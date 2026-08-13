@@ -36,6 +36,20 @@ export type MagosradarPayload = Pick<
   // ── Modo espejo (orientación) ──
   espejoX?: number | null;
   espejoY?: number | null;
+
+  // ── Tracking manual ──
+  trackingManual?: number | null;
+  snr?: number | null;
+  rcs?: number | null;
+  maxSpeed?: number | null;
+  associationDist?: number | null;
+  minTrackPoints?: number | null;
+  ttl?: number | null;
+  stationaryTtl?: number | null;
+  emaSmooth?: number | null;
+  velSmooth?: number | null;
+  maxDetections?: number | null;
+  clusterDist?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

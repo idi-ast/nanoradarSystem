@@ -92,7 +92,7 @@ const PtzCamera = memo(
           createPortal(
             <div
               style={maximizedStyle}
-              className="z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
+              className="z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col w-170 h-100"
             >
               <PtzToolbar
                 name={camera.nombre}

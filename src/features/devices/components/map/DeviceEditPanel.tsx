@@ -184,7 +184,7 @@ function PositionField({
           Posición
         </span>
         {liveEditPos && (
-          <span className="text-[8px] font-mono text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+          <span className="text-xs font-mono text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">
             live
           </span>
         )}
@@ -1240,7 +1240,7 @@ interface MagosradarAdvancedFormProps {
 function InfoIcon({ text }: { text: string }) {
   return (
     <Tooltip text={text} side="top">
-      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-text-100/10 text-text-100/40 text-[8px] font-bold cursor-help hover:bg-brand-200/20 hover:text-brand-200/70 transition-colors shrink-0">
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-text-100/10 text-text-100/40 text-xs font-bold cursor-help hover:bg-brand-200/20 hover:text-brand-200/70 transition-colors shrink-0">
         ?
       </span>
     </Tooltip>
@@ -1267,7 +1267,7 @@ function SliderField({ label, value, onChange, min, max, step = 1, unit, info }:
         <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
           {label}
         </span>
-        {unit && <span className="text-[8px] font-mono text-text-100/25">{unit}</span>}
+        {unit && <span className="text-xs font-mono text-text-100/25">{unit}</span>}
         <InfoIcon text={info} />
       </div>
       <div className="flex items-center gap-2">
@@ -1345,6 +1345,19 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     // ── Modo espejo (orientación) ──
     espejoX: device.espejoX ? "1" : "0",
     espejoY: device.espejoY ? "1" : "0",
+    // ── Tracking manual ──
+    trackingManual: device.trackingManual ? "1" : "0",
+    snr: n(device.snr),
+    rcs: n(device.rcs),
+    maxSpeed: n(device.maxSpeed),
+    associationDist: n(device.associationDist),
+    minTrackPoints: n(device.minTrackPoints),
+    ttl: n(device.ttl),
+    stationaryTtl: n(device.stationaryTtl),
+    emaSmooth: n(device.emaSmooth),
+    velSmooth: n(device.velSmooth),
+    maxDetections: n(device.maxDetections),
+    clusterDist: n(device.clusterDist),
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1417,6 +1430,18 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           sinFiltro: form.sinFiltro === "1" ? 1 : 0,
           espejoX: form.espejoX === "1" ? 1 : 0,
           espejoY: form.espejoY === "1" ? 1 : 0,
+          trackingManual: form.trackingManual === "1" ? 1 : 0,
+          snr: nn(form.snr),
+          rcs: nn(form.rcs),
+          maxSpeed: nn(form.maxSpeed),
+          associationDist: nn(form.associationDist),
+          minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+          ttl: nn(form.ttl),
+          stationaryTtl: nn(form.stationaryTtl),
+          emaSmooth: nn(form.emaSmooth),
+          velSmooth: nn(form.velSmooth),
+          maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+          clusterDist: nn(form.clusterDist),
         },
       },
       {
@@ -1563,7 +1588,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 )}
                 <div className="leading-tight">
                   <span className="text-[10px] font-semibold text-text-100/80">Ver tracks sin filtros</span>
-                  <p className="text-[8px] text-text-200/60 italic">Detecciones crudas post-procesadas (sin SNR, RCS, clustering ni tracking)</p>
+                  <p className="text-xs text-text-200/60 italic">Detecciones crudas post-procesadas (sin SNR, RCS, clustering ni tracking)</p>
                 </div>
               </div>
               <button
@@ -1584,7 +1609,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <div className="rounded-md px-2 py-1.5 border border-border/40 mb-3 bg-bg-100/40">
             <div className="leading-tight mb-1.5">
               <span className="text-[10px] font-semibold text-text-100/80">Modo espejo</span>
-              <p className="text-[8px] text-text-200/60 italic">Invierte los ejes para alinear los tracks con la realidad</p>
+              <p className="text-xs text-text-200/60 italic">Invierte los ejes para alinear los tracks con la realidad</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center justify-between gap-1.5 rounded border border-border/40 px-1.5 py-1">
@@ -1617,9 +1642,61 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-1">
             Tracking
           </p>
-          <p className="text-[9px] text-text-200/40 italic">
-            El tracking usa parámetros fijos del sistema (no configurables).
-          </p>
+
+          {/* ═══ TOGGLE: MODO MANUAL DE TRACKING ═══ */}
+          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-2 ${form.trackingManual === "1" ? "bg-zinc-200/10 border-zinc-200/10" : "bg-bg-100/40 border-border/40"}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="leading-tight">
+                <span className="text-[10px] font-semibold text-text-100/80">Modo manual</span>
+                <p className="text-xs text-text-200/60 italic">
+                  {form.trackingManual === "1"
+                    ? "Parámetros manuales de tracking"
+                    : "Detección automática con parámetros fijos del sistema"}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.trackingManual === "1"}
+                onClick={() => set("trackingManual", form.trackingManual === "1" ? "0" : "1")}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.trackingManual === "1" ? "bg-brand-200" : "bg-bg-300"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.trackingManual === "1" ? "translate-x-4" : "translate-x-0"}`} />
+              </button>
+            </div>
+          </div>
+
+          {form.trackingManual === "1" && (
+            <>
+              <p className="text-[9px] text-text-200/40 italic mb-2">
+                Deja un campo vacío para usar el valor fijo del sistema.
+              </p>
+              <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-3">
+                <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
+                  info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan." />
+                <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0} max={100} step={0.1} unit="m²"
+                  info="Tamaño estimado del blanco radar." />
+                <SliderField label="Vel. máx" value={form.maxSpeed} onChange={(v) => set("maxSpeed", v)} min={1} max={200} step={1} unit="m/s"
+                  info="Velocidad máxima esperada en el escenario." />
+                <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
+                  info="Distancia máxima para asignar una detección a un track existente." />
+                <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
+                  info="Detecciones consecutivas para confirmar un track." />
+                <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
+                  info="Segundos sin detección antes de eliminar un track confirmado." />
+                <SliderField label="TTL detenido" value={form.stationaryTtl} onChange={(v) => set("stationaryTtl", v)} min={1} max={120} step={1} unit="seg"
+                  info="TTL extendido para objetos detenidos." />
+                <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
+                  info="Factor EMA para suavizar posición del track." />
+                <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
+                  info="Factor EMA para suavizar velocidad del track." />
+                <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
+                  info="Máximo de detecciones por mensaje." />
+                <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
+                  info="Distancia para agrupar detecciones cercanas." />
+              </div>
+            </>
+          )}
 
         </div>
 
