@@ -175,7 +175,7 @@ export const RadarMap = memo(function RadarMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
-  const [selectedLayer, setSelectedLayer] = useState<MapLayer>("dark");
+  const [selectedLayer, setSelectedLayer] = useState<MapLayer>("satellite");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
   const effectiveVisibility = controlledVisibility ?? deviceVisibility;

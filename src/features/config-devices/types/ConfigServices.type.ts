@@ -148,4 +148,6 @@ export interface Magosradares {
   velSmooth?: number | null;
   maxDetections?: number | null;
   clusterDist?: number | null;
+  // ── Zoom automático PTZ ──
+  zoomAutomatico?: number | null;
 }

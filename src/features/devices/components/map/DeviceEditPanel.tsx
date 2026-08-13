@@ -1358,6 +1358,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     velSmooth: n(device.velSmooth),
     maxDetections: n(device.maxDetections),
     clusterDist: n(device.clusterDist),
+    // ── Zoom automático PTZ ──
+    zoomAutomatico: device.zoomAutomatico ? "1" : "0",
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1442,6 +1444,7 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           velSmooth: nn(form.velSmooth),
           maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
           clusterDist: nn(form.clusterDist),
+          zoomAutomatico: form.zoomAutomatico === "1" ? 1 : 0,
         },
       },
       {
@@ -1542,6 +1545,29 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 </span>
                 {trackingLoading && <span className="text-[9px] text-text-200/50 animate-pulse">···</span>}
               </div>
+            </div>
+          </div>
+
+          {/* ═══ ZOOM AUTOMÁTICO ═══ */}
+          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-5 ${form.zoomAutomatico === "1" ? "bg-brand-200/10 border-brand-200/40" : "bg-bg-100/40 border-border/40"}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="leading-tight">
+                <span className="text-[10px] font-semibold text-text-100/80">Zoom automático</span>
+                <p className="text-[8px] text-text-200/60 italic">
+                  {form.zoomAutomatico === "1"
+                    ? "La cámara acerca el zoom cuando un track entra a una zona"
+                    : "El zoom se controla solo manualmente"}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.zoomAutomatico === "1"}
+                onClick={() => set("zoomAutomatico", form.zoomAutomatico === "1" ? "0" : "1")}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.zoomAutomatico === "1" ? "bg-brand-200" : "bg-bg-300"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.zoomAutomatico === "1" ? "translate-x-4" : "translate-x-0"}`} />
+              </button>
             </div>
           </div>
 

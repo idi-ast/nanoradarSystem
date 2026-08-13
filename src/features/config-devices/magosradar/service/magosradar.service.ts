@@ -50,6 +50,9 @@ export type MagosradarPayload = Pick<
   velSmooth?: number | null;
   maxDetections?: number | null;
   clusterDist?: number | null;
+
+  // ── Zoom automático PTZ ──
+  zoomAutomatico?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales
