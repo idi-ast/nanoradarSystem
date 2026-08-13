@@ -1168,7 +1168,7 @@ function PtzForm({
         onCancelPickPosition={onCancelPickPosition}
       />
       <div className="grid grid-cols-2 gap-2">
-        <TextField label="Altitud (msnm)" value={form.altitud} onChange={(v) => set("altitud", v)} />
+        <TextField label="Altura de cámara (m)" value={form.altitud} onChange={(v) => set("altitud", v)} />
         <TextField
           label="Azimut (punto 0)"
           value={form.azimut}

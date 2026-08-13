@@ -485,7 +485,7 @@ function PtzForm({ onClose }: { onClose: () => void }) {
         <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
       </FieldRow>
       <FieldRow>
-        <Field label="Altitud (msnm)" name="altitud" value={form.altitud} onChange={handleChange} placeholder="108" info="Suelo + altura del poste. 0 = default 105m" />
+        <Field label="Altura de cámara (m)" name="altitud" value={form.altitud} onChange={handleChange} placeholder="5" info="Altura sobre el suelo en metros. 0 o vacío = 5 m por defecto" />
         <Field label="Azimut (0°=N)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" info="0°=N, 90°=E, 180°=S, 270°=W" />
       </FieldRow>
 
