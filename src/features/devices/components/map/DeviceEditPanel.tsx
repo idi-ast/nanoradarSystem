@@ -45,6 +45,7 @@ interface RangeNumberFieldProps {
   max: number;
   step?: number;
   unit?: string;
+  disabled?: boolean;
 }
 
 function RangeNumberField({
@@ -55,6 +56,7 @@ function RangeNumberField({
   max,
   step = 1,
   unit,
+  disabled,
 }: RangeNumberFieldProps) {
   return (
     <div className="flex flex-col gap-1.5 ">
@@ -74,8 +76,9 @@ function RangeNumberField({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="flex-1 accent-emerald-400 cursor-pointer"
+          className="flex-1 accent-emerald-400 cursor-pointer disabled:opacity-40"
           style={{ height: "4px" }}
+          disabled={disabled}
         />
         <input
           type="number"
@@ -84,7 +87,8 @@ function RangeNumberField({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-14 shrink-0 text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 text-right tabular-nums focus:outline-none focus:border-emerald-500/60"
+          disabled={disabled}
+          className="w-14 shrink-0 text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 text-right tabular-nums focus:outline-none focus:border-emerald-500/60 disabled:opacity-50"
         />
       </div>
     </div>
@@ -96,6 +100,7 @@ interface TextFieldProps {
   value: string;
   type?: string;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }
 
 function TextField({
@@ -103,6 +108,7 @@ function TextField({
   value,
   type,
   onChange,
+  disabled,
 }: TextFieldProps) {
   return (
     <div className="flex flex-col gap-1">
@@ -113,7 +119,8 @@ function TextField({
         type={type || "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60"
+        disabled={disabled}
+        className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60 disabled:opacity-50 disabled:cursor-not-allowed"
       />
 
     </div>
@@ -1074,6 +1081,7 @@ function PtzForm({
     altitud: device.altitud ?? "0",
     panInvertido: device.panInvertido ?? 0,
     tiltInvertido: device.tiltInvertido ?? 0,
+    tiltOffset: device.tiltOffset ?? 0,
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
@@ -1169,32 +1177,49 @@ function PtzForm({
       />
       <div className="grid grid-cols-2 gap-2">
         <TextField label="Altura de cámara (m)" value={form.altitud} onChange={(v) => set("altitud", v)} />
-        <TextField
-          label="Azimut (punto 0)"
-          value={form.azimut}
-          onChange={(v) => {
-            set("azimut", v);
-            // Mantener el cono visual (grado) sincronizado con el azimut
-            const g = Math.round(Number(v) || 0) % 360;
-            onLiveEditChange({ ...liveEdit, grado: g });
-          }}
-        />
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+            Azimut (pan 0°) · solo-lectura
+          </span>
+          <input
+            type="text"
+            value={form.azimut}
+            disabled
+            title="El azimut se fija con el panel de Calibración"
+            className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 opacity-50 cursor-not-allowed"
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+          Calibración inmutable
+        </span>
+        <p className="text-[10px] text-text-100/50 leading-snug">
+          El azimut y el tiltOffset se calculan en el panel de{" "}
+          <span className="text-amber-400/80 font-medium">Calibración</span> de
+          la cámara: apunta físicamente a un punto de referencia y guárdalo.
+        </p>
       </div>
 
       {/* ── Cobertura ── */}
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <RangeNumberField
-          label="Grado"
+          label="Grado (dirección del cono)"
           value={liveEdit.grado}
-          onChange={(v) => {
-            onLiveEditChange({ ...liveEdit, grado: v });
-            // Mantener el azimut (punto 0) sincronizado con el cono visual
-            set("azimut", String(v));
-          }}
+          onChange={() => {}}
+          disabled
           min={0}
           max={360}
           unit="°"
         />
+        <TextField
+          label="tiltOffset"
+          value={String(form.tiltOffset)}
+          onChange={() => {}}
+          disabled
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-2">
         <RangeNumberField label="Apertura" value={liveEdit.apertura} onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })} min={1} max={180} unit="°" />
       </div>
       <RangeNumberField label="Radio" value={liveEdit.radio} onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })} min={0} max={10000} step={50} unit="m" />
@@ -1206,17 +1231,17 @@ function PtzForm({
         <RangeNumberField label="Subtype" value={form.subtype} onChange={(v) => set("subtype", v)} min={0} max={10} />
       </div>
 
-      {/* ── Corrección ONVIF ── */}
+      {/* ── Corrección de ejes ── */}
       <div className="flex flex-col gap-2 border-t border-border/30">
-        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección ONVIF</span>
+        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección de ejes</span>
         <div className="grid grid-cols-2 gap-1">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.panInvertido === 1} onChange={(e) => set("panInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
-            <span className="text-[11px] text-text-100/70">Pan invertido</span>
+            <span className="text-[11px] text-text-100/70">Espejo X (pan)</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.tiltInvertido === 1} onChange={(e) => set("tiltInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
-            <span className="text-[11px] text-text-100/70">Tilt invertido</span>
+            <span className="text-[11px] text-text-100/70">Espejo Y (tilt)</span>
           </label>
         </div>
       </div>
@@ -1360,6 +1385,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     clusterDist: n(device.clusterDist),
     // ── Zoom automático PTZ ──
     zoomAutomatico: device.zoomAutomatico ? "1" : "0",
+    zoomMin: n(device.zoomMin),
+    zoomMax: n(device.zoomMax),
   });
 
   // ─── PTZ Auto-Tracking ───
@@ -1445,6 +1472,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
           clusterDist: nn(form.clusterDist),
           zoomAutomatico: form.zoomAutomatico === "1" ? 1 : 0,
+          zoomMin: nn(form.zoomMin),
+          zoomMax: nn(form.zoomMax),
         },
       },
       {
@@ -1568,6 +1597,36 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.zoomAutomatico === "1" ? "translate-x-4" : "translate-x-0"}`} />
               </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[8px] uppercase tracking-widest text-text-200/50">Zoom máx (0-1)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={form.zoomMax}
+                  placeholder="0.50"
+                  disabled={form.zoomAutomatico !== "1"}
+                  onChange={(e) => set("zoomMax", e.target.value)}
+                  className="w-full text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 tabular-nums focus:outline-none focus:border-emerald-500/60 disabled:opacity-40"
+                />
+              </label>
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[8px] uppercase tracking-widest text-text-200/50">Zoom mín (0-1)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={form.zoomMin}
+                  placeholder="0.00"
+                  disabled={form.zoomAutomatico !== "1"}
+                  onChange={(e) => set("zoomMin", e.target.value)}
+                  className="w-full text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 tabular-nums focus:outline-none focus:border-emerald-500/60 disabled:opacity-40"
+                />
+              </label>
             </div>
           </div>
 

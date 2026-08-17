@@ -37,9 +37,7 @@ const PtzCamera = memo(
   const isThisCalibrating = calibratingCameraId === camera.id;
 
   function toggleCalibrationMode() {
-    setCalibrationMode(
-      calibrationMode === "setPointZero" ? "goto" : "setPointZero",
-    );
+    setCalibrationMode(calibrationMode === "save" ? "goto" : "save");
   }
 
   function toggleMaximize() {
@@ -105,6 +103,7 @@ const PtzCamera = memo(
               {/* Panel de calibración */}
               {isThisCalibrating && (
                 <CalibrationPanel
+                  cameraId={camera.id}
                   cameraName={camera.nombre}
                   result={lastResult}
                   mode={calibrationMode}

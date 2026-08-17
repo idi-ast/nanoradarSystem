@@ -53,6 +53,8 @@ export type MagosradarPayload = Pick<
 
   // ── Zoom automático PTZ ──
   zoomAutomatico?: number | null;
+  zoomMax?: number | null;
+  zoomMin?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales

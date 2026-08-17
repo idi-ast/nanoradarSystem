@@ -36,6 +36,20 @@ export function ptzLimpiaVidrio(ptz_id: number, value: boolean) {
   return ptzMove(ptz_id, 0, 0, 0, undefined, value);
 }
 
+/** Inicia movimiento continuo (mantener presionado). */
+export async function ptzStartMove(
+  ptz_id: number,
+  pan: number,
+  tilt: number,
+  zoom = 0,
+) {
+  try {
+    await apiSystem.post("/ptz/move", { ptz_id, pan, tilt, zoom });
+  } catch (e) {
+    console.error("PTZ start move", e);
+  }
+}
+
 
 export function ptzZoom(ptz_id: number, zoom: number) {
   return ptzMove(ptz_id, 0, 0, zoom);
@@ -54,6 +68,62 @@ export async function ptzHome(ptz_id: number) {
     await apiSystem.get(`/ptz/home?ptz_id=${ptz_id}`);
   } catch (e) {
     console.error("PTZ home", e);
+  }
+}
+
+/** Apunta la cámara a un RUMBO absoluto de brújula en un solo giro. */
+export async function ptzGotoBearing(
+  ptz_id: number,
+  bearing: number,
+  tilt?: number,
+  zoom?: number,
+) {
+  try {
+    await apiSystem.post(`/ptz/${ptz_id}/goto-bearing`, {
+      bearing,
+      ...(tilt !== undefined && { tilt }),
+      ...(zoom !== undefined && { zoom }),
+    });
+  } catch (e) {
+    console.error("PTZ goto-bearing", e);
+  }
+}
+
+/** Respuesta de /calibrate-bearing */
+export interface CalibrateBearingResponse {
+  status: string;
+  message: string;
+  old_azimut: number;
+  new_azimut: number;
+  bearing: number;
+  current_pan_deg: number;
+  current_tilt_deg: number;
+  azimut_jump_deg: number;
+  remounted_likely: boolean;
+  grado: number;
+  invert_pan: boolean;
+  coverage: unknown[];
+  covered_count: number;
+  total_zones: number;
+  all_covered: boolean;
+  warnings: string[];
+  recommended_home: unknown;
+}
+
+/** Calibra el azimut: la cámara debe estar apuntando físicamente a `bearing`. */
+export async function ptzCalibrateBearing(
+  ptz_id: number,
+  bearing: number,
+): Promise<{ ok: boolean; data: CalibrateBearingResponse | null }> {
+  try {
+    const res = await apiSystem.post<CalibrateBearingResponse>(
+      `/ptz/${ptz_id}/calibrate-bearing`,
+      { bearing, confirm: true },
+    );
+    return { ok: res.ok, data: res.data ?? null };
+  } catch (e) {
+    console.error("PTZ calibrate-bearing", e);
+    return { ok: false, data: null };
   }
 }
 

@@ -75,6 +75,7 @@ export interface Ptz {
   altitud?: string;
   panInvertido?: number;
   tiltInvertido?: number;
+  tiltOffset?: number;
   url_stream: string;
   tipo: string;
   idEmpresa?: number;
@@ -150,4 +151,6 @@ export interface Magosradares {
   clusterDist?: number | null;
   // ── Zoom automático PTZ ──
   zoomAutomatico?: number | null;
+  zoomMax?: number | null;
+  zoomMin?: number | null;
 }

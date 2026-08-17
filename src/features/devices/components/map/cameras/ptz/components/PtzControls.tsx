@@ -1,3 +1,4 @@
+import { useState, type ReactNode, type PointerEvent } from "react";
 import {
   IconArrowDown,
   IconArrowLeft,
@@ -10,12 +11,12 @@ import {
   IconDroplet,
   IconTarget,
 } from "@tabler/icons-react";
-import { useState } from "react";
 import {
-  ptzMove,
   ptzZoom,
   ptzLuz,
   ptzLimpiaVidrio,
+  ptzStartMove,
+  ptzStop,
   PTZ_SPEED_X,
   PTZ_SPEED_Y,
   ptzHome,
@@ -35,6 +36,40 @@ const BTN_WIPER_ON_CLS =
 
 const BTN_CALIB_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-amber-500/70 hover:bg-amber-400/80 text-white transition-colors border border-amber-400/50 backdrop-blur-sm animate-pulse";
+
+/** Botón de flecha con MANTENER PRESIONADO: mueve mientras se sostiene. */
+function HoldArrowButton({
+  title,
+  ptzId,
+  pan = 0,
+  tilt = 0,
+  children,
+}: {
+  title: string;
+  ptzId: number;
+  pan?: number;
+  tilt?: number;
+  children: ReactNode;
+}) {
+  const stop = () => ptzStop(ptzId);
+  const start = (e: PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    ptzStartMove(ptzId, pan, tilt);
+  };
+
+  return (
+    <button
+      className={BTN_CLS}
+      title={title}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function PtzControls({ ptz_id }: { ptz_id: number }) {
   const [luz, setLuz] = useState(false);
@@ -74,7 +109,7 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
 
   return (
     <div
-      className="absolute bottom-2 right-2 flex flex-col items-center gap-1 select-none"
+      className="absolute bottom-2 left-2 right-2 z-50 flex flex-col items-center gap-1 select-none"
       onPointerDown={(e) => e.stopPropagation()}
     >
       {/* Zoom + extras row */}
@@ -122,25 +157,17 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
         </button>
       </div>
 
-      {/* D-pad */}
+      {/* D-pad (mantener presionado para mover) */}
       <div className="grid grid-cols-3 gap-1">
         <div />
-        <button
-          className={BTN_CLS}
-          title="Arriba"
-          onClick={() => ptzMove(ptz_id, 0, PTZ_SPEED_Y)}
-        >
+        <HoldArrowButton title="Arriba" ptzId={ptz_id} tilt={PTZ_SPEED_Y}>
           <IconArrowUp size={14} stroke={1.5} />
-        </button>
+        </HoldArrowButton>
         <div />
 
-        <button
-          className={BTN_CLS}
-          title="Izquierda"
-          onClick={() => ptzMove(ptz_id, -PTZ_SPEED_X, 0)}
-        >
+        <HoldArrowButton title="Izquierda" ptzId={ptz_id} pan={-PTZ_SPEED_X}>
           <IconArrowLeft size={14} stroke={1.5} />
-        </button>
+        </HoldArrowButton>
         <button
           className={`${BTN_CLS} bg-sky-600/60 hover:bg-sky-600/80`}
           title="Home"
@@ -148,22 +175,14 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
         >
           <IconPlayerStop size={14} stroke={1.5} />
         </button>
-        <button
-          className={BTN_CLS}
-          title="Derecha"
-          onClick={() => ptzMove(ptz_id, PTZ_SPEED_X, 0)}
-        >
+        <HoldArrowButton title="Derecha" ptzId={ptz_id} pan={PTZ_SPEED_X}>
           <IconArrowRight size={14} stroke={1.5} />
-        </button>
+        </HoldArrowButton>
 
         <div />
-        <button
-          className={BTN_CLS}
-          title="Abajo"
-          onClick={() => ptzMove(ptz_id, 0, -PTZ_SPEED_Y)}
-        >
+        <HoldArrowButton title="Abajo" ptzId={ptz_id} tilt={-PTZ_SPEED_Y}>
           <IconArrowDown size={14} stroke={1.5} />
-        </button>
+        </HoldArrowButton>
         <div />
       </div>
     </div>

@@ -15,7 +15,7 @@ interface UseCameraCalibrationReturn {
   calibratingCameraId: number | null;
   /** Resultado de la última calibración */
   lastResult: CalibrationResult | null;
-  /** Punto GPS clickeado */
+  /** Punto GPS clickeado (modo "save") */
   clickPoint: { lat: number; lon: number } | null;
   /** Estado de cobertura de zonas */
   calibrationStatus: CalibrationStatus | null;
@@ -32,7 +32,7 @@ interface UseCameraCalibrationReturn {
   fetchCalibrationStatus: (cameraId: number) => Promise<CalibrationStatus | null>;
 
   /**
-   * Calcula la calibración para una cámara (solo vista previa, no mueve).
+   * Calcula la calibración para una cámara fija (solo vista previa, no mueve).
    */
   calibrate: (
     cameraId: number,
@@ -43,7 +43,7 @@ interface UseCameraCalibrationReturn {
 
   /**
    * GIRA físicamente la cámara para apuntar al punto clickeado (goTo).
-   * Solo disponible para cámaras PTZ.
+   * NO modifica la calibración. Solo disponible para cámaras PTZ.
    */
   gotoGps: (
     cameraId: number,
@@ -52,20 +52,12 @@ interface UseCameraCalibrationReturn {
   ) => Promise<boolean>;
 
   /**
-   * Fija el PUNTO 0 (azimut) de la cámara. La cámara debe estar apuntando
-   * físicamente al punto indicado.
-   * Solo disponible para cámaras PTZ.
+   * CALIBRACIÓN GUIADA (v2): GUARDA la referencia.
+   * Requisito: la cámara debe estar apuntando FÍSICAMENTE al punto indicado
+   * (click_lat/click_lon). Lee la posición real del encoder y deduce azimut
+   * y tiltOffset. Es la ÚNICA escritura de calibración (single-write).
    */
-  setPointZero: (
-    cameraId: number,
-    clickLat: number,
-    clickLon: number,
-  ) => Promise<boolean>;
-
-  /**
-   * Alias de setPointZero + centrar la cámara (compatibilidad).
-   */
-  applyCalibration: (
+  saveReference: (
     cameraId: number,
     clickLat: number,
     clickLon: number,
@@ -143,12 +135,13 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
 
         const response = await apiSystem.post<{
           status: string;
-          pan: number;
-          tilt: number;
+          pan_deg: number;
+          target_pan: number;
+          current_pan: number | null;
+          tilt_deg: number;
           zoom: number;
           bearing: number;
           distance_m: number;
-          target_bearing: number;
           azimut: number;
         }>(`/ptz/${cameraId}/goto-gps`, {
           click_lat: clickLat,
@@ -164,13 +157,13 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
             recommended_height: null,
             recommended_max_range: 1000,
             tilt_angle_used: null,
-            pan: response.data.pan,
-            tilt: response.data.tilt,
+            pan: response.data.pan_deg,
+            tilt: response.data.tilt_deg,
             zoom: response.data.zoom,
           });
-          setPreviewBearing(response.data.target_bearing);
+          setPreviewBearing(response.data.bearing);
           toast.success(
-            `Cámara girando: ${response.data.target_bearing.toFixed(1)}° | pan ${response.data.pan.toFixed(3)}`,
+            `Cámara girando: ${response.data.bearing.toFixed(1)}° | pan ${response.data.pan_deg.toFixed(1)}°`,
           );
           return true;
         }
@@ -186,7 +179,7 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
     [setClickPoint, setResult, setPreviewBearing],
   );
 
-  const setPointZero = useCallback(
+  const saveReference = useCallback(
     async (
       cameraId: number,
       clickLat: number,
@@ -198,78 +191,74 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
         const response = await apiSystem.post<{
           status: string;
           message: string;
-          old_azimut: string;
+          old_azimut: number;
           new_azimut: number;
-          pointing_bearing: number;
-          computed_height: number | null;
-          altitud_guardada: string;
-        }>(`/ptz/${cameraId}/set-point-zero`, {
+          tilt_offset: number;
+          grado: number;
+          bearing: number;
+          distance_m: number;
+          elevation_deg: number;
+          current_pan_deg: number;
+          current_tilt_deg: number;
+          remounted_likely: boolean;
+          azimut_jump_deg: number;
+          warnings: string[];
+          coverage: unknown[];
+          covered_count: number;
+          total_zones: number;
+          all_covered: boolean;
+          recommended_home: unknown;
+        }>(`/ptz/${cameraId}/calibrate`, {
           click_lat: clickLat,
           click_lon: clickLon,
+          confirm: true,
         });
 
         if (response.ok && response.data) {
+          const data = response.data;
+
           // La cámara queda apuntando al punto; actualizar la visión en vivo
-          if (response.data.pointing_bearing !== undefined) {
-            setPreviewBearing(response.data.pointing_bearing);
-          }
-          const heightMsg =
-            response.data.computed_height !== null &&
-            response.data.computed_height !== undefined
-              ? ` | altura ${response.data.computed_height.toFixed(1)}m`
+          setPreviewBearing(data.bearing);
+
+          // Resultados en el panel
+          setResult({
+            bearing: data.bearing,
+            distance_m: data.distance_m,
+            recommended_azimut: data.new_azimut,
+            recommended_height: null,
+            recommended_max_range: 1000,
+            tilt_angle_used: data.elevation_deg,
+            tilt_offset: data.tilt_offset,
+            pan: data.current_pan_deg,
+            tilt: data.current_tilt_deg,
+            zoom: 0,
+          });
+
+          // Refrescar cobertura con el nuevo azimut
+          const status = await refreshCalibrationStatus(cameraId);
+
+          const jumpMsg =
+            data.remounted_likely
+              ? "  El azimut cambió más de 40°: revisa que la cámara esté apuntando al punto elegido."
               : "";
           toast.success(
-            (response.data?.message ?? "Punto 0 fijado") + heightMsg,
+            `${data.message ?? "Calibración guardada"}.${jumpMsg}`,
           );
-          // Refrescar la config para reflejar el nuevo azimut y altitud
+
+          // Refrescar la config para reflejar el nuevo azimut/tiltOffset
           queryClient.invalidateQueries({ queryKey: ["config-devices"] });
-          // Refrescar el estado de cobertura con el nuevo azimut
-          refreshCalibrationStatus(cameraId);
-          return true;
+          return !!status || true;
         }
 
-        toast.error("Error al fijar el punto 0");
+        toast.error("Error al guardar la referencia");
         return false;
       } catch (err) {
-        console.error("Error al fijar punto 0:", err);
-        toast.error("Error de red al fijar el punto 0");
+        console.error("Error en saveReference:", err);
+        toast.error("Error de red al guardar la referencia");
         return false;
       }
     },
-    [setClickPoint, setPreviewBearing, queryClient, refreshCalibrationStatus],
-  );
-
-  const applyCalibration = useCallback(
-    async (
-      cameraId: number,
-      clickLat: number,
-      clickLon: number,
-    ): Promise<boolean> => {
-      try {
-        const response = await apiSystem.post<{
-          status: string;
-          message: string;
-        }>(`/ptz/${cameraId}/apply-calibration`, {
-          click_lat: clickLat,
-          click_lon: clickLon,
-        });
-
-        if (response.ok) {
-          toast.success(response.data?.message ?? "Calibración aplicada");
-          stopCalibrating();
-          queryClient.invalidateQueries({ queryKey: ["config-devices"] });
-          return true;
-        }
-
-        toast.error("Error al aplicar la calibración");
-        return false;
-      } catch (err) {
-        console.error("Error al aplicar calibración:", err);
-        toast.error("Error de red al aplicar calibración");
-        return false;
-      }
-    },
-    [stopCalibrating, queryClient],
+    [setClickPoint, setPreviewBearing, setResult, refreshCalibrationStatus, queryClient],
   );
 
   return {
@@ -282,8 +271,7 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
     stopCalibrating,
     calibrate,
     gotoGps,
-    setPointZero,
-    applyCalibration,
+    saveReference,
     setPreviewBearing,
     fetchCalibrationStatus,
   };

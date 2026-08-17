@@ -204,7 +204,7 @@ export const RadarMap = memo(function RadarMap({
   }));
 
   // ── Calibración de cámara ──
-  const { calibrate, gotoGps, setPointZero } = useCameraCalibration();
+  const { calibrate, gotoGps } = useCameraCalibration();
   const calibratingCameraId = useCameraCalibrationStore(
     (s) => s.calibratingCameraId,
   );
@@ -418,15 +418,15 @@ export const RadarMap = memo(function RadarMap({
           return;
         }
 
-        if (calibrationMode === "setPointZero") {
-          // Fijar el punto 0 (azimut) en el punto clickeado
-          setPointZero(
-            calibratingCameraId,
-            e.lngLat.lat,
-            e.lngLat.lng,
-          );
+        if (calibrationMode === "save") {
+          // Modo "save": solo MARCA el punto de referencia en el mapa.
+          // El guardado (única escritura de calibración) se confirma desde
+          // el panel de calibración con "Guardar referencia".
+          useCameraCalibrationStore
+            .getState()
+            .setClickPoint({ lat: e.lngLat.lat, lon: e.lngLat.lng });
         } else {
-          // Giro: la cámara apunta físicamente al punto clickeado
+          // Giro: la cámara apunta físicamente al punto clickeado (sin guardar)
           gotoGps(
             calibratingCameraId,
             e.lngLat.lat,
@@ -464,7 +464,6 @@ export const RadarMap = memo(function RadarMap({
       calibrationMode,
       calibrate,
       gotoGps,
-      setPointZero,
       isDrawing,
       addDrawingPoint,
       isPickingPosition,

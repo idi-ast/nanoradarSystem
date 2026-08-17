@@ -9,11 +9,13 @@ export interface CalibrationResult {
   recommended_height: number | null;
   recommended_max_range: number;
   tilt_angle_used: number | null;
-  /** Pan normalizado ONVIF [0,1] para apuntar al punto */
+  /** Corrección de tilt guardada (tiltOffset) */
+  tilt_offset?: number;
+  /** Pan del encoder (grados) al que apunta la cámara */
   pan?: number;
-  /** Tilt normalizado ONVIF [0,1] */
+  /** Tilt del encoder (grados) al que apunta la cámara */
   tilt?: number;
-  /** Zoom normalizado ONVIF [0,1] */
+  /** Zoom (unidades Dahua) */
   zoom?: number;
 }
 
@@ -43,11 +45,11 @@ export interface HomePosition {
 /** Estado de calibración + cobertura devuelto por /calibration-status */
 export interface CalibrationStatus {
   azimut: number;
+  tilt_offset: number;
   lat: number;
   lon: number;
   altura_m: number;
   invert_pan: boolean;
-  invert_tilt: boolean;
   zones: ZoneCoverage[];
   covered_count: number;
   total_zones: number;
@@ -70,11 +72,12 @@ interface CameraCalibrationState {
   /** Estado de cobertura de zonas (calibration-status) */
   calibrationStatus: CalibrationStatus | null;
   /**
-   * Modo de calibración:
-   * - "goto": al hacer clic en el mapa, la cámara GIRA hacia el punto
-   * - "setPointZero": al hacer clic en el mapa, se FIJA el punto 0 (azimut)
+   * Modo de calibración guiada (PTZ v2):
+   * - "goto": al hacer clic en el mapa, la cámara GIRA hacia el punto (sin guardar)
+   * - "save": al hacer clic en el mapa se marca el punto de referencia; luego
+   *   "Guardar referencia" ejecuta la ÚNICA escritura de calibración (azimut/tiltOffset)
    */
-  mode: "goto" | "setPointZero";
+  mode: "goto" | "save";
 
   /** Activa el modo calibración para una cámara */
   startCalibrating: (cameraId: number, isPtz: boolean) => void;
@@ -87,7 +90,7 @@ interface CameraCalibrationState {
   /** Actualiza el bearing de la vista previa en vivo */
   setPreviewBearing: (bearing: number | null) => void;
   /** Cambia el modo de calibración */
-  setMode: (mode: "goto" | "setPointZero") => void;
+  setMode: (mode: "goto" | "save") => void;
   /** Guarda el estado de cobertura */
   setCalibrationStatus: (status: CalibrationStatus | null) => void;
   /** Consulta el estado de cobertura desde el backend */
