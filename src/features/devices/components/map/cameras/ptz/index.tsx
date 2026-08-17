@@ -111,6 +111,9 @@ const PtzCamera = memo(
                   onCancel={() =>
                     useCameraCalibrationStore.getState().stopCalibrating()
                   }
+                  azimut={Number(camera.azimut) || 0}
+                  panOffset={camera.panOffset}
+                  panInvertido={camera.panInvertido}
                 />
               )}
 

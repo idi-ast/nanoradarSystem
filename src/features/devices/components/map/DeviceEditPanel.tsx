@@ -1082,6 +1082,7 @@ function PtzForm({
     panInvertido: device.panInvertido ?? 0,
     tiltInvertido: device.tiltInvertido ?? 0,
     tiltOffset: device.tiltOffset ?? 0,
+    panOffset: device.panOffset ?? 0,
     url_stream: device.url_stream,
     tipo: device.tipo,
   });
@@ -1114,6 +1115,7 @@ function PtzForm({
       altitud: form.altitud,
       panInvertido: form.panInvertido,
       tiltInvertido: form.tiltInvertido,
+      panOffset: form.panOffset,
       usuario: form.usuario,
       password: form.password,
       color: liveEdit.color,
@@ -1244,6 +1246,11 @@ function PtzForm({
             <span className="text-[11px] text-text-100/70">Espejo Y (tilt)</span>
           </label>
         </div>
+        <TextField
+          label="Pan Offset (°)"
+          value={String(form.panOffset)}
+          onChange={(v) => set("panOffset", v === "" ? 0 : Number(v))}
+        />
       </div>
     </PanelWrapper>
   );

@@ -208,6 +208,15 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
           total_zones: number;
           all_covered: boolean;
           recommended_home: unknown;
+          /** Verificación de coherencia del pipeline */
+          verification?: {
+            coherent: boolean;
+            warning?: string;
+            encoder_pan_deg?: number;
+            reconstructed_bearing?: number;
+            expected_bearing?: number;
+            error_deg?: number;
+          };
         }>(`/ptz/${cameraId}/calibrate`, {
           click_lat: clickLat,
           click_lon: clickLon,
@@ -244,6 +253,14 @@ export function useCameraCalibration(): UseCameraCalibrationReturn {
           toast.success(
             `${data.message ?? "Calibración guardada"}.${jumpMsg}`,
           );
+
+          // Si el backend detecta incoherencia, guiar al usuario a re-detectar el pan.
+          if (data.verification && !data.verification.coherent) {
+            toast.warning(
+              data.verification.warning ??
+                "Inconsistencia detectada. Ejecuta 'Detectar dirección PAN' desde el panel de calibración.",
+            );
+          }
 
           // Refrescar la config para reflejar el nuevo azimut/tiltOffset
           queryClient.invalidateQueries({ queryKey: ["config-devices"] });

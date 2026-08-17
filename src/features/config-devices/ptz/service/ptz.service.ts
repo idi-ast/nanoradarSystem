@@ -19,6 +19,7 @@ export type PtzPayload = Pick<
   | "altitud"
   | "panInvertido"
   | "tiltInvertido"
+  | "panOffset"
   | "url_stream"
   | "tipo"
 > & {

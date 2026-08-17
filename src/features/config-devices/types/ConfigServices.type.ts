@@ -76,6 +76,8 @@ export interface Ptz {
   panInvertido?: number;
   tiltInvertido?: number;
   tiltOffset?: number;
+  /** Corrección lineal del pan (grados). Ajusta el offset mecánico de la cámara. */
+  panOffset?: number;
   url_stream: string;
   tipo: string;
   idEmpresa?: number;

@@ -116,6 +116,7 @@ const defaultPtz: PtzPayload = {
   altitud: "0",
   panInvertido: 0,
   tiltInvertido: 0,
+  panOffset: 0,
   url_stream: "",
   tipo: "IP",
   latitud: "",
@@ -454,6 +455,7 @@ function PtzForm({ onClose }: { onClose: () => void }) {
         puertoRtsp: Number(form.puertoRtsp),
         panInvertido: Number(form.panInvertido),
         tiltInvertido: Number(form.tiltInvertido),
+        panOffset: Number(form.panOffset),
         azimut: String(form.azimut),
         altitud: String(form.altitud),
       },
@@ -562,6 +564,19 @@ function PtzForm({ onClose }: { onClose: () => void }) {
           <span className="text-xs text-text-100/70">Tilt invertido</span>
           <InfoIcon text="Activar si el tilt sube cuando debería bajar" />
         </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            name="panOffset"
+            value={form.panOffset}
+            onChange={handleChange}
+            step="any"
+            placeholder="0"
+            className="h-8 w-24 rounded-md border border-border bg-bg-200 text-text-100 text-sm px-2 focus:outline-none focus:ring-1 focus:ring-brand-200"
+          />
+          <span className="text-xs text-text-100/70">Pan offset (°)</span>
+          <InfoIcon text="Corrección lineal del pan en grados. Normalmente se ajusta desde el panel de calibración de la cámara" />
+        </div>
       </div>
 
       {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
