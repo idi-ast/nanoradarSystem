@@ -229,7 +229,7 @@ export function CalibrationPanel({
   };
 
   return (
-    <div className="absolute -top-9/5 left-1/2 -translate-x-1/2 z-50 bg-zinc-900/95 backdrop-blur border border-zinc-700 rounded-xl px-4 py-3 shadow-2xl min-w-150 max-w-sm max-h-[85vh] overflow-x-hidden overflow-y-auto">
+    <div className="bg-zinc-900/95 backdrop-blur border border-zinc-700 rounded-xl px-4 py-3 shadow-2xl w-full max-h-[85vh] overflow-x-hidden overflow-y-auto">
       {/* Cabecera */}
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full animate-pulse bg-amber-400" />

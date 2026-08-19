@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui";
 import ConfigZones from "./ConfigZones";
 import ConfigRadar from "./ConfigRadar";
 import ConfigTargets from "./ConfigTargets";
+import PtzCalibrationMenu from "../PtzCalibrationMenu";
 import { useMapPanel } from "../MapPanelContext";
 import { useRole } from "@/context/role/hooks/useRole";
 
@@ -73,6 +74,8 @@ export const ZonesPanel = memo(function ZonesPanel() {
     <div className="flex flex-col border-b border-border gap-1 pb-1">
       {(isSuperAdmin || isAdmin) && <ClearTargetsButton />}
       <ConfigZones />
+      <PtzCalibrationMenu />
+
       <ConfigRadar />
       <ConfigTargets />
       {(isSuperAdmin || isAdmin) && <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>

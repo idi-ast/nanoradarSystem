@@ -4,11 +4,7 @@ import { useWebRtcPlayer, getWhepBaseUrl } from "./hooks/useWebRtcPlayer";
 import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
-import { CalibrationPanel } from "./components/CalibrationPanel";
 import type { PtzCameraProps, CameraMode } from "./types";
-import {
-  useCameraCalibrationStore,
-} from "../../../../stores/cameraCalibrationStore";
 
 const SLOT_HEIGHT = 360;
 const BASE_BOTTOM = 80;
@@ -26,19 +22,6 @@ const PtzCamera = memo(
     const streamUrl = getWhepBaseUrl(camera.url_stream);
     const { videoRef, streamRef, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
-
-  // ── Calibración ──
-  const calibratingCameraId = useCameraCalibrationStore(
-    (s) => s.calibratingCameraId,
-  );
-  const lastResult = useCameraCalibrationStore((s) => s.lastResult);
-  const calibrationMode = useCameraCalibrationStore((s) => s.mode);
-  const setCalibrationMode = useCameraCalibrationStore((s) => s.setMode);
-  const isThisCalibrating = calibratingCameraId === camera.id;
-
-  function toggleCalibrationMode() {
-    setCalibrationMode(calibrationMode === "save" ? "goto" : "save");
-  }
 
   function toggleMaximize() {
     if (mode === "minimized") {
@@ -99,23 +82,6 @@ const PtzCamera = memo(
                 onToggleFullscreen={() => setMode("fullscreen")}
                 onHide={onClose}
               />
-
-              {/* Panel de calibración */}
-              {isThisCalibrating && (
-                <CalibrationPanel
-                  cameraId={camera.id}
-                  cameraName={camera.nombre}
-                  result={lastResult}
-                  mode={calibrationMode}
-                  onToggleMode={toggleCalibrationMode}
-                  onCancel={() =>
-                    useCameraCalibrationStore.getState().stopCalibrating()
-                  }
-                  azimut={Number(camera.azimut) || 0}
-                  panOffset={camera.panOffset}
-                  panInvertido={camera.panInvertido}
-                />
-              )}
 
               <PtzVideo
                 videoRef={videoRef}

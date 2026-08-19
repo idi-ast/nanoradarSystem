@@ -141,7 +141,7 @@ export function RadarTargetsLayer({
               ? Math.max(0, (i + 1) / totalSegments)
               : 1;
             const ti = t.trackIntensity ?? 1;
-            const lineWidth = 3.5 * (0.5 + ti * 0.5);
+            const lineWidth = 7 * (0.5 + ti * 0.5);
             // Para el trazo usar color sólido (sin alpha, line-opacity ya controla el fade)
             let trailColor = t.trackColor ?? null;
             if (trailColor && trailColor.startsWith("rgba")) {
