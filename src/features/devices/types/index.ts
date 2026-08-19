@@ -12,4 +12,5 @@ export type {
   TiposAlertas,
   MagosRadarPosition,
   MagosRadarTrack,
+  TrackHistoryPoint
 } from "./radar.types";

@@ -60,6 +60,10 @@ interface RadarMapProps {
   deviceFilter?: DeviceFilter;
   visibility?: DeviceVisibility;
   onVisibilityChange?: (v: DeviceVisibility) => void;
+  selectedTargetId?: string | null;
+  onSelectTarget?: (id: string | null) => void;
+  historyTrackPoints?: import("../../types").TrackHistoryPoint[];
+  historyTrackRange?: HistoryRange;
 }
 
 const ALL_TARGET_LAYER_IDS = RADAR_INSTANCES.map(
@@ -80,6 +84,8 @@ function SecondaryRadarLayers({
         historyRange={historyRange}
         selectedTargetId={null}
         onSelectTarget={() => { }}
+        historyTrackPoints={undefined}
+        historyTrackRange={{ start: 0, end: 100 }}
       />
     </>
   );
@@ -147,6 +153,10 @@ export const RadarMap = memo(function RadarMap({
   deviceFilter = "all",
   visibility: controlledVisibility,
   onVisibilityChange,
+  selectedTargetId: controlledSelectedTargetId,
+  onSelectTarget: controlledOnSelectTarget,
+  historyTrackPoints,
+  historyTrackRange,
 }: RadarMapProps) {
   const {
     config,
@@ -174,7 +184,9 @@ export const RadarMap = memo(function RadarMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [internalSelectedTargetId, setInternalSelectedTargetId] = useState<string | null>(null);
+  const selectedTargetId = controlledSelectedTargetId ?? internalSelectedTargetId;
+  const setSelectedTargetId = controlledOnSelectTarget ?? setInternalSelectedTargetId;
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("satellite");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
@@ -566,6 +578,8 @@ export const RadarMap = memo(function RadarMap({
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
+            historyTrackPoints={historyTrackPoints}
+            historyTrackRange={historyTrackRange}
           />
           <CameraActivityOverlay
             mapRef={mapRef}

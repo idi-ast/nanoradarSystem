@@ -164,6 +164,27 @@ export interface ActividadPayload {
   camaras: CamaraActividad[];
 }
 
+/** Punto individual del historial de un track (desde la BD) */
+export interface TrackHistoryPoint {
+  fecha: string;
+  lat: number;
+  lon: number;
+  speed: number | null;
+  heading: number | null;
+  snr: number | null;
+  nivel: number | null;
+  track_state: string | null;
+  confidence: number | null;
+  zona: string | null;
+}
+
+/** Respuesta del endpoint de historial de tracks */
+export interface TrackHistoryResponse {
+  track_id: string;
+  tipo_radar: string;
+  points: TrackHistoryPoint[];
+}
+
 export interface RawRadarPayload {
   nanoRadar: RawRadarMessage[];
   /** @deprecated Formato plano antiguo — reemplazado por `magosRadar` */

@@ -15,3 +15,4 @@ export { DrawingPreviewLayer } from "./map/DrawingPreviewLayer";
 export { TargetCard } from "./panel/TargetCard";
 export { ZoneCard } from "./panel/ZoneCard";
 export { ZoneDrawingPanel } from "./panel/ZoneDrawingPanel";
+export { TrackHistoryPanel } from "./panel/TrackHistoryPanel";

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup, Marker } from "react-map-gl";
-import type { RadarTarget, DeviceFilter } from "../../types";
+import type { RadarTarget, DeviceFilter, TrackHistoryPoint } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { isPointInPolygon } from "./utils/geoHelpers";
 import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
@@ -25,6 +25,10 @@ interface Props {
   historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
+  /** Puntos históricos del backend para el track seleccionado */
+  historyTrackPoints?: TrackHistoryPoint[];
+  /** Rango del timeline del historial (para filtrar los puntos históricos) */
+  historyTrackRange?: HistoryRange;
 }
 
 export function RadarTargetsLayer({
@@ -32,6 +36,8 @@ export function RadarTargetsLayer({
   historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
+  historyTrackPoints,
+  historyTrackRange = { start: 0, end: 100 },
 }: Props) {
   const { instanceConfig, zones } = useRadarContext();
   const { targets: allTargets } = useRadarTargets();
@@ -186,6 +192,39 @@ export function RadarTargetsLayer({
     },
   };
 
+  // ─── Historial del backend (traza completa de un track seleccionado) ───
+  const historyTrailData = useMemo(() => {
+    if (!historyTrackPoints || historyTrackPoints.length < 2) return null;
+
+    const startIdx = Math.floor((historyTrackRange.start / 100) * historyTrackPoints.length);
+    const endIdx = Math.ceil((historyTrackRange.end / 100) * historyTrackPoints.length);
+    const sliced = historyTrackPoints.slice(startIdx, endIdx);
+
+    if (sliced.length < 2) return null;
+
+    return {
+      type: "FeatureCollection" as const,
+      features: sliced.slice(1).map((point, i) => {
+        const prev = sliced[i];
+        const total = sliced.length - 1;
+        const opacity = total > 0 ? Math.max(0.15, (i + 1) / total) : 1;
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [
+              [prev.lon, prev.lat],
+              [point.lon, point.lat],
+            ],
+          },
+          properties: {
+            opacity,
+          },
+        };
+      }),
+    };
+  }, [historyTrackPoints, historyTrackRange]);
+
   return (
     <>
       {/* Canvas WebGL compartido para todos los marcadores 3D — UN solo contexto WebGL */}
@@ -194,6 +233,23 @@ export function RadarTargetsLayer({
       <Source id={`targets-trails-${id}`} type="geojson" data={trailsData}>
         <Layer {...trailLayer} beforeId={DEVICES_BELOW_LAYER_ID} />
       </Source>
+
+      {/* Traza histórica del backend (track seleccionado) */}
+      {historyTrailData && (
+        <Source id={`history-trail-${id}`} type="geojson" data={historyTrailData}>
+          <Layer
+            id={`history-trail-layer-${id}`}
+            type="line"
+            paint={{
+              "line-color": "#f59e0b",
+              "line-width": 3,
+              "line-opacity": ["get", "opacity"],
+              "line-blur": 0.5,
+            }}
+            beforeId={DEVICES_BELOW_LAYER_ID}
+          />
+        </Source>
+      )}
 
       {slicedTargets
         .filter((t) => t.history.length > 0)

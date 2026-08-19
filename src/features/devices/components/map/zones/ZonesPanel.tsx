@@ -21,7 +21,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
     <Tooltip text="Limpiar Tracks">
       <button
         onClick={clearTargets}
-        className="h-10 w-10 flex justify-center items-center rounded bg-bg-300 text-text-100 hover:bg-brand-100 transition-colors"
+        className="h-10 w-10 flex justify-center items-center rounded bg-brand-100 text-text-100 hover:bg-brand-100 transition-colors"
       >
         <IconMapPinX size={20} stroke={2} />
       </button>

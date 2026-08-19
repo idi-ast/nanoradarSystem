@@ -9,17 +9,20 @@ import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
+import { TrackHistoryPanel } from "../components/panel/TrackHistoryPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
+import { useTrackHistory } from "../hooks/useTrackHistory";
 import { RADAR_INSTANCES } from "../config";
-import type { DeviceFilter } from "../types";
+import type { DeviceFilter, TrackHistoryPoint } from "../types";
 import type { DeviceVisibility } from "../components/map/DevicesOverlay";
 import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
 import { useTargetVisualStore } from "../stores/targetVisualStore";
+import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import PtzCameraOverlay from "./PtzCameraOverlay";
 
 function NanoPages() {
@@ -40,6 +43,12 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   });
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  // ─── Historial de track ───
+  const [selectedHistoryTrackId, setSelectedHistoryTrackId] = useState<string | null>(null);
+  const [historyTrackRange, setHistoryTrackRange] = useState<HistoryRange>({
+    start: 0,
+    end: 100,
+  });
   const handleHideCamera = useCallback(
     (id: number) =>
       setDeviceVisibility((prev) => ({
@@ -60,6 +69,65 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     (range: HistoryRange) => setHistoryRange(range),
     [],
   );
+  const handleHistoryTrackRangeChange = useCallback(
+    (range: HistoryRange) => setHistoryTrackRange(range),
+    [],
+  );
+
+  // Encontrar el target seleccionado
+  const { targets } = useRadarTargets();
+  const selectedTarget = useMemo(
+    () => targets.find((t) => t.id === selectedHistoryTrackId) ?? null,
+    [targets, selectedHistoryTrackId],
+  );
+
+  // Obtener historial del backend para el track seleccionado
+  const rawTrackId = selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ?? null;
+  const tipoRadar = selectedTarget?.deviceType === "magosradar" ? "magos" : selectedTarget?.deviceType === "nanoRadar" ? "nano" : "spotter";
+  const { data: backendHistory } = useTrackHistory({
+    trackId: rawTrackId,
+    tipoRadar,
+    sessionRef: selectedTarget?.lastUpdate ?? null,
+    enabled: !!rawTrackId,
+  });
+
+  // Merge in-memory + backend history, deduplicado
+  const mergedHistoryPoints = useMemo(() => {
+    if (!selectedTarget) return [];
+
+    const inMemoryPoints: TrackHistoryPoint[] = selectedTarget.history.map(([lat, lon, ts]) => ({
+      fecha: new Date(ts).toISOString(),
+      lat,
+      lon,
+      speed: null,
+      heading: null,
+      snr: null,
+      nivel: null,
+      track_state: null,
+      confidence: null,
+      zona: null,
+    }));
+
+    const backendPoints = backendHistory?.points ?? [];
+    const seen = new Map<string, TrackHistoryPoint>();
+    for (const p of backendPoints) {
+      const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+      seen.set(key, p);
+    }
+    for (const p of inMemoryPoints) {
+      const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+      if (!seen.has(key)) seen.set(key, p);
+    }
+    return Array.from(seen.values()).sort(
+      (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
+    );
+  }, [selectedTarget, backendHistory]);
+
+  const handleSelectHistoryTrack = useCallback((id: string | null) => {
+    setSelectedHistoryTrackId(id);
+    setHistoryTrackRange({ start: 0, end: 100 });
+  }, []);
+
   return (
     <div
       className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
@@ -72,6 +140,10 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
             deviceFilter={deviceFilter}
             visibility={deviceVisibility}
             onVisibilityChange={setDeviceVisibility}
+            selectedTargetId={selectedHistoryTrackId}
+            onSelectTarget={handleSelectHistoryTrack}
+            historyTrackPoints={mergedHistoryPoints}
+            historyTrackRange={historyTrackRange}
           />
         </div>
         <HistoryRangeBar onChange={handleRangeChange} />
@@ -81,24 +153,44 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       </div>
 
       {!isMobile ? (
-        <RightBarNano
-          deviceFilter={deviceFilter}
-          onDeviceFilterChange={setDeviceFilter}
-          hiddenCamaras={deviceVisibility.hiddenCamaras}
-          onHideCamera={handleHideCamera}
-          hiddenPtz={deviceVisibility.hiddenPtz}
-          onHidePtz={handleHidePtz}
-        />
+        selectedTarget ? (
+          <TrackHistoryPanel
+            target={selectedTarget}
+            historyRange={historyTrackRange}
+            onHistoryRangeChange={handleHistoryTrackRangeChange}
+            onClose={() => setSelectedHistoryTrackId(null)}
+          />
+        ) : (
+          <RightBarNano
+            deviceFilter={deviceFilter}
+            onDeviceFilterChange={setDeviceFilter}
+            hiddenCamaras={deviceVisibility.hiddenCamaras}
+            onHideCamera={handleHideCamera}
+            hiddenPtz={deviceVisibility.hiddenPtz}
+            onHidePtz={handleHidePtz}
+            onSelectTrack={handleSelectHistoryTrack}
+          />
+        )
       ) : isOpenRightBar ? (
-        <RightBarNano
-          setOpenRightBar={setOpenRightBar}
-          deviceFilter={deviceFilter}
-          onDeviceFilterChange={setDeviceFilter}
-          hiddenCamaras={deviceVisibility.hiddenCamaras}
-          onHideCamera={handleHideCamera}
-          hiddenPtz={deviceVisibility.hiddenPtz}
-          onHidePtz={handleHidePtz}
-        />
+        selectedTarget ? (
+          <TrackHistoryPanel
+            target={selectedTarget}
+            historyRange={historyTrackRange}
+            onHistoryRangeChange={handleHistoryTrackRangeChange}
+            onClose={() => setSelectedHistoryTrackId(null)}
+          />
+        ) : (
+          <RightBarNano
+            setOpenRightBar={setOpenRightBar}
+            deviceFilter={deviceFilter}
+            onDeviceFilterChange={setDeviceFilter}
+            hiddenCamaras={deviceVisibility.hiddenCamaras}
+            onHideCamera={handleHideCamera}
+            hiddenPtz={deviceVisibility.hiddenPtz}
+            onHidePtz={handleHidePtz}
+            onSelectTrack={handleSelectHistoryTrack}
+          />
+        )
       ) : (
         <button
           className="absolute right-0 z-50 top-[50%] rounded-s-sm bg-brand-100"
@@ -162,6 +254,7 @@ const RightBarNano = memo(
     onHideCamera,
     hiddenPtz,
     onHidePtz,
+    onSelectTrack,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
@@ -170,6 +263,7 @@ const RightBarNano = memo(
     onHideCamera?: (id: number) => void;
     hiddenPtz: Set<number>;
     onHidePtz?: (id: number) => void;
+    onSelectTrack?: (id: string | null) => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -218,6 +312,7 @@ const RightBarNano = memo(
           <TargetsDynamicPanel
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
+            onSelectTrack={onSelectTrack}
           />
           <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />
           <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
@@ -233,6 +328,7 @@ const RightBarNano = memo(
     if (prev.onHideCamera !== next.onHideCamera) return false;
     if (prev.hiddenPtz !== next.hiddenPtz) return false;
     if (prev.onHidePtz !== next.onHidePtz) return false;
+    if (prev.onSelectTrack !== next.onSelectTrack) return false;
     return true;
   },
 );
@@ -242,16 +338,38 @@ export default NanoPages;
 const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   deviceFilter,
   onDeviceFilterChange,
+  onSelectTrack,
 }: {
   deviceFilter: DeviceFilter;
   onDeviceFilterChange: (f: DeviceFilter) => void;
+  onSelectTrack?: (id: string | null) => void;
 }) {
   const { stableTargets } = useRadarStableTargets();
+  const { zones } = useRadarContext();
   const { data: configData } = useConfigDevices();
   const activeTypes = useMemo(
     () => getActiveDeviceTypes(configData?.data),
     [configData],
   );
+
+  // Mapa targetId → color de zona para tracks dentro de zonas
+  const targetZoneColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const target of stableTargets) {
+      for (const zone of zones) {
+        const rawVertices = Array.isArray(zone.poligono.vertices)
+          ? zone.poligono.vertices
+          : Object.values(zone.poligono.vertices);
+        if (isPointInPolygon(target.lat, target.lon, rawVertices as [number, number][])) {
+          // Si ya tiene zona asignada, no sobreescribir (prioridad primera zona encontrada)
+          if (!map.has(target.id)) {
+            map.set(target.id, zone.poligono.color);
+          }
+        }
+      }
+    }
+    return map;
+  }, [stableTargets, zones]);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -260,6 +378,8 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
         deviceFilter={deviceFilter}
         onDeviceFilterChange={onDeviceFilterChange}
         activeTypes={activeTypes}
+        onSelectTrack={onSelectTrack}
+        targetZoneColorMap={targetZoneColorMap}
       />
     </div>
   );
@@ -308,11 +428,15 @@ const TargetsSection = memo(function TargetsSection({
   deviceFilter,
   onDeviceFilterChange,
   activeTypes,
+  onSelectTrack,
+  targetZoneColorMap,
 }: {
   targets: import("../types").RadarTarget[];
   deviceFilter: DeviceFilter;
   onDeviceFilterChange: (f: DeviceFilter) => void;
   activeTypes: string[];
+  onSelectTrack?: (id: string | null) => void;
+  targetZoneColorMap?: Map<string, string>;
 }) {
   const TABS = useMemo(() => {
     const tabs: { key: TabFilter; label: string }[] = [
@@ -326,7 +450,7 @@ const TargetsSection = memo(function TargetsSection({
 
   const activeTypeSet = useMemo(() => new Set(activeTypes), [activeTypes]);
 
-  const { counts, filtered } = useMemo(() => {
+  const { counts, sorted } = useMemo(() => {
     const nextCounts: Record<string, number> = { all: targets.length };
     for (const dt of activeTypes) nextCounts[dt] = 0;
     for (const t of targets) {
@@ -338,8 +462,16 @@ const TargetsSection = memo(function TargetsSection({
       deviceFilter === "all"
         ? targets
         : targets.filter((t) => t.deviceType === deviceFilter);
-    return { counts: nextCounts, filtered: nextFiltered };
-  }, [targets, deviceFilter, activeTypes, activeTypeSet]);
+    // Tracks en zona van arriba, el resto debajo
+    const nextSorted = [...nextFiltered].sort((a, b) => {
+      const aInZone = targetZoneColorMap?.has(a.id) ?? false;
+      const bInZone = targetZoneColorMap?.has(b.id) ?? false;
+      if (aInZone && !bInZone) return -1;
+      if (!aInZone && bInZone) return 1;
+      return 0;
+    });
+    return { counts: nextCounts, sorted: nextSorted };
+  }, [targets, deviceFilter, activeTypes, activeTypeSet, targetZoneColorMap]);
 
   return (
     <>
@@ -368,14 +500,21 @@ const TargetsSection = memo(function TargetsSection({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <p className="text-text-100/40 text-[10px] italic">
             {deviceFilter !== "all"
               ? `${DEVICE_LABEL[deviceFilter] ?? deviceFilter} sin detecciones...`
               : "No hay objetivos en el área..."}
           </p>
         ) : (
-          filtered.map((t) => <TargetCard key={t.id} target={t} />)
+          sorted.map((t) => (
+            <TargetCard
+              key={t.id}
+              target={t}
+              onClick={(id) => onSelectTrack?.(id)}
+              zoneColor={targetZoneColorMap?.get(t.id) ?? null}
+            />
+          ))
         )}
       </div>
     </>
