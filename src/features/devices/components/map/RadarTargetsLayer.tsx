@@ -25,6 +25,7 @@ interface Props {
   historyRange?: HistoryRange;
   selectedTargetId: string | null;
   onSelectTarget: (id: string | null) => void;
+  showPopup?: boolean;
   /** Puntos históricos del backend para el track seleccionado */
   historyTrackPoints?: TrackHistoryPoint[];
   /** Rango del timeline del historial (para filtrar los puntos históricos) */
@@ -36,6 +37,7 @@ export function RadarTargetsLayer({
   historyRange = { start: 0, end: 100 },
   selectedTargetId,
   onSelectTarget,
+  showPopup = false,
   historyTrackPoints,
   historyTrackRange = { start: 0, end: 100 },
 }: Props) {
@@ -365,7 +367,7 @@ export function RadarTargetsLayer({
           );
         })}
 
-      {selected && (
+      {selected && showPopup && (
         <Popup
           longitude={selected.lon}
           latitude={selected.lat}

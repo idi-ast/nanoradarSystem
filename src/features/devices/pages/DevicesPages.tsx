@@ -44,6 +44,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     useState<DeviceVisibility>(ALL_VISIBLE);
   // ─── Historial de track ───
   const [selectedHistoryTrackId, setSelectedHistoryTrackId] = useState<string | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
   const [historyTrackRange, setHistoryTrackRange] = useState<HistoryRange>({
     start: 0,
     end: 100,
@@ -145,6 +146,13 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const handleSelectHistoryTrack = useCallback((id: string | null) => {
     setSelectedHistoryTrackId(id);
     setHistoryTrackRange({ start: 0, end: 100 });
+    setShowPopup(false);
+  }, []);
+
+  const handleMapSelectTrack = useCallback((id: string | null) => {
+    setSelectedHistoryTrackId(id);
+    setHistoryTrackRange({ start: 0, end: 100 });
+    setShowPopup(id !== null);
   }, []);
 
   return (
@@ -160,7 +168,8 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
             visibility={deviceVisibility}
             onVisibilityChange={setDeviceVisibility}
             selectedTargetId={selectedHistoryTrackId}
-            onSelectTarget={handleSelectHistoryTrack}
+            onSelectTarget={handleMapSelectTrack}
+            showPopup={showPopup}
             historyTrackPoints={mergedHistoryPoints}
             historyTrackRange={historyTrackRange}
           />

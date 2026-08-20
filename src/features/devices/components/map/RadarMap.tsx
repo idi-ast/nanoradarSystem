@@ -62,6 +62,7 @@ interface RadarMapProps {
   onVisibilityChange?: (v: DeviceVisibility) => void;
   selectedTargetId?: string | null;
   onSelectTarget?: (id: string | null) => void;
+  showPopup?: boolean;
   historyTrackPoints?: import("../../types").TrackHistoryPoint[];
   historyTrackRange?: HistoryRange;
 }
@@ -155,6 +156,7 @@ export const RadarMap = memo(function RadarMap({
   onVisibilityChange,
   selectedTargetId: controlledSelectedTargetId,
   onSelectTarget: controlledOnSelectTarget,
+  showPopup,
   historyTrackPoints,
   historyTrackRange,
 }: RadarMapProps) {
@@ -578,6 +580,7 @@ export const RadarMap = memo(function RadarMap({
             historyRange={historyRange}
             selectedTargetId={selectedTargetId}
             onSelectTarget={setSelectedTargetId}
+            showPopup={showPopup}
             historyTrackPoints={historyTrackPoints}
             historyTrackRange={historyTrackRange}
           />
