@@ -42,7 +42,7 @@ export const ZoneCard = memo(function ZoneCard({
     zone.categoriaDeteccion ?? 1,
   );
   const [editActivarPtz, setEditActivarPtz] = useState<boolean>(
-    zone.activarPtz ?? false,
+    zone.activarPtz ?? true,
   );
 
   const handleEdit = () => {

@@ -57,7 +57,7 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
 
   const { data: backendHistory, isLoading } = useTrackHistory({
     trackId: rawId,
-    tipoRadar: target.deviceType === "magosradar" ? "magos" : target.deviceType === "nanoRadar" ? "nano" : "spotter",
+    tipoRadar: target.deviceType === "magosradar" ? "magos" : target.deviceType === "nanoRadar" ? "nano" : undefined,
   });
 
   // Merge in-memory history (reciente) + backend history (antiguo), deduplicando por timestamp

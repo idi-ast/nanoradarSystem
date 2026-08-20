@@ -21,7 +21,6 @@ import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/m
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
-import { useTargetVisualStore } from "../stores/targetVisualStore";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import PtzCameraOverlay from "./PtzCameraOverlay";
 
@@ -83,7 +82,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
 
   // Obtener historial del backend para el track seleccionado
   const rawTrackId = selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ?? null;
-  const tipoRadar = selectedTarget?.deviceType === "magosradar" ? "magos" : selectedTarget?.deviceType === "nanoRadar" ? "nano" : "spotter";
+  const tipoRadar = selectedTarget?.deviceType === "magosradar" ? "magos" : selectedTarget?.deviceType === "nanoRadar" ? "nano" : undefined;
   const { data: backendHistory } = useTrackHistory({
     trackId: rawTrackId,
     tipoRadar,
@@ -91,11 +90,29 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     enabled: !!rawTrackId,
   });
 
+  // Virtual target para tracks que solo existen en la BD (no están en vivo)
+  const virtualTarget = useMemo(() => {
+    if (selectedTarget || !backendHistory || !rawTrackId) return null;
+    const firstPoint = backendHistory.points?.[0];
+    return {
+      id: rawTrackId,
+      lat: firstPoint?.lat ?? 0,
+      lon: firstPoint?.lon ?? 0,
+      nivel: 0,
+      zona: firstPoint?.zona ?? "",
+      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : Date.now(),
+      deviceType: (backendHistory.tipo_radar === "magos" ? "magosradar"
+        : backendHistory.tipo_radar === "nano" ? "nanoRadar"
+        : "spotter") as "magosradar" | "nanoRadar" | "spotter",
+      history: [] as [number, number, number][],
+    };
+  }, [selectedTarget, backendHistory, rawTrackId]);
+
+  const effectiveTarget = selectedTarget ?? virtualTarget;
+
   // Merge in-memory + backend history, deduplicado
   const mergedHistoryPoints = useMemo(() => {
-    if (!selectedTarget) return [];
-
-    const inMemoryPoints: TrackHistoryPoint[] = selectedTarget.history.map(([lat, lon, ts]) => ({
+    const inMemoryPoints: TrackHistoryPoint[] = (selectedTarget?.history ?? []).map(([lat, lon, ts]) => ({
       fecha: new Date(ts).toISOString(),
       lat,
       lon,
@@ -109,6 +126,8 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     }));
 
     const backendPoints = backendHistory?.points ?? [];
+    if (inMemoryPoints.length === 0 && backendPoints.length === 0) return [];
+
     const seen = new Map<string, TrackHistoryPoint>();
     for (const p of backendPoints) {
       const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
@@ -153,9 +172,9 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       </div>
 
       {!isMobile ? (
-        selectedTarget ? (
+        effectiveTarget ? (
           <TrackHistoryPanel
-            target={selectedTarget}
+            target={effectiveTarget}
             historyRange={historyTrackRange}
             onHistoryRangeChange={handleHistoryTrackRangeChange}
             onClose={() => setSelectedHistoryTrackId(null)}
@@ -172,9 +191,9 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
           />
         )
       ) : isOpenRightBar ? (
-        selectedTarget ? (
+        effectiveTarget ? (
           <TrackHistoryPanel
-            target={selectedTarget}
+            target={effectiveTarget}
             historyRange={historyTrackRange}
             onHistoryRangeChange={handleHistoryTrackRangeChange}
             onClose={() => setSelectedHistoryTrackId(null)}
@@ -234,8 +253,8 @@ const RadarStatusBar = memo(() => {
         </span>
         <span
           className={`font-bold text-xl leading-tight ${criticalCount > 0
-              ? "text-red-500 animate-pulse"
-              : "text-text-100/30"
+            ? "text-red-500 animate-pulse"
+            : "text-text-100/30"
             }`}
         >
           {criticalCount}
@@ -345,6 +364,18 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   onSelectTrack?: (id: string | null) => void;
 }) {
   const { stableTargets } = useRadarStableTargets();
+  const [searchTrackId, setSearchTrackId] = useState<string>("");
+  const filteredTargets = useMemo(() => {
+    if (!searchTrackId) return stableTargets;
+    const lower = searchTrackId.toLowerCase();
+    return stableTargets.filter((t) => t.id.toLowerCase().includes(lower));
+  }, [stableTargets, searchTrackId]);
+
+  const handleSearchTrackSelect = useCallback((id: string | null) => {
+    if (!id || !onSelectTrack) return;
+    const match = stableTargets.find((t) => t.id.toLowerCase().includes(id.toLowerCase()));
+    onSelectTrack(match?.id ?? id);
+  }, [onSelectTrack, stableTargets]);
   const { zones } = useRadarContext();
   const { data: configData } = useConfigDevices();
   const activeTypes = useMemo(
@@ -373,8 +404,24 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
+      ">
+        <span>Buscar track </span>
+        <input
+          type="text"
+          className="border w-full border-border-200 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-border"
+          value={searchTrackId}
+          onChange={(e) => setSearchTrackId(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearchTrackSelect(searchTrackId || null);
+            }
+          }}
+          placeholder="T23"
+        />
+      </div>
       <TargetsSection
-        targets={stableTargets}
+        targets={filteredTargets}
         deviceFilter={deviceFilter}
         onDeviceFilterChange={onDeviceFilterChange}
         activeTypes={activeTypes}
@@ -484,8 +531,8 @@ const TargetsSection = memo(function TargetsSection({
               key={key}
               onClick={() => onDeviceFilterChange(key)}
               className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
-                  ? "border-sky-400 text-sky-400"
-                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+                ? "border-sky-400 text-sky-400"
+                : "border-transparent text-text-100/40 hover:text-text-100/70"
                 }`}
             >
               {label}

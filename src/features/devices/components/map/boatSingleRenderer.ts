@@ -11,6 +11,7 @@ export interface BoatEntry {
   bearingDeg: number;
   moving: boolean;
   isSelected: boolean;
+  dimmed: boolean;
   /** Ruta GLB asignada a este target según su categoría */
   modelPath: string;
 }
@@ -279,6 +280,20 @@ const _layer: CustomLayerInterface = {
       _modelGroup.rotation.y =
         -((boat.bearingDeg + _config.rotationOffset) * Math.PI) / 180;
 
+      // Aplicar opacidad al modelo si está dimmed
+      const targetOpacity = boat.dimmed ? 0.4 : 1;
+      _modelGroup.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.isMesh && mesh.material) {
+          const m = mesh.material as THREE.MeshStandardMaterial;
+          if (m.transparent !== undefined) {
+            m.transparent = true;
+            m.opacity = targetOpacity;
+            m.needsUpdate = true;
+          }
+        }
+      });
+
       // Estado de los anillos
       const mat = _movingRing!.material as THREE.MeshBasicMaterial;
       mat.color.set(boat.moving ? 0x38bdf8 : 0x6b7280);
@@ -314,7 +329,7 @@ export function updateBoat3DConfig(cfg: Partial<Boat3DConfig>) {
 }
 
 export function registerBoat(id: string, lng: number, lat: number, modelPath: string) {
-  _entries.set(id, { lng, lat, bearingDeg: 0, moving: false, isSelected: false, modelPath });
+  _entries.set(id, { lng, lat, bearingDeg: 0, moving: false, isSelected: false, dimmed: false, modelPath });
   if (_scene) ensureModel(modelPath);
   _map?.triggerRepaint();
 }

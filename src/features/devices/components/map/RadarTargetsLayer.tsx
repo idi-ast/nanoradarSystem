@@ -128,52 +128,56 @@ export function RadarTargetsLayer({
   }, [timing.COLOR_REFRESH_MS]);
 
   const trailsData = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: slicedTargets
-        .filter((t) => t.history.length > 1)
-        .flatMap((t) => {
-          const history = t.history;
-          // Solo los últimos TRAIL_FADE_POINTS puntos generan estela visible
-          const fadeLen = timing.TRAIL_FADE_POINTS;
-          const recentHistory = history.length > fadeLen
-            ? history.slice(-fadeLen)
-            : history;
+    () => {
+      const hasSelection = selectedTargetId !== null;
+      return {
+        type: "FeatureCollection" as const,
+        features: slicedTargets
+          .filter((t) => t.history.length > 1)
+          .flatMap((t) => {
+            const history = t.history;
+            const fadeLen = timing.TRAIL_FADE_POINTS;
+            const recentHistory = history.length > fadeLen
+              ? history.slice(-fadeLen)
+              : history;
 
-          return recentHistory.slice(1).map((point, i) => {
-            const prevPoint = recentHistory[i];
-            const totalSegments = recentHistory.length - 1;
-            const opacity = totalSegments > 0
-              ? Math.max(0, (i + 1) / totalSegments)
-              : 1;
-            const ti = t.trackIntensity ?? 1;
-            const lineWidth = 7 * (0.5 + ti * 0.5);
-            // Para el trazo usar color sólido (sin alpha, line-opacity ya controla el fade)
-            let trailColor = t.trackColor ?? null;
-            if (trailColor && trailColor.startsWith("rgba")) {
-              const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
-              if (m) trailColor = `rgb(${m[1]},${m[2]},${m[3]})`;
-            }
-            return {
-              type: "Feature" as const,
-              geometry: {
-                type: "LineString" as const,
-                coordinates: [
-                  [prevPoint[1], prevPoint[0]],
-                  [point[1], point[0]],
-                ],
-              },
-              properties: {
-                id: t.id,
-                opacity,
-                color: trailColor,
-                lineWidth,
-              },
-            };
-          });
-        }),
-    }),
-    [slicedTargets, timing.TRAIL_FADE_POINTS],
+            const dimmed = hasSelection && t.id !== selectedTargetId;
+
+            return recentHistory.slice(1).map((point, i) => {
+              const prevPoint = recentHistory[i];
+              const totalSegments = recentHistory.length - 1;
+              const opacity = totalSegments > 0
+                ? Math.max(0, (i + 1) / totalSegments)
+                : 1;
+              const ti = t.trackIntensity ?? 1;
+              const lineWidth = 7 * (0.5 + ti * 0.5);
+              let trailColor = t.trackColor ?? null;
+              if (trailColor && trailColor.startsWith("rgba")) {
+                const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
+                if (m) trailColor = `rgb(${m[1]},${m[2]},${m[3]})`;
+              }
+              return {
+                type: "Feature" as const,
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: [
+                    [prevPoint[1], prevPoint[0]],
+                    [point[1], point[0]],
+                  ],
+                },
+                properties: {
+                  id: t.id,
+                  opacity,
+                  color: trailColor,
+                  lineWidth,
+                  dimmed,
+                },
+              };
+            });
+          }),
+      };
+    },
+    [slicedTargets, timing.TRAIL_FADE_POINTS, selectedTargetId],
   );
 
   const trailLayer = {
@@ -187,7 +191,12 @@ export function RadarTargetsLayer({
         targetColors.moving,
       ] as unknown as string,
       "line-width": ["get", "lineWidth"] as ["get", string],
-      "line-opacity": ["get", "opacity"] as ["get", string],
+      "line-opacity": [
+        "case",
+        ["get", "dimmed"],
+        ["*", ["get", "opacity"], 0.4],
+        ["get", "opacity"],
+      ] as unknown as number,
       "line-blur": 0.8,
     },
   };
@@ -264,6 +273,7 @@ export function RadarTargetsLayer({
             ZONE_DETECTION_CATEGORIES[1];
           const Icon = cat.icon;
           const isSelected = selectedTargetId === t.id;
+          const dimmed = selectedTargetId !== null && !isSelected;
 
           // Modo 3D: activo para todas las categorías cuando use3DBoat está activado
           const show3D = use3DBoat;
@@ -293,6 +303,7 @@ export function RadarTargetsLayer({
                     history={t.history}
                     moving={moving}
                     isSelected={isSelected}
+                    dimmed={dimmed}
                     size={64}
                   />
                   {t.nivel === 4 && (
@@ -325,9 +336,11 @@ export function RadarTargetsLayer({
                           ? `0 0 0 4px ${borderCol}40`
                           : undefined,
                         outline: isSelected ? "2px solid white" : undefined,
-                        transform: isSelected ? "scale(1.2)" : undefined,
+                        transform: isSelected ? "scale(1.2)" : dimmed ? "scale(0.9)" : undefined,
+                        opacity: dimmed ? 0.4 : 1,
+                        transition: "opacity 0.2s, transform 0.2s",
                       }}
-                      className="relative cursor-pointer flex items-center justify-center transition-all hover:scale-110"
+                      className="relative cursor-pointer flex items-center justify-center hover:scale-110"
                     >
                       {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
                         <span
