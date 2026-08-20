@@ -338,7 +338,7 @@ export function RadarTargetsLayer({
                           ? `0 0 0 4px ${borderCol}40`
                           : undefined,
                         outline: isSelected ? "2px solid white" : undefined,
-                        transform: isSelected ? "scale(1.2)" : dimmed ? "scale(0.9)" : undefined,
+                        transform: isSelected ? "scale(1.5)" : dimmed ? "scale(0.9)" : undefined,
                         opacity: dimmed ? 0.4 : 1,
                         transition: "opacity 0.2s, transform 0.2s",
                       }}
@@ -366,6 +366,54 @@ export function RadarTargetsLayer({
             </Marker>
           );
         })}
+
+      {/* Marcador para track seleccionado de la BD (no está en targets en vivo) */}
+      {selectedTargetId && !selected && historyTrackPoints && historyTrackPoints.length > 0 && (() => {
+        const lastPt = historyTrackPoints[historyTrackPoints.length - 1];
+        const show3D = use3DBoat;
+        const modelPath = DEFAULT_CATEGORY_MODELS[defaultCategoria] ?? "/3d/glb/cargo_ship.glb";
+        return (
+          <Marker
+            key={`bd-${selectedTargetId}`}
+            longitude={lastPt.lon}
+            latitude={lastPt.lat}
+            anchor="center"
+          >
+            {show3D ? (
+              <div className="relative">
+                <Boat3DMarker
+                  id={`bd-${selectedTargetId}`}
+                  lng={lastPt.lon}
+                  lat={lastPt.lat}
+                  modelPath={modelPath}
+                  history={historyTrackPoints.map((p) => [p.lat, p.lon, new Date(p.fecha).getTime()])}
+                  moving={false}
+                  isSelected
+                  size={64}
+                />
+              </div>
+            ) : (
+              // Marcador activo del historial
+              <div
+                className="relative cursor-pointer flex items-center justify-center"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  border: "4px solid #fff",
+                  backgroundColor: "#f59e0b40",
+                  transform: "scale(1.8)",
+                  boxShadow: "0 0 0 6px #f59e0b30, 0 0 12px #f59e0b60",
+                }}
+              >
+                <span className="text-[5px] font-bold text-white">
+                  {selectedTargetId.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
+                </span>
+              </div>
+            )}
+          </Marker>
+        );
+      })()}
 
       {selected && showPopup && (
         <Popup

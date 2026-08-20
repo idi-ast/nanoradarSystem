@@ -260,7 +260,7 @@ const _layer: CustomLayerInterface = {
       }
 
       // Escala: SCALE_TO_METERS metros reales, ajustada por _config.scale
-      const modelWorldScale = (SCALE_TO_METERS / cached.maxDim) * _config.scale;
+      const modelWorldScale = (SCALE_TO_METERS / cached.maxDim) * _config.scale * (boat.isSelected ? 1.5 : 1);
       _modelGroup.scale.setScalar(modelWorldScale);
 
       // Posición Mercator del target

@@ -65,7 +65,7 @@ export function Boat3DMarker({
     updateBoat(id, { lng, lat, bearingDeg, moving, isSelected, dimmed, modelPath });
   }, [id, lng, lat, bearingDeg, moving, isSelected, dimmed, modelPath]);
 
-  const effectiveSize = isSelected ? Math.round(size * 1.2) : size;
+  const effectiveSize = isSelected ? Math.round(size * 1.5) : size;
 
   // Div transparente: sirve como área de click (el modelo 3D lo renderiza el layer del mapa)
   return (
