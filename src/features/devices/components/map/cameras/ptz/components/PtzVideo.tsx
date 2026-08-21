@@ -1,4 +1,4 @@
-import { IconRefresh } from "@tabler/icons-react";
+import { IconRefresh, IconTarget } from "@tabler/icons-react";
 import { PtzControls } from "./PtzControls";
 
 interface PtzVideoProps {
@@ -10,6 +10,8 @@ interface PtzVideoProps {
   showControls?: boolean;
   /** Texto informativo temporal sobre el video (ej: "Iniciando detección IA...") */
   overlayText?: string | null;
+  /** Etiqueta del badge de lock visual radar↔visión (ej: "boat · T1") */
+  fusionLockLabel?: string | null;
 }
 
 export function PtzVideo({
@@ -20,6 +22,7 @@ export function PtzVideo({
   ptz_id,
   showControls,
   overlayText,
+  fusionLockLabel,
 }: PtzVideoProps) {
   return (
     <div
@@ -54,6 +57,16 @@ export function PtzVideo({
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-white text-[11px] font-medium">
               {overlayText}
+            </span>
+          </div>
+        </div>
+      )}
+      {fusionLockLabel && !connectionError && (
+        <div className="absolute top-2 left-2 pointer-events-none">
+          <div className="flex items-center gap-1.5 bg-emerald-500/85 backdrop-blur-sm px-2 py-1 rounded-md">
+            <IconTarget size={13} stroke={2} className="text-white" />
+            <span className="text-white text-[10px] font-semibold tracking-wide uppercase">
+              IA Lock · {fusionLockLabel}
             </span>
           </div>
         </div>

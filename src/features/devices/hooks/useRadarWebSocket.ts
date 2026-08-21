@@ -281,6 +281,8 @@ function processMagosradarMessages(
       snr,
       heading,
       trackIntensity,
+      visualClass: track.visualClass,
+      visualConf: track.visualConf,
     });
   }
 }

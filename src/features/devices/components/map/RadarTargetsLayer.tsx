@@ -455,6 +455,16 @@ export function RadarTargetsLayer({
                     </span>
                   </li>
                 )}
+                {selected.visualClass && (
+                  <li>
+                    Clase visual:{" "}
+                    <span className="text-emerald-300 font-bold capitalize">
+                      {selected.visualClass}
+                      {selected.visualConf != null &&
+                        ` · ${(selected.visualConf * 100).toFixed(0)}%`}
+                    </span>
+                  </li>
+                )}
                 <li>
                   Pos:{" "}
                   <span className="font-bold">

@@ -37,6 +37,10 @@ export interface RadarTarget {
   isStationary?: boolean;
   /** Intensidad del track (0-1) según largo de cola (magosRadar) */
   trackIntensity?: number;
+  /** Clase visual detectada por YOLO (fusión radar↔visión, magosRadar) */
+  visualClass?: string;
+  /** Confianza de la clasificación visual 0-1 (magosRadar) */
+  visualConf?: number;
 }
 
 export interface TiposAlertas {
@@ -158,6 +162,10 @@ export interface MagosRadarTrack {
   /** Color estable asignado por el backend al track */
   trackColor?: string;
   positions: MagosRadarPosition[];
+  /** Clase visual detectada por YOLO (fusión radar↔visión) */
+  visualClass?: string;
+  /** Confianza de la clasificación visual 0-1 */
+  visualConf?: number;
 }
 
 export interface ActividadPayload {

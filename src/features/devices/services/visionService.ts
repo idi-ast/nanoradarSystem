@@ -105,3 +105,46 @@ export async function fetchVisionClasses(): Promise<VisionClass[]> {
   const res = await apiSystem.get<{ classes: VisionClass[] }>("/vision/classes");
   return res.data.classes;
 }
+
+// ── Fusión radar ↔ visión ──────────────────────────────────────────────────
+
+export interface VisionFusionAssociation {
+  trackId: string | number;
+  name: string;
+  conf: number;
+  box: [number, number, number, number];
+  errPx: number;
+  isLocked: boolean;
+}
+
+export interface VisionFusionStatus {
+  enabled: boolean;
+  hasData: boolean;
+  visualLock?: boolean;
+  associations?: VisionFusionAssociation[];
+  offset?: { dBearing: number; DElev: number } | null;
+  ageSec?: number;
+  calibration?: { samples: number; meanErrorDeg: number | null };
+}
+
+/** Estado de la fusión radar↔visión de una PTZ. */
+export async function fetchVisionFusion(
+  ptzId: number,
+): Promise<VisionFusionStatus> {
+  const res = await apiSystem.get<VisionFusionStatus>(
+    `/vision/${ptzId}/fusion`,
+  );
+  return res.data;
+}
+
+/** Configura la fusión radar↔visión de una PTZ en caliente. */
+export async function configureVisionFusion(
+  ptzId: number,
+  payload: { enabled?: boolean; gateFrac?: number; servoGain?: number },
+): Promise<VisionFusionStatus> {
+  const res = await apiSystem.post<VisionFusionStatus>(
+    `/vision/${ptzId}/fusion/config`,
+    payload,
+  );
+  return res.data;
+}

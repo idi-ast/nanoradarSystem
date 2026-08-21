@@ -6,6 +6,7 @@ import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import { VisionConfigPanel } from "./components/VisionConfigPanel";
 import { useVisionDetection } from "@/features/devices/hooks/useVisionDetection";
+import { useVisionFusion } from "@/features/devices/hooks/useVisionFusion";
 import type { PtzCameraProps, CameraMode } from "./types";
 
 const SLOT_HEIGHT = 360;
@@ -30,6 +31,7 @@ const PtzCamera = memo(
       toggleVision,
       applyConfig,
     } = useVisionDetection(camera.id);
+    const { fusion, visualLock } = useVisionFusion(camera.id, visionOn);
     const [visionGrace, setVisionGrace] = useState(false);
     const [visionConfigOpen, setVisionConfigOpen] = useState(false);
     /** Incrementa al aplicar config: reinicia la ventana de gracia */
@@ -68,6 +70,16 @@ const PtzCamera = memo(
     function handleToggleVision() {
       void toggleVision();
     }
+
+    // Etiqueta del badge de lock visual: asociación del track bloqueado
+    const fusionLockLabel = visualLock && fusion?.associations?.length
+      ? (() => {
+          const locked =
+            fusion.associations.find((a) => a.isLocked) ??
+            fusion.associations[0];
+          return `${locked.name} · ${locked.trackId}`;
+        })()
+      : null;
 
     async function handleApplyVisionConfig(config: Parameters<
       typeof applyConfig
@@ -126,6 +138,7 @@ const PtzCamera = memo(
               overlayText={
                 visionGrace && !connectionError ? "Iniciando detección IA..." : null
               }
+              fusionLockLabel={fusionLockLabel}
             />
           </div>
         )}
@@ -157,6 +170,7 @@ const PtzCamera = memo(
                 overlayText={
                   visionGrace && !connectionError ? "Iniciando detección IA..." : null
                 }
+                fusionLockLabel={fusionLockLabel}
               />
             </div>,
             document.body,
