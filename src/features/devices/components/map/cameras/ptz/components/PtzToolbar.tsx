@@ -1,4 +1,10 @@
-import { IconEye, IconMaximize, IconMinimize } from "@tabler/icons-react";
+import {
+  IconEye,
+  IconMaximize,
+  IconMinimize,
+  IconSettings,
+  IconSparkles,
+} from "@tabler/icons-react";
 import type { CameraMode } from "../types";
 
 interface PtzToolbarProps {
@@ -7,6 +13,12 @@ interface PtzToolbarProps {
   onToggleMaximize: () => void;
   onToggleFullscreen: () => void;
   onHide?: () => void;
+  /** Estado de la detección IA */
+  visionOn?: boolean;
+  visionStarting?: boolean;
+  onToggleVision?: () => void;
+  /** Abrir menú de configuración IA */
+  onOpenVisionConfig?: () => void;
 }
 
 export function PtzToolbar({
@@ -15,6 +27,10 @@ export function PtzToolbar({
   onToggleMaximize,
   onToggleFullscreen,
   onHide,
+  visionOn,
+  visionStarting,
+  onToggleVision,
+  onOpenVisionConfig,
 }: PtzToolbarProps) {
   return (
     <div className="flex items-center gap-3 px-2 py-1 border-b border-border">
@@ -24,6 +40,42 @@ export function PtzToolbar({
       <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-200/20 text-brand-200 font-bold uppercase tracking-wider shrink-0">
         PTZ
       </span>
+
+      {onToggleVision && (
+        <button
+          onClick={onToggleVision}
+          disabled={visionStarting}
+          title={
+            visionOn ? "Desactivar detección IA" : "Activar detección IA (YOLO)"
+          }
+          className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors disabled:opacity-60 ${
+            visionOn
+              ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+              : "text-text-100/70 hover:text-text-100 hover:bg-bg-300/60"
+          }`}
+        >
+          <IconSparkles
+            size={14}
+            stroke={1.5}
+            className={visionStarting ? "animate-pulse" : ""}
+          />
+          <span>{visionStarting ? "Iniciando..." : "IA"}</span>
+        </button>
+      )}
+
+      {onOpenVisionConfig && (
+        <button
+          onClick={onOpenVisionConfig}
+          title="Configuración de detección IA"
+          className={`flex items-center px-1.5 py-0.5 rounded transition-colors ${
+            visionOn
+              ? "text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/10"
+              : "text-text-100/70 hover:text-text-100 hover:bg-bg-300/60"
+          }`}
+        >
+          <IconSettings size={14} stroke={1.5} />
+        </button>
+      )}
 
       <button
         onClick={onToggleMaximize}
