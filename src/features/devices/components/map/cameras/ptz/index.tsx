@@ -7,7 +7,7 @@ import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import type { PtzCameraProps, CameraMode } from "./types";
 
 const SLOT_HEIGHT = 360;
-const BASE_BOTTOM = 80;
+const BASE_TOP = 100;
 
 const PtzCamera = memo(
   function PtzCamera({
@@ -18,7 +18,7 @@ const PtzCamera = memo(
     onBecomeMinimized,
     onClose,
   }: PtzCameraProps) {
-    const [mode, setMode] = useState<CameraMode>("minimized");
+    const [mode, setMode] = useState<CameraMode>("maximized");
     const streamUrl = getWhepBaseUrl(camera.url_stream);
     const { videoRef, streamRef, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
@@ -43,7 +43,7 @@ const PtzCamera = memo(
         }
       : {
           position: "fixed",
-          bottom: `${BASE_BOTTOM + stackIndex * SLOT_HEIGHT}px`,
+          top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
           left: "3.1%",
         };
 
