@@ -83,6 +83,13 @@ export default defineConfig(({ mode }) => {
         env.VITE_SERVER_ALLOW_CORS || "dominio_produccion.iotlink.cl",
       ],
       proxy: {
+        // Streams MediaMTX (WebRTC/WHEP)
+        "/streams": {
+          target: env.VITE_STREAM_PROXY_TARGET || "http://localhost:8889",
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
         // Rutas del sistema de monitoreo (nanoradar)
         "/api-system": {
           target: env.VITE_API_SYSTEM_PROXY_TARGET,
