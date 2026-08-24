@@ -41,9 +41,12 @@ function getWhepBaseUrl(urlStream: string): string {
     u.pathname = u.pathname.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
     return u.toString();
   } catch {
-    // url_stream es relativa: construir con la base de MediaMTX
-    if (!base) return "";
-    const path = urlStream.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
+    // url_stream es relativa: construir con la base de MediaMTX.
+    // Sin base => mismo origen (nginx/vite sirve /streams -> MediaMTX)
+    const path = urlStream
+      .replace(/\/index\.m3u8$/, "")
+      .replace(/^\/streams\//, "/")
+      .replace(/\/$/, "");
     const normalized = path.startsWith("/") ? path : `/${path}`;
     return `${base}${normalized}`;
   }
