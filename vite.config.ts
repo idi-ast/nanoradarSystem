@@ -89,6 +89,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
+          rewrite: (p) => p.replace(/^\/streams/, ""),
         },
         // Rutas del sistema de monitoreo (nanoradar)
         "/api-system": {
