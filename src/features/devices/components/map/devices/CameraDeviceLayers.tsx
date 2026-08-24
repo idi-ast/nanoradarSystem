@@ -20,7 +20,12 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
 }: CameraDeviceLayersProps) {
   const lat = Number(camera.ubicacion?.lat);
   const lon = Number(camera.ubicacion?.lng);
-  const bearingDeg = camera.grado ?? (Number(camera.azimut) || 0);
+  // Fuente de verdad de orientación: `azimut` (la misma que usa el backend en
+  // calibración y auto-tracking). `grado` queda solo como respaldo.
+  const azimutNum = Number(camera.azimut);
+  const bearingDeg = Number.isFinite(azimutNum)
+    ? azimutNum
+    : camera.grado ?? 0;
   const resolvedFov = fovDeg ?? camera.apertura ?? 20;
   const resolvedRange = rangeM ?? (camera.radio > 0 ? camera.radio : 100);
   const color = camera.color || "#f59e0b";

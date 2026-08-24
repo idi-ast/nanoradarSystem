@@ -24,17 +24,28 @@ interface CameraProps {
 }
 
 /**
- * Normaliza url_stream para usarla como base WHEP:
- * elimina "/index.m3u8" y la barra final si las trae.
- * Ejemplo: "http://10.30.7.14:8889/camara_1/index.m3u8" → "http://10.30.7.14:8889/camara_1"
+ * Normaliza url_stream para usarla como base WHEP.
+ *
+ * - Si url_stream es una URL absoluta (ej. "http://10.30.7.14:8889/camara_1/index.m3u8"),
+ *   la usa directamente quitando "/index.m3u8".
+ * - Si es una ruta relativa (ej. "/camara_1/index.m3u8"), la combina con
+ *   VITE_MEDIAMTX_BASE_URL para apuntar directamente al servidor MediaMTX,
+ *   evitando que pase por el proxy de Vite.
  */
 function getWhepBaseUrl(urlStream: string): string {
+  const base = import.meta.env.VITE_MEDIAMTX_BASE_URL || "";
+
   try {
+    // Intentar como URL absoluta
     const u = new URL(urlStream);
     u.pathname = u.pathname.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
     return u.toString();
   } catch {
-    return "";
+    // url_stream es relativa: construir con la base de MediaMTX
+    if (!base) return "";
+    const path = urlStream.replace(/\/index\.m3u8$/, "").replace(/\/$/, "");
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${normalized}`;
   }
 }
 

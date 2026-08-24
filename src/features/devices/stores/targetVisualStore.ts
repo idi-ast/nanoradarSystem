@@ -157,6 +157,7 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
         iconStyle2D: state.iconStyle2D,
         customMapCenter: state.customMapCenter,
         customMapZoom: state.customMapZoom,
+
       }),
     },
   ),

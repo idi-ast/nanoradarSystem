@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useCallback, useState, useEffect, useRef } fro
 import { useRadarWebSocket } from "../hooks/useRadarWebSocket";
 import { useRadarData } from "../hooks/useRadarData";
 import { useZoneDrawing } from "../hooks/useZoneDrawing";
+import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { RadarContext, RadarTargetsContext, RadarStableTargetsContext } from "./radarContextDef";
 import type { RadarContextValue, RadarTargetsContextValue, RadarStableTargetsContextValue } from "./radarContextDef";
 import { resolveRadarConfig, ACTIVE_RADAR } from "../config";
@@ -14,7 +15,9 @@ interface RadarProviderProps {
 
 export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProviderProps) {
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
-  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing);
+  const { data: devicesData } = useConfigDevices();
+  const magosradarTrackColor = devicesData?.data?.magosradares?.[0]?.trackColor ?? "#f43f5e";
+  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -52,6 +55,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       zoneSound: drawing.zoneSound,
       destello: drawing.destello,
       categoriaDeteccion: drawing.categoriaDeteccion,
+      activarPtz: drawing.activarPtz,
       canSave: drawing.canSave,
       startDrawing: drawing.startDrawing,
       cancelDrawing: drawing.cancelDrawing,
@@ -63,6 +67,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       setZoneSound: drawing.setZoneSound,
       setDestello: drawing.setdestello,
       setCategoriaDeteccion: drawing.setCategoriaDeteccion,
+      setActivarPtz: drawing.setActivarPtz,
       saveZone,
       clearTargets,
       flyToZoneFn,
@@ -85,6 +90,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       drawing.zoneSound,
       drawing.destello,
       drawing.categoriaDeteccion,
+      drawing.activarPtz,
       drawing.canSave,
       drawing.startDrawing,
       drawing.cancelDrawing,
@@ -96,6 +102,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
       drawing.setZoneSound,
       drawing.setdestello,
       drawing.setCategoriaDeteccion,
+      drawing.setActivarPtz,
       saveZone,
       clearTargets,
     ],

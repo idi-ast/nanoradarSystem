@@ -7,7 +7,7 @@ import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import type { PtzCameraProps, CameraMode } from "./types";
 
 const SLOT_HEIGHT = 360;
-const BASE_BOTTOM = 80;
+const BASE_TOP = 100;
 
 const PtzCamera = memo(
   function PtzCamera({
@@ -18,20 +18,20 @@ const PtzCamera = memo(
     onBecomeMinimized,
     onClose,
   }: PtzCameraProps) {
-    const [mode, setMode] = useState<CameraMode>("minimized");
+    const [mode, setMode] = useState<CameraMode>("maximized");
     const streamUrl = getWhepBaseUrl(camera.url_stream);
     const { videoRef, streamRef, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
 
-    function toggleMaximize() {
-      if (mode === "minimized") {
-        setMode("maximized");
-        onBecomeMaximized?.();
-      } else {
-        setMode("minimized");
-        onBecomeMinimized?.();
-      }
+  function toggleMaximize() {
+    if (mode === "minimized") {
+      setMode("maximized");
+      onBecomeMaximized?.();
+    } else {
+      setMode("minimized");
+      onBecomeMinimized?.();
     }
+  }
 
     const maximizedStyle: React.CSSProperties = position
       ? {
@@ -43,14 +43,14 @@ const PtzCamera = memo(
         }
       : {
           position: "fixed",
-          bottom: `${BASE_BOTTOM + stackIndex * SLOT_HEIGHT}px`,
+          top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
           left: "3.1%",
         };
 
     return (
       <>
         {mode === "minimized" && (
-          <div className="w-full rounded-xl overflow-hidden border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
+          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
             <PtzToolbar
               name={camera.nombre}
               mode="minimized"
@@ -73,7 +73,7 @@ const PtzCamera = memo(
           createPortal(
             <div
               style={maximizedStyle}
-              className="z-9000 overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
+              className="z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col w-170 h-100"
             >
               <PtzToolbar
                 name={camera.nombre}
@@ -82,6 +82,7 @@ const PtzCamera = memo(
                 onToggleFullscreen={() => setMode("fullscreen")}
                 onHide={onClose}
               />
+
               <PtzVideo
                 videoRef={videoRef}
                 connectionError={connectionError}

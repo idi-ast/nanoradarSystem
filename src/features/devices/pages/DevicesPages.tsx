@@ -9,16 +9,19 @@ import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
+import { TrackHistoryPanel } from "../components/panel/TrackHistoryPanel";
 import { HistoryRangeBar, type HistoryRange } from "../components";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
+import { useTrackHistory } from "../hooks/useTrackHistory";
 import { RADAR_INSTANCES } from "../config";
-import type { DeviceFilter } from "../types";
+import type { DeviceFilter, TrackHistoryPoint } from "../types";
 import type { DeviceVisibility } from "../components/map/DevicesOverlay";
-import { ALL_VISIBLE } from "../components/map/devicesConfig";
+import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
+import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import PtzCameraOverlay from "./PtzCameraOverlay";
 
 function NanoPages() {
@@ -39,6 +42,13 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   });
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
+  // ─── Historial de track ───
+  const [selectedHistoryTrackId, setSelectedHistoryTrackId] = useState<string | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [historyTrackRange, setHistoryTrackRange] = useState<HistoryRange>({
+    start: 0,
+    end: 100,
+  });
   const handleHideCamera = useCallback(
     (id: number) =>
       setDeviceVisibility((prev) => ({
@@ -59,6 +69,92 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     (range: HistoryRange) => setHistoryRange(range),
     [],
   );
+  const handleHistoryTrackRangeChange = useCallback(
+    (range: HistoryRange) => setHistoryTrackRange(range),
+    [],
+  );
+
+  // Encontrar el target seleccionado
+  const { targets } = useRadarTargets();
+  const selectedTarget = useMemo(
+    () => targets.find((t) => t.id === selectedHistoryTrackId) ?? null,
+    [targets, selectedHistoryTrackId],
+  );
+
+  // Obtener historial del backend para el track seleccionado
+  const rawTrackId = selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ?? null;
+  const tipoRadar = selectedTarget?.deviceType === "magosradar" ? "magos" : selectedTarget?.deviceType === "nanoRadar" ? "nano" : undefined;
+  const { data: backendHistory } = useTrackHistory({
+    trackId: rawTrackId,
+    tipoRadar,
+    sessionRef: selectedTarget?.lastUpdate ?? null,
+    enabled: !!rawTrackId,
+  });
+
+  // Virtual target para tracks que solo existen en la BD (no están en vivo)
+  const virtualTarget = useMemo(() => {
+    if (selectedTarget || !backendHistory || !rawTrackId) return null;
+    const firstPoint = backendHistory.points?.[0];
+    return {
+      id: rawTrackId,
+      lat: firstPoint?.lat ?? 0,
+      lon: firstPoint?.lon ?? 0,
+      nivel: 0,
+      zona: firstPoint?.zona ?? "",
+      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : Date.now(),
+      deviceType: (backendHistory.tipo_radar === "magos" ? "magosradar"
+        : backendHistory.tipo_radar === "nano" ? "nanoRadar"
+        : "spotter") as "magosradar" | "nanoRadar" | "spotter",
+      history: [] as [number, number, number][],
+    };
+  }, [selectedTarget, backendHistory, rawTrackId]);
+
+  const effectiveTarget = selectedTarget ?? virtualTarget;
+
+  // Merge in-memory + backend history, deduplicado
+  const mergedHistoryPoints = useMemo(() => {
+    const inMemoryPoints: TrackHistoryPoint[] = (selectedTarget?.history ?? []).map(([lat, lon, ts]) => ({
+      fecha: new Date(ts).toISOString(),
+      lat,
+      lon,
+      speed: null,
+      heading: null,
+      snr: null,
+      nivel: null,
+      track_state: null,
+      confidence: null,
+      zona: null,
+    }));
+
+    const backendPoints = backendHistory?.points ?? [];
+    if (inMemoryPoints.length === 0 && backendPoints.length === 0) return [];
+
+    const seen = new Map<string, TrackHistoryPoint>();
+    for (const p of backendPoints) {
+      const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+      seen.set(key, p);
+    }
+    for (const p of inMemoryPoints) {
+      const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+      if (!seen.has(key)) seen.set(key, p);
+    }
+    return Array.from(seen.values()).sort(
+      (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
+    );
+  }, [selectedTarget, backendHistory]);
+
+  const handleSelectHistoryTrack = useCallback((id: string | null) => {
+    setSelectedHistoryTrackId(id);
+    setHistoryTrackRange({ start: 0, end: 100 });
+    setShowPopup(false);
+  }, []);
+
+  const handleMapSelectTrack = useCallback((id: string | null) => {
+    setSelectedHistoryTrackId(id);
+    setHistoryTrackRange({ start: 0, end: 100 });
+    setShowPopup(id !== null);
+  }, []);
+
   return (
     <div
       className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
@@ -71,6 +167,11 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
             deviceFilter={deviceFilter}
             visibility={deviceVisibility}
             onVisibilityChange={setDeviceVisibility}
+            selectedTargetId={selectedHistoryTrackId}
+            onSelectTarget={handleMapSelectTrack}
+            showPopup={showPopup}
+            historyTrackPoints={mergedHistoryPoints}
+            historyTrackRange={historyTrackRange}
           />
         </div>
         <HistoryRangeBar onChange={handleRangeChange} />
@@ -80,24 +181,44 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       </div>
 
       {!isMobile ? (
-        <RightBarNano
-          deviceFilter={deviceFilter}
-          onDeviceFilterChange={setDeviceFilter}
-          hiddenCamaras={deviceVisibility.hiddenCamaras}
-          onHideCamera={handleHideCamera}
-          hiddenPtz={deviceVisibility.hiddenPtz}
-          onHidePtz={handleHidePtz}
-        />
+        effectiveTarget ? (
+          <TrackHistoryPanel
+            target={effectiveTarget}
+            historyRange={historyTrackRange}
+            onHistoryRangeChange={handleHistoryTrackRangeChange}
+            onClose={() => setSelectedHistoryTrackId(null)}
+          />
+        ) : (
+          <RightBarNano
+            deviceFilter={deviceFilter}
+            onDeviceFilterChange={setDeviceFilter}
+            hiddenCamaras={deviceVisibility.hiddenCamaras}
+            onHideCamera={handleHideCamera}
+            hiddenPtz={deviceVisibility.hiddenPtz}
+            onHidePtz={handleHidePtz}
+            onSelectTrack={handleSelectHistoryTrack}
+          />
+        )
       ) : isOpenRightBar ? (
-        <RightBarNano
-          setOpenRightBar={setOpenRightBar}
-          deviceFilter={deviceFilter}
-          onDeviceFilterChange={setDeviceFilter}
-          hiddenCamaras={deviceVisibility.hiddenCamaras}
-          onHideCamera={handleHideCamera}
-          hiddenPtz={deviceVisibility.hiddenPtz}
-          onHidePtz={handleHidePtz}
-        />
+        effectiveTarget ? (
+          <TrackHistoryPanel
+            target={effectiveTarget}
+            historyRange={historyTrackRange}
+            onHistoryRangeChange={handleHistoryTrackRangeChange}
+            onClose={() => setSelectedHistoryTrackId(null)}
+          />
+        ) : (
+          <RightBarNano
+            setOpenRightBar={setOpenRightBar}
+            deviceFilter={deviceFilter}
+            onDeviceFilterChange={setDeviceFilter}
+            hiddenCamaras={deviceVisibility.hiddenCamaras}
+            onHideCamera={handleHideCamera}
+            hiddenPtz={deviceVisibility.hiddenPtz}
+            onHidePtz={handleHidePtz}
+            onSelectTrack={handleSelectHistoryTrack}
+          />
+        )
       ) : (
         <button
           className="absolute right-0 z-50 top-[50%] rounded-s-sm bg-brand-100"
@@ -140,11 +261,10 @@ const RadarStatusBar = memo(() => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${
-            criticalCount > 0
-              ? "text-red-500 animate-pulse"
-              : "text-text-100/30"
-          }`}
+          className={`font-bold text-xl leading-tight ${criticalCount > 0
+            ? "text-red-500 animate-pulse"
+            : "text-text-100/30"
+            }`}
         >
           {criticalCount}
         </span>
@@ -162,6 +282,7 @@ const RightBarNano = memo(
     onHideCamera,
     hiddenPtz,
     onHidePtz,
+    onSelectTrack,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
@@ -170,6 +291,7 @@ const RightBarNano = memo(
     onHideCamera?: (id: number) => void;
     hiddenPtz: Set<number>;
     onHidePtz?: (id: number) => void;
+    onSelectTrack?: (id: string | null) => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -218,6 +340,7 @@ const RightBarNano = memo(
           <TargetsDynamicPanel
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
+            onSelectTrack={onSelectTrack}
           />
           <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />
           <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
@@ -233,6 +356,7 @@ const RightBarNano = memo(
     if (prev.onHideCamera !== next.onHideCamera) return false;
     if (prev.hiddenPtz !== next.hiddenPtz) return false;
     if (prev.onHidePtz !== next.onHidePtz) return false;
+    if (prev.onSelectTrack !== next.onSelectTrack) return false;
     return true;
   },
 );
@@ -242,17 +366,76 @@ export default NanoPages;
 const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   deviceFilter,
   onDeviceFilterChange,
+  onSelectTrack,
 }: {
   deviceFilter: DeviceFilter;
   onDeviceFilterChange: (f: DeviceFilter) => void;
+  onSelectTrack?: (id: string | null) => void;
 }) {
   const { stableTargets } = useRadarStableTargets();
+  const [searchTrackId, setSearchTrackId] = useState<string>("");
+  const filteredTargets = useMemo(() => {
+    if (!searchTrackId) return stableTargets;
+    const lower = searchTrackId.toLowerCase();
+    return stableTargets.filter((t) => t.id.toLowerCase().includes(lower));
+  }, [stableTargets, searchTrackId]);
+
+  const handleSearchTrackSelect = useCallback((id: string | null) => {
+    if (!id || !onSelectTrack) return;
+    const match = stableTargets.find((t) => t.id.toLowerCase().includes(id.toLowerCase()));
+    onSelectTrack(match?.id ?? id);
+  }, [onSelectTrack, stableTargets]);
+  const { zones } = useRadarContext();
+  const { data: configData } = useConfigDevices();
+  const activeTypes = useMemo(
+    () => getActiveDeviceTypes(configData?.data),
+    [configData],
+  );
+
+  // Mapa targetId → color de zona para tracks dentro de zonas
+  const targetZoneColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const target of stableTargets) {
+      for (const zone of zones) {
+        const rawVertices = Array.isArray(zone.poligono.vertices)
+          ? zone.poligono.vertices
+          : Object.values(zone.poligono.vertices);
+        if (isPointInPolygon(target.lat, target.lon, rawVertices as [number, number][])) {
+          // Si ya tiene zona asignada, no sobreescribir (prioridad primera zona encontrada)
+          if (!map.has(target.id)) {
+            map.set(target.id, zone.poligono.color);
+          }
+        }
+      }
+    }
+    return map;
+  }, [stableTargets, zones]);
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
+      ">
+        <span>Buscar track </span>
+        <input
+          type="text"
+          className="border w-full border-border-200 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-border"
+          value={searchTrackId}
+          onChange={(e) => setSearchTrackId(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearchTrackSelect(searchTrackId || null);
+            }
+          }}
+          placeholder="T23"
+        />
+      </div>
       <TargetsSection
-        targets={stableTargets}
+        targets={filteredTargets}
         deviceFilter={deviceFilter}
         onDeviceFilterChange={onDeviceFilterChange}
+        activeTypes={activeTypes}
+        onSelectTrack={onSelectTrack}
+        targetZoneColorMap={targetZoneColorMap}
       />
     </div>
   );
@@ -296,60 +479,74 @@ const GeofenceFlash = memo(function GeofenceFlash() {
 
 type TabFilter = DeviceFilter;
 
-const TABS: { key: TabFilter; label: string }[] = [
-  { key: "all", label: "Todos" },
-  { key: "nanoRadar", label: "NanoRadar" },
-  { key: "magosradar", label: "MagosRadar" },
-  { key: "spotter", label: "Spotter" },
-];
-
 const TargetsSection = memo(function TargetsSection({
   targets,
   deviceFilter,
   onDeviceFilterChange,
+  activeTypes,
+  onSelectTrack,
+  targetZoneColorMap,
 }: {
   targets: import("../types").RadarTarget[];
   deviceFilter: DeviceFilter;
   onDeviceFilterChange: (f: DeviceFilter) => void;
+  activeTypes: string[];
+  onSelectTrack?: (id: string | null) => void;
+  targetZoneColorMap?: Map<string, string>;
 }) {
-  const { counts, filtered } = useMemo(() => {
-    const nextCounts: Record<TabFilter, number> = {
-      all: targets.length,
-      nanoRadar: 0,
-      magosradar: 0,
-      spotter: 0,
-    };
+  const TABS = useMemo(() => {
+    const tabs: { key: TabFilter; label: string }[] = [
+      { key: "all", label: "Todos" },
+    ];
+    for (const dt of activeTypes) {
+      tabs.push({ key: dt as DeviceFilter, label: DEVICE_LABEL[dt] ?? dt });
+    }
+    return tabs;
+  }, [activeTypes]);
+
+  const activeTypeSet = useMemo(() => new Set(activeTypes), [activeTypes]);
+
+  const { counts, sorted } = useMemo(() => {
+    const nextCounts: Record<string, number> = { all: targets.length };
+    for (const dt of activeTypes) nextCounts[dt] = 0;
     for (const t of targets) {
-      if (t.deviceType === "nanoRadar") nextCounts.nanoRadar += 1;
-      if (t.deviceType === "magosradar") nextCounts.magosradar += 1;
-      if (t.deviceType === "spotter") nextCounts.spotter += 1;
+      if (activeTypeSet.has(t.deviceType)) {
+        nextCounts[t.deviceType] = (nextCounts[t.deviceType] ?? 0) + 1;
+      }
     }
     const nextFiltered =
       deviceFilter === "all"
         ? targets
         : targets.filter((t) => t.deviceType === deviceFilter);
-    return { counts: nextCounts, filtered: nextFiltered };
-  }, [targets, deviceFilter]);
+    // Tracks en zona van arriba, el resto debajo
+    const nextSorted = [...nextFiltered].sort((a, b) => {
+      const aInZone = targetZoneColorMap?.has(a.id) ?? false;
+      const bInZone = targetZoneColorMap?.has(b.id) ?? false;
+      if (aInZone && !bInZone) return -1;
+      if (!aInZone && bInZone) return 1;
+      return 0;
+    });
+    return { counts: nextCounts, sorted: nextSorted };
+  }, [targets, deviceFilter, activeTypes, activeTypeSet, targetZoneColorMap]);
 
   return (
     <>
       <div className="shrink-0 flex border-b border-border-200 mb-2">
         {TABS.map(({ key, label }) => {
-          const count = counts[key];
+          const count = counts[key] ?? 0;
           const isActive = deviceFilter === key;
           return (
             <button
               key={key}
               onClick={() => onDeviceFilterChange(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
-                isActive
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-text-100/40 hover:text-text-100/70"
-              }`}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
+                ? "border-sky-400 text-sky-400"
+                : "border-transparent text-text-100/40 hover:text-text-100/70"
+                }`}
             >
               {label}
               <span
-                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-emerald-500/20" : "bg-bg-300"}`}
+                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-sky-500/30" : "bg-bg-300"}`}
               >
                 {count}
               </span>
@@ -359,14 +556,21 @@ const TargetsSection = memo(function TargetsSection({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <p className="text-text-100/40 text-[10px] italic">
-            {deviceFilter === "spotter"
-              ? "Spotter desconectado..."
+            {deviceFilter !== "all"
+              ? `${DEVICE_LABEL[deviceFilter] ?? deviceFilter} sin detecciones...`
               : "No hay objetivos en el área..."}
           </p>
         ) : (
-          filtered.map((t) => <TargetCard key={t.id} target={t} />)
+          sorted.map((t) => (
+            <TargetCard
+              key={t.id}
+              target={t}
+              onClick={(id) => onSelectTrack?.(id)}
+              zoneColor={targetZoneColorMap?.get(t.id) ?? null}
+            />
+          ))
         )}
       </div>
     </>

@@ -30,6 +30,7 @@ interface Boat3DMarkerProps {
   history: [number, number, number][];
   moving: boolean;
   isSelected: boolean;
+  dimmed?: boolean;
   size?: number;
 }
 
@@ -42,6 +43,7 @@ export function Boat3DMarker({
   history,
   moving,
   isSelected,
+  dimmed = false,
   size = 64,
 }: Boat3DMarkerProps) {
   const bearingDeg = useMemo(() => {
@@ -60,10 +62,10 @@ export function Boat3DMarker({
 
   // Actualizar posición, estado y modelo cuando cambian
   useEffect(() => {
-    updateBoat(id, { lng, lat, bearingDeg, moving, isSelected, modelPath });
-  }, [id, lng, lat, bearingDeg, moving, isSelected, modelPath]);
+    updateBoat(id, { lng, lat, bearingDeg, moving, isSelected, dimmed, modelPath });
+  }, [id, lng, lat, bearingDeg, moving, isSelected, dimmed, modelPath]);
 
-  const effectiveSize = isSelected ? Math.round(size * 1.2) : size;
+  const effectiveSize = isSelected ? Math.round(size * 1.5) : size;
 
   // Div transparente: sirve como área de click (el modelo 3D lo renderiza el layer del mapa)
   return (

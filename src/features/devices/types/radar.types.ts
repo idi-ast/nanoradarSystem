@@ -35,6 +35,8 @@ export interface RadarTarget {
   confidence?: number;
   /** Indica si el objeto está detenido (magosRadar) */
   isStationary?: boolean;
+  /** Intensidad del track (0-1) según largo de cola (magosRadar) */
+  trackIntensity?: number;
 }
 
 export interface TiposAlertas {
@@ -59,6 +61,8 @@ export interface RadarZone {
   destello?: boolean;
   /** Categoría del icono de detección: corresponde al id de ZONE_DETECTION_CATEGORIES */
   categoriaDeteccion?: number;
+  /** Activar seguimiento PTZ automático al detectar tracks en esta zona */
+  activarPtz?: boolean;
 }
 
 export interface CreateZonePayload {
@@ -68,6 +72,7 @@ export interface CreateZonePayload {
   sonido?: number | null;
   destello?: boolean;
   categoriaDeteccion?: number;
+  activarPtz?: boolean;
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -81,6 +86,7 @@ export interface UpdateZonePayload {
   sonido?: number | null;
   destello?: boolean;
   categoriaDeteccion?: number;
+  activarPtz?: boolean;
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;
@@ -121,7 +127,7 @@ export interface RawRadarMessage {
 
 /** Evento de actividad detectado por una cámara (viene en el WS dentro de `actividad.camaras`) */
 export interface CamaraActividad {
-  /** IP de la cámara que detectó el evento */
+  /** IP de la cámara qued detectó el evento */
   ip: string;
   /** Tipo de evento, ej: "CrossLineDetection", "FaceDetection" */
   tipo_evento: string;
@@ -133,13 +139,58 @@ export interface CamaraActividad {
   timestamp?: number;
 }
 
+/** Posición individual dentro de un track MagosRadar (nuevo formato agrupado) */
+export interface MagosRadarPosition {
+  lat: number;
+  lon: number;
+  speed: number;
+  heading: number;
+  snr: number;
+  zona: string;
+  nivel: number;
+  /** Timestamp Unix en segundos */
+  ts: number;
+}
+
+/** Track agrupado de MagosRadar con su historial de posiciones (nuevo formato del WebSocket) */
+export interface MagosRadarTrack {
+  trackId: number;
+  /** Color estable asignado por el backend al track */
+  trackColor?: string;
+  positions: MagosRadarPosition[];
+}
+
 export interface ActividadPayload {
   camaras: CamaraActividad[];
 }
 
+/** Punto individual del historial de un track (desde la BD) */
+export interface TrackHistoryPoint {
+  fecha: string;
+  lat: number;
+  lon: number;
+  speed: number | null;
+  heading: number | null;
+  snr: number | null;
+  nivel: number | null;
+  track_state: string | null;
+  confidence: number | null;
+  zona: string | null;
+}
+
+/** Respuesta del endpoint de historial de tracks */
+export interface TrackHistoryResponse {
+  track_id: string;
+  tipo_radar: string;
+  points: TrackHistoryPoint[];
+}
+
 export interface RawRadarPayload {
   nanoRadar: RawRadarMessage[];
+  /** @deprecated Formato plano antiguo — reemplazado por `magosRadar` */
   magosradar: RawRadarMessage[];
+  /** Nuevo formato de tracks agrupados con array de posiciones */
+  magosRadar?: MagosRadarTrack[];
   spotter: RawRadarMessage[];
   actividad?: ActividadPayload;
 }

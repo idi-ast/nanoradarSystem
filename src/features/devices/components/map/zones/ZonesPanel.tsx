@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui";
 import ConfigZones from "./ConfigZones";
 import ConfigRadar from "./ConfigRadar";
 import ConfigTargets from "./ConfigTargets";
+import PtzCalibrationMenu from "../PtzCalibrationMenu";
 import { useMapPanel } from "../MapPanelContext";
 import { useRole } from "@/context/role/hooks/useRole";
 
@@ -20,7 +21,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
     <Tooltip text="Limpiar Tracks">
       <button
         onClick={clearTargets}
-        className="h-10 w-10 flex justify-center items-center rounded bg-bg-300 text-text-100 hover:bg-brand-100 transition-colors"
+        className="h-10 w-10 flex justify-center items-center rounded bg-brand-100 text-text-100 hover:bg-brand-100 transition-colors"
       >
         <IconMapPinX size={20} stroke={2} />
       </button>
@@ -73,13 +74,15 @@ export const ZonesPanel = memo(function ZonesPanel() {
     <div className="flex flex-col border-b border-border gap-1 pb-1">
       {(isSuperAdmin || isAdmin) && <ClearTargetsButton />}
       <ConfigZones />
+      <PtzCalibrationMenu />
+
       <ConfigRadar />
       <ConfigTargets />
       {(isSuperAdmin || isAdmin) && <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
         <button
           ref={triggerRef}
           onClick={handleDrawToggle}
-          className={`h-10 w-10 flex justify-center items-center rounded text-white transition-colors ${isDrawing
+          className={`h-10 w-10 flex justify-center items-center rounded text-text-100 transition-colors ${isDrawing
             ? "border border-brand-100 hover:border-red-600"
             : "border border-transparent bg-bg-300 hover:bg-emerald-700"
             }`}

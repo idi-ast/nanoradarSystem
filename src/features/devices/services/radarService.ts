@@ -5,6 +5,7 @@ import type {
   CreateZonePayload,
   UpdateZonePayload,
   TiposAlertas,
+  TrackHistoryResponse,
 } from "../types";
 
 interface ListResponse<T> {
@@ -46,4 +47,16 @@ export async function updateRadarZone(
 
 export async function deleteRadarZone(id: number): Promise<void> {
   await apiSystem.delete(`/zonas/${id}`);
+}
+
+// Historial de tracks
+export async function fetchTrackHistory(
+  trackId: string,
+  params?: { tipo_radar?: string; from?: string; to?: string; limit?: number; session_ref?: string },
+): Promise<TrackHistoryResponse> {
+  const res = await apiSystem.get<TrackHistoryResponse>(
+    `/tracks/${trackId}/history`,
+    params,
+  );
+  return res.data;
 }

@@ -15,6 +15,7 @@ export function ZoneDrawingPanel() {
     zoneSound,
     destello,
     categoriaDeteccion,
+    activarPtz,
     canSave,
     setZoneName,
     setZoneColor,
@@ -22,6 +23,7 @@ export function ZoneDrawingPanel() {
     setZoneSound,
     setDestello,
     setCategoriaDeteccion,
+    setActivarPtz,
     saveZone,
     removeLastDrawingPoint,
   } = useRadarContext();
@@ -194,6 +196,26 @@ export function ZoneDrawingPanel() {
             );
           })}
         </div>
+      </div>
+
+      {/* Activar seguimiento PTZ */}
+      <div className="flex items-center justify-between bg-bg-100/30 p-2 rounded border border-border">
+        <div className="flex flex-col">
+          <label className="text-xs text-text-200">Activar seguimiento PTZ</label>
+          <p className="text-[9px] text-text-200/50 leading-tight mt-0.5">
+            Cuando un track entre en esta zona, la cámara PTZ lo seguirá automáticamente.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActivarPtz(!activarPtz)}
+          disabled={alertLevel === null}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${activarPtz ? "bg-brand-100" : "bg-bg-300"}`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${activarPtz ? "translate-x-4.5" : "translate-x-0.5"}`}
+          />
+        </button>
       </div>
 
       <div className="flex gap-2">

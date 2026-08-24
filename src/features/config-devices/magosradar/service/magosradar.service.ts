@@ -14,27 +14,7 @@ export type MagosradarPayload = Pick<
   | "apertura"
   | "color"
 > & {
-  // Tracking (opcional)
-  rcs?: number | null;
-  snr?: number | null;
-  speed?: number | null;
-  maxSpeed?: number | null;
-  heading?: number | null;
   trackColor?: string | null;
-  minTrackPoints?: number | null;
-  associationDist?: number | null;
-  ttl?: number | null;
-  coastTtl?: number | null;
-  stationaryTtl?: number | null;
-  emaSmooth?: number | null;
-  velSmooth?: number | null;
-  maxDetections?: number | null;
-  clusterDist?: number | null;
-
-  // Scoring / Confianza (opcional)
-  minConfidence?: number | null;
-  confidenceWindow?: number | null;
-  rcsRangeRef?: number | null;
 
   // Metadatos (opcional)
   enabled?: number | null;
@@ -49,6 +29,32 @@ export type MagosradarPayload = Pick<
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
+
+  // ── Toggle sin filtro ──
+  sinFiltro?: number | null;
+
+  // ── Modo espejo (orientación) ──
+  espejoX?: number | null;
+  espejoY?: number | null;
+
+  // ── Tracking manual ──
+  trackingManual?: number | null;
+  snr?: number | null;
+  rcs?: number | null;
+  maxSpeed?: number | null;
+  associationDist?: number | null;
+  minTrackPoints?: number | null;
+  ttl?: number | null;
+  stationaryTtl?: number | null;
+  emaSmooth?: number | null;
+  velSmooth?: number | null;
+  maxDetections?: number | null;
+  clusterDist?: number | null;
+
+  // ── Zoom automático PTZ ──
+  zoomAutomatico?: number | null;
+  zoomMax?: number | null;
+  zoomMin?: number | null;
 };
 
 // Tipo para PUT: todos los campos son opcionales
@@ -67,5 +73,29 @@ export const magosradarService = {
 
   deleteMagosradar: async (id: number): Promise<void> => {
     await apiSystem.delete(`/magosradares/${id}`);
+  },
+
+  /** Asignar o desasignar cámara PTZ al MagosRadar */
+  assignPtz: async (magosId: number, ptzId: number | null): Promise<Magosradares> => {
+    const res = await apiSystem.put<Magosradares>(`/magosradares/${magosId}/ptz-assign`, { ptz_id: ptzId });
+    return res.data;
+  },
+
+  /** Activar/desactivar auto-tracking */
+  setAutoTracking: async (magosId: number, enabled: boolean): Promise<Magosradares> => {
+    const res = await apiSystem.put<Magosradares>(`/magosradares/${magosId}/auto-tracking`, { enabled });
+    return res.data;
+  },
+
+  /** Obtener estado de tracking activo (badge opcional) */
+  getTrackingStatus: async (): Promise<{
+    sessions: { radar_ip: string; ptz_id: number; mode: string; tracks_in_zone: number; last_command_time: number }[];
+    total_active: number;
+  }> => {
+    const res = await apiSystem.get<{
+      sessions: { radar_ip: string; ptz_id: number; mode: string; tracks_in_zone: number; last_command_time: number }[];
+      total_active: number;
+    }>("/tracking/status");
+    return res.data;
   },
 };

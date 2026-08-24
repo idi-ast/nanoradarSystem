@@ -61,6 +61,8 @@ export interface Ptz {
   nombre: string;
   ubicacion: Ubicacion;
   direccionIp: string;
+  puertoOnvif?: number;
+  puertoRtsp?: number;
   channel: number;
   subtype: number;
   azimut: string;
@@ -70,8 +72,15 @@ export interface Ptz {
   grado: number;
   radio: number;
   apertura: number;
+  altitud?: string;
+  panInvertido?: number;
+  tiltInvertido?: number;
+  tiltOffset?: number;
+  /** Corrección lineal del pan (grados). Ajusta el offset mecánico de la cámara. */
+  panOffset?: number;
   url_stream: string;
   tipo: string;
+  idEmpresa?: number;
 }
 
 
@@ -103,27 +112,8 @@ export interface Magosradares {
   apertura: number;
   color: string | null;
 
-  // Tracking
-  rcs: number | null;
-  snr: number | null;
-  speed: number | null;
-  maxSpeed: number | null;
-  heading: number | null;
+  // Visualización / operación
   trackColor: string | null;
-  minTrackPoints: number | null;
-  associationDist: number | null;
-  ttl: number | null;
-  coastTtl: number | null;
-  stationaryTtl: number | null;
-  emaSmooth: number | null;
-  velSmooth: number | null;
-  maxDetections: number | null;
-  clusterDist: number | null;
-
-  // Scoring / Confianza
-  minConfidence: number | null;
-  confidenceWindow: number | null;
-  rcsRangeRef: number | null;
 
   // Metadatos
   enabled: number | null; // 1 o 0
@@ -138,64 +128,31 @@ export interface Magosradares {
   trackState?: string | null;
   confidence?: number | null;
   isStationary?: boolean | null;
-}
 
-/** Perfil de configuración para MagosRadar (desde API) */
-export interface PerfilMagos {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  is_default: boolean;
-  idEmpresa: number;
-  snr: number | null;
-  rcs: number | null;
-  speed: number | null;
-  maxSpeed: number | null;
-  heading: number | null;
-  trackColor: string | null;
-  minTrackPoints: number | null;
-  associationDist: number | null;
-  ttl: number | null;
-  coastTtl: number | null;
-  stationaryTtl: number | null;
-  emaSmooth: number | null;
-  velSmooth: number | null;
-  maxDetections: number | null;
-  clusterDist: number | null;
-  minConfidence: number | null;
-  confidenceWindow: number | null;
-  rcsRangeRef: number | null;
-  created_at: string;
-  updated_at: string;
-  trackState?: string | null;
-  confidence?: number | null;
-  isStationary?: boolean | null;
-}
+  // Auto-tracking PTZ
+  idPtz?: number | null;
+  ptzAutoTracking?: boolean;
 
-export interface PerfilMagosPayload {
-  nombre: string;
-  descripcion: string;
-  is_default?: boolean;
-  idEmpresa?: number;
+  // ── Toggle sin filtro ──
+  sinFiltro?: number | null;
+  // ── Modo espejo (orientación) ──
+  espejoX?: number | null;
+  espejoY?: number | null;
+  // ── Tracking manual ──
+  trackingManual?: number | null;
   snr?: number | null;
   rcs?: number | null;
-  speed?: number | null;
   maxSpeed?: number | null;
-  heading?: number | null;
-  trackColor?: string | null;
-  minTrackPoints?: number | null;
   associationDist?: number | null;
+  minTrackPoints?: number | null;
   ttl?: number | null;
-  coastTtl?: number | null;
   stationaryTtl?: number | null;
   emaSmooth?: number | null;
   velSmooth?: number | null;
   maxDetections?: number | null;
   clusterDist?: number | null;
-  minConfidence?: number | null;
-  confidenceWindow?: number | null;
-  rcsRangeRef?: number | null;
-  trackState?: string | null;
-  confidence?: number | null;
-  isStationary?: boolean | null;
+  // ── Zoom automático PTZ ──
+  zoomAutomatico?: number | null;
+  zoomMax?: number | null;
+  zoomMin?: number | null;
 }

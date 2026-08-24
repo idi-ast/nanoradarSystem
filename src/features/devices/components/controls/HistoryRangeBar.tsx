@@ -122,13 +122,13 @@ export function HistoryRangeBar({
   return (
     <div className="w-full px-1 py-1">
       <div className="flex justify-between mb-1">
-        <span className="text-[9px] font-mono text-emerald-400 tabular-nums">
+        <span className="text-[9px] font-mono text-red-400 tabular-nums">
           {Math.round(start)}%
         </span>
         <span className="text-[9px] font-mono text-slate-400 tabular-nums">
           {Math.round(activeWidth)}% visible
         </span>
-        <span className="text-[9px] font-mono text-emerald-400 tabular-nums">
+        <span className="text-[9px] font-mono text-red-400 tabular-nums">
           {Math.round(end)}%
         </span>
       </div>
@@ -147,10 +147,10 @@ export function HistoryRangeBar({
         />
 
         <div
-          className="absolute top-0 bottom-0 bg-emerald-500/25 border-y border-emerald-500/50"
+          className="absolute top-0 bottom-0 bg-red-500/25 border-y border-red-500/50"
           style={{ left: `${start}%`, width: `${activeWidth}%` }}
         >
-          <div className="absolute inset-x-0 top-0 h-px bg-emerald-400/40 rounded-full" />
+          <div className="absolute inset-x-0 top-0 h-px bg-red-400/40 rounded-full" />
         </div>
 
         <div
@@ -194,7 +194,7 @@ function RangeHandle({ percent, side, onMouseDown, onTouchStart }: RangeHandlePr
       onTouchStart={onTouchStart}
       className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10
                  w-3 h-7 rounded-sm cursor-ew-resize
-                 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-300
+                 bg-red-500 hover:bg-red-400 active:bg-red-300
                  flex flex-col items-center justify-center gap-0.75
                  shadow-[0_0_6px_rgba(16,185,129,0.6)]
                  transition-colors duration-100"
@@ -202,7 +202,7 @@ function RangeHandle({ percent, side, onMouseDown, onTouchStart }: RangeHandlePr
     >
       <span className="w-px h-2.5 bg-white/60 rounded-full" />
       <span
-        className={`absolute text-[6px] text-emerald-200 font-bold leading-none
+        className={`absolute text-[6px] text-red-200 font-bold leading-none
                     ${side === "left" ? "-left-2.5" : "-right-2.5"}`}
       >
         {side === "left" ? "◀" : "▶"}
