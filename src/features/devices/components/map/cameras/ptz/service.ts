@@ -71,6 +71,24 @@ export async function ptzHome(ptz_id: number) {
   }
 }
 
+/** Pausa el auto-tracking (zonas + cámara) mientras se usa el control manual. */
+export async function ptzPauseTracking(ptz_id: number) {
+  try {
+    await apiSystem.post(`/ptz/${ptz_id}/pause-tracking`);
+  } catch (e) {
+    console.error("PTZ pause-tracking", e);
+  }
+}
+
+/** Reanuda el auto-tracking tras dejar de usar el control manual. */
+export async function ptzResumeTracking(ptz_id: number) {
+  try {
+    await apiSystem.post(`/ptz/${ptz_id}/resume-tracking`);
+  } catch (e) {
+    console.error("PTZ resume-tracking", e);
+  }
+}
+
 /** Apunta la cámara a un RUMBO absoluto de brújula en un solo giro. */
 export async function ptzGotoBearing(
   ptz_id: number,
