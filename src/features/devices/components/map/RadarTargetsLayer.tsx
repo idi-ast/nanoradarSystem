@@ -85,6 +85,8 @@ export function RadarTargetsLayer({
   const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
+  const trackStrokeWidth = useTargetVisualStore((s) => s.trackStrokeWidth);
+  const trackDurationSec = useTargetVisualStore((s) => s.trackDurationSec);
   const categoryMap = useTargetCategoryResolution(
     categoryFilteredTargets,
     zones,
@@ -137,7 +139,16 @@ export function RadarTargetsLayer({
         features: slicedTargets
           .filter((t) => t.history.length > 1)
           .flatMap((t) => {
-            const history = t.history;
+            let history = t.history;
+
+            // Filtrar por duración configurable (0 = sin límite)
+            if (trackDurationSec > 0 && history.length > 1) {
+              const newestTs = history[history.length - 1][2];
+              const cutoff = newestTs - trackDurationSec * 1000;
+              history = history.filter((p) => p[2] >= cutoff);
+              if (history.length < 2) return [];
+            }
+
             const fadeLen = timing.TRAIL_FADE_POINTS;
             const recentHistory = history.length > fadeLen
               ? history.slice(-fadeLen)
@@ -152,7 +163,7 @@ export function RadarTargetsLayer({
                 ? Math.max(0, (i + 1) / totalSegments)
                 : 1;
               const ti = t.trackIntensity ?? 1;
-              const lineWidth = 7 * (0.5 + ti * 0.5);
+              const lineWidth = trackStrokeWidth * (0.5 + ti * 0.5);
               let trailColor = t.trackColor ?? null;
               if (trailColor && trailColor.startsWith("rgba")) {
                 const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
@@ -179,7 +190,7 @@ export function RadarTargetsLayer({
           }),
       };
     },
-    [slicedTargets, timing.TRAIL_FADE_POINTS, selectedTargetId],
+    [slicedTargets, timing.TRAIL_FADE_POINTS, selectedTargetId, trackStrokeWidth, trackDurationSec],
   );
 
   const trailLayer = {
@@ -253,7 +264,7 @@ export function RadarTargetsLayer({
             type="line"
             paint={{
               "line-color": "#f59e0b",
-              "line-width": 3,
+              "line-width": Math.max(1, trackStrokeWidth * 0.45),
               "line-opacity": ["get", "opacity"],
               "line-blur": 0.5,
             }}

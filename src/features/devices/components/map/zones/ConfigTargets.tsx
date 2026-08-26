@@ -172,6 +172,14 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
     setCategoryModel,
     iconStyle2D,
     setIconStyle2D,
+    trackStrokeWidth,
+    setTrackStrokeWidth,
+    trackDurationSec,
+    setTrackDurationSec,
+    inactiveIconTimeoutSec,
+    setInactiveIconTimeoutSec,
+    autoZoomEnabled,
+    setAutoZoomEnabled,
     customMapCenter,
     customMapZoom,
     currentViewportCenter,
@@ -225,6 +233,29 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
           Usar posición actual del mapa
         </button>
       </Section>
+
+      {/* Tracks */}
+      <Section
+        title="Tracks"
+        right={
+          <button type="button"
+            onClick={() => { setTrackStrokeWidth(7); setTrackDurationSec(0); setInactiveIconTimeoutSec(0); }}
+            className="text-[9px] text-text-200/40 hover:text-text-200 transition-colors">↺ Reset</button>
+        }
+      >
+        <SliderRow label="Grosor" min={1} max={20} step={0.5} value={trackStrokeWidth}
+          format={(v) => `${v}px`} onChange={setTrackStrokeWidth} />
+        <SliderRow label="Duración" min={0} max={300} step={5} value={trackDurationSec}
+          format={(v) => v === 0 ? "sin límite" : `${v}s`} onChange={setTrackDurationSec} />
+        <SliderRow label="Tiempo inactivo" min={0} max={300} step={5} value={inactiveIconTimeoutSec}
+          format={(v) => v === 0 ? "sistema (70s)" : `${v}s`} onChange={setInactiveIconTimeoutSec} />
+      </Section>
+
+      {/* Zoom automático */}
+      <div className="flex items-center justify-between px-2.5 py-2 bg-bg-200/60 rounded-lg">
+        <span className="text-[9px] text-text-200/60 uppercase tracking-wide">Zoom automático</span>
+        <Toggle value={autoZoomEnabled} onChange={setAutoZoomEnabled} />
+      </div>
 
       {/* Icono por defecto */}
       <Section title="Icono por defecto" defaultOpen={false}>

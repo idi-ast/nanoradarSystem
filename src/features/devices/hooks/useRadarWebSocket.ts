@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { RadarTarget, RawRadarPayload, CamaraActividad, MagosRadarTrack } from "../types";
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
+import { useTargetVisualStore } from "../stores/targetVisualStore";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 10_000;
@@ -296,6 +297,11 @@ export function useRadarWebSocket(
   const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
 
+  const inactiveIconTimeoutSec = useTargetVisualStore((s) => s.inactiveIconTimeoutSec);
+  const effectiveTargetTimeoutMs = inactiveIconTimeoutSec > 0
+    ? inactiveIconTimeoutSec * 1000
+    : timing.TARGET_TIMEOUT_MS;
+
   const bufferRef = useRef<{
     nanoRadar: RawRadarPayload["nanoRadar"];
     magosRadar: MagosRadarTrack[];
@@ -349,7 +355,7 @@ export function useRadarWebSocket(
         const next = new Map(prev);
         let changed = false;
         for (const [id, target] of next.entries()) {
-          if (now - target.lastUpdate > timing.TARGET_TIMEOUT_MS) {
+          if (now - target.lastUpdate > effectiveTargetTimeoutMs) {
             next.delete(id);
             changed = true;
           }
@@ -363,7 +369,7 @@ export function useRadarWebSocket(
         );
         return active.length === prev.length ? prev : active;
       });
-    }, timing.TARGET_TIMEOUT_MS);
+    }, effectiveTargetTimeoutMs);
 
     function connect() {
       if (destroyed) return;
@@ -421,7 +427,7 @@ export function useRadarWebSocket(
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };
-  }, [url, timing.HISTORY_MAX_POINTS, timing.TARGET_TIMEOUT_MS, trackColor]);
+  }, [url, timing.HISTORY_MAX_POINTS, effectiveTargetTimeoutMs, trackColor]);
 
   const targets = useMemo(() => Array.from(targetsMap.values()), [targetsMap]);
 
