@@ -20,6 +20,7 @@ interface MapControlsProps {
   mapLayers: Record<MapLayer, MapLayerConfig>;
   initialCenter: MapCenter;
   initialZoom: number;
+  extraButtons?: React.ReactNode;
 }
 
 const BTN =
@@ -50,6 +51,7 @@ const MapControls = memo(function MapControls({
   mapLayers,
   initialCenter,
   initialZoom,
+  extraButtons,
 }: MapControlsProps) {
   const [showLayers, setShowLayers] = useState(false);
 
@@ -125,6 +127,8 @@ const MapControls = memo(function MapControls({
           </>
         )}
       </div>
+
+      {extraButtons}
 
       <MapBtn onClick={setTopView} title="Vista superior (2D)">
         <IconMapMinus size={20} />

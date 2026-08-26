@@ -80,6 +80,20 @@ export const DEFAULT_ICON_STYLE_2D: IconStyle2D = {
 };
 
 interface TargetVisualState {
+  /** Grosor del trazo de la estela del track en px */
+  trackStrokeWidth: number;
+  /**
+   * Duración de la estela del track en segundos.
+   * 0 = sin límite (se muestran todos los puntos del historial).
+   */
+  trackDurationSec: number;
+  /**
+   * Tiempo en segundos antes de que un ícono inactivo se elimine del mapa.
+   * 0 = valor por defecto del sistema (70 s).
+   */
+  inactiveIconTimeoutSec: number;
+  /** Habilitar zoom automático del mapa al detectar actividad */
+  autoZoomEnabled: boolean;
   /** ID de categoría por defecto (ZONE_DETECTION_CATEGORIES). 2 = Barco */
   defaultCategoriaDeteccion: number;
   /**
@@ -105,6 +119,10 @@ interface TargetVisualState {
 }
 
 interface TargetVisualStore extends TargetVisualState {
+  setTrackStrokeWidth: (v: number) => void;
+  setTrackDurationSec: (v: number) => void;
+  setInactiveIconTimeoutSec: (v: number) => void;
+  setAutoZoomEnabled: (v: boolean) => void;
   setDefaultCategoria: (id: number) => void;
   set3DBoat: (value: boolean) => void;
   setBoat3DConfig: (cfg: Partial<Boat3DConfig>) => void;
@@ -118,6 +136,10 @@ interface TargetVisualStore extends TargetVisualState {
 }
 
 const DEFAULTS: TargetVisualState = {
+  trackStrokeWidth: 7,
+  trackDurationSec: 0,
+  inactiveIconTimeoutSec: 0,
+  autoZoomEnabled: true,
   defaultCategoriaDeteccion: 2, // Barco
   use3DBoat: false,             // alto rendimiento por defecto
   boat3DConfig: { ...DEFAULT_BOAT3D_CONFIG },
@@ -133,6 +155,10 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
   persist(
     (set) => ({
       ...DEFAULTS,
+      setTrackStrokeWidth: (v) => set({ trackStrokeWidth: v }),
+      setTrackDurationSec: (v) => set({ trackDurationSec: v }),
+      setInactiveIconTimeoutSec: (v) => set({ inactiveIconTimeoutSec: v }),
+      setAutoZoomEnabled: (v) => set({ autoZoomEnabled: v }),
       setDefaultCategoria: (id) => set({ defaultCategoriaDeteccion: id }),
       set3DBoat: (value) => set({ use3DBoat: value }),
       setBoat3DConfig: (cfg) =>
@@ -150,6 +176,10 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
     {
       name: "target-visual-prefs",
       partialize: (state) => ({
+        trackStrokeWidth: state.trackStrokeWidth,
+        trackDurationSec: state.trackDurationSec,
+        inactiveIconTimeoutSec: state.inactiveIconTimeoutSec,
+        autoZoomEnabled: state.autoZoomEnabled,
         defaultCategoriaDeteccion: state.defaultCategoriaDeteccion,
         use3DBoat: state.use3DBoat,
         boat3DConfig: state.boat3DConfig,

@@ -26,6 +26,7 @@ import {
 import { MAPBOX_TOKEN } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
 import MapControls from "@/components/baseMap/components/MapControls";
+import ManualPtzButton from "./cameras/ptz/components/ManualPtzButton";
 import { RADAR_INSTANCES } from "../../config";
 import type { RadarInstanceConfig } from "../../config";
 import { RadarProvider } from "../../context";
@@ -565,6 +566,7 @@ export const RadarMap = memo(function RadarMap({
             mapLayers={mapLayers}
             initialCenter={initialCenter}
             initialZoom={15}
+            extraButtons={<ManualPtzButton />}
           />
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />

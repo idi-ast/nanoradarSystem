@@ -118,7 +118,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           filter={
             ["==", ["get", "kind"], "fov"] as unknown as FilterSpecification
           }
-          paint={{ "fill-color": color, "fill-opacity": 0.25 }}
+          paint={{ "fill-color": color, "fill-opacity": 0 }}
         />
         <Layer
           id={`${sid}-sides`}
@@ -127,7 +127,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           filter={
             ["==", ["get", "kind"], "side"] as unknown as FilterSpecification
           }
-          paint={{ "line-color": color, "line-width": 1, "line-opacity": 0.7 }}
+          paint={{ "line-color": color, "line-width": 1, "line-opacity": 0 }}
         />
         <Layer
           id={`${sid}-center`}
@@ -139,7 +139,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           paint={{
             "line-color": color,
             "line-width": 2,
-            "line-opacity": 1,
+            "line-opacity": 0,
             "line-dasharray": [4, 4],
           }}
         />
@@ -153,7 +153,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           paint={{
             "line-color": color,
             "line-width": 1.5,
-            "line-opacity": 0.6,
+            "line-opacity": 0,
             "line-dasharray": [2, 3],
           }}
         />
@@ -172,7 +172,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
                 borderLeft: "4px solid transparent",
                 borderRight: "4px solid transparent",
                 borderBottom: `11px solid ${color}`,
-                opacity: 0.8,
+                opacity: 0,
               }}
             />
           </div>
