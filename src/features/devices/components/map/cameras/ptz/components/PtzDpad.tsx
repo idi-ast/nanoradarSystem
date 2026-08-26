@@ -115,9 +115,20 @@ function HoldArrowButton({
  * Joystick D-pad para mover la cámara PTZ (mantener presionado).
  * Reutilizable: dentro del video de la cámara o fuera de ella (menú del mapa).
  * Mientras se usa, pausa el auto-tracking; se reanuda tras 10 s de inactividad.
+ *
+ * `disableAutoTracking`: al ser true, NO gestiona pausa/reanudación del
+ * tracking. El componente padre es responsable de ello (útil para el botón
+ * manual del mapa donde la pausa se控制a al abrir/cerrar el panel).
  */
-export function PtzDpad({ ptz_id }: { ptz_id: number }) {
-  const notifyActivity = useManualControlTracking(ptz_id);
+export function PtzDpad({
+  ptz_id,
+  disableAutoTracking = false,
+}: {
+  ptz_id: number;
+  disableAutoTracking?: boolean;
+}) {
+  const hookActivity = useManualControlTracking(ptz_id);
+  const notifyActivity = disableAutoTracking ? () => {} : hookActivity;
 
   return (
     <div className="grid grid-cols-3 gap-1">
