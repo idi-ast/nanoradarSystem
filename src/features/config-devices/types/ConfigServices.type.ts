@@ -56,6 +56,27 @@ export interface Ubicacion {
   lng: string;
 }
 
+/**
+ * Georeferencia de la vista de una PTZ/cámara (formato Spotter).
+ * `center` está en Web Mercator (EPSG:3857): el punto del terreno en el
+ * centro del sensor → de ahí se deriva el rumbo real calibrado.
+ */
+export interface PtzGeoRef {
+  center: [number, number] | null;
+  /** Metros por píxel (GSD) en el punto central */
+  resolution: number | null;
+  /** Rumbo con signo en radianes ([-π, π]) */
+  rotation: number | null;
+  /** Rumbo de brújula en grados [0-360) */
+  bearing: number | null;
+  /** Distancia horizontal al centro de visión (metros) */
+  dist_center_m?: number | null;
+  pan_deg?: number | null;
+  tilt_deg?: number | null;
+  zoom?: number | null;
+  moving?: boolean | null;
+}
+
 export interface Ptz {
   id: number;
   nombre: string;

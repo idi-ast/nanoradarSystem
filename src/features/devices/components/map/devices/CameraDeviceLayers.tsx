@@ -2,34 +2,111 @@ import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
 import { IconCamera } from "@tabler/icons-react";
-import type { Camaras, Ptz } from "@/features/config-devices/types/ConfigServices.type";
+import type {
+  Camaras,
+  Ptz,
+  PtzGeoRef,
+} from "@/features/config-devices/types/ConfigServices.type";
 import { getGeoPoint } from "../utils/geoHelpers";
 import { buildSectorPolygon, buildArcCoords } from "./geoUtils";
 import { DEVICES_BELOW_LAYER_ID } from "../devicesConfig";
+
+const EARTH_R = 6378137; // radio de la esfera Web Mercator (EPSG:3857)
+
+/** EPSG:3857 → lat/lon (WGS84). */
+function webMercatorToLatLon(x: number, y: number): [number, number] {
+  const lon = (x / EARTH_R) * (180 / Math.PI);
+  const lat =
+    (Math.atan(Math.exp(y / EARTH_R)) * 2 - Math.PI / 2) * (180 / Math.PI);
+  return [lat, lon];
+}
+
+/** Rumbo (0-360°) desde la cámara hasta el `center` (EPSG:3857). */
+function bearingFromWebMercatorCenter(
+  camLat: number,
+  camLon: number,
+  cx: number,
+  cy: number,
+): number {
+  const camX = (EARTH_R * camLon * Math.PI) / 180;
+  const camY = EARTH_R * Math.log(Math.tan(Math.PI / 4 + (camLat * Math.PI) / 360));
+  const deg = (Math.atan2(cx - camX, cy - camY) * 180) / Math.PI;
+  return ((deg % 360) + 360) % 360;
+}
 
 export interface CameraDeviceLayersProps {
   camera: Camaras | Ptz;
   fovDeg?: number;
   rangeM?: number;
+  /** Georeferencia de vista (formato Spotter) — fuente de verdad del apuntado */
+  georef?: PtzGeoRef | null;
 }
 
 export const CameraDeviceLayers = memo(function CameraDeviceLayers({
   camera,
   fovDeg,
   rangeM,
+  georef,
 }: CameraDeviceLayersProps) {
   const lat = Number(camera.ubicacion?.lat);
   const lon = Number(camera.ubicacion?.lng);
-  // Fuente de verdad de orientación: `azimut` (la misma que usa el backend en
-  // calibración y auto-tracking). `grado` queda solo como respaldo.
+  // Fuente de verdad de orientación: la georeferencia calibrada (center /
+  // rotation / bearing) si está disponible; si no, `azimut` (la misma que usa
+  // el backend en calibración y auto-tracking). `grado` queda solo como
+  // respaldo.
   const azimutNum = Number(camera.azimut);
-  const bearingDeg = Number.isFinite(azimutNum)
+  const fallbackBearing = Number.isFinite(azimutNum)
     ? azimutNum
     : camera.grado ?? 0;
   const resolvedFov = fovDeg ?? camera.apertura ?? 20;
   const resolvedRange = rangeM ?? (camera.radio > 0 ? camera.radio : 100);
   const color = camera.color || "#f59e0b";
   const sid = `dev-cam-${camera.id}`;
+
+  // Centro de visión (EPSG:3857) → lat/lon para el marcador del mapa
+  const georefCenter = useMemo(() => {
+    const c = georef?.center;
+    if (
+      Array.isArray(c) &&
+      c.length >= 2 &&
+      Number.isFinite(Number(c[0])) &&
+      Number.isFinite(Number(c[1]))
+    ) {
+      return webMercatorToLatLon(Number(c[0]), Number(c[1]));
+    }
+    return null;
+  }, [georef?.center]);
+
+  // Dirección real donde apunta la cámara, derivada de la calibración
+  const georefBearing = useMemo(() => {
+    const center = georef?.center;
+    if (
+      Array.isArray(center) &&
+      center.length >= 2 &&
+      Number.isFinite(Number(center[0])) &&
+      Number.isFinite(Number(center[1]))
+    ) {
+      return bearingFromWebMercatorCenter(
+        lat,
+        lon,
+        Number(center[0]),
+        Number(center[1]),
+      );
+    }
+    if (georef?.rotation != null && Number.isFinite(Number(georef.rotation))) {
+      const deg = (Number(georef.rotation) * 180) / Math.PI;
+      return ((deg % 360) + 360) % 360;
+    }
+    if (georef?.bearing != null && Number.isFinite(Number(georef.bearing))) {
+      return ((Number(georef.bearing) % 360) + 360) % 360;
+    }
+    return null;
+  }, [georef, lat, lon]);
+
+  const bearingDeg =
+    georefBearing != null && Number.isFinite(georefBearing)
+      ? georefBearing
+      : fallbackBearing;
 
   const halfFov = resolvedFov / 2;
   const startAngle = bearingDeg - halfFov;
@@ -118,7 +195,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           filter={
             ["==", ["get", "kind"], "fov"] as unknown as FilterSpecification
           }
-          paint={{ "fill-color": color, "fill-opacity": 0 }}
+          paint={{ "fill-color": color, "fill-opacity": 0.05 }}
         />
         <Layer
           id={`${sid}-sides`}
@@ -127,7 +204,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           filter={
             ["==", ["get", "kind"], "side"] as unknown as FilterSpecification
           }
-          paint={{ "line-color": color, "line-width": 1, "line-opacity": 0 }}
+          paint={{ "line-color": color, "line-width": 1, "line-opacity": 0.1 }}
         />
         <Layer
           id={`${sid}-center`}
@@ -139,8 +216,8 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           paint={{
             "line-color": color,
             "line-width": 2,
-            "line-opacity": 0,
-            "line-dasharray": [4, 4],
+            "line-opacity": 0.2,
+            "line-dasharray": [4, 2],
           }}
         />
         <Layer
@@ -153,7 +230,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           paint={{
             "line-color": color,
             "line-width": 1.5,
-            "line-opacity": 0,
+            "line-opacity": 1,
             "line-dasharray": [2, 3],
           }}
         />
@@ -172,7 +249,7 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
                 borderLeft: "4px solid transparent",
                 borderRight: "4px solid transparent",
                 borderBottom: `11px solid ${color}`,
-                opacity: 0,
+                opacity: 1,
               }}
             />
           </div>
@@ -222,6 +299,25 @@ export const CameraDeviceLayers = memo(function CameraDeviceLayers({
           {camera.nombre}
         </div>
       </Marker>
+
+      {georefCenter && (
+        <Marker
+          longitude={georefCenter[1]}
+          latitude={georefCenter[0]}
+          anchor="center"
+          style={{ zIndex: 20, pointerEvents: "none" }}
+        >
+          <div
+            className="w-3.5 h-3.5 rounded-full border-2"
+            style={{
+              backgroundColor: `${color}cc`,
+              borderColor: "#fff",
+              boxShadow: `0 0 10px ${color}aa`,
+            }}
+            title="Centro de visión (calibración)"
+          />
+        </Marker>
+      )}
     </>
   );
 });

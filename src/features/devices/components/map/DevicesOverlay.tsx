@@ -13,6 +13,7 @@ import {
 } from "./devices";
 import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
 import { CameraCalibrationOverlay } from "./CameraCalibrationOverlay";
+import { usePtzGeoRefs } from "../../hooks/usePtzGeoRefs";
 
 export interface DeviceVisibility {
   hiddenNanoradares: Set<number>;
@@ -35,6 +36,7 @@ export const DevicesOverlay = memo(function DevicesOverlay({
   );
   const lastResult = useCameraCalibrationStore((s) => s.lastResult);
   const liveBearing = useCameraCalibrationStore((s) => s.previewBearing);
+  const georefs = usePtzGeoRefs().data ?? {};
 
   if (!data?.data) return null;
 
@@ -130,14 +132,18 @@ export const DevicesOverlay = memo(function DevicesOverlay({
       {camaras
         .filter((c) => !visibility.hiddenCamaras.has(c.id))
         .map((c) => (
-          <CameraDeviceLayers key={c.id} camera={c} />
+          <CameraDeviceLayers
+            key={c.id}
+            camera={c}
+            georef={georefs[String(c.id)] ?? null}
+          />
         ))}
 
       {(ptz ?? [])
         .filter((p) => !visibility.hiddenPtz.has(p.id))
         .map((p) => (
           <React.Fragment key={`ptz-${p.id}`}>
-            <CameraDeviceLayers camera={p} />
+            <CameraDeviceLayers camera={p} georef={georefs[String(p.id)] ?? null} />
             {calibratingCameraId === p.id && (
               <CameraCalibrationOverlay
                 cameraLat={Number(p.ubicacion.lat)}
@@ -157,7 +163,10 @@ export const DevicesOverlay = memo(function DevicesOverlay({
         .filter((c) => !visibility.hiddenCamaras.has(c.id))
         .map((c) => (
           <React.Fragment key={`cam-${c.id}`}>
-            <CameraDeviceLayers camera={c} />
+            <CameraDeviceLayers
+              camera={c}
+              georef={georefs[String(c.id)] ?? null}
+            />
             {calibratingCameraId === c.id && (
               <CameraCalibrationOverlay
                 cameraLat={Number(c.ubicacion.lat)}

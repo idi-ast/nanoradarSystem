@@ -1,4 +1,5 @@
 import { apiSystem } from "@/apis";
+import type { PtzGeoRef } from "@/features/config-devices/types/ConfigServices.type";
 import { PTZ_DURATION_X, PTZ_DURATION_Y, PTZ_SPEED_X, PTZ_SPEED_Y } from "./constants";
 
 export async function ptzMove(
@@ -286,3 +287,22 @@ export async function ptzDiagnosePipeline(
 }
 
 export { PTZ_SPEED_X, PTZ_SPEED_Y };
+
+/**
+ * Georeferencias de vista de todas las PTZ (formato Spotter): center (EPSG:3857),
+ * resolution, rotation, bearing. En cada giro del pan/tilt cambian para que el
+ * cono del mapa apunte donde quedó calibrada la cámara.
+ */
+export async function ptzGeoRefs(): Promise<
+  Record<string, PtzGeoRef | null> | null
+> {
+  try {
+    const res = await apiSystem.get<{ data: Record<string, PtzGeoRef | null> }>(
+      "/ptz/georef",
+    );
+    return res.data?.data ?? null;
+  } catch (e) {
+    console.error("PTZ georef", e);
+    return null;
+  }
+}
