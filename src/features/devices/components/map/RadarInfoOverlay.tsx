@@ -55,7 +55,8 @@ export const RadarInfoOverlay = memo(function RadarInfoOverlay({
   const inactivos = 0;
 
   return (
-    <div className="absolute top-1 left-1 z-50 pointer-events-none w-full max-w-5xl">
+    // Se ocultó menu de información de mapa
+    <div className="hidden absolute top-1 left-1 z-50 pointer-events-none w-full max-w-5xl">
       <div className="bg-bg-400 flex items-center gap-3 font-semibold text-[10px] text-text-400 px-4 py-2.5 rounded-md w-full">
         <div className="flex items-center gap-1.5 shrink-0">
           <IconCaretRightFilled size={13} className="text-emerald-500/80" />

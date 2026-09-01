@@ -709,11 +709,11 @@ export const RadarMap = memo(function RadarMap({
             />}
             <ZonesPanel />
 
-            <div className="flex justify-center items-center flex-1">
+            {/* <div className="flex justify-center items-center flex-1">
               <span className="[writing-mode:vertical-rl] truncate rotate-180 text-[11px] tracking-[0.3em] text-text-200 font-light uppercase">
                 Configuraciones de dispositivos
               </span>
-            </div>
+            </div> */}
           </div>
         </MapPanelProvider>
       </div>

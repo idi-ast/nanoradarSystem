@@ -5,9 +5,10 @@ import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import type { PtzCameraProps, CameraMode } from "./types";
+import { useBreakpoint } from "@/hooks/useBreakpoints";
 
 const SLOT_HEIGHT = 360;
-const BASE_TOP = 100;
+const BASE_TOP = 50;
 
 const PtzCamera = memo(
   function PtzCamera({
@@ -20,32 +21,37 @@ const PtzCamera = memo(
   }: PtzCameraProps) {
     const [mode, setMode] = useState<CameraMode>("maximized");
     const streamUrl = getWhepBaseUrl(camera.url_stream);
-    const { videoRef, streamRef, connectionError, retry } =
+    const { videoRef, streamRef, stream, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
 
-  function toggleMaximize() {
-    if (mode === "minimized") {
-      setMode("maximized");
-      onBecomeMaximized?.();
-    } else {
-      setMode("minimized");
-      onBecomeMinimized?.();
+    function toggleMaximize() {
+      if (mode === "minimized") {
+        setMode("maximized");
+        onBecomeMaximized?.();
+      } else {
+        setMode("minimized");
+        onBecomeMinimized?.();
+      }
     }
-  }
+
+    const { isDesktop } = useBreakpoint();
+
+
+    const leftPosition = isDesktop ? "78px" : "2px";
 
     const maximizedStyle: React.CSSProperties = position
       ? {
-          position: "fixed",
-          top: position.top,
-          left: position.left,
-          right: position.right,
-          bottom: position.bottom,
-        }
+        position: "fixed",
+        top: position.top,
+        left: position.left,
+        right: position.right,
+        bottom: position.bottom,
+      }
       : {
-          position: "fixed",
-          top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
-          left: "3.1%",
-        };
+        position: "fixed",
+        top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
+        left: leftPosition,
+      };
 
     return (
       <>
@@ -73,14 +79,14 @@ const PtzCamera = memo(
           createPortal(
             <div
               style={maximizedStyle}
-              className="z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col w-170 h-100"
+              className={`z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col ${isDesktop ? "w-165 h-100": " w-80 h-55"}`}
             >
               <PtzToolbar
                 name={camera.nombre}
                 mode="maximized"
                 onToggleMaximize={toggleMaximize}
                 onToggleFullscreen={() => setMode("fullscreen")}
-                onHide={onClose}
+                // onHide={onClose}
               />
 
               <PtzVideo
@@ -99,6 +105,7 @@ const PtzCamera = memo(
             name={camera.nombre}
             ptz_id={camera.id}
             streamRef={streamRef}
+            stream={stream}
             connectionError={connectionError}
             onRetry={retry}
             onClose={() => setMode("maximized")}
