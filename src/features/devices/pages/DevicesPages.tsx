@@ -101,7 +101,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       lon: firstPoint?.lon ?? 0,
       nivel: 0,
       zona: firstPoint?.zona ?? "",
-      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : Date.now(),
+      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : 0,
       deviceType: (backendHistory.tipo_radar === "magos" ? "magosradar"
         : backendHistory.tipo_radar === "nano" ? "nanoRadar"
           : "spotter") as "magosradar" | "nanoRadar" | "spotter",
@@ -110,7 +110,6 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   }, [selectedTarget, backendHistory, rawTrackId]);
 
   const effectiveTarget = selectedTarget ?? virtualTarget;
-  const { isDesktop } = useBreakpoint();
   // Merge in-memory + backend history, deduplicado
   const mergedHistoryPoints = useMemo(() => {
     const inMemoryPoints: TrackHistoryPoint[] = (selectedTarget?.history ?? []).map(([lat, lon, ts]) => ({
