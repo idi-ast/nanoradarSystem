@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ptzGetTiltInclination, ptzSetTiltInclination } from "./cameras/ptz/service";
+import { TiltSlider } from "./cameras/ptz/components/TiltSlider";
 import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
@@ -1292,109 +1293,6 @@ function n(v: string | number | null | undefined): string {
 }
 function nn(v: string): number | null {
   return v === "" ? null : Number(v);
-}
-
-// ─── Slider de inclinación (tilt) tipo "barra de volumen" centrado en 0 ──
-//   Controla el ÁNGULO real respecto a la horizontal: + = mira hacia abajo,
-//   - = mira hacia arriba, 0 = horizontal. Al soltar se dispara onCommit(angle)
-//   para mover la cámara; el backend devuelve la posición real y se reconcilia.
-interface TiltSliderProps {
-  value: string;
-  onChange: (v: string) => void;
-  onCommit: (angle: number) => void;
-  min?: number;
-  max?: number;
-}
-
-function TiltSlider({
-  value,
-  onChange,
-  onCommit,
-  min = -90,
-  max = 90,
-}: TiltSliderProps) {
-  const raw = Number(value);
-  const num = Number.isNaN(raw) ? 0 : raw;
-  // Posición normalizada 0 (abajo, +) .. 1 (arriba, -). Como el valor crece
-  // hacia abajo (+0 a +90), mapeamos: norm = 1 en -90 y 0 en +90 → invertido.
-  const span = max - min;
-  const clamped = Math.min(Math.max(num, min), max);
-  const norm = span === 0 ? 0.5 : (max - clamped) / span; // 0 abajo, 1 arriba
-
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value === "" ? "" : String(Number(e.target.value)));
-  };
-
-  const handleDone = () => onCommit(Number.isNaN(Number(value)) ? 0 : Number(value));
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
-          Inclinación de cámara (°)
-        </span>
-        <InfoIcon
-          text="Ángulo real respecto a la horizontal. Arriba (−) mira hacia arriba, abajo (+) mira hacia abajo, 0 = horizontal. La cámara se mueve al soltar."
-        />
-      </div>
-
-      <div className="flex items-center gap-3">
-        {/* ── Barra vertical ── */}
-        <div className="relative h-36 w-8 select-none touch-none">
-          {/* Pista */}
-          <div className="absolute inset-y-0 left-1/2 w-1.5 -translate-x-1/2 rounded-full bg-bg-300" />
-          {/* Marca del centro (0 = horizontal) */}
-          <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 bg-text-100/30" />
-          {/* Relleno desde el centro */}
-          <div
-            className={`absolute left-1/2 w-1.5 -translate-x-1/2 rounded-full ${
-              num >= 0 ? "bottom-1/2 bg-emerald-400" : "top-1/2 bg-red-400"
-            }`}
-            style={{ height: `${Math.abs(norm - 0.5) * 100}%` }}
-          />
-          {/* Puntero */}
-          <div
-            className="absolute left-1/2 z-10 h-4 w-8 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-emerald-400/70 bg-bg-100 shadow"
-            style={{ top: `${norm * 100}%` }}
-          />
-          {/* Etiquetas de extremos */}
-          <span className="absolute -left-0.5 -top-3 text-[8px] font-mono text-text-100/40">−{Math.abs(min)}°</span>
-          <span className="absolute -left-1 -bottom-3 text-[8px] font-mono text-text-100/40">+{max}°</span>
-          {/* Range nativo (interacción) */}
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={1}
-            value={clamped}
-            onInput={handleInput}
-            onChange={handleInput}
-            onPointerUp={handleDone}
-            onKeyUp={handleDone}
-            aria-label="Inclinación de cámara"
-            className="absolute inset-0 z-20 h-full w-full cursor-ns-resize opacity-0 [writing-mode:vertical-lr] [direction:ltr]"
-          />
-        </div>
-
-        {/* ── Valor numérico editable ── */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-semibold text-red-400/70 uppercase tracking-wider">Arriba −</span>
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={1}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={handleDone}
-            onKeyDown={(e) => { if (e.key === "Enter") handleDone(); }}
-            className="w-16 shrink-0 text-center text-[13px] font-mono font-bold bg-bg-200/50 border border-border/60 rounded-md px-1 py-0.5 text-text-100 tabular-nums focus:outline-none focus:border-emerald-500/60"
-          />
-          <span className="text-[9px] font-semibold text-emerald-400/70 uppercase tracking-wider">Abajo +</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 interface MagosradarAdvancedFormProps {

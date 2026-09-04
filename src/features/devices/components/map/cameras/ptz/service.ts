@@ -340,6 +340,39 @@ export async function ptzSetTiltInclination(
   }
 }
 
+/** Respuesta de guardar la referencia de inclinación (calibrate-tilt) */
+export interface CalibrateTiltResponse {
+  status: string;
+  message: string;
+  data: {
+    old_tilt_offset: number;
+    tilt_offset: number;
+    inclination: number;
+    tilt_deg: number;
+    pan_deg: number;
+    zoom: number;
+  };
+}
+
+/**
+ * GUARDA la posición ACTUAL de la cámara como nueva referencia de inclinación
+ * (0° = horizontal). Devuelve el nuevo tiltOffset. Confirmación requerida.
+ */
+export async function ptzCalibrateTilt(
+  ptz_id: number,
+): Promise<{ ok: boolean; data: CalibrateTiltResponse["data"] | null }> {
+  try {
+    const res = await apiSystem.post<CalibrateTiltResponse>(
+      `/ptz/${ptz_id}/calibrate-tilt`,
+      { confirm: true },
+    );
+    return { ok: res.ok, data: res.data?.data ?? null };
+  } catch (e) {
+    console.error("PTZ calibrate-tilt", e);
+    return { ok: false, data: null };
+  }
+}
+
 export { PTZ_SPEED_X, PTZ_SPEED_Y };
 
 /**
