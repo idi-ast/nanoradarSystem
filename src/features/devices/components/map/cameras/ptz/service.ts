@@ -286,6 +286,60 @@ export async function ptzDiagnosePipeline(
   }
 }
 
+/** Respuesta de lectura/escritura de inclinación real de la cámara */
+export interface TiltInclinationResponse {
+  status: string;
+  data: {
+    inclination: number; // ángulo real respecto a la horizontal (+ = abajo, - = arriba, 0 = horizontal)
+    tilt_deg: number; // tilt del encoder
+    tilt_offset: number;
+    pan_deg: number;
+    zoom: number;
+    requested_angle?: number; // solo en escritura
+  };
+}
+
+/**
+ * LEE la inclinación REAL de la cámara (ángulo respecto a la horizontal).
+ * Se usa para inicializar el slider y garantizar que el indicador coincide
+ * siempre con la posición física de la cámara.
+ */
+export async function ptzGetTiltInclination(
+  ptz_id: number,
+): Promise<{ ok: boolean; data: TiltInclinationResponse["data"] | null }> {
+  try {
+    const res = await apiSystem.get<TiltInclinationResponse>(
+      `/ptz/${ptz_id}/tilt-inclination`,
+    );
+    return { ok: res.ok, data: res.data?.data ?? null };
+  } catch (e) {
+    console.error("PTZ get-tilt-inclination", e);
+    return { ok: false, data: null };
+  }
+}
+
+/**
+ * MUEVE la cámara a un ángulo de inclinación dado (+ = abajo, - = arriba,
+ * 0 = horizontal) manteniendo pan/zoom. Devuelve la posición REAL leída para
+ * sincronizar el indicador con la cámara física.
+ */
+export async function ptzSetTiltInclination(
+  ptz_id: number,
+  angle: number,
+  move_camera = true,
+): Promise<{ ok: boolean; data: TiltInclinationResponse["data"] | null }> {
+  try {
+    const res = await apiSystem.post<TiltInclinationResponse>(
+      `/ptz/${ptz_id}/tilt-inclination`,
+      { angle, move_camera },
+    );
+    return { ok: res.ok, data: res.data?.data ?? null };
+  } catch (e) {
+    console.error("PTZ set-tilt-inclination", e);
+    return { ok: false, data: null };
+  }
+}
+
 export { PTZ_SPEED_X, PTZ_SPEED_Y };
 
 /**
