@@ -101,16 +101,15 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       lon: firstPoint?.lon ?? 0,
       nivel: 0,
       zona: firstPoint?.zona ?? "",
-      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : Date.now(),
+      lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : 0,
       deviceType: (backendHistory.tipo_radar === "magos" ? "magosradar"
         : backendHistory.tipo_radar === "nano" ? "nanoRadar"
-        : "spotter") as "magosradar" | "nanoRadar" | "spotter",
+          : "spotter") as "magosradar" | "nanoRadar" | "spotter",
       history: [] as [number, number, number][],
     };
   }, [selectedTarget, backendHistory, rawTrackId]);
 
   const effectiveTarget = selectedTarget ?? virtualTarget;
-
   // Merge in-memory + backend history, deduplicado
   const mergedHistoryPoints = useMemo(() => {
     const inMemoryPoints: TrackHistoryPoint[] = (selectedTarget?.history ?? []).map(([lat, lon, ts]) => ({
@@ -301,9 +300,11 @@ const RightBarNano = memo(
       instanceConfig.geofence.ACTIVE_MS,
     );
 
+    const { isDesktop } = useBreakpoint();
+
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
-        <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
+        {isDesktop && <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
           <h3>Control Radar</h3>
           <h5>Zonas y Detecciones</h5>
           {setOpenRightBar && (
@@ -314,7 +315,7 @@ const RightBarNano = memo(
               <IconX size={20} stroke={1.5} />
             </button>
           )}
-        </div>
+        </div>}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 gap-3">
           <div className="shrink-0 space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1">
@@ -337,12 +338,12 @@ const RightBarNano = memo(
             )}
           </div>
 
-          <TargetsDynamicPanel
+          {isDesktop && <TargetsDynamicPanel
             deviceFilter={deviceFilter}
             onDeviceFilterChange={onDeviceFilterChange}
             onSelectTrack={onSelectTrack}
-          />
-          <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />
+          />}
+          {isDesktop && <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />}
           <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
         </div>
       </div>

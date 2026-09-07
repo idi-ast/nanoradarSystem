@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function getWhepBaseUrl(urlStream: string): string {
   const base = import.meta.env.VITE_MEDIAMTX_BASE_URL || "";
@@ -23,6 +23,8 @@ export function getWhepBaseUrl(urlStream: string): string {
 export function useWebRtcPlayer(streamUrl: string) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -33,11 +35,9 @@ export function useWebRtcPlayer(streamUrl: string) {
 
   const videoRef = useCallback(
     (node: HTMLVideoElement | null) => {
-      if (pcRef.current) {
-        pcRef.current.close();
-        pcRef.current = null;
-      }
       if (!node) return;
+
+      cleanupRef.current?.();
 
       let destroyed = false;
       setConnectionError(null);
@@ -49,6 +49,7 @@ export function useWebRtcPlayer(streamUrl: string) {
 
       pc.ontrack = (event) => {
         streamRef.current = event.streams[0];
+        setStream(event.streams[0]);
         if (node.srcObject !== event.streams[0]) {
           node.srcObject = event.streams[0];
         }
@@ -98,16 +99,23 @@ export function useWebRtcPlayer(streamUrl: string) {
         }
       });
 
-      return () => {
+      cleanupRef.current = () => {
         destroyed = true;
         pc.close();
         pcRef.current = null;
         streamRef.current = null;
+        setStream(null);
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [streamUrl, retryCount],
   );
 
-  return { videoRef, streamRef, connectionError, retry };
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
+
+  return { videoRef, streamRef, stream, connectionError, retry };
 }

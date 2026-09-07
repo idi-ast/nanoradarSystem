@@ -1,5 +1,5 @@
 import { IconRefresh, IconX } from "@tabler/icons-react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { PtzControls } from "./PtzControls";
 
@@ -7,6 +7,7 @@ interface PtzFullscreenModalProps {
   name: string;
   ptz_id: number;
   streamRef: React.RefObject<MediaStream | null>;
+  stream: MediaStream | null;
   connectionError?: string | null;
   onRetry?: () => void;
   onClose: () => void;
@@ -16,6 +17,7 @@ export function PtzFullscreenModal({
   name,
   ptz_id,
   streamRef,
+  stream,
   connectionError,
   onRetry,
   onClose,
@@ -28,24 +30,26 @@ export function PtzFullscreenModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const attachRef = useCallback(
-    (node: HTMLVideoElement | null) => {
-      if (!node) return;
-      if (streamRef.current) {
-        node.srcObject = streamRef.current;
-        node.play().catch(() => {});
-      }
-    },
-    [streamRef],
-  );
+  const videoNodeRef = useRef<HTMLVideoElement | null>(null);
+  const attachRef = useCallback((node: HTMLVideoElement | null) => {
+    videoNodeRef.current = node;
+  }, []);
+
+  useEffect(() => {
+    const node = videoNodeRef.current;
+    const currentStream = stream ?? streamRef.current;
+    if (!node || !currentStream) return;
+    node.srcObject = currentStream;
+    node.play().catch(() => { });
+  }, [stream, streamRef]);
 
   return createPortal(
-    <div className="fixed inset-0 z-99999 bg-black flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2 bg-bg-100/90 backdrop-blur-sm shrink-0">
+    <div className="fixed inset-0 z-99999 bg-green-900 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-2  backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text-100">{name}</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-200/20 text-brand-200 font-bold uppercase tracking-wider">
-            PTZ
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-700 text-font-bold uppercase tracking-wider">
+            Pantalla Completa
           </span>
         </div>
         <button

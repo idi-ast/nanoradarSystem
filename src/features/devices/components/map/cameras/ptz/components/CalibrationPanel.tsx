@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   IconAdjustments,
   IconAlertTriangle,
@@ -25,12 +25,19 @@ import {
   ptzDetectPanDirection,
   ptzAdjustPanOffset,
   ptzVerifyCalibration,
+  ptzGetTiltInclination,
+  ptzSetTiltInclination,
+  ptzCalibrateTilt,
   type DetectPanDirectionResponse,
   type AdjustPanOffsetResponse,
   type VerifyCalibrationResponse,
   type VerifyTestResult,
 } from "../service";
 import { CalibrationCoverageInfo } from "./CalibrationCoverageInfo";
+import { TiltSlider } from "./TiltSlider";
+
+// Altura del objetivo considerada en la conversión ángulo→altura (metros)
+const OBJ_ALT = 0.5;
 
 export type CalibrationMode = "goto" | "save";
 
@@ -97,6 +104,11 @@ export function CalibrationPanel({
     useState<AdjustPanOffsetResponse | null>(null);
   const [verifyResult, setVerifyResult] =
     useState<VerifyCalibrationResponse | null>(null);
+
+  // ── Inclinación real (tilt) para calibrar altura ──
+  const [tiltAngle, setTiltAngle] = useState<number | null>(null);
+  const [refDistance, setRefDistance] = useState(50);
+  const [savingTilt, setSavingTilt] = useState(false);
 
   const calibrationStatus = useCameraCalibrationStore(
     (s) => s.calibrationStatus,
@@ -227,6 +239,50 @@ export function CalibrationPanel({
       setPending(null);
     }
   };
+
+  // ── Inclinación real: leer al abrir y sincronizar tras cada movimiento ──
+  useEffect(() => {
+    let active = true;
+    ptzGetTiltInclination(cameraId).then((res) => {
+      if (active && res.ok && res.data) {
+        setTiltAngle(Number(res.data.inclination.toFixed(1)));
+      }
+    });
+    return () => { active = false; };
+  }, [cameraId]);
+
+  const onCommitTilt = (angle: number) => {
+    if (Number.isNaN(angle)) return;
+    ptzSetTiltInclination(cameraId, angle, true).then((res) => {
+      if (res.ok && res.data) {
+        setTiltAngle(Number(res.data.inclination.toFixed(1)));
+      }
+    });
+  };
+
+  /** Guarda la posición actual como nueva referencia de inclinación (0°). */
+  const handleSaveTiltCalibration = async () => {
+    setSavingTilt(true);
+    try {
+      const res = await ptzCalibrateTilt(cameraId);
+      if (res.ok && res.data) {
+        setTiltAngle(0);
+        toast.success("Referencia de inclinación guardada (nuevo 0°)");
+        await refreshCalibrationStatus(cameraId);
+        queryClient.invalidateQueries({ queryKey: ["config-devices"] });
+      } else {
+        toast.error("Error al guardar la referencia de inclinación");
+      }
+    } finally {
+      setSavingTilt(false);
+    }
+  };
+
+  // Altura equivalente (ángulo → altura sobre el objetivo) en metros
+  const calcHeight =
+    tiltAngle == null
+      ? null
+      : OBJ_ALT + refDistance * Math.tan((tiltAngle * Math.PI) / 180);
 
   return (
     <div className="bg-zinc-900/95 backdrop-blur border border-zinc-700 rounded-xl px-4 py-3 shadow-2xl w-full max-h-[85vh] overflow-x-hidden overflow-y-auto">
@@ -470,6 +526,76 @@ export function CalibrationPanel({
               {offsetResult.message}
             </p>
           )}
+        </div>
+
+        {/* ── Calibrar altura / inclinación ── */}
+        <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 mb-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <IconAdjustments size={14} className="text-orange-400 shrink-0" />
+            <span className="text-orange-300 text-[11px] font-semibold">
+              Calibrar altura / inclinación
+            </span>
+          </div>
+          <p className="text-zinc-400 text-[10px] leading-snug mb-2">
+            Ajusta la inclinación para que la cámara apunte como quieras. La
+            cámara se mueve al soltar el slider. Luego puedes fijar esta
+            posición como tu nuevo <strong className="text-white">0°</strong>{" "}
+            (horizonte de referencia).
+          </p>
+
+          <TiltSlider
+            value={tiltAngle == null ? "" : String(tiltAngle)}
+            onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
+            onCommit={onCommitTilt}
+            label="Inclinación actual (°)"
+            hint="Ángulo real de la cámara"
+          />
+
+          {/* Distancia de referencia + altura calculada */}
+          <div className="mt-2 flex items-end gap-2">
+            <label className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <span className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest">
+                Distancia de referencia (m)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={10000}
+                value={String(refDistance)}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isNaN(v) && v > 0) setRefDistance(v);
+                }}
+                className="text-[11px] bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-orange-500 w-full"
+              />
+            </label>
+            <div className="rounded-md bg-zinc-800/70 border border-zinc-700 px-2 py-1 text-center min-w-[7rem]">
+              <div className="text-zinc-500 text-[9px] uppercase">Altura eq.</div>
+              <div className="text-orange-300 font-mono text-sm font-bold">
+                {calcHeight == null ? "—" : `${calcHeight.toFixed(1)} m`}
+              </div>
+            </div>
+          </div>
+          {tiltAngle != null && (
+            <p className="text-zinc-400 text-[9px] leading-snug mt-1">
+              Equivale a apuntar a un objetivo a {refDistance} m de distancia con
+              la cámara a {calcHeight == null ? "—" : calcHeight.toFixed(1)} m de
+              altura{calibrationStatus && calibrationStatus.altura_m > 0
+                ? ` (montaje: ${calibrationStatus.altura_m.toFixed(1)} m)`
+                : ""}.
+            </p>
+          )}
+
+          <button
+            onClick={handleSaveTiltCalibration}
+            disabled={savingTilt || tiltAngle == null}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-700 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors mt-2"
+          >
+            <IconTarget size={14} />
+            {savingTilt
+              ? "Guardando..."
+              : "Usar esta inclinación como calibración (0°)"}
+          </button>
         </div>
 
         {/* ── Verificar calibración ── */}

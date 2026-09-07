@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { ptzGetTiltInclination, ptzSetTiltInclination } from "./cameras/ptz/service";
+import { TiltSlider } from "./cameras/ptz/components/TiltSlider";
 import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
@@ -1092,6 +1094,11 @@ function PtzForm({
     longitud: String(device.ubicacion.lng),
   });
 
+  // Inclinación real de la cámara (ángulo respecto a la horizontal):
+  // estado independiente de `altitud` (que sigue siendo la altura en metros
+  // que ve el autotracking). Se inicializa leyendo la posición física real.
+  const [tiltAngle, setTiltAngle] = useState<number | null>(null);
+
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLatPTZ = liveEditPos ? liveEditPos.lat.toFixed(7) : posForm.latitud;
   const effectiveLngPTZ = liveEditPos ? liveEditPos.lng.toFixed(7) : posForm.longitud;
@@ -1099,6 +1106,28 @@ function PtzForm({
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
+
+  // Al soltar el slider de inclinación → MUEVE la cámara y sincroniza el
+  // indicador con la posición REAL que devuelve el backend.
+  function onCommitTilt(angle: number) {
+    if (Number.isNaN(angle)) return;
+    ptzSetTiltInclination(device.id, angle, true).then((res) => {
+      if (res.ok && res.data) {
+        setTiltAngle(Number(res.data.inclination.toFixed(1)));
+      }
+    });
+  }
+
+  // Al abrir el panel, inicializa el slider con la inclinación REAL de la cámara
+  useEffect(() => {
+    let active = true;
+    ptzGetTiltInclination(device.id).then((res) => {
+      if (active && res.ok && res.data) {
+        setTiltAngle(Number(res.data.inclination.toFixed(1)));
+      }
+    });
+    return () => { active = false; };
+  }, [device.id]);
 
   function save() {
     const payload: PtzPayload = {
@@ -1177,20 +1206,22 @@ function PtzForm({
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
       />
-      <div className="grid grid-cols-2 gap-2">
-        <TextField label="Altura de cámara (m)" value={form.altitud} onChange={(v) => set("altitud", v)} />
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
-            Azimut (pan 0°) · solo-lectura
-          </span>
-          <input
-            type="text"
-            value={form.azimut}
-            disabled
-            title="El azimut se fija con el panel de Calibración"
-            className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 opacity-50 cursor-not-allowed"
-          />
-        </div>
+      <TiltSlider
+        value={tiltAngle == null ? "" : String(tiltAngle)}
+        onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
+        onCommit={(angle) => onCommitTilt(angle)}
+      />
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+          Azimut (pan 0°) · solo-lectura
+        </span>
+        <input
+          type="text"
+          value={form.azimut}
+          disabled
+          title="El azimut se fija con el panel de Calibración"
+          className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 opacity-50 cursor-not-allowed"
+        />
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
