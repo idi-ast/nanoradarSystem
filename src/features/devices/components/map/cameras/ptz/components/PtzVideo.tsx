@@ -8,6 +8,7 @@ interface PtzVideoProps {
   onRetry?: () => void;
   ptz_id: number;
   showControls?: boolean;
+  overlayText?: string | null;
 }
 
 export function PtzVideo({
@@ -17,6 +18,7 @@ export function PtzVideo({
   onRetry,
   ptz_id,
   showControls,
+  overlayText,
 }: PtzVideoProps) {
   return (
     <div
@@ -43,6 +45,16 @@ export function PtzVideo({
               Reintentar
             </button>
           )}
+        </div>
+      )}
+      {overlayText && !connectionError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-white text-[11px] font-medium">
+              {overlayText}
+            </span>
+          </div>
         </div>
       )}
       {showControls && !connectionError && <PtzControls ptz_id={ptz_id} />}

@@ -1,9 +1,11 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWebRtcPlayer, getWhepBaseUrl } from "./hooks/useWebRtcPlayer";
 import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
+import { VisionConfigPanel } from "./components/VisionConfigPanel";
+import { useVisionDetection } from "@/features/devices/hooks/useVisionDetection";
 import type { PtzCameraProps, CameraMode } from "./types";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
 
@@ -20,9 +22,43 @@ const PtzCamera = memo(
     onClose,
   }: PtzCameraProps) {
     const [mode, setMode] = useState<CameraMode>("maximized");
-    const streamUrl = getWhepBaseUrl(camera.url_stream);
+    const {
+      visionOn,
+      starting: visionStarting,
+      config: visionConfig,
+      toggleVision,
+      applyConfig,
+    } = useVisionDetection(camera.id);
+    const [visionGrace, setVisionGrace] = useState(false);
+    const [visionConfigOpen, setVisionConfigOpen] = useState(false);
+    const connectionErrorRef = useRef<string | null>(null);
+    const aiStreamUrl = camera.url_stream.replace(
+      /^(.*ptz_\d+)(\/?)$/,
+      "$1_ai$2",
+    );
+    const streamUrl = getWhepBaseUrl(
+      visionOn ? aiStreamUrl : camera.url_stream,
+    );
     const { videoRef, streamRef, stream, connectionError, retry } =
       useWebRtcPlayer(streamUrl);
+
+    useEffect(() => {
+      connectionErrorRef.current = connectionError;
+    }, [connectionError]);
+
+    useEffect(() => {
+      if (!visionOn) return;
+      const startTimer = setTimeout(() => setVisionGrace(true), 0);
+      const graceTimer = setTimeout(() => setVisionGrace(false), 12000);
+      const retryTimer = setInterval(() => {
+        if (connectionErrorRef.current) retry();
+      }, 2500);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(graceTimer);
+        clearInterval(retryTimer);
+      };
+    }, [retry, visionOn]);
 
     function toggleMaximize() {
       if (mode === "minimized") {
@@ -32,6 +68,16 @@ const PtzCamera = memo(
         setMode("minimized");
         onBecomeMinimized?.();
       }
+    }
+
+    function handleToggleVision() {
+      void toggleVision();
+    }
+
+    async function handleApplyVisionConfig(config: Parameters<typeof applyConfig>[0]) {
+      const applied = await applyConfig(config);
+      if (applied && visionOn) setVisionGrace(true);
+      return applied;
     }
 
     const { isDesktop } = useBreakpoint();
@@ -63,6 +109,10 @@ const PtzCamera = memo(
               onToggleMaximize={toggleMaximize}
               onToggleFullscreen={() => setMode("fullscreen")}
               onHide={onClose}
+              visionOn={visionOn}
+              visionStarting={visionStarting}
+              onToggleVision={handleToggleVision}
+              onOpenVisionConfig={() => setVisionConfigOpen(true)}
             />
             <PtzVideo
               videoRef={videoRef}
@@ -86,7 +136,11 @@ const PtzCamera = memo(
                 mode="maximized"
                 onToggleMaximize={toggleMaximize}
                 onToggleFullscreen={() => setMode("fullscreen")}
-                // onHide={onClose}
+                onHide={onClose}
+                visionOn={visionOn}
+                visionStarting={visionStarting}
+                onToggleVision={handleToggleVision}
+                onOpenVisionConfig={() => setVisionConfigOpen(true)}
               />
 
               <PtzVideo
@@ -95,6 +149,11 @@ const PtzCamera = memo(
                 onRetry={retry}
                 ptz_id={camera.id}
                 showControls
+                overlayText={
+                  visionGrace && !connectionError
+                    ? "Iniciando detección IA..."
+                    : null
+                }
               />
             </div>,
             document.body,
@@ -109,6 +168,16 @@ const PtzCamera = memo(
             connectionError={connectionError}
             onRetry={retry}
             onClose={() => setMode("maximized")}
+          />
+        )}
+
+        {visionConfigOpen && (
+          <VisionConfigPanel
+            ptzId={camera.id}
+            visionOn={visionOn}
+            current={visionConfig}
+            onApply={handleApplyVisionConfig}
+            onClose={() => setVisionConfigOpen(false)}
           />
         )}
       </>
