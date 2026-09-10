@@ -1,5 +1,4 @@
-import { memo, useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { memo } from "react";
 import {
   IconAdjustmentsHorizontal,
   IconEye,
@@ -9,6 +8,7 @@ import {
 import { useZoneStyleStore } from "../../../stores/zoneStyleStore";
 import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
+import { MapPanelPortal, PanelShell } from "../MapPanelsHost";
 
 interface SliderRowProps {
   label: string;
@@ -81,7 +81,7 @@ function ToggleRow({ label, value, onChange }: ToggleRowProps) {
   );
 }
 
-function ZoneStylePanel({ onClose }: { onClose: () => void }) {
+function ZoneStylePanel() {
   const {
     fillOpacity,
     lineOpacity,
@@ -95,24 +95,12 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
   } = useZoneStyleStore();
 
   return (
-    <div className="min-w-64 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
-          Estilo de Zonas
-        </h4>
-        <button
-          onClick={onClose}
-          className="text-text-200 hover:text-text-100 transition-colors text-[10px] flex items-center gap-1"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="flex gap-2">
+    <div className="w-full space-y-3 p-3">
+      <div className="flex flex-col gap-3">
         <div
           className={`bg-bg-200/60 rounded-lg p-2.5 space-y-3 transition-opacity ${!visible ? "opacity-40 " : ""}`}
         >
-          <div className="bg-bg-200/60 rounded-lg  space-y-1.5">
+          <div className="bg-bg-200/60 rounded-lg space-y-1.5">
             <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
               Visibilidad
             </p>
@@ -180,34 +168,14 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
 const ConfigZones = memo(function ConfigZones() {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("zones");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
   const { visible } = useZoneStyleStore();
-
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 10,
-      });
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [open]);
 
   return (
     <>
       <Tooltip text="Configurar estilo de zonas">
         <button
-          ref={triggerRef}
           onClick={() => (open ? closePanel("zones") : openPanel("zones"))}
-          className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
+          className={`h-10 w-10 flex justify-center items-center rounded transition-colors relative ${
             open
               ? "bg-emerald-700 text-white border border-emerald-500/50"
               : `bg-bg-300 border border-transparent hover:bg-emerald-700/60 ${
@@ -228,20 +196,17 @@ const ConfigZones = memo(function ConfigZones() {
         </button>
       </Tooltip>
 
-      {open &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
-              zIndex: 9999,
-            }}
+      {open && (
+        <MapPanelPortal>
+          <PanelShell
+            title="Estilo de Zonas"
+            icon={<IconEye size={14} stroke={1.8} />}
+            onClose={() => closePanel("zones")}
           >
-            <ZoneStylePanel onClose={() => closePanel("zones")} />
-          </div>,
-          document.body,
-        )}
+            <ZoneStylePanel />
+          </PanelShell>
+        </MapPanelPortal>
+      )}
     </>
   );
 });

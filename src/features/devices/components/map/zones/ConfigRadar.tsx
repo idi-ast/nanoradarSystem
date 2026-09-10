@@ -1,5 +1,4 @@
-import { memo, useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { memo, useState } from "react";
 import {
   IconRadar,
   IconRefresh,
@@ -10,7 +9,7 @@ import { useRadarVisualStore } from "../../../stores/radarVisualStore";
 import type { RadarVisualState } from "../../../stores/radarVisualStore";
 import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
-
+import { MapPanelPortal, PanelShell } from "../MapPanelsHost";
 
 interface SliderRowProps {
   label: string;
@@ -82,7 +81,6 @@ function ToggleRow({ label, value, onChange }: ToggleRowProps) {
   );
 }
 
-
 interface SectionProps {
   title: string;
   accent?: string;
@@ -112,8 +110,7 @@ function Section({ title, accent = "text-emerald-400", defaultOpen = false, chil
   );
 }
 
-
-function RadarConfigPanel({ onClose }: { onClose: () => void }) {
+function RadarConfigPanel() {
   const vs = useRadarVisualStore();
   const s = <K extends keyof RadarVisualState>(key: K) =>
     (v: RadarVisualState[K]) => vs.set(key, v);
@@ -124,21 +121,7 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
   const ms = (v: number) => `${(v / 1000).toFixed(1)}s`;
 
   return (
-    <div className="w-72 max-h-[85vh] overflow-y-auto bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-3 scrollbar-thin scrollbar-track-bg-300 scrollbar-thumb-bg-400">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <IconRadar size={14} className="text-emerald-400" stroke={1.8} /> 
-          <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
-            Visual del Radar
-          </h4>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-text-200 hover:text-text-100 transition-colors text-[10px]"
-        >
-          ✕
-        </button>
-      </div>
+    <div className="w-full space-y-3 p-3">
       <Section title="Haz (Beam)" accent="text-text-100" defaultOpen>
         <ToggleRow label="Mostrar haz" value={vs.beamShow} onChange={s("beamShow")} />
         <div className={`space-y-2.5 transition-opacity ${!vs.beamShow ? "opacity-40 pointer-events-none" : ""}`}>
@@ -209,35 +192,14 @@ function RadarConfigPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-
-export const ConfigRadar = memo(function ConfigRadar() {
+const ConfigRadar = memo(function ConfigRadar() {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("radar");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
-
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 10,
-      });
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [open]);
 
   return (
     <>
       <Tooltip text="Configurar visual del radar">
         <button
-          ref={triggerRef}
           onClick={() => open ? closePanel("radar") : openPanel("radar")}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
@@ -249,20 +211,17 @@ export const ConfigRadar = memo(function ConfigRadar() {
         </button>
       </Tooltip>
 
-      {open &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
-              zIndex: 9999,
-            }}
+      {open && (
+        <MapPanelPortal>
+          <PanelShell
+            title="Visual del Radar"
+            icon={<IconRadar size={14} stroke={1.8} className="text-emerald-400" />}
+            onClose={() => closePanel("radar")}
           >
-            <RadarConfigPanel onClose={() => closePanel("radar")} />
-          </div>,
-          document.body,
-        )}
+            <RadarConfigPanel />
+          </PanelShell>
+        </MapPanelPortal>
+      )}
     </>
   );
 });

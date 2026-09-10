@@ -7,6 +7,7 @@ import { useRadarContext } from "../context/useRadarContext";
 import { useRadarTargets } from "../context/useRadarContext";
 import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
+import { MapPanelsHost } from "../components/map/MapPanelsHost";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { TrackHistoryPanel } from "../components/panel/TrackHistoryPanel";
@@ -204,27 +205,30 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
       </div>
 
       {!isCompact ? (
-        effectiveTarget ? (
-          <TrackHistoryPanel
-            target={effectiveTarget}
-            historyRange={historyTrackRange}
-            onHistoryRangeChange={handleHistoryTrackRangeChange}
-            onClose={() => setSelectedHistoryTrackId(null)}
-          />
-        ) : (
-          <RightBarNano
-            deviceFilter={deviceFilter}
-            onDeviceFilterChange={setDeviceFilter}
-            hiddenCamaras={deviceVisibility.hiddenCamaras}
-            onHideCamera={handleHideCamera}
-            hiddenPtz={deviceVisibility.hiddenPtz}
-            onHidePtz={handleHidePtz}
-            onSelectTrack={handleSelectHistoryTrack}
-          />
-        )
+        <div className="col-span-2 relative h-full overflow-hidden">
+          {effectiveTarget ? (
+            <TrackHistoryPanel
+              target={effectiveTarget}
+              historyRange={historyTrackRange}
+              onHistoryRangeChange={handleHistoryTrackRangeChange}
+              onClose={() => setSelectedHistoryTrackId(null)}
+            />
+          ) : (
+            <RightBarNano
+              deviceFilter={deviceFilter}
+              onDeviceFilterChange={setDeviceFilter}
+              hiddenCamaras={deviceVisibility.hiddenCamaras}
+              onHideCamera={handleHideCamera}
+              hiddenPtz={deviceVisibility.hiddenPtz}
+              onHidePtz={handleHidePtz}
+              onSelectTrack={handleSelectHistoryTrack}
+            />
+          )}
+          <MapPanelsHost />
+        </div>
       ) : drawerOpen ? (
         <div
-          className={`absolute inset-y-0 right-0 z-40 ${drawerWidthClass} border-s border-border shadow-2xl animate-slide-in-right bg-bg-100 overflow-hidden`}
+          className={`absolute inset-y-0 right-0 z-40 ${drawerWidthClass} border-s border-border shadow-2xl animate-slide-in-right bg-bg-100 overflow-hidden relative`}
         >
           {effectiveTarget ? (
             <TrackHistoryPanel
@@ -245,6 +249,7 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
               onSelectTrack={handleSelectHistoryTrack}
             />
           )}
+          <MapPanelsHost />
         </div>
       ) : (
         <button

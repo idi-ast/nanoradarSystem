@@ -1,5 +1,4 @@
-import { memo, useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { memo, useState } from "react";
 import {
   IconRefresh,
   IconTarget,
@@ -15,6 +14,7 @@ import { useTargetVisualStore } from "../../../stores/targetVisualStore";
 import { ZONE_DETECTION_CATEGORIES } from "../../../config";
 import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
+import { MapPanelPortal, PanelShell } from "../MapPanelsHost";
 import {
   updateBoat3DConfig,
   DEFAULT_BOAT3D_CONFIG,
@@ -234,7 +234,7 @@ function Preview2D({
   );
 }
 
-function TargetVisualPanel({ onClose }: { onClose: () => void }) {
+function TargetVisualPanel() {
   const {
     defaultCategoriaDeteccion,
     setDefaultCategoria,
@@ -274,20 +274,8 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="min-w-72 bg-bg-100/85 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-2 max-h-[90vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-1">
-        <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
-          Configuración del mapa
-        </h4>
-        <button
-          onClick={onClose}
-          className="text-text-200 hover:text-text-100 transition-colors text-[10px]"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2">
+    <div className="w-full space-y-3 p-3">
+      <div className="flex flex-col gap-3">
         <div>
           {/* Centro del mapa */}
           <Section title="Centro del mapa al iniciar" defaultOpen={true}>
@@ -860,31 +848,11 @@ function TargetVisualPanel({ onClose }: { onClose: () => void }) {
 const ConfigTargets = memo(function ConfigTargets() {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("targets");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
-
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 10,
-      });
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [open]);
 
   return (
     <>
       <Tooltip text="Configuración del mapa">
         <button
-          ref={triggerRef}
           onClick={() => (open ? closePanel("targets") : openPanel("targets"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
@@ -896,20 +864,17 @@ const ConfigTargets = memo(function ConfigTargets() {
         </button>
       </Tooltip>
 
-      {open &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
-              zIndex: 9999,
-            }}
+      {open && (
+        <MapPanelPortal>
+          <PanelShell
+            title="Configuración del mapa"
+            icon={<IconTarget size={14} stroke={1.8} />}
+            onClose={() => closePanel("targets")}
           >
-            <TargetVisualPanel onClose={() => closePanel("targets")} />
-          </div>,
-          document.body,
-        )}
+            <TargetVisualPanel />
+          </PanelShell>
+        </MapPanelPortal>
+      )}
     </>
   );
 });

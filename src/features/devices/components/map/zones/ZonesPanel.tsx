@@ -1,6 +1,4 @@
-import { memo, useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { useDraggable, dragTransform } from "@/hooks/useDraggable";
+import { memo, useEffect } from "react";
 import { useRadarContext } from "../../../context/useRadarContext";
 import { ZoneDrawingPanel } from "../../panel/ZoneDrawingPanel";
 import {
@@ -16,6 +14,7 @@ import PtzCalibrationMenu from "../PtzCalibrationMenu";
 import { useMapPanel } from "../MapPanelContext";
 import { useRole } from "@/context/role/hooks/useRole";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
+import { MapPanelPortal, PanelShell } from "../MapPanelsHost";
 
 const ClearTargetsButton = memo(function ClearTargetsButton() {
   const { clearTargets } = useRadarContext();
@@ -34,17 +33,6 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
 export const ZonesPanel = memo(function ZonesPanel() {
   const { isDrawing, startDrawing, cancelDrawing } = useRadarContext();
   const { activePanel, openPanel, closePanel } = useMapPanel();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
-  const {
-    delta,
-    reset: resetDrag,
-    dragHandleProps,
-  } = useDraggable({ enabled: isDrawing, containerRef: panelRef });
 
   // When another panel opens, cancel drawing automatically
   useEffect(() => {
@@ -63,20 +51,11 @@ export const ZonesPanel = memo(function ZonesPanel() {
     }
   };
 
-  useEffect(() => {
-    if (!isDrawing || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 10,
-      });
-      resetDrag();
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [isDrawing, resetDrag]);
+  const handleCloseDrawing = () => {
+    cancelDrawing();
+    closePanel("drawing");
+  };
+
   const { isSuperAdmin, isAdmin } = useRole();
   const { isDesktop } = useBreakpoint();
 
@@ -93,7 +72,6 @@ export const ZonesPanel = memo(function ZonesPanel() {
       {(isSuperAdmin || isAdmin) && (
         <Tooltip text={isDrawing ? "Cancelar zona" : "Crear zona"}>
           <button
-            ref={triggerRef}
             onClick={handleDrawToggle}
             className={`h-10 w-10 flex justify-center items-center rounded text-text-100 transition-colors ${
               isDrawing
@@ -110,24 +88,17 @@ export const ZonesPanel = memo(function ZonesPanel() {
         </Tooltip>
       )}
 
-      {isDrawing &&
-        createPortal(
-          <div
-            ref={panelRef}
-            {...dragHandleProps}
-            style={{
-              position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
-              ...dragTransform(delta),
-              touchAction: "none",
-            }}
-            className="cursor-grab active:cursor-grabbing"
+      {isDrawing && (
+        <MapPanelPortal>
+          <PanelShell
+            title="Configuración de Zona"
+            icon={<IconHexagonLetterZ size={14} stroke={2} />}
+            onClose={handleCloseDrawing}
           >
             <ZoneDrawingPanel />
-          </div>,
-          document.body,
-        )}
+          </PanelShell>
+        </MapPanelPortal>
+      )}
     </div>
   );
 });

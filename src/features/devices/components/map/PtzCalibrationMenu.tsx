@@ -1,37 +1,23 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { IconDeviceGamepad3, IconTarget, IconX } from "@tabler/icons-react";
+import { memo } from "react";
+import { IconDeviceGamepad3, IconTarget } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
-import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { useMapPanel } from "./MapPanelContext";
 import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
 import { CalibrationPanel } from "./cameras/ptz/components/CalibrationPanel";
 import { PtzDpad } from "./cameras/ptz/components/PtzDpad";
+import { MapPanelPortal, PanelShell } from "./MapPanelsHost";
 
 /**
  * Opción "Calibración PTZ" del menú del mapa.
  *
- * Abre un panel donde se elige la cámara PTZ a calibrar y se muestra el
- * panel de calibración (Paso 1: dirección PAN, Paso 2: calibrar, Paso 3:
- * corregir offset y Verificar). Al elegir una cámara se activa el modo de
- * calibración en el mapa (clic = marcar punto de referencia / girar).
+ * Se abre dentro del espacio del rightbar. Al elegir una cámara se despliega
+ * el panel de calibración como submenú (con botón "volver"), y desde ahí se
+ * activa el modo de calibración en el mapa (clic = marcar punto / girar).
  */
 export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("ptz-calibration");
-
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
-  const {
-    delta,
-    reset: resetDrag,
-    dragHandleProps,
-  } = useDraggable({ enabled: open, containerRef: panelRef });
 
   const { data } = useConfigDevices();
   const ptzList = data?.data?.ptz ?? [];
@@ -47,26 +33,15 @@ export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
 
   const activePtz = ptzList.find((p) => p.id === calibratingCameraId) ?? null;
 
-  // Posiciona el panel a la derecha del botón del menú lateral.
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 10,
-      });
-      resetDrag();
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [open, resetDrag]);
-
   const handleSelectPtz = (ptzId: number) => {
     if (ptzId === calibratingCameraId) return;
     stopCalibrating();
     startCalibrating(ptzId, true);
+  };
+
+  // Volver desde la calibración al listado de cámaras (sin cerrar el panel)
+  const handleBackToList = () => {
+    stopCalibrating();
   };
 
   const handleClose = () => {
@@ -81,7 +56,6 @@ export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
     <>
       <Tooltip text="Calibración PTZ">
         <button
-          ref={triggerRef}
           onClick={() => (open ? handleClose() : openPanel("ptz-calibration"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open || calibratingCameraId !== null
@@ -93,61 +67,64 @@ export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
         </button>
       </Tooltip>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: "fixed",
-              top: panelStyle.top,
-              right: panelStyle.right,
-              ...dragTransform(delta),
-              zIndex: 9999,
-            }}
-          >
-            <div className="min-w-60 max-h-[85vh] bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-              {/* Cabecera (arrastrable) */}
-              <div
-                {...dragHandleProps}
-                className="flex items-center justify-between px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing select-none"
-              >
-                <div className="flex items-center gap-1.5">
-                  <IconTarget
-                    size={14}
-                    className="text-amber-400"
-                    stroke={1.8}
-                  />
-                  <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
-                    Calibración PTZ
-                  </h4>
+      {open && (
+        <MapPanelPortal>
+          {activePtz ? (
+            <PanelShell
+              title="Calibración PTZ"
+              icon={
+                <IconTarget size={14} className="text-amber-400" stroke={1.8} />
+              }
+              onBack={handleBackToList}
+              onClose={handleClose}
+            >
+              <div className="p-3 space-y-3">
+                <div className="rounded-lg border border-border bg-bg-200/40 p-2">
+                  <div className="text-[9px] font-semibold uppercase tracking-widest text-text-100/50 mb-1.5 text-center">
+                    Control de la cámara
+                  </div>
+                  <div className="flex justify-center">
+                    <PtzDpad ptz_id={activePtz.id} />
+                  </div>
                 </div>
-                <button
-                  onClick={handleClose}
-                  className="text-text-200 hover:text-text-100 transition-colors text-[10px]"
-                  aria-label="Cerrar"
-                >
-                  <IconX size={14} />
-                </button>
+                <CalibrationPanel
+                  cameraId={activePtz.id}
+                  cameraName={activePtz.nombre}
+                  result={lastResult}
+                  mode={calibrationMode}
+                  onToggleMode={toggleMode}
+                  onCancel={handleClose}
+                  azimut={Number(activePtz.azimut) || 0}
+                  panOffset={activePtz.panOffset}
+                  panInvertido={activePtz.panInvertido}
+                />
               </div>
-
-              <div className="p-2 space-y-2">
-                {/* Selector de cámara PTZ */}
+            </PanelShell>
+          ) : (
+            <PanelShell
+              title="Calibración PTZ"
+              icon={
+                <IconTarget size={14} className="text-amber-400" stroke={1.8} />
+              }
+              onClose={handleClose}
+            >
+              <div className="p-3 space-y-3">
                 {ptzList.length === 0 ? (
                   <p className="text-[11px] text-text-200">
                     No hay cámaras PTZ configuradas.
                   </p>
                 ) : (
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-col gap-1">
                     {ptzList.map((p) => {
                       const active = p.id === calibratingCameraId;
                       return (
                         <button
                           key={p.id}
                           onClick={() => handleSelectPtz(p.id)}
-                          className={`px-2 py-1 shadow-2xl text-xs font-bold transition-colors ${
+                          className={`px-2 py-1.5 rounded-md shadow text-xs font-bold transition-colors ${
                             active
                               ? "bg-blue-700 text-white"
-                              : "bg-bg-400 text-text-400 hover:bg-blue-600 hover:text-text-100"
+                              : "bg-bg-300 text-text-100 hover:bg-blue-600 hover:text-white"
                           }`}
                         >
                           {p.nombre}
@@ -156,43 +133,16 @@ export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
                     })}
                   </div>
                 )}
-
-                {activePtz ? (
-                  <>
-                    {/* Control de flechas para apuntar la cámara */}
-                    <div className="absolute -left-34 -translate-x-6 border border-border bg-bg-100 px-3 py-2">
-                      <div className="text-[9px] font-semibold uppercase tracking-widest text-text-100/50 mb-1.5 text-center">
-                        Control de la cámara
-                      </div>
-                      <div className="flex justify-center">
-                        <PtzDpad ptz_id={activePtz.id} />
-                      </div>
-                    </div>
-
-                    <CalibrationPanel
-                      cameraId={activePtz.id}
-                      cameraName={activePtz.nombre}
-                      result={lastResult}
-                      mode={calibrationMode}
-                      onToggleMode={toggleMode}
-                      onCancel={handleClose}
-                      azimut={Number(activePtz.azimut) || 0}
-                      panOffset={activePtz.panOffset}
-                      panInvertido={activePtz.panInvertido}
-                    />
-                  </>
-                ) : (
-                  <p className="text-[11px] max-w-md text-balance text-center text-text-200 leading-snug">
-                    Selecciona una cámara PTZ para comenzar la calibración. El
-                    mapa entrará en modo calibración: haz clic sobre el punto de
-                    referencia.
-                  </p>
-                )}
+                <p className="text-[11px] max-w-md text-balance text-center text-text-200 leading-snug">
+                  Selecciona una cámara PTZ para comenzar la calibración. El
+                  mapa entrará en modo calibración: haz clic sobre el punto de
+                  referencia.
+                </p>
               </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+            </PanelShell>
+          )}
+        </MapPanelPortal>
+      )}
     </>
   );
 });
