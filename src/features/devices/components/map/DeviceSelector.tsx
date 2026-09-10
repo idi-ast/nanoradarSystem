@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 import {
   IconX,
   IconRadar,
@@ -176,12 +177,13 @@ export const DeviceSelector = memo(function DeviceSelector({
     top: 0,
     right: 0,
   });
-  // Offset de arrastre del panel (se acumula al draggear)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef<{ active: boolean; startX: number; startY: number; offsetX: number; offsetY: number }>({
-    active: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0,
-  });
+  // Arrastre del panel completo (se acumula al draggear)
+  const {
+    delta,
+    isDragging,
+    reset: resetDrag,
+    dragHandleProps,
+  } = useDraggable({ enabled: open, containerRef: portalRef });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
 
@@ -193,45 +195,12 @@ export const DeviceSelector = memo(function DeviceSelector({
         top: rect.top,
         right: window.innerWidth - rect.left + 8,
       });
-      setDragOffset({ x: 0, y: 0 });
+      resetDrag();
     };
     updatePos();
     window.addEventListener("resize", updatePos);
     return () => window.removeEventListener("resize", updatePos);
-  }, [open]);
-
-  // Drag del panel completo
-  const onDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragRef.current = {
-      active: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      offsetX: dragOffset.x,
-      offsetY: dragOffset.y,
-    };
-    setIsDragging(true);
-  }, [dragOffset]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMove = (e: MouseEvent) => {
-      if (!dragRef.current.active) return;
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      setDragOffset({
-        x: dragRef.current.offsetX + dx,
-        y: dragRef.current.offsetY + dy,
-      });
-    };
-    const onUp = () => { dragRef.current.active = false; setIsDragging(false); };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [open]);
+  }, [open, resetDrag]);
 
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
   const magosradares = useMemo(() => data?.data?.magosradares ?? [], [data]);
@@ -408,8 +377,9 @@ export const DeviceSelector = memo(function DeviceSelector({
             ref={portalRef}
             style={{
               position: "fixed",
-              top: panelStyle.top + dragOffset.y,
-              right: panelStyle.right - dragOffset.x,
+              top: panelStyle.top,
+              right: panelStyle.right,
+              ...dragTransform(delta),
               userSelect: isDragging ? "none" : "auto",
             }}
             className="flex items-start gap-2"
@@ -444,7 +414,7 @@ export const DeviceSelector = memo(function DeviceSelector({
             {/* Panel principal de dispositivos */}
             <div className="w-62 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
               <div
-                onMouseDown={onDragStart}
+                {...dragHandleProps}
                 className="flex items-center justify-between px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing select-none">
                 <span className="text-xs font-bold uppercase tracking-widest text-text-100/70">
                   Dispositivos

@@ -2,6 +2,7 @@ import { IconRefresh, IconX } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { PtzControls } from "./PtzControls";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 
 interface PtzFullscreenModalProps {
   name: string;
@@ -43,9 +44,20 @@ export function PtzFullscreenModal({
     node.play().catch(() => { });
   }, [stream, streamRef]);
 
+  const barRef = useRef<HTMLDivElement>(null);
+  const { delta, dragHandleProps } = useDraggable({
+    enabled: true,
+    containerRef: barRef,
+  });
+
   return createPortal(
     <div className="fixed inset-0 z-99999 bg-green-900 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2  backdrop-blur-sm shrink-0">
+      <div
+        ref={barRef}
+        {...dragHandleProps}
+        style={dragTransform(delta)}
+        className="flex items-center justify-between px-4 py-2 backdrop-blur-sm shrink-0 cursor-grab active:cursor-grabbing select-none"
+      >
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text-100">{name}</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-700 text-font-bold uppercase tracking-wider">

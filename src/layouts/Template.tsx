@@ -10,12 +10,12 @@ import { useBreakpoint } from "@/hooks/useBreakpoints";
 function Template() {
   const { useCompany, useConfigApp } = configServer();
   const [isOpenSidebar, setOpenSidebar] = useState(false);
-  const { isDesktop } = useBreakpoint();
+  const { isDesktop, isTablet } = useBreakpoint();
   return (
     <DropdownProvider>
       <PageLoader />
       <div className="h-screen w-screen flex overflow-hidden">
-        {isDesktop && <Sidebar
+        {(isDesktop || isTablet) && <Sidebar
           useCompany={useCompany}
           useConfigApp={useConfigApp}
           isOpenSidebar={isOpenSidebar}

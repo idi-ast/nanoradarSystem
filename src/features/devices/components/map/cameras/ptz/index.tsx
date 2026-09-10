@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWebRtcPlayer, getWhepBaseUrl } from "./hooks/useWebRtcPlayer";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
@@ -80,10 +81,28 @@ const PtzCamera = memo(
       return applied;
     }
 
-    const { isDesktop } = useBreakpoint();
+    const { isDesktop, isTablet } = useBreakpoint();
 
+    const maximizedRef = useRef<HTMLDivElement>(null);
+    const {
+      delta,
+      reset: resetDrag,
+      dragHandleProps,
+    } = useDraggable({
+      enabled: mode === "maximized",
+      containerRef: maximizedRef,
+    });
 
-    const leftPosition = isDesktop ? "78px" : "2px";
+    useEffect(() => {
+      if (mode === "maximized") resetDrag();
+    }, [mode, resetDrag]);
+
+    const leftPosition = isDesktop ? "78px" : isTablet ? "60px" : "2px";
+    const sizeClass = isDesktop
+      ? "w-165 h-100"
+      : isTablet
+        ? "w-125 h-75"
+        : "w-80 h-55";
 
     const maximizedStyle: React.CSSProperties = position
       ? {
@@ -128,8 +147,12 @@ const PtzCamera = memo(
         {mode === "maximized" &&
           createPortal(
             <div
-              style={maximizedStyle}
-              className={`z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col ${isDesktop ? "w-165 h-100": " w-80 h-55"}`}
+              ref={maximizedRef}
+              style={{
+                ...maximizedStyle,
+                ...dragTransform(delta),
+              }}
+              className={`z-9000 border border-border shadow-2xl bg-bg-100 flex flex-col ${sizeClass}`}
             >
               <PtzToolbar
                 name={camera.nombre}
@@ -141,6 +164,7 @@ const PtzCamera = memo(
                 visionStarting={visionStarting}
                 onToggleVision={handleToggleVision}
                 onOpenVisionConfig={() => setVisionConfigOpen(true)}
+                dragHandleProps={dragHandleProps}
               />
 
               <PtzVideo

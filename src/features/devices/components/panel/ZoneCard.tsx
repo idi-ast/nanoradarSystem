@@ -1,13 +1,20 @@
 import { memo, useState, useRef } from "react";
-import { IconPencil, IconTrash, IconCheck, IconX, IconUpload } from "@tabler/icons-react";
+import {
+  IconPencil,
+  IconTrash,
+  IconCheck,
+  IconX,
+  IconUpload,
+} from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
 import { useRole } from "@/context/role/hooks/useRole";
-import { useCustomSounds, MAX_CUSTOM_SOUNDS } from "../../hooks/useCustomSounds";
+import {
+  useCustomSounds,
+  MAX_CUSTOM_SOUNDS,
+} from "../../hooks/useCustomSounds";
 import { useTiposAlertas } from "../../hooks/useTiposAlertas";
-
-
 
 interface Props {
   zone: RadarZone;
@@ -19,7 +26,8 @@ export const ZoneCard = memo(function ZoneCard({
   hasAlert = false,
 }: Props) {
   const { updateZone, deleteZone, flyToZoneFn } = useRadarContext();
-  const { customSounds, isUploading, addSound, removeSound } = useCustomSounds();
+  const { customSounds, isUploading, addSound, removeSound } =
+    useCustomSounds();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isSuperAdmin } = useRole();
   const [isEditing, setIsEditing] = useState(false);
@@ -130,7 +138,6 @@ export const ZoneCard = memo(function ZoneCard({
             }
             className="flex-1 bg-bg-100 border border-border text-text-100 text-xs p-1.5 rounded"
           >
-
             {tiposAlertas.map((lvl) => (
               <option key={lvl.id} value={lvl.id}>
                 {lvl.nombre}
@@ -142,7 +149,11 @@ export const ZoneCard = memo(function ZoneCard({
           <label className="text-xs text-text-200 uppercase flex items-center justify-between mb-1">
             <span>Sonido:</span>
             <button
-              title={customSounds.length >= MAX_CUSTOM_SOUNDS ? `Límite de ${MAX_CUSTOM_SOUNDS} alcanzado` : "Subir nuevo sonido"}
+              title={
+                customSounds.length >= MAX_CUSTOM_SOUNDS
+                  ? `Límite de ${MAX_CUSTOM_SOUNDS} alcanzado`
+                  : "Subir nuevo sonido"
+              }
               type="button"
               disabled={isUploading || customSounds.length >= MAX_CUSTOM_SOUNDS}
               onClick={() => fileInputRef.current?.click()}
@@ -191,7 +202,7 @@ export const ZoneCard = memo(function ZoneCard({
                 </optgroup>
               )}
             </select>
-            {customSounds.some(s => s.id === editSonido) && (
+            {customSounds.some((s) => s.id === editSonido) && (
               <button
                 type="button"
                 title="Eliminar este sonido personalizado"
@@ -209,16 +220,20 @@ export const ZoneCard = memo(function ZoneCard({
           </div>
         </div>
         <div className="flex items-center justify-between bg-bg-100/30 py-1.5 rounded border border-border">
-          <label className="text-xs text-text-200 uppercase">Destello pantalla:</label>
+          <label className="text-xs text-text-200 uppercase">
+            Destello pantalla:
+          </label>
           <button
             type="button"
             onClick={() => setEditDestello(!editDestello)}
-            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${editDestello ? "bg-brand-100" : "bg-bg-300"
-              }`}
+            className={`relative inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${
+              editDestello ? "bg-brand-100" : "bg-bg-300"
+            }`}
           >
             <span
-              className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${editDestello ? "translate-x-4" : "translate-x-0.5"
-                }`}
+              className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${
+                editDestello ? "translate-x-4" : "translate-x-0.5"
+              }`}
             />
           </button>
         </div>
@@ -234,10 +249,11 @@ export const ZoneCard = memo(function ZoneCard({
                   key={cat.id}
                   type="button"
                   onClick={() => setEditCategoria(cat.id)}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${active
-                    ? "border-brand-100 bg-brand-100/10 text-text-100"
-                    : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
-                    }`}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded border text-xs transition-colors ${
+                    active
+                      ? "border-brand-100 bg-brand-100/10 text-text-100"
+                      : "border-border bg-bg-100 text-text-200 hover:bg-bg-300"
+                  }`}
                 >
                   <cat.icon size={20} stroke={1.5} />
                   {cat.label}
@@ -249,7 +265,9 @@ export const ZoneCard = memo(function ZoneCard({
         {/* Activar seguimiento PTZ */}
         <div className="flex items-center justify-between bg-bg-100/30 py-1.5 rounded border border-border">
           <div className="flex flex-col">
-            <label className="text-xs text-text-200 uppercase">Seguimiento PTZ</label>
+            <label className="text-xs text-text-200 uppercase">
+              Seguimiento PTZ
+            </label>
             <p className="text-[9px] text-text-200/50 leading-tight">
               La cámara seguirá tracks que entren en esta zona.
             </p>
@@ -286,14 +304,14 @@ export const ZoneCard = memo(function ZoneCard({
 
   return (
     <div
-      className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-md"
+      className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-2xl"
       style={
         hasAlert
           ? ({
-            border: `1.5px solid ${zone.poligono.color}`,
-            "--zone-glow-color": zone.poligono.color,
-            animation: "zone-alert-glow 1.6s ease-in-out infinite",
-          } as React.CSSProperties)
+              borderRight: `1px solid ${zone.poligono.color}`,
+              "--zone-glow-color": zone.poligono.color,
+              animation: "zone-alert-glow 1.6s ease-in-out infinite",
+            } as React.CSSProperties)
           : undefined
       }
       onClick={handleFlyTo}
@@ -318,7 +336,7 @@ export const ZoneCard = memo(function ZoneCard({
         className={`absolute blur-xl left-0 top-0 w-full h-full ${hasAlert ? "animate-pulse opacity-60" : "opacity-30"}`}
         style={{ backgroundColor: zone.poligono.color }}
       />
-      <div className="relative bg-linear-to-r from-bg-200 from-25% to-bg-100/40 p-2 w-full h-full">
+      <div className="relative bg-linear-to-r from-bg-200 from-25% to-bg-100/40 px-4 py-1 w-full h-full">
         <p className="text-sm font-bold text-text-100 uppercase pr-16">
           {zone.nombre}
         </p>
@@ -329,7 +347,7 @@ export const ZoneCard = memo(function ZoneCard({
               (c) => c.id === (zone.categoriaDeteccion ?? 1),
             );
             return cat ? (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-bg-300 text-text-200 border border-border flex items-center gap-0.5">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-bg-100 text-text-200 border border-border flex items-center gap-0.5">
                 <cat.icon size={10} stroke={1.5} />
                 {cat.label}
               </span>
@@ -356,14 +374,15 @@ export const ZoneCard = memo(function ZoneCard({
             }}
           />
 
-          {isSuperAdmin && <button
-            onClick={handleEdit}
-            className="p-1 rounded hover:bg-bg-300/80 text-text-100/40 hover:text-text-100 transition-colors opacity-0 group-hover:opacity-100"
-            title="Editar zona"
-          >
-            <IconPencil size={13} stroke={1.5} />
-          </button>
-          }
+          {isSuperAdmin && (
+            <button
+              onClick={handleEdit}
+              className="p-1 rounded hover:bg-bg-300/80 text-text-100/40 hover:text-text-100 transition-colors opacity-0 group-hover:opacity-100"
+              title="Editar zona"
+            >
+              <IconPencil size={13} stroke={1.5} />
+            </button>
+          )}
           {isSuperAdmin && confirmDelete ? (
             <>
               <span className="text-xs text-red-400 font-semibold whitespace-nowrap">
@@ -387,13 +406,15 @@ export const ZoneCard = memo(function ZoneCard({
               </button>
             </>
           ) : (
-            isSuperAdmin && <button
-              onClick={() => setConfirmDelete(true)}
-              className="p-1 rounded hover:bg-red-900/60 text-text-100/40 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-              title="Eliminar zona"
-            >
-              <IconTrash size={13} stroke={1.5} />
-            </button>
+            isSuperAdmin && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="p-1 rounded hover:bg-red-900/60 text-text-100/40 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                title="Eliminar zona"
+              >
+                <IconTrash size={13} stroke={1.5} />
+              </button>
+            )
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconCheck, IconLoader2, IconSettings, IconX } from "@tabler/icons-react";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 import {
   fetchVisionClasses,
   fetchVisionDefaults,
@@ -41,6 +42,12 @@ export function VisionConfigPanel({
   const [selectedClasses, setSelectedClasses] = useState<string[]>(current.classes ?? []);
   const [applying, setApplying] = useState(false);
   const [stats, setStats] = useState<{ state: string; actualFps: number; detections: VisionDetection[] } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const {
+    delta,
+    isDragging,
+    dragHandleProps,
+  } = useDraggable({ enabled: true, containerRef: panelRef });
 
   useEffect(() => {
     fetchVisionDefaults().then((value) => {
@@ -95,8 +102,18 @@ export function VisionConfigPanel({
 
   return createPortal(
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm max-h-[85vh] overflow-y-auto bg-bg-100 border border-border rounded-xl shadow-2xl">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-bg-100 z-10">
+      <div
+        ref={panelRef}
+        style={{
+          ...dragTransform(delta),
+          userSelect: isDragging ? "none" : "auto",
+        }}
+        className="w-full max-w-sm max-h-[85vh] overflow-y-auto bg-bg-100 border border-border rounded-xl shadow-2xl"
+      >
+        <div
+          {...dragHandleProps}
+          className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-bg-100 z-10 cursor-grab active:cursor-grabbing select-none"
+        >
           <div className="flex items-center gap-2">
             <IconSettings size={16} className="text-brand-200" />
             <span className="text-sm font-semibold text-text-100">Configuración IA</span>

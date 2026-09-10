@@ -3,6 +3,8 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Camaras } from "@/features/config-devices/types/ConfigServices.type";
 import type { CamaraActividad } from "@/features/devices/types";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
+import { useBreakpoint } from "@/hooks/useBreakpoints";
 
 export interface CameraPosition {
   top?: string;
@@ -160,15 +162,22 @@ function CameraToolbar({
   onToggleMaximize,
   onToggleFullscreen,
   onHide,
+  dragHandleProps,
 }: {
   name: string;
   mode: CameraMode;
   onToggleMaximize: () => void;
   onToggleFullscreen: () => void;
   onHide?: () => void;
+  dragHandleProps?: {
+    onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  };
 }) {
   return (
-    <div className="flex items-center gap-3 px-2 py-1  border-b border-border">
+    <div
+      {...dragHandleProps}
+      className={`flex items-center gap-3 px-2 py-1 border-b border-border ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none" : ""}`}
+    >
       <span className="text-[11px] font-medium text-text-100 flex-1 truncate">
         {name}
       </span>
@@ -337,6 +346,12 @@ function FullscreenModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const barRef = useRef<HTMLDivElement>(null);
+  const { delta, dragHandleProps } = useDraggable({
+    enabled: true,
+    containerRef: barRef,
+  });
+
   // Asigna el stream existente al elemento <video> del modal sin nueva conexión
   const attachRef = useCallback(
     (node: HTMLVideoElement | null) => {
@@ -351,7 +366,12 @@ function FullscreenModal({
 
   return createPortal(
     <div className="fixed inset-0 z-99999 bg-black flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2 bg-bg-100/90 backdrop-blur-sm shrink-0">
+      <div
+        ref={barRef}
+        {...dragHandleProps}
+        style={dragTransform(delta)}
+        className="flex items-center justify-between px-4 py-2 bg-bg-100/90 backdrop-blur-sm shrink-0 cursor-grab active:cursor-grabbing select-none"
+      >
         <span className="text-sm font-semibold text-text-100">{name}</span>
         <button
           onClick={onClose}
@@ -403,7 +423,19 @@ const Camera = memo(
     setMode("maximized");
   }
 
-  const SLOT_HEIGHT = 328; 
+  const { isMobile, isTablet } = useBreakpoint();
+  const maximizedRef = useRef<HTMLDivElement>(null);
+  const {
+    delta,
+    reset: resetDrag,
+    dragHandleProps,
+  } = useDraggable({ enabled: mode === "maximized", containerRef: maximizedRef });
+
+  useEffect(() => {
+    if (mode === "maximized") resetDrag();
+  }, [mode, resetDrag]);
+
+  const SLOT_HEIGHT = 328;
   const BASE_BOTTOM = 80;
   const maximizedStyle: React.CSSProperties = position
     ? {
@@ -416,17 +448,25 @@ const Camera = memo(
     : {
         position: "fixed",
         bottom: `${BASE_BOTTOM + stackIndex * SLOT_HEIGHT}px`,
-        left: "3.1%",
+        left: isMobile ? "1.5%" : "3.1%",
       };
+
+  const maximizedSizeClass = isMobile
+    ? "w-80 h-55"
+    : isTablet
+      ? "w-120 h-70"
+      : "w-150 h-80";
 
   const maximizedWidget = (
     <div
+      ref={maximizedRef}
       style={{
         ...maximizedStyle,
+        ...dragTransform(delta),
         boxShadow: isActive ? `0 0 24px 4px ${glowColor}66` : undefined,
         border: isActive ? `1.5px solid ${glowColor}99` : undefined,
       }}
-      className="z-9000  overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col w-150 h-80"
+      className={`z-9000 overflow-hidden border border-border shadow-2xl bg-bg-100 flex flex-col ${maximizedSizeClass}`}
     >
       <CameraToolbar
         name={camera.nombre}
@@ -434,6 +474,7 @@ const Camera = memo(
         onToggleMaximize={toggleMaximize}
         onToggleFullscreen={openFullscreen}
         onHide={onClose}
+        dragHandleProps={dragHandleProps}
       />
       <CameraVideo videoRef={videoRef} activity={activity} connectionError={connectionError} onRetry={retry} />
     </div>

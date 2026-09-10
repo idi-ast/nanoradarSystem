@@ -10,7 +10,6 @@ import { useZoneStyleStore } from "../../../stores/zoneStyleStore";
 import { useMapPanel } from "../MapPanelContext";
 import { Tooltip } from "@/components/ui";
 
-
 interface SliderRowProps {
   label: string;
   value: number;
@@ -37,7 +36,9 @@ function SliderRow({
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-text-200">{label}</span>
-        <span className={`text-[10px] font-mono font-bold ${accentClass.replace("accent-", "text-")}`}>
+        <span
+          className={`text-[10px] font-mono font-bold ${accentClass.replace("accent-", "text-")}`}
+        >
           {display}
         </span>
       </div>
@@ -53,7 +54,6 @@ function SliderRow({
     </div>
   );
 }
-
 
 interface ToggleRowProps {
   label: string;
@@ -81,7 +81,6 @@ function ToggleRow({ label, value, onChange }: ToggleRowProps) {
   );
 }
 
-
 function ZoneStylePanel({ onClose }: { onClose: () => void }) {
   const {
     fillOpacity,
@@ -96,7 +95,7 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
   } = useZoneStyleStore();
 
   return (
-    <div className="w-64 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-4">
+    <div className="min-w-64 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-xs text-text-100 font-bold uppercase tracking-wide">
           Estilo de Zonas
@@ -109,57 +108,62 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="bg-bg-200/60 rounded-lg p-2.5 space-y-1.5">
-        <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
-          Visibilidad
-        </p>
-        <ToggleRow
-          label="Mostrar zonas"
-          value={visible}
-          onChange={setVisible}
-        />
-      </div>
+      <div className="flex gap-2">
+        <div
+          className={`bg-bg-200/60 rounded-lg p-2.5 space-y-3 transition-opacity ${!visible ? "opacity-40 " : ""}`}
+        >
+          <div className="bg-bg-200/60 rounded-lg  space-y-1.5">
+            <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
+              Visibilidad
+            </p>
+            <ToggleRow
+              label="Mostrar zonas"
+              value={visible}
+              onChange={setVisible}
+            />
+          </div>
+          <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
+            Relleno
+          </p>
+          <SliderRow
+            label="Opacidad del relleno"
+            value={fillOpacity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={setFillOpacity}
+            accentClass="accent-emerald-500"
+          />
+        </div>
 
-      <div className={`bg-bg-200/60 rounded-lg p-2.5 space-y-3 transition-opacity ${!visible ? "opacity-40 pointer-events-none" : ""}`}>
-        <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
-          Relleno
-        </p>
-        <SliderRow
-          label="Opacidad del relleno"
-          value={fillOpacity}
-          min={0}
-          max={1}
-          step={0.05}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={setFillOpacity}
-          accentClass="accent-emerald-500"
-        />
-      </div>
-
-      <div className={`bg-bg-200/60 rounded-lg p-2.5 space-y-3 transition-opacity ${!visible ? "opacity-40 pointer-events-none" : ""}`}>
-        <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
-          Trazo
-        </p>
-        <SliderRow
-          label="Opacidad del trazo"
-          value={lineOpacity}
-          min={0}
-          max={1}
-          step={0.05}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={setLineOpacity}
-          accentClass="accent-sky-500"
-        />
-        <SliderRow
-          label="Grosor del trazo"
-          value={lineWidth}
-          min={1}
-          max={8}
-          step={0.5}
-          format={(v) => `${v}px`}
-          onChange={setLineWidth}
-          accentClass="accent-sky-500"
-        />
+        <div
+          className={`bg-bg-200/60 rounded-lg p-2.5 space-y-3 transition-opacity ${!visible ? "opacity-40 pointer-events-none" : ""}`}
+        >
+          <p className="text-[9px] text-text-200/60 uppercase font-semibold tracking-widest">
+            Trazo
+          </p>
+          <SliderRow
+            label="Opacidad del trazo"
+            value={lineOpacity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={setLineOpacity}
+            accentClass="accent-sky-500"
+          />
+          <SliderRow
+            label="Grosor del trazo"
+            value={lineWidth}
+            min={1}
+            max={8}
+            step={0.5}
+            format={(v) => `${v}px`}
+            onChange={setLineWidth}
+            accentClass="accent-sky-500"
+          />
+        </div>
       </div>
 
       <button
@@ -172,7 +176,6 @@ function ZoneStylePanel({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
 
 const ConfigZones = memo(function ConfigZones() {
   const { isOpen, openPanel, closePanel } = useMapPanel();
@@ -203,7 +206,7 @@ const ConfigZones = memo(function ConfigZones() {
       <Tooltip text="Configurar estilo de zonas">
         <button
           ref={triggerRef}
-          onClick={() => open ? closePanel("zones") : openPanel("zones")}
+          onClick={() => (open ? closePanel("zones") : openPanel("zones"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
               ? "bg-emerald-700 text-white border border-emerald-500/50"
@@ -228,7 +231,12 @@ const ConfigZones = memo(function ConfigZones() {
       {open &&
         createPortal(
           <div
-            style={{ position: "fixed", top: panelStyle.top, right: panelStyle.right, zIndex: 9999 }}
+            style={{
+              position: "fixed",
+              top: panelStyle.top,
+              right: panelStyle.right,
+              zIndex: 9999,
+            }}
           >
             <ZoneStylePanel onClose={() => closePanel("zones")} />
           </div>,
