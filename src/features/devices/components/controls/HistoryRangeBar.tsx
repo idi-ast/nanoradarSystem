@@ -10,10 +10,26 @@ interface HistoryRangeBarProps {
   onChange: (range: HistoryRange) => void;
   initialStart?: number;
   initialEnd?: number;
+  /** Timestamp (ms) del primer punto del historial completo (para mostrar fechas) */
+  minTime?: number;
+  /** Timestamp (ms) del último punto del historial completo (para mostrar fechas) */
+  maxTime?: number;
 }
 
 /** Separación mínima entre los dos manejadores (en puntos porcentuales) */
 const MIN_GAP = 2;
+
+function formatDateTime(ms: number | undefined | null): string {
+  if (ms == null || !isFinite(ms)) return "—";
+  const d = new Date(ms);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(d.getFullYear());
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+}
 
 /**
  * Barra de rango histórico con dos manejadores arrastrables.
@@ -24,17 +40,27 @@ const MIN_GAP = 2;
  *   const startIdx = Math.floor((range.start / 100) * history.length);
  *   const endIdx   = Math.ceil((range.end   / 100) * history.length);
  *   const slice    = history.slice(startIdx, endIdx);
+ *
+ * Si se proporcionan minTime y maxTime, se muestran las fechas/horas reales
+ * del rango visible junto a los porcentajes. Además del estiramiento por los
+ * extremos, se puede arrastrar el área central para mover el rango completo
+ * (inicio y fin juntos).
  */
 export function HistoryRangeBar({
   onChange,
   initialStart = 80,
   initialEnd = 100,
+  minTime,
+  maxTime,
 }: HistoryRangeBarProps) {
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
 
   const barRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef<"start" | "end" | null>(null);
+  const draggingRef = useRef<"start" | "end" | "move" | null>(null);
+  const moveRef = useRef<{ startX: number; start: number; end: number } | null>(
+    null,
+  );
 
   // Refs para leer los valores actuales dentro de los event listeners
   // sin necesidad de re-registrarlos en cada renderizado.
@@ -69,11 +95,23 @@ export function HistoryRangeBar({
         rangeRef.current = { start: newStart, end: en };
         setStart(newStart);
         onChangeRef.current({ start: newStart, end: en });
-      } else {
+      } else if (draggingRef.current === "end") {
         const newEnd = Math.min(100, Math.max(pct, s + MIN_GAP));
         rangeRef.current = { start: s, end: newEnd };
         setEnd(newEnd);
         onChangeRef.current({ start: s, end: newEnd });
+      } else if (draggingRef.current === "move") {
+        const m = moveRef.current;
+        if (!m) return;
+        const startPct = getPercent(m.startX);
+        const delta = pct - startPct;
+        const width = m.end - m.start;
+        const newStart = Math.max(0, Math.min(100 - width, m.start + delta));
+        const newEnd = newStart + width;
+        rangeRef.current = { start: newStart, end: newEnd };
+        setStart(newStart);
+        setEnd(newEnd);
+        onChangeRef.current({ start: newStart, end: newEnd });
       }
     };
 
@@ -87,16 +125,29 @@ export function HistoryRangeBar({
         rangeRef.current = { start: newStart, end: en };
         setStart(newStart);
         onChangeRef.current({ start: newStart, end: en });
-      } else {
+      } else if (draggingRef.current === "end") {
         const newEnd = Math.min(100, Math.max(pct, s + MIN_GAP));
         rangeRef.current = { start: s, end: newEnd };
         setEnd(newEnd);
         onChangeRef.current({ start: s, end: newEnd });
+      } else if (draggingRef.current === "move") {
+        const m = moveRef.current;
+        if (!m) return;
+        const startPct = getPercent(m.startX);
+        const delta = pct - startPct;
+        const width = m.end - m.start;
+        const newStart = Math.max(0, Math.min(100 - width, m.start + delta));
+        const newEnd = newStart + width;
+        rangeRef.current = { start: newStart, end: newEnd };
+        setStart(newStart);
+        setEnd(newEnd);
+        onChangeRef.current({ start: newStart, end: newEnd });
       }
     };
 
     const onRelease = () => {
       draggingRef.current = null;
+      moveRef.current = null;
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -118,20 +169,53 @@ export function HistoryRangeBar({
       draggingRef.current = handle;
     };
 
+  const startDraggingMove = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (!barRef.current) return;
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    moveRef.current = {
+      startX: clientX,
+      start: rangeRef.current.start,
+      end: rangeRef.current.end,
+    };
+    draggingRef.current = "move";
+  };
+
   const activeWidth = end - start;
+  const hasDates = minTime != null && maxTime != null && maxTime > minTime;
+  const startTs = hasDates
+    ? minTime! + (start / 100) * (maxTime! - minTime!)
+    : undefined;
+  const endTs = hasDates
+    ? minTime! + (end / 100) * (maxTime! - minTime!)
+    : undefined;
 
   return (
-    <div className="w-full px-1 py-1">
-      <div className="flex justify-between mb-1">
-        <span className="text-xs font-mono text-text-100 tabular-nums">
-          {Math.round(start)}%
-        </span>
-        <span className="text-xs font-mono text-text-100 tabular-nums">
+    <div className="w-full px-1 py-1 bg-bg-300">
+      <div className="flex justify-between mb-1 py-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-text-100 tabular-nums">
+            {Math.round(start)}%
+          </span>
+          {hasDates && (
+            <span className="text-xs font-mono text-text-100/50 tabular-nums">
+              {formatDateTime(startTs)}
+            </span>
+          )}
+        </div>
+        <span className="text-xs font-mono text-text-100 tabular-nums bg-bg-100 px-3 py-0.5 rounded-full">
           {Math.round(activeWidth)}% visible
         </span>
-        <span className="text-xs font-mono text-text-100 tabular-nums">
-          {Math.round(end)}%
-        </span>
+        <div className="flex items-center gap-2 text-right">
+          <span className="text-xs font-mono text-text-100 tabular-nums">
+            {Math.round(end)}%
+          </span>
+          {hasDates && (
+            <span className="text-xs font-mono text-text-100/50 tabular-nums">
+              {formatDateTime(endTs)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div
@@ -148,14 +232,20 @@ export function HistoryRangeBar({
         />
 
         <div
-          className="absolute top-0 bottom-0 bg-bg-300 border-y border-bg-400"
-          style={{ left: `${start}%`, width: `${activeWidth}%` }}
+          className="absolute top-0 bottom-0 bg-bg-300 border-y border-bg-400 cursor-grab active:cursor-grabbing"
+          style={{
+            left: `${start}%`,
+            width: `${activeWidth}%`,
+            touchAction: "none",
+          }}
+          onMouseDown={startDraggingMove}
+          onTouchStart={startDraggingMove}
         >
           <div className="absolute inset-x-0 top-0 h-px bg-red-400/40 rounded-full" />
         </div>
 
         <div
-          className="absolute top-0 bottom-0 right-0 rounded-r-full bg-bg-400"
+          className="absolute top-0 bottom-0 right-0 rounded-r-full bg-bg-100"
           style={{ width: `${100 - end}%` }}
         />
         <RangeHandle

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   ptzGetTiltInclination,
   ptzSetTiltInclination,
@@ -318,6 +319,70 @@ function ToggleField({
   );
 }
 
+interface ConfirmDeleteModalProps {
+  deviceName: string;
+  isDeleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmDeleteModal({
+  deviceName,
+  isDeleting,
+  onCancel,
+  onConfirm,
+}: ConfirmDeleteModalProps) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onCancel]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div className="bg-bg-100 border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20">
+            <IconAlertTriangle size={18} className="text-red-400" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-text-100">
+              Eliminar dispositivo
+            </h3>
+            <p className="text-xs text-text-200 mt-1 leading-relaxed">
+              ¿Confirmar eliminación de{" "}
+              <span className="text-text-100 font-semibold">{deviceName}</span>?
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="flex-1 py-2 rounded-md text-[11px] font-semibold text-text-100/50 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 py-2 rounded-md text-[11px] font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? "Quitando..." : "Sí, quitar"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 interface PanelWrapperProps {
   title: string;
   subtitle: string;
@@ -378,41 +443,14 @@ function PanelWrapper({
       </div>
 
       <div className="px-3 py-2 border-t border-border/60 shrink-0 grid grid-cols-2 gap-1.5">
-        {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            disabled={isPending || isDeleting}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-          >
-            <IconTrash size={12} />
-            Quitar dispositivo
-          </button>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 px-1 py-1 rounded-md bg-red-500/10 border border-red-500/20">
-              <IconAlertTriangle size={11} className="text-red-400 shrink-0" />
-              <span className="text-[10px] text-red-300 leading-tight">
-                ¿Confirmar eliminación?
-              </span>
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                disabled={isDeleting}
-                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold text-text-100/50 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={onDelete}
-                disabled={isDeleting}
-                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? "Quitando..." : "Sí, quitar"}
-              </button>
-            </div>
-          </div>
-        )}
+        <button
+          onClick={() => setConfirmDelete(true)}
+          disabled={isPending || isDeleting}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+        >
+          <IconTrash size={12} />
+          Quitar dispositivo
+        </button>
         <button
           onClick={onSave}
           disabled={isPending || isDeleting}
@@ -422,6 +460,15 @@ function PanelWrapper({
           {isPending ? "Guardando..." : "Guardar cambios"}
         </button>
       </div>
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          deviceName={subtitle}
+          isDeleting={isDeleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={onDelete}
+        />
+      )}
     </div>
   );
 }

@@ -83,6 +83,21 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
 
   // Encontrar el target seleccionado
   const { targets } = useRadarTargets();
+
+  // Límites temporales del historial de los targets (para mostrar fechas en la barra)
+  const mainHistoryBounds = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const t of targets) {
+      for (const p of t.history) {
+        if (p[2] < min) min = p[2];
+        if (p[2] > max) max = p[2];
+      }
+    }
+    if (!isFinite(min) || !isFinite(max)) return undefined;
+    return { minTime: min, maxTime: max };
+  }, [targets]);
+
   const selectedTarget = useMemo(
     () => targets.find((t) => t.id === selectedHistoryTrackId) ?? null,
     [targets, selectedHistoryTrackId],
@@ -198,8 +213,12 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
             historyTrackRange={historyTrackRange}
           />
         </div>
-        <HistoryRangeBar onChange={handleRangeChange} />
-        <BottomBar title="Estado del Radar">
+        <BottomBar title="Línea de tiempo">
+          <HistoryRangeBar
+            onChange={handleRangeChange}
+            minTime={mainHistoryBounds?.minTime}
+            maxTime={mainHistoryBounds?.maxTime}
+          />
           <RadarStatusBar />
         </BottomBar>
       </div>
