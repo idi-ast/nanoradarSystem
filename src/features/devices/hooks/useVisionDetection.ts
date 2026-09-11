@@ -18,6 +18,10 @@ const DEFAULT_CONFIG: VisionConfigPayload = {
 export function useVisionDetection(ptzId: number) {
   const [visionOn, setVisionOn] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectingMode, setConnectingMode] = useState<"start" | "stop" | null>(
+    null,
+  );
   const [config, setConfig] = useState<VisionConfigPayload>(DEFAULT_CONFIG);
 
   useEffect(() => {
@@ -33,19 +37,37 @@ export function useVisionDetection(ptzId: number) {
   }, []);
 
   async function toggleVision() {
-    setStarting(true);
-    try {
-      if (visionOn) {
+    if (visionOn) {
+      setStarting(true);
+      setConnecting(true);
+      setConnectingMode("stop");
+      try {
         await stopVision(ptzId);
         setVisionOn(false);
         return true;
+      } catch (error) {
+        console.error("Vision PTZ", error);
+        return false;
+      } finally {
+        setStarting(false);
+        setConnecting(false);
+        setConnectingMode(null);
       }
+    }
 
+    setStarting(true);
+    setConnecting(true);
+    setConnectingMode("start");
+    try {
       await startVision(ptzId, config);
       setVisionOn(true);
+      // connecting se mantiene activo hasta que el stream IA confirma "online"
+      // (lo cierra VisionLoadingModal vía finishConnecting).
       return true;
     } catch (error) {
       console.error("Vision PTZ", error);
+      setConnecting(false);
+      setConnectingMode(null);
       return false;
     } finally {
       setStarting(false);
@@ -68,5 +90,19 @@ export function useVisionDetection(ptzId: number) {
     }
   }
 
-  return { visionOn, starting, config, toggleVision, applyConfig };
+  function finishConnecting() {
+    setConnecting(false);
+    setConnectingMode(null);
+  }
+
+  return {
+    visionOn,
+    starting,
+    connecting,
+    connectingMode,
+    config,
+    toggleVision,
+    applyConfig,
+    finishConnecting,
+  };
 }

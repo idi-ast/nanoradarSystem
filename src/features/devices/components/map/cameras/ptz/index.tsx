@@ -6,6 +6,7 @@ import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import { VisionConfigPanel } from "./components/VisionConfigPanel";
+import { VisionLoadingModal } from "./components/VisionLoadingModal";
 import { useVisionDetection } from "@/features/devices/hooks/useVisionDetection";
 import type { PtzCameraProps, CameraMode } from "./types";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
@@ -26,9 +27,12 @@ const PtzCamera = memo(
     const {
       visionOn,
       starting: visionStarting,
+      connecting: visionConnecting,
+      connectingMode: visionConnectingMode,
       config: visionConfig,
       toggleVision,
       applyConfig,
+      finishConnecting,
     } = useVisionDetection(camera.id);
     const [visionGrace, setVisionGrace] = useState(false);
     const [visionConfigOpen, setVisionConfigOpen] = useState(false);
@@ -121,7 +125,7 @@ const PtzCamera = memo(
     return (
       <>
         {mode === "minimized" && (
-          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
+          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col relative overflow-hidden transition-all duration-500">
             <PtzToolbar
               name={camera.nombre}
               mode="minimized"
@@ -141,6 +145,14 @@ const PtzCamera = memo(
               ptz_id={camera.id}
               showControls
             />
+            {visionConnecting && visionConnectingMode && (
+              <VisionLoadingModal
+                name={camera.nombre}
+                ptzId={camera.id}
+                mode={visionConnectingMode}
+                onComplete={finishConnecting}
+              />
+            )}
           </div>
         )}
 
@@ -179,6 +191,14 @@ const PtzCamera = memo(
                     : null
                 }
               />
+              {visionConnecting && visionConnectingMode && (
+                <VisionLoadingModal
+                  name={camera.nombre}
+                  ptzId={camera.id}
+                  mode={visionConnectingMode}
+                  onComplete={finishConnecting}
+                />
+              )}
             </div>,
             document.body,
           )}
