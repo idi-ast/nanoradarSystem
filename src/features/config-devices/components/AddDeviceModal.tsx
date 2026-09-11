@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconRadar, IconCurrentLocation, IconCamera, IconAdjustments } from "@tabler/icons-react";
+import {
+  IconX,
+  IconRadar,
+  IconCurrentLocation,
+  IconCamera,
+  IconAdjustments,
+} from "@tabler/icons-react";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
@@ -27,11 +33,31 @@ interface AddDeviceModalProps {
 }
 
 const TABS: { key: DeviceTab; label: string; icon: React.ReactNode }[] = [
-  { key: "nanoradar", label: "NanoRadar", icon: <IconRadar size={14} stroke={1.5} /> },
-  { key: "magosradar", label: "MagosRadar", icon: <IconRadar size={14} stroke={1.5} /> },
-  { key: "spotter", label: "Spotter", icon: <IconCurrentLocation size={14} stroke={1.5} /> },
-  { key: "camara", label: "Cámara", icon: <IconCamera size={14} stroke={1.5} /> },
-  { key: "ptz", label: "PTZ", icon: <IconAdjustments size={14} stroke={1.5} /> },
+  {
+    key: "nanoradar",
+    label: "NanoRadar",
+    icon: <IconRadar size={14} stroke={1.5} />,
+  },
+  {
+    key: "magosradar",
+    label: "MagosRadar",
+    icon: <IconRadar size={14} stroke={1.5} />,
+  },
+  {
+    key: "spotter",
+    label: "Spotter",
+    icon: <IconCurrentLocation size={14} stroke={1.5} />,
+  },
+  {
+    key: "camara",
+    label: "Cámara",
+    icon: <IconCamera size={14} stroke={1.5} />,
+  },
+  {
+    key: "ptz",
+    label: "PTZ",
+    icon: <IconAdjustments size={14} stroke={1.5} />,
+  },
 ];
 
 const defaultNanoradar: NanoradarPayload = {
@@ -163,7 +189,10 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor={name} className="text-[11px] text-text-100/60 uppercase tracking-widest">
+      <Label
+        htmlFor={name}
+        className="text-[11px] text-text-100/60 uppercase tracking-widest"
+      >
         {label}
         {info && <InfoIcon text={info} />}
       </Label>
@@ -209,32 +238,109 @@ function NanoradarForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <FieldRow>
-        <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="NanoRadar-01" />
-        <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.100" />
+        <Field
+          label="Nombre"
+          name="nombre"
+          value={form.nombre}
+          onChange={handleChange}
+          placeholder="NanoRadar-01"
+        />
+        <Field
+          label="Dirección IP"
+          name="direccionIp"
+          value={form.direccionIp}
+          onChange={handleChange}
+          placeholder="192.168.1.100"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
+        <Field
+          label="Latitud"
+          name="latitud"
+          value={form.latitud}
+          onChange={handleChange}
+          placeholder="-33.4489"
+        />
+        <Field
+          label="Longitud"
+          name="longitud"
+          value={form.longitud}
+          onChange={handleChange}
+          placeholder="-70.6693"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Azimut (°)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" />
-        <Field label="Grado (°)" name="grado" value={form.grado} onChange={handleChange} type="number" placeholder="0" />
+        <Field
+          label="Azimut (°)"
+          name="azimut"
+          value={form.azimut}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
+        <Field
+          label="Grado (°)"
+          name="grado"
+          value={form.grado}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
-        <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="360" />
+        <Field
+          label="Radio (m)"
+          name="radio"
+          value={form.radio}
+          onChange={handleChange}
+          type="number"
+          placeholder="100"
+        />
+        <Field
+          label="Apertura (°)"
+          name="apertura"
+          value={form.apertura}
+          onChange={handleChange}
+          type="number"
+          placeholder="360"
+        />
       </FieldRow>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="color-nr" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color</Label>
+        <Label
+          htmlFor="color-nr"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Color
+        </Label>
         <div className="flex items-center gap-2">
-          <input id="color-nr" type="color" name="color" value={form.color} onChange={handleChange} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
+          <input
+            id="color-nr"
+            type="color"
+            name="color"
+            value={form.color}
+            onChange={handleChange}
+            className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+          />
           <span className="text-xs text-text-100/50">{form.color}</span>
         </div>
       </div>
-      {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
+      {error && (
+        <p className="text-xs text-red-400">
+          {String((error as Error).message)}
+        </p>
+      )}
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Agregar NanoRadar"}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={isPending}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Guardando..." : "Agregar NanoRadar"}
+        </Button>
       </div>
     </form>
   );
@@ -301,32 +407,109 @@ function SpotterForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <FieldRow>
-        <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="Spotter-01" />
-        <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.101" />
+        <Field
+          label="Nombre"
+          name="nombre"
+          value={form.nombre}
+          onChange={handleChange}
+          placeholder="Spotter-01"
+        />
+        <Field
+          label="Dirección IP"
+          name="direccionIp"
+          value={form.direccionIp}
+          onChange={handleChange}
+          placeholder="192.168.1.101"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Latitud" name="latitude" value={form.latitude} onChange={handleChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitude" value={form.longitude} onChange={handleChange} placeholder="-70.6693" />
+        <Field
+          label="Latitud"
+          name="latitude"
+          value={form.latitude}
+          onChange={handleChange}
+          placeholder="-33.4489"
+        />
+        <Field
+          label="Longitud"
+          name="longitude"
+          value={form.longitude}
+          onChange={handleChange}
+          placeholder="-70.6693"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Azimut (°)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" />
-        <Field label="Grado (°)" name="grado" value={form.grado} onChange={handleChange} type="number" placeholder="0" />
+        <Field
+          label="Azimut (°)"
+          name="azimut"
+          value={form.azimut}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
+        <Field
+          label="Grado (°)"
+          name="grado"
+          value={form.grado}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
-        <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="360" />
+        <Field
+          label="Radio (m)"
+          name="radio"
+          value={form.radio}
+          onChange={handleChange}
+          type="number"
+          placeholder="100"
+        />
+        <Field
+          label="Apertura (°)"
+          name="apertura"
+          value={form.apertura}
+          onChange={handleChange}
+          type="number"
+          placeholder="360"
+        />
       </FieldRow>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="color-sp" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color</Label>
+        <Label
+          htmlFor="color-sp"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Color
+        </Label>
         <div className="flex items-center gap-2">
-          <input id="color-sp" type="color" name="color" value={form.color} onChange={handleChange} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
+          <input
+            id="color-sp"
+            type="color"
+            name="color"
+            value={form.color}
+            onChange={handleChange}
+            className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+          />
           <span className="text-xs text-text-100/50">{form.color}</span>
         </div>
       </div>
-      {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
+      {error && (
+        <p className="text-xs text-red-400">
+          {String((error as Error).message)}
+        </p>
+      )}
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Agregar Spotter"}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={isPending}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Guardando..." : "Agregar Spotter"}
+        </Button>
       </div>
     </form>
   );
@@ -336,7 +519,9 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
   const { mutate, isPending, error } = useCreateCamara();
   const [form, setForm] = useState<CamaraPayload>(defaultCamara);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
@@ -363,19 +548,61 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <FieldRow>
-        <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="Cámara-01" />
-        <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.102" />
+        <Field
+          label="Nombre"
+          name="nombre"
+          value={form.nombre}
+          onChange={handleChange}
+          placeholder="Cámara-01"
+        />
+        <Field
+          label="Dirección IP"
+          name="direccionIp"
+          value={form.direccionIp}
+          onChange={handleChange}
+          placeholder="192.168.1.102"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
+        <Field
+          label="Latitud"
+          name="latitud"
+          value={form.latitud}
+          onChange={handleChange}
+          placeholder="-33.4489"
+        />
+        <Field
+          label="Longitud"
+          name="longitud"
+          value={form.longitud}
+          onChange={handleChange}
+          placeholder="-70.6693"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Usuario" name="usuario" value={form.usuario} onChange={handleChange} placeholder="admin" />
-        <Field label="Contraseña" name="password" value={form.password} onChange={handleChange} type="password" placeholder="••••••" />
+        <Field
+          label="Usuario"
+          name="usuario"
+          value={form.usuario}
+          onChange={handleChange}
+          placeholder="admin"
+        />
+        <Field
+          label="Contraseña"
+          name="password"
+          value={form.password}
+          onChange={handleChange}
+          type="password"
+          placeholder="••••••"
+        />
       </FieldRow>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="url_stream" className="text-[11px] text-text-100/60 uppercase tracking-widest">URL Stream</Label>
+        <Label
+          htmlFor="url_stream"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          URL Stream
+        </Label>
         <Input
           id="url_stream"
           name="url_stream"
@@ -387,7 +614,12 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
       </div>
       <FieldRow>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="tipo" className="text-[11px] text-text-100/60 uppercase tracking-widest">Tipo</Label>
+          <Label
+            htmlFor="tipo"
+            className="text-[11px] text-text-100/60 uppercase tracking-widest"
+          >
+            Tipo
+          </Label>
           <select
             id="tipo"
             name="tipo"
@@ -402,27 +634,87 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
             <option value="Dahua">Dahua</option>
           </select>
         </div>
-        <Field label="Azimut (°)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" />
+        <Field
+          label="Azimut (°)"
+          name="azimut"
+          value={form.azimut}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Canal" name="channel" value={form.channel} onChange={handleChange} type="number" placeholder="1" />
-        <Field label="Subtipo" name="subtype" value={form.subtype} onChange={handleChange} type="number" placeholder="0" />
+        <Field
+          label="Canal"
+          name="channel"
+          value={form.channel}
+          onChange={handleChange}
+          type="number"
+          placeholder="1"
+        />
+        <Field
+          label="Subtipo"
+          name="subtype"
+          value={form.subtype}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
-        <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="90" />
+        <Field
+          label="Radio (m)"
+          name="radio"
+          value={form.radio}
+          onChange={handleChange}
+          type="number"
+          placeholder="100"
+        />
+        <Field
+          label="Apertura (°)"
+          name="apertura"
+          value={form.apertura}
+          onChange={handleChange}
+          type="number"
+          placeholder="90"
+        />
       </FieldRow>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="color-cam" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color</Label>
+        <Label
+          htmlFor="color-cam"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Color
+        </Label>
         <div className="flex items-center gap-2">
-          <input id="color-cam" type="color" name="color" value={form.color} onChange={handleChange} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
+          <input
+            id="color-cam"
+            type="color"
+            name="color"
+            value={form.color}
+            onChange={handleChange}
+            className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+          />
           <span className="text-xs text-text-100/50">{form.color}</span>
         </div>
       </div>
-      {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
+      {error && (
+        <p className="text-xs text-red-400">
+          {String((error as Error).message)}
+        </p>
+      )}
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Agregar Cámara"}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={isPending}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Guardando..." : "Agregar Cámara"}
+        </Button>
       </div>
     </form>
   );
@@ -432,12 +724,18 @@ function PtzForm({ onClose }: { onClose: () => void }) {
   const { mutate, isPending, error } = useCreatePtz();
   const [form, setForm] = useState<PtzPayload>(defaultPtz);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) {
     const { name, value, type } = e.target;
     const isCheckbox = type === "checkbox";
     setForm((prev) => ({
       ...prev,
-      [name]: isCheckbox ? ((e.target as HTMLInputElement).checked ? 1 : 0) : value,
+      [name]: isCheckbox
+        ? (e.target as HTMLInputElement).checked
+          ? 1
+          : 0
+        : value,
     }));
   }
 
@@ -467,52 +765,165 @@ function PtzForm({ onClose }: { onClose: () => void }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       {/* ── Identificación ── */}
       <FieldRow>
-        <Field label="Nombre" name="nombre" value={form.nombre} onChange={handleChange} placeholder="PTZ-01" />
-        <Field label="Dirección IP" name="direccionIp" value={form.direccionIp} onChange={handleChange} placeholder="192.168.1.103" />
+        <Field
+          label="Nombre"
+          name="nombre"
+          value={form.nombre}
+          onChange={handleChange}
+          placeholder="PTZ-01"
+        />
+        <Field
+          label="Dirección IP"
+          name="direccionIp"
+          value={form.direccionIp}
+          onChange={handleChange}
+          placeholder="192.168.1.103"
+        />
       </FieldRow>
 
       {/* ── Conexión ── */}
       <FieldRow>
-        <Field label="Puerto ONVIF" name="puertoOnvif" value={form.puertoOnvif} onChange={handleChange} type="number" placeholder="80" info="Solo cambiar si la cámara está nateada" />
-        <Field label="Puerto RTSP" name="puertoRtsp" value={form.puertoRtsp} onChange={handleChange} type="number" placeholder="554" info="Solo cambiar si está nateada" />
+        <Field
+          label="Puerto ONVIF"
+          name="puertoOnvif"
+          value={form.puertoOnvif || 80}
+          onChange={handleChange}
+          type="number"
+          placeholder="80"
+          info="Solo cambiar si la cámara está nateada"
+        />
+        <Field
+          label="Puerto RTSP"
+          name="puertoRtsp"
+          value={form.puertoRtsp || 554}
+          onChange={handleChange}
+          type="number"
+          placeholder="554"
+          info="Solo cambiar si está nateada"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Usuario" name="usuario" value={form.usuario} onChange={handleChange} placeholder="admin" />
-        <Field label="Contraseña" name="password" value={form.password} onChange={handleChange} type="password" placeholder="••••••" />
+        <Field
+          label="Usuario"
+          name="usuario"
+          value={form.usuario}
+          onChange={handleChange}
+          placeholder="admin"
+        />
+        <Field
+          label="Contraseña"
+          name="password"
+          value={form.password}
+          onChange={handleChange}
+          type="password"
+          placeholder="••••••"
+        />
       </FieldRow>
 
       {/* ── Posición Geográfica ── */}
       <FieldRow>
-        <Field label="Latitud" name="latitud" value={form.latitud} onChange={handleChange} placeholder="-33.4489" />
-        <Field label="Longitud" name="longitud" value={form.longitud} onChange={handleChange} placeholder="-70.6693" />
+        <Field
+          label="Latitud"
+          name="latitud"
+          value={form.latitud}
+          onChange={handleChange}
+          placeholder="-33.4489"
+        />
+        <Field
+          label="Longitud"
+          name="longitud"
+          value={form.longitud}
+          onChange={handleChange}
+          placeholder="-70.6693"
+        />
       </FieldRow>
       <FieldRow>
-        <Field label="Altura de cámara (m)" name="altitud" value={form.altitud} onChange={handleChange} placeholder="5" info="Altura sobre el suelo en metros. 0 o vacío = 5 m por defecto" />
-        <Field label="Azimut (0°=N)" name="azimut" value={form.azimut} onChange={handleChange} type="number" placeholder="0" info="0°=N, 90°=E, 180°=S, 270°=W" />
+        <Field
+          label="Altura de cámara (m)"
+          name="altitud"
+          value={form.altitud || 0}
+          onChange={handleChange}
+          placeholder="5"
+          info="Altura sobre el suelo en metros. 0 o vacío = 5 m por defecto"
+        />
+        <Field
+          label="Azimut (0°=N)"
+          name="azimut"
+          value={form.azimut}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+          info="0°=N, 90°=E, 180°=S, 270°=W"
+        />
       </FieldRow>
 
       {/* ── Cobertura ── */}
       <FieldRow>
-        <Field label="Radio (m)" name="radio" value={form.radio} onChange={handleChange} type="number" placeholder="100" />
-        <Field label="Apertura (°)" name="apertura" value={form.apertura} onChange={handleChange} type="number" placeholder="90" />
+        <Field
+          label="Radio (m)"
+          name="radio"
+          value={form.radio}
+          onChange={handleChange}
+          type="number"
+          placeholder="100"
+        />
+        <Field
+          label="Apertura (°)"
+          name="apertura"
+          value={form.apertura}
+          onChange={handleChange}
+          type="number"
+          placeholder="90"
+        />
       </FieldRow>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="color-ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">Color</Label>
+        <Label
+          htmlFor="color-ptz"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Color
+        </Label>
         <div className="flex items-center gap-2">
-          <input id="color-ptz" type="color" name="color" value={form.color} onChange={handleChange} className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent" />
+          <input
+            id="color-ptz"
+            type="color"
+            name="color"
+            value={form.color}
+            onChange={handleChange}
+            className="w-8 h-8 rounded cursor-pointer border border-border bg-transparent"
+          />
           <span className="text-xs text-text-100/50">{form.color}</span>
         </div>
       </div>
 
       {/* ── Video ── */}
       <FieldRow>
-        <Field label="Canal" name="channel" value={form.channel} onChange={handleChange} type="number" placeholder="1" />
-        <Field label="Subtipo" name="subtype" value={form.subtype} onChange={handleChange} type="number" placeholder="0" />
+        <Field
+          label="Canal"
+          name="channel"
+          value={form.channel}
+          onChange={handleChange}
+          type="number"
+          placeholder="1"
+        />
+        <Field
+          label="Subtipo"
+          name="subtype"
+          value={form.subtype}
+          onChange={handleChange}
+          type="number"
+          placeholder="0"
+        />
       </FieldRow>
 
       {/* ── URL Stream + Tipo ── */}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="url_stream_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">URL Stream</Label>
+        <Label
+          htmlFor="url_stream_ptz"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          URL Stream
+        </Label>
         <Input
           id="url_stream_ptz"
           name="url_stream"
@@ -523,7 +934,12 @@ function PtzForm({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="tipo_ptz" className="text-[11px] text-text-100/60 uppercase tracking-widest">Tipo</Label>
+        <Label
+          htmlFor="tipo_ptz"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Tipo
+        </Label>
         <select
           id="tipo_ptz"
           name="tipo"
@@ -541,7 +957,9 @@ function PtzForm({ onClose }: { onClose: () => void }) {
 
       {/* ── Corrección ONVIF ── */}
       <div className="flex flex-col gap-2 pt-1 border-t border-border/30">
-        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección ONVIF</span>
+        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">
+          Corrección ONVIF
+        </span>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -579,16 +997,32 @@ function PtzForm({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {error && <p className="text-xs text-red-400">{String((error as Error).message)}</p>}
+      {error && (
+        <p className="text-xs text-red-400">
+          {String((error as Error).message)}
+        </p>
+      )}
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Agregar PTZ"}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={isPending}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Guardando..." : "Agregar PTZ"}
+        </Button>
       </div>
     </form>
   );
 }
 
-export function AddDeviceModal({ onClose, defaultTab = "nanoradar" }: AddDeviceModalProps) {
+export function AddDeviceModal({
+  onClose,
+  defaultTab = "nanoradar",
+}: AddDeviceModalProps) {
   const [activeTab, setActiveTab] = useState<DeviceTab>(defaultTab);
 
   useEffect(() => {
@@ -604,10 +1038,12 @@ export function AddDeviceModal({ onClose, defaultTab = "nanoradar" }: AddDeviceM
       className="fixed inset-0 z-99999 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-bg-200 border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-bg-100 border border-border rounded-xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-100">Agregar dispositivo</h2>
+          <h2 className="text-sm font-semibold text-text-100">
+            Agregar dispositivo
+          </h2>
           <button
             onClick={onClose}
             className="text-text-200 hover:text-text-100 transition"
@@ -623,10 +1059,11 @@ export function AddDeviceModal({ onClose, defaultTab = "nanoradar" }: AddDeviceM
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${activeTab === key
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${
+                activeTab === key
                   ? "border-brand-200 text-brand-200"
                   : "border-transparent text-text-100/40 hover:text-text-100/70"
-                }`}
+              }`}
             >
               {icon}
               {label}

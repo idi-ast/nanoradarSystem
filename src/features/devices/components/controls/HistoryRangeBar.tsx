@@ -1,3 +1,4 @@
+import { IconArrowBarLeft, IconArrowBarRight } from "@tabler/icons-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface HistoryRange {
@@ -26,7 +27,7 @@ const MIN_GAP = 2;
  */
 export function HistoryRangeBar({
   onChange,
-  initialStart = 0,
+  initialStart = 80,
   initialEnd = 100,
 }: HistoryRangeBarProps) {
   const [start, setStart] = useState(initialStart);
@@ -122,39 +123,39 @@ export function HistoryRangeBar({
   return (
     <div className="w-full px-1 py-1">
       <div className="flex justify-between mb-1">
-        <span className="text-[9px] font-mono text-red-400 tabular-nums">
+        <span className="text-xs font-mono text-text-100 tabular-nums">
           {Math.round(start)}%
         </span>
-        <span className="text-[9px] font-mono text-slate-400 tabular-nums">
+        <span className="text-xs font-mono text-text-100 tabular-nums">
           {Math.round(activeWidth)}% visible
         </span>
-        <span className="text-[9px] font-mono text-red-400 tabular-nums">
+        <span className="text-xs font-mono text-text-100 tabular-nums">
           {Math.round(end)}%
         </span>
       </div>
 
       <div
         ref={barRef}
-        className="relative w-full select-none"
+        className="relative w-full select-none bg-bg-100"
         style={{ height: 20 }}
         aria-label="Rango histórico"
       >
-        <div className="absolute inset-0 rounded-full bg-slate-700/80" />
+        <div className="absolute inset-0 rounded-full bg-bg-400" />
 
         <div
-          className="absolute top-0 bottom-0 left-0 rounded-l-full bg-slate-900/70"
+          className="absolute top-0 bottom-0 left-0 rounded-l-full bg-bg-100"
           style={{ width: `${start}%` }}
         />
 
         <div
-          className="absolute top-0 bottom-0 bg-red-500/25 border-y border-red-500/50"
+          className="absolute top-0 bottom-0 bg-bg-300 border-y border-bg-400"
           style={{ left: `${start}%`, width: `${activeWidth}%` }}
         >
           <div className="absolute inset-x-0 top-0 h-px bg-red-400/40 rounded-full" />
         </div>
 
         <div
-          className="absolute top-0 bottom-0 right-0 rounded-r-full bg-slate-900/70"
+          className="absolute top-0 bottom-0 right-0 rounded-r-full bg-bg-400"
           style={{ width: `${100 - end}%` }}
         />
         <RangeHandle
@@ -175,7 +176,6 @@ export function HistoryRangeBar({
   );
 }
 
-
 interface RangeHandleProps {
   percent: number;
   side: "left" | "right";
@@ -183,7 +183,12 @@ interface RangeHandleProps {
   onTouchStart: (e: React.TouchEvent) => void;
 }
 
-function RangeHandle({ percent, side, onMouseDown, onTouchStart }: RangeHandleProps) {
+function RangeHandle({
+  percent,
+  side,
+  onMouseDown,
+  onTouchStart,
+}: RangeHandleProps) {
   return (
     <div
       role="slider"
@@ -194,18 +199,22 @@ function RangeHandle({ percent, side, onMouseDown, onTouchStart }: RangeHandlePr
       onTouchStart={onTouchStart}
       className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10
                  w-3 h-7 rounded-sm cursor-ew-resize
-                 bg-red-500 hover:bg-red-400 active:bg-red-300
+                 bg-bg-400 hover:bg-bg-400/80 active:bg-sky-500
                  flex flex-col items-center justify-center gap-0.75
                  shadow-[0_0_6px_rgba(16,185,129,0.6)]
                  transition-colors duration-100"
       style={{ left: `${percent}%` }}
     >
-      <span className="w-px h-2.5 bg-white/60 rounded-full" />
+      <span className="w-px h-2.5 bg-text-400 rounded-full" />
       <span
-        className={`absolute text-[6px] text-red-200 font-bold leading-none
-                    ${side === "left" ? "-left-2.5" : "-right-2.5"}`}
+        className={`absolute text-[6px] text-white-200 font-bold leading-none
+                    ${side === "left" ? "-left-5.5" : "-right-5.5"}`}
       >
-        {side === "left" ? "◀" : "▶"}
+        {side === "left" ? (
+          <IconArrowBarLeft stroke={2} />
+        ) : (
+          <IconArrowBarRight stroke={2} />
+        )}
       </span>
     </div>
   );

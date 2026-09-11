@@ -59,8 +59,8 @@ export const PtzCalibrationMenu = memo(function PtzCalibrationMenu() {
           onClick={() => (open ? handleClose() : openPanel("ptz-calibration"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open || calibratingCameraId !== null
-              ? "bg-blue-500 text-white border border-blue-600"
-              : "bg-bg-300 border border-transparent hover:bg-blue-600 text-text-100"
+              ? "bg-bg-200 text-blue-500 border border-blue-600"
+              : "bg-bg-300 border border-transparent hover:bg-bg-400 hover:text-text-400 text-text-100"
           }`}
         >
           <IconDeviceGamepad3 size={20} stroke={1.8} />

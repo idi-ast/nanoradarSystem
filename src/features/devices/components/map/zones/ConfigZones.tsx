@@ -177,8 +177,8 @@ const ConfigZones = memo(function ConfigZones() {
           onClick={() => (open ? closePanel("zones") : openPanel("zones"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors relative ${
             open
-              ? "bg-emerald-700 text-white border border-emerald-500/50"
-              : `bg-bg-300 border border-transparent hover:bg-emerald-700/60 ${
+              ? "bg-bg-200 text-emerald-500 border border-emerald-500/50"
+              : `bg-bg-300 border border-transparent hover:bg-bg-400 hover:text-text-400 ${
                   !visible ? "text-text-200/40" : "text-text-100"
                 }`
           }`}

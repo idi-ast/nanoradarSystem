@@ -1,9 +1,6 @@
 import { createPortal } from "react-dom";
 import { IconChevronLeft, IconX } from "@tabler/icons-react";
-import {
-  MAP_PANELS_HOST_ID,
-  getMapPanelsHost,
-} from "./mapPanelHostUtils";
+import { MAP_PANELS_HOST_ID, getMapPanelsHost } from "./mapPanelHostUtils";
 
 export { MAP_PANELS_HOST_ID };
 

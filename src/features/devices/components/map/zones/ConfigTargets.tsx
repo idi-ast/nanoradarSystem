@@ -97,10 +97,17 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={`bg-bg-200/60 rounded-lg overflow-hidden`}>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center justify-between px-2.5 py-2 gap-2 text-left hover:bg-bg-300/40 transition-colors ${accent ? "text-sky-400/80" : "text-text-200/60"}`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+        className={`w-full flex items-center justify-between px-2.5 py-2 gap-2 text-left hover:bg-bg-300/40 transition-colors cursor-pointer select-none ${accent ? "text-sky-400/80" : "text-text-200/60"}`}
       >
         <span className="text-[10px] uppercase font-semibold tracking-widest flex-1">
           {title}
@@ -124,7 +131,7 @@ function Section({
             className="shrink-0 opacity-50"
           />
         )}
-      </button>
+      </div>
       {open && <div className="px-2.5 pb-2.5 space-y-1.5">{children}</div>}
     </div>
   );
@@ -856,8 +863,8 @@ const ConfigTargets = memo(function ConfigTargets() {
           onClick={() => (open ? closePanel("targets") : openPanel("targets"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
-              ? "bg-sky-700 text-white border border-sky-500/50"
-              : "bg-bg-300 border border-transparent hover:bg-sky-700/60 text-text-100"
+              ? "bg-bg-200 text-blue-500 border border-blue-600"
+              : "bg-bg-300 border border-transparent hover:bg-bg-400 hover:text-text-400 text-text-100"
           }`}
         >
           <IconTarget size={18} stroke={1.8} />

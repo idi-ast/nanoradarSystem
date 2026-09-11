@@ -168,7 +168,8 @@ export const DeviceSelector = memo(function DeviceSelector({
 }: DeviceSelectorProps) {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("devices");
-  const toggleOpen = () => open ? closePanel("devices") : openPanel("devices");
+  const toggleOpen = () =>
+    open ? closePanel("devices") : openPanel("devices");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const { data, isLoading } = useConfigDevices();
@@ -179,7 +180,12 @@ export const DeviceSelector = memo(function DeviceSelector({
   const camaras = useMemo(() => data?.data?.camaras ?? [], [data]);
   const ptzList = useMemo(() => data?.data?.ptz ?? [], [data]);
 
-  const totalDevices = nanoradares.length + magosradares.length + spotters.length + camaras.length + ptzList.length;
+  const totalDevices =
+    nanoradares.length +
+    magosradares.length +
+    spotters.length +
+    camaras.length +
+    ptzList.length;
   const totalHidden =
     visibility.hiddenNanoradares.size +
     visibility.hiddenMagosradares.size +
@@ -318,10 +324,11 @@ export const DeviceSelector = memo(function DeviceSelector({
       <Tooltip text="Dispositivos en mapa">
         <button
           onClick={toggleOpen}
-          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${open
+          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${
+            open
               ? "bg-brand-200/20 text-brand-200"
-              : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
-            }`}
+              : "text-text-100 bg-bg-300 hover:text-text-400 hover:bg-bg-400"
+          }`}
         >
           <IconDevicesCog size={20} />
         </button>
@@ -359,9 +366,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                     onClose={closeAll}
                   >
                     <div className="p-3">
-                      <MagosradarAdvancedPanel
-                        device={editingDevice.device}
-                      />
+                      <MagosradarAdvancedPanel device={editingDevice.device} />
                     </div>
                   </PanelShell>
                 )}
@@ -381,8 +386,9 @@ export const DeviceSelector = memo(function DeviceSelector({
                   <Tooltip text="Agregar dispositivo">
                     <button
                       onClick={() => setAddModalOpen(true)}
-                      className="text-text-100/30 hover:text-text-100/70 hover:bg-bg-300/60 p-0.5 rounded transition-colors"
+                      className="flex bg-bg-400 items-center text-xs gap-2 text-text-400 px-2 py-1 hover:text-text-100/70 hover:bg-bg-300/60  rounded transition-colors"
                     >
+                      Nuevo
                       <IconPlus size={13} stroke={1.5} />
                     </button>
                   </Tooltip>
@@ -545,9 +551,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                             accentColor={p.color || "#8207d5"}
                             isHidden={visibility.hiddenPtz.has(p.id)}
                             onToggle={togglePtz}
-                            onEdit={
-                              onEditPtz ? () => onEditPtz(p) : undefined
-                            }
+                            onEdit={onEditPtz ? () => onEditPtz(p) : undefined}
                           />
                         ))}
                       </div>
