@@ -136,8 +136,8 @@ interface TargetVisualStore extends TargetVisualState {
 }
 
 const DEFAULTS: TargetVisualState = {
-  trackStrokeWidth: 7,
-  trackDurationSec: 0,
+  trackStrokeWidth: 10,
+  trackDurationSec: 120,
   inactiveIconTimeoutSec: 0,
   autoZoomEnabled: true,
   defaultCategoriaDeteccion: 2, // Barco
