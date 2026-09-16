@@ -288,7 +288,7 @@ export function RadarTargetsLayer({
             paint={{
               "line-color": "#d7f443",
               "line-width": Math.max(2, trackStrokeWidth * 1),
-              // "line-opacity": ["get", "opacity"], 
+              // "line-opacity": ["get", "opacity"],
               "line-blur": 0.2,
             }}
             beforeId={DEVICES_BELOW_LAYER_ID}
