@@ -172,8 +172,7 @@ export function RadarTargetsLayer({
                 ? 1
                 : segIdx >= fadeStart && fadeSegs > 0
                   ? TRAIL_BASE_OPACITY +
-                    (1 - TRAIL_BASE_OPACITY) *
-                      ((segIdx - fadeStart) / fadeSegs)
+                    (1 - TRAIL_BASE_OPACITY) * ((segIdx - fadeStart) / fadeSegs)
                   : TRAIL_BASE_OPACITY;
             const lineWidth = trackStrokeWidth * (1.15 + ti * 0.85);
             let trailColor = t.trackColor ?? null;
@@ -288,8 +287,8 @@ export function RadarTargetsLayer({
             type="line"
             paint={{
               "line-color": "#d7f443",
-              "line-width": Math.max(5, trackStrokeWidth * 1),
-              "line-opacity": ["get", "opacity"],
+              "line-width": Math.max(2, trackStrokeWidth * 1),
+              // "line-opacity": ["get", "opacity"], 
               "line-blur": 0.2,
             }}
             beforeId={DEVICES_BELOW_LAYER_ID}

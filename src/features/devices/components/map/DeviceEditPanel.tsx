@@ -11,7 +11,6 @@ import {
   IconTrash,
   IconAlertTriangle,
   IconMapPin,
-  IconCrosshair,
   IconSettings,
   IconFilter,
   IconFilterOff,
@@ -201,9 +200,6 @@ function PositionField({
   onLatChange,
   onLngChange,
   liveEditPos,
-  isPickingPosition,
-  onPickPosition,
-  onCancelPickPosition,
 }: PositionFieldProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -242,36 +238,6 @@ function PositionField({
             className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60 tabular-nums"
           />
         </div>
-        {/* Map pick button */}
-        {isPickingPosition ? (
-          <button
-            type="button"
-            onClick={onCancelPickPosition}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold"
-            style={{
-              background: "rgba(239,68,68,0.15)",
-              border: "1px solid rgba(239,68,68,0.4)",
-              color: "#f87171",
-            }}
-          >
-            <IconX size={11} />
-            Cancelar selección
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onPickPosition}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold transition-colors hover:opacity-90"
-            style={{
-              background: "rgba(16,185,129,0.12)",
-              border: "1px solid rgba(16,185,129,0.35)",
-              color: "#10b981",
-            }}
-          >
-            <IconCrosshair size={11} />
-            Mover en mapa
-          </button>
-        )}
       </div>
     </div>
   );
@@ -379,7 +345,7 @@ function ConfirmDeleteModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -644,18 +610,6 @@ function MagosradarForm({
     longitud: device.longitud,
     azimut: device.azimut ?? "0",
   });
-
-  // ── Sincronizar form.latitud/longitud cuando el marker se arrastra en el mapa ──
-  // (liveEditPos cambia en el padre RadarMap, pero form es la fuente de verdad local)
-  useEffect(() => {
-    if (liveEditPos) {
-      setForm((p) => ({
-        ...p,
-        latitud: liveEditPos.lat.toFixed(7),
-        longitud: liveEditPos.lng.toFixed(7),
-      }));
-    }
-  }, [liveEditPos?.lat, liveEditPos?.lng]);
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;

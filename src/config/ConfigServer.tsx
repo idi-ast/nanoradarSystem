@@ -1,7 +1,11 @@
 //  Configuración de empresa
 import logoWhite from "@/assets/company/AST-LOGO_BLANCO.png";
 import logoBlack from "@/assets/company/AST-LOGO_NEGRO.png";
-import { IconDevices, IconLayoutDashboard, IconRadar2 } from "@tabler/icons-react";
+import {
+  IconHistory,
+  IconLayoutDashboard,
+  IconRadar2,
+} from "@tabler/icons-react";
 import React from "react";
 
 // Imports del template (rutas base de la plantilla)
@@ -11,7 +15,7 @@ import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
 import NanoPages from "@/features/devices/pages/DevicesPages";
-import ConfigDevices from "@/features/config-devices/components/ConfigDevices";
+import { HistoryPage } from "@/features/history";
 
 const name = import.meta.env.VITE_COMPANY_NAME;
 const address = import.meta.env.VITE_COMPANY_ADDRESS;
@@ -100,10 +104,19 @@ export const configServer = () => {
     // },
     {
       id: 1,
-      name: "NanoRadar",
+      name: "Live",
       link: "/",
       icon: IconRadar2,
       component: NanoPages,
+      target: false,
+      state: true,
+    },
+    {
+      id: 3,
+      name: "Historial",
+      link: "/historial",
+      icon: IconHistory,
+      component: HistoryPage,
       target: false,
       state: true,
     },
