@@ -36,6 +36,29 @@ function fmtDuration(ms: number): string {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
+function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistanceKm(value: number): string {
+  if (value < 1) return `${value.toFixed(2)} km`;
+  if (value < 10) return `${value.toFixed(1)} km`;
+  return `${value.toFixed(0)} km`;
+}
+
 export function PlaybackControls({
   track,
   points,
@@ -57,6 +80,22 @@ export function PlaybackControls({
       new Date(points[0].fecha).getTime()
     );
   }, [points, length]);
+
+  const distanceKm = useMemo(() => {
+    let total = 0;
+    let prev: TrackHistoryPoint | null = null;
+    for (const p of points) {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+      if (p.lat === 0 && p.lon === 0) continue;
+      if (prev) {
+        total += haversineDistanceKm(prev.lat, prev.lon, p.lat, p.lon);
+      }
+      prev = p;
+    }
+    return total;
+  }, [points]);
+
+  const lastPointTime = points[length - 1]?.fecha;
 
   if (!track || length === 0) return null;
 
@@ -86,14 +125,14 @@ export function PlaybackControls({
               <IconPlayerPlay size={18} className="ml-0.5" />
             )}
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 bg-bg-300 p-1 rounded-md">
             {PLAYBACK_SPEEDS.map((s) => (
               <button
                 key={s}
                 onClick={() => onSpeedChange(s)}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
                   speed === s
-                    ? "bg-bg-300 text-text-100"
+                    ? "bg-bg-400 text-text-400"
                     : "bg-bg-200 text-text-100/60 hover:bg-bg-300"
                 }`}
               >
@@ -101,6 +140,13 @@ export function PlaybackControls({
               </button>
             ))}
           </div>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-text-100/70 font-mono shrink-0">
+          <span className="text-[11px] text-text-100/70 font-mono shrink-0">
+            Dist: {formatDistanceKm(distanceKm)}
+          </span>
+          <span className="text-text-100/40">·</span>
+          <span>Último: {fmtTime(lastPointTime)}</span>
         </div>
 
         <div className="flex items-center gap-2 text-[11px] text-text-100/70 font-mono shrink-0">
@@ -118,6 +164,9 @@ export function PlaybackControls({
           {track.tipo_radar}
           <span className="mx-1.5 text-text-100/30">·</span>
           {length} puntos
+          <span className="mx-1.5 text-[11px] text-text-100/70 font-mono shrink-0">
+            {clamped + 1} / {length}
+          </span>
         </div>
 
         <button

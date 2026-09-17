@@ -54,9 +54,23 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
         to: track.last_seen
           ? new Date(track.last_seen).toISOString()
           : undefined,
+        session_ref: track.last_seen
+          ? new Date(track.last_seen).toISOString()
+          : undefined,
         limit: 20000,
       });
-      setPoints(res.points ?? []);
+
+      const seen = new Map<string, TrackHistoryPoint>();
+      for (const p of res.points ?? []) {
+        if (p.lat === 0 && p.lon === 0) continue;
+        const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+        if (!seen.has(key)) seen.set(key, p);
+      }
+      setPoints(
+        Array.from(seen.values()).sort(
+          (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
+        ),
+      );
       setIndex(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error cargando el track");
