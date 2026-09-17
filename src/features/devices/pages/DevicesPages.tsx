@@ -28,6 +28,7 @@ import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import PtzCameraOverlay from "./PtzCameraOverlay";
+import { FloatingTargetsPanel } from "../components/map/FloatingTargetsPanel";
 
 function NanoPages() {
   const { isMobile, isTablet } = useBreakpoint();
@@ -40,6 +41,7 @@ function NanoPages() {
 
 function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
   const [isOpenRightBar, setOpenRightBar] = useState(false);
+  const [isRightBarOpen, setIsRightBarOpen] = useState(true);
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>("all");
   const [historyRange, setHistoryRange] = useState<HistoryRange>({
     start: 0,
@@ -178,6 +180,7 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
   const handleSelectHistoryTrack = useCallback((id: string | null) => {
     setSelectedHistoryTrackId(id);
     setHistoryTrackRange({ start: 0, end: 100 });
+    if (id) setIsRightBarOpen(true);
     setShowPopup(false);
   }, []);
 
@@ -197,7 +200,7 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
       className={`w-full h-full ${isCompact ? "relative flex flex-row overflow-hidden" : "grid grid-cols-12 overflow-hidden"}`}
     >
       <div
-        className={`${isCompact ? "flex-1 min-w-0" : "col-span-10"} h-full flex flex-col w-full`}
+        className={`${isCompact ? "flex-1 min-w-0" : isRightBarOpen ? "col-span-10" : "col-span-12"} h-full flex flex-col w-full`}
       >
         <div className="flex-1 min-h-0 w-full relative">
           <GeofenceFlash />
@@ -212,6 +215,37 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
             historyTrackPoints={mergedHistoryPoints}
             historyTrackRange={historyTrackRange}
           />
+          {!isCompact && !isRightBarOpen && (
+            <>
+              <div className="absolute bottom-3 left-3 z-20 flex w-80 max-h-[70%] flex-col overflow-hidden ">
+                <div className="flex min-h-0 flex-1">
+                  <FloatingTargetsPanel
+                    deviceFilter={deviceFilter}
+                    onDeviceFilterChange={setDeviceFilter}
+                    onSelectTrack={handleSelectHistoryTrack}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsRightBarOpen(true)}
+                className="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border border-border bg-brand-100 px-1.5 py-3 shadow-lg transition-colors hover:bg-lime-300"
+                title="Mostrar panel derecho"
+              >
+                <IconArrowNarrowLeft size={20} stroke={1.5} />
+              </button>
+            </>
+          )}
+          {!isCompact && (
+            <div className="absolute right-2 top-2 z-20 flex max-h-[72%] w-72 flex-col overflow-hidden rounded-xl border border-border bg-bg-100/90 shadow-2xl backdrop-blur">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <PtzCameraOverlay
+                  hiddenPtz={deviceVisibility.hiddenPtz}
+                  onHidePtz={handleHidePtz}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <BottomBar title="Línea de tiempo">
           <HistoryRangeBar
@@ -224,27 +258,30 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
       </div>
 
       {!isCompact ? (
-        <div className="col-span-2 relative h-full overflow-hidden">
-          {effectiveTarget ? (
-            <TrackHistoryPanel
-              target={effectiveTarget}
-              historyRange={historyTrackRange}
-              onHistoryRangeChange={handleHistoryTrackRangeChange}
-              onClose={() => setSelectedHistoryTrackId(null)}
-            />
-          ) : (
-            <RightBarNano
-              deviceFilter={deviceFilter}
-              onDeviceFilterChange={setDeviceFilter}
-              hiddenCamaras={deviceVisibility.hiddenCamaras}
-              onHideCamera={handleHideCamera}
-              hiddenPtz={deviceVisibility.hiddenPtz}
-              onHidePtz={handleHidePtz}
-              onSelectTrack={handleSelectHistoryTrack}
-            />
-          )}
-          <MapPanelsHost />
-        </div>
+        isRightBarOpen ? (
+          <div className="col-span-2 relative h-full overflow-hidden">
+            {effectiveTarget ? (
+              <TrackHistoryPanel
+                target={effectiveTarget}
+                historyRange={historyTrackRange}
+                onHistoryRangeChange={handleHistoryTrackRangeChange}
+                onClose={() => setSelectedHistoryTrackId(null)}
+              />
+            ) : (
+              <RightBarNano
+                deviceFilter={deviceFilter}
+                onDeviceFilterChange={setDeviceFilter}
+                hiddenCamaras={deviceVisibility.hiddenCamaras}
+                onHideCamera={handleHideCamera}
+                hiddenPtz={deviceVisibility.hiddenPtz}
+                onHidePtz={handleHidePtz}
+                onSelectTrack={handleSelectHistoryTrack}
+                onClose={() => setIsRightBarOpen(false)}
+              />
+            )}
+            <MapPanelsHost />
+          </div>
+        ) : null
       ) : drawerOpen ? (
         <div
           className={`absolute inset-y-0 right-0 z-40 ${drawerWidthClass} border-s border-border shadow-2xl animate-slide-in-right bg-bg-100 overflow-hidden relative`}
@@ -335,6 +372,7 @@ const RightBarNano = memo(
     hiddenPtz,
     onHidePtz,
     onSelectTrack,
+    onClose,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
@@ -344,6 +382,7 @@ const RightBarNano = memo(
     hiddenPtz: Set<number>;
     onHidePtz?: (id: number) => void;
     onSelectTrack?: (id: string | null) => void;
+    onClose?: () => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -361,10 +400,11 @@ const RightBarNano = memo(
           <div className="shrink-0 px-5 bg-bg-100 rounded-xl m-1">
             <h3>Control Radar</h3>
             <h5 className="text-text-200">Zonas y Detecciones</h5>
-            {setOpenRightBar && (
+            {(setOpenRightBar || onClose) && (
               <button
-                onClick={() => setOpenRightBar(false)}
+                onClick={() => (onClose ? onClose() : setOpenRightBar?.(false))}
                 className="absolute top-3 right-3 z-50"
+                title="Ocultar panel"
               >
                 <IconX size={20} stroke={1.5} />
               </button>
@@ -406,7 +446,9 @@ const RightBarNano = memo(
               onHideCamera={onHideCamera}
             />
           )}
-          <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
+          {!isDesktop && (
+            <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
+          )}
         </div>
       </div>
     );
@@ -420,6 +462,7 @@ const RightBarNano = memo(
     if (prev.hiddenPtz !== next.hiddenPtz) return false;
     if (prev.onHidePtz !== next.onHidePtz) return false;
     if (prev.onSelectTrack !== next.onSelectTrack) return false;
+    if (prev.onClose !== next.onClose) return false;
     return true;
   },
 );

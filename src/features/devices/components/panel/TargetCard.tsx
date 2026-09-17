@@ -23,7 +23,7 @@ export const TargetCard = memo(function TargetCard({
 
   return (
     <div
-      className={`p-3 border border-transparent cursor-pointer rounded-xl transition-colors hover:bg-bg-300 ${
+      className={`p-3 border-t border-t-white/20  bg-bg-400/10 backdrop-blur-lg border border-transparent cursor-pointer rounded-xl transition-colors hover:bg-bg-300 ${
         isSelected ? "ring-1 ring-bg-400/60" : ""
       }`}
       style={{
