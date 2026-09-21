@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState } from "react";
 import type { DeviceFilter } from "../../types";
 import {
   useRadarContext,
@@ -25,7 +25,7 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
   const { stableTargets } = useRadarStableTargets();
   const { zones } = useRadarContext();
   const { data: configData } = useConfigDevices();
-  const [searchTrackId, setSearchTrackId] = useState<string>("");
+  const [searchTrackId] = useState<string>("");
 
   const filteredTargets = useMemo(() => {
     if (!searchTrackId) return stableTargets;

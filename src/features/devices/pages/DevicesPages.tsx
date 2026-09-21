@@ -237,7 +237,7 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
             </>
           )}
           {!isCompact && (
-            <div className="absolute right-2 top-2 z-20 flex max-h-[72%] w-72 flex-col overflow-hidden rounded-xl border border-border bg-bg-100/90 shadow-2xl backdrop-blur">
+            <div className="absolute right-20 top-13 z-20 flex max-h-[72%] w-82 flex-col overflow-hidden">
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <PtzCameraOverlay
                   hiddenPtz={deviceVisibility.hiddenPtz}
@@ -403,9 +403,10 @@ const RightBarNano = memo(
             {(setOpenRightBar || onClose) && (
               <button
                 onClick={() => (onClose ? onClose() : setOpenRightBar?.(false))}
-                className="absolute top-3 right-3 z-50"
+                className="absolute top-3 flex items-center gap-1 right-3 z-50"
                 title="Ocultar panel"
               >
+                <span className="text-[11px] uppercase">Ocultar</span>
                 <IconX size={20} stroke={1.5} />
               </button>
             )}

@@ -143,7 +143,6 @@ const PtzCamera = memo(
               connectionError={connectionError}
               onRetry={retry}
               ptz_id={camera.id}
-              showControls
             />
             {visionConnecting && visionConnectingMode && (
               <VisionLoadingModal
