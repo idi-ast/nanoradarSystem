@@ -104,6 +104,17 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
     return mergedHistory.slice(startIdx, endIdx);
   }, [mergedHistory, historyRange]);
 
+  // Límites temporales del historial completo (para mostrar fechas en la barra)
+  const historyBounds = useMemo(() => {
+    if (mergedHistory.length === 0) return undefined;
+    return {
+      minTime: new Date(mergedHistory[0].fecha).getTime(),
+      maxTime: new Date(
+        mergedHistory[mergedHistory.length - 1].fecha,
+      ).getTime(),
+    };
+  }, [mergedHistory]);
+
   // Stats
   const stats = useMemo(() => {
     if (mergedHistory.length === 0) {
@@ -203,7 +214,11 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
           <p className="text-[9px] text-text-200 px-3 pt-2 uppercase tracking-wider">
             Línea de tiempo
           </p>
-          <HistoryRangeBar onChange={onHistoryRangeChange} />
+          <HistoryRangeBar
+            onChange={onHistoryRangeChange}
+            minTime={historyBounds?.minTime}
+            maxTime={historyBounds?.maxTime}
+          />
         </div>
       )}
 

@@ -1,7 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect, memo } from "react";
-import { createPortal } from "react-dom";
+import { useState, useCallback, useMemo, useEffect, memo } from "react";
 import {
-  IconX,
   IconRadar,
   IconCurrentLocation,
   IconCamera,
@@ -11,6 +9,7 @@ import {
   IconDevicesCog,
   IconPlus,
   IconAdjustments,
+  IconSettings,
 } from "@tabler/icons-react";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import type {
@@ -27,6 +26,7 @@ import type { EditingDevice, LiveEditValues } from "./DeviceEditPanel";
 import { Tooltip } from "@/components/ui";
 import { AddDeviceModal } from "@/features/config-devices/components/AddDeviceModal";
 import { useMapPanel } from "./MapPanelContext";
+import { MapPanelPortal, PanelShell } from "./MapPanelsHost";
 
 interface DeviceSelectorProps {
   visibility: DeviceVisibility;
@@ -168,70 +168,11 @@ export const DeviceSelector = memo(function DeviceSelector({
 }: DeviceSelectorProps) {
   const { isOpen, openPanel, closePanel } = useMapPanel();
   const open = isOpen("devices");
-  const toggleOpen = () => open ? closePanel("devices") : openPanel("devices");
+  const toggleOpen = () =>
+    open ? closePanel("devices") : openPanel("devices");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const portalRef = useRef<HTMLDivElement>(null);
-  const [panelStyle, setPanelStyle] = useState<{ top: number; right: number }>({
-    top: 0,
-    right: 0,
-  });
-  // Offset de arrastre del panel (se acumula al draggear)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef<{ active: boolean; startX: number; startY: number; offsetX: number; offsetY: number }>({
-    active: false, startX: 0, startY: 0, offsetX: 0, offsetY: 0,
-  });
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const { data, isLoading } = useConfigDevices();
-
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const updatePos = () => {
-      const rect = triggerRef.current!.getBoundingClientRect();
-      setPanelStyle({
-        top: rect.top,
-        right: window.innerWidth - rect.left + 8,
-      });
-      setDragOffset({ x: 0, y: 0 });
-    };
-    updatePos();
-    window.addEventListener("resize", updatePos);
-    return () => window.removeEventListener("resize", updatePos);
-  }, [open]);
-
-  // Drag del panel completo
-  const onDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragRef.current = {
-      active: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      offsetX: dragOffset.x,
-      offsetY: dragOffset.y,
-    };
-    setIsDragging(true);
-  }, [dragOffset]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMove = (e: MouseEvent) => {
-      if (!dragRef.current.active) return;
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      setDragOffset({
-        x: dragRef.current.offsetX + dx,
-        y: dragRef.current.offsetY + dy,
-      });
-    };
-    const onUp = () => { dragRef.current.active = false; setIsDragging(false); };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [open]);
 
   const nanoradares = useMemo(() => data?.data?.nanoradares ?? [], [data]);
   const magosradares = useMemo(() => data?.data?.magosradares ?? [], [data]);
@@ -239,7 +180,12 @@ export const DeviceSelector = memo(function DeviceSelector({
   const camaras = useMemo(() => data?.data?.camaras ?? [], [data]);
   const ptzList = useMemo(() => data?.data?.ptz ?? [], [data]);
 
-  const totalDevices = nanoradares.length + magosradares.length + spotters.length + camaras.length + ptzList.length;
+  const totalDevices =
+    nanoradares.length +
+    magosradares.length +
+    spotters.length +
+    camaras.length +
+    ptzList.length;
   const totalHidden =
     visibility.hiddenNanoradares.size +
     visibility.hiddenMagosradares.size +
@@ -354,6 +300,12 @@ export const DeviceSelector = memo(function DeviceSelector({
     closePanel("devices");
   }, [onEditClose, closePanel]);
 
+  // Volver desde la edición al listado (sin cerrar el panel)
+  const backToList = useCallback(() => {
+    setShowAdvanced(false);
+    onEditClose?.();
+  }, [onEditClose]);
+
   // Escape → cerrar todo
   useEffect(() => {
     if (!open) return;
@@ -367,292 +319,261 @@ export const DeviceSelector = memo(function DeviceSelector({
     return () => window.removeEventListener("keydown", handler);
   }, [open, closeAll]);
 
-  // Click fuera del portal → cerrar todo (excepto en marcadores del mapa y modo pick)
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // No cerrar si se hizo clic en un marcador del mapa (drag de posición) o en el knob de ajuste
-      if (target.closest(".mapboxgl-marker") || target.closest(".maplibregl-marker")) return;
-      // No cerrar si se está en modo "pick position"
-      if (isPickingPosition) return;
-      if (portalRef.current && !portalRef.current.contains(target)) {
-        closeAll();
-      }
-    };
-    const timer = setTimeout(() => document.addEventListener("mousedown", handler), 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handler);
-    };
-  }, [open, closeAll, isPickingPosition]);
-
   return (
     <div>
       <Tooltip text="Dispositivos en mapa">
         <button
-          ref={triggerRef}
           onClick={toggleOpen}
-          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${open
+          className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${
+            open
               ? "bg-brand-200/20 text-brand-200"
-              : "text-text-100 bg-bg-300 hover:text-text-100 hover:bg-bg-200"
-            }`}
+              : "text-text-100 bg-bg-300 hover:text-text-400 hover:bg-bg-400"
+          }`}
         >
           <IconDevicesCog size={20} />
         </button>
       </Tooltip>
 
-      {open &&
-        createPortal(
-          <div
-            ref={portalRef}
-            style={{
-              position: "fixed",
-              top: panelStyle.top + dragOffset.y,
-              right: panelStyle.right - dragOffset.x,
-              userSelect: isDragging ? "none" : "auto",
-            }}
-            className="flex items-start gap-2"
-          >
-            {/* Panel(es) de edición — se despliegan a la izquierda, uno a uno */}
-            {editingDevice && liveEdit && (
-              <>
-                {/* Panel avanzado (solo MagosRadar) — solo si se activó desde el botón */}
-                {editingDevice.kind === "magosradar" && showAdvanced && (
-                  <MagosradarAdvancedPanel device={editingDevice.device} />
+      {open && (
+        <MapPanelPortal>
+          {editingDevice && liveEdit ? (
+            <PanelShell
+              title="Editar dispositivo"
+              icon={<IconPencil size={14} stroke={1.8} />}
+              onBack={backToList}
+              onClose={closeAll}
+            >
+              <div className="relative h-full">
+                <DeviceEditPanel
+                  editing={editingDevice}
+                  onClose={() => closeAll()}
+                  liveEdit={liveEdit}
+                  onLiveEditChange={(v) => onLiveEditChange?.(v)}
+                  liveEditPos={liveEditPos ?? null}
+                  onLiveEditPosChange={onLiveEditPosChange}
+                  isPickingPosition={isPickingPosition}
+                  onPickPosition={onPickPosition}
+                  onCancelPickPosition={onCancelPickPosition}
+                  mode="floating"
+                  showAdvanced={showAdvanced}
+                  onToggleAdvanced={() => setShowAdvanced((p) => !p)}
+                />
+                {showAdvanced && editingDevice.kind === "magosradar" && (
+                  <PanelShell
+                    title="MagosRadar · Avanzado"
+                    icon={<IconSettings size={14} stroke={1.8} />}
+                    onBack={() => setShowAdvanced(false)}
+                    onClose={closeAll}
+                  >
+                    <div className="p-3">
+                      <MagosradarAdvancedPanel device={editingDevice.device} />
+                    </div>
+                  </PanelShell>
                 )}
-
-                <div className="bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-                  <DeviceEditPanel
-                    editing={editingDevice}
-                    onClose={() => closeAll()}
-                    liveEdit={liveEdit}
-                    onLiveEditChange={(v) => onLiveEditChange?.(v)}
-                    liveEditPos={liveEditPos ?? null}
-                    onLiveEditPosChange={onLiveEditPosChange}
-                    isPickingPosition={isPickingPosition}
-                    onPickPosition={onPickPosition}
-                    onCancelPickPosition={onCancelPickPosition}
-                    mode="floating"
-                    showAdvanced={showAdvanced}
-                    onToggleAdvanced={() => setShowAdvanced((p) => !p)}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Panel principal de dispositivos */}
-            <div className="w-62 bg-bg-100/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
-              <div
-                onMouseDown={onDragStart}
-                className="flex items-center justify-between px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing select-none">
-                <span className="text-xs font-bold uppercase tracking-widest text-text-100/70">
-                  Dispositivos
-                </span>
-                <div className="flex items-center gap-1">
+              </div>
+            </PanelShell>
+          ) : (
+            <PanelShell
+              title="Dispositivos"
+              icon={<IconDevicesCog size={14} stroke={1.8} />}
+              onClose={closeAll}
+            >
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
                   <span className="text-xs text-text-100/30">
                     {totalDevices - totalHidden}/{totalDevices}
                   </span>
                   <Tooltip text="Agregar dispositivo">
                     <button
                       onClick={() => setAddModalOpen(true)}
-                      className="text-text-100/30 hover:text-text-100/70 hover:bg-bg-300/60 p-0.5 rounded transition-colors"
+                      className="flex bg-bg-400 items-center text-xs gap-2 text-text-400 px-2 py-1 hover:text-text-100/70 hover:bg-bg-300/60  rounded transition-colors"
                     >
+                      Nuevo
                       <IconPlus size={13} stroke={1.5} />
                     </button>
                   </Tooltip>
-                  <button
-                    onClick={() => {
-                      closeAll();
-                    }}
-                    className="text-text-100/30 hover:text-text-100/70 ml-1"
-                  >
-                    <IconX size={13} />
-                  </button>
                 </div>
+                {isLoading ? (
+                  <div className="px-3 py-4 text-center text-xs text-text-100/40">
+                    Cargando...
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-3">
+                    {/* Nanoradares */}
+                    {nanoradares.length > 0 && (
+                      <div>
+                        <GroupHeader
+                          icon={<IconRadar size={11} />}
+                          title="Nanoradares"
+                          count={nanoradares.length}
+                          allGroupHidden={allHidden(
+                            nanoradares.map((nr) => nr.id),
+                            visibility.hiddenNanoradares,
+                          )}
+                          onToggleAll={toggleAllNR}
+                        />
+                        {nanoradares.map((nr, idx) => (
+                          <DeviceRow
+                            key={nr.id}
+                            id={nr.id}
+                            label={nr.nombre}
+                            subtitle={`Az ${nr.azimut}° · R ${nr.radio}m`}
+                            accentColor={
+                              nr.color ||
+                              NR_PALETTE[idx % NR_PALETTE.length].primary
+                            }
+                            isHidden={visibility.hiddenNanoradares.has(nr.id)}
+                            onToggle={toggleNR}
+                            onEdit={
+                              onEditNanoradar
+                                ? () => onEditNanoradar(nr)
+                                : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Magosradares */}
+                    {magosradares.length > 0 && (
+                      <div>
+                        <GroupHeader
+                          icon={<IconRadar size={11} />}
+                          title="MagosRadares"
+                          count={magosradares.length}
+                          allGroupHidden={allHidden(
+                            magosradares.map((mg) => mg.id),
+                            visibility.hiddenMagosradares,
+                          )}
+                          onToggleAll={toggleAllMG}
+                        />
+                        {magosradares.map((mg, idx) => (
+                          <DeviceRow
+                            key={mg.id}
+                            id={mg.id}
+                            label={mg.nombre}
+                            subtitle={`Az ${mg.azimut}° · R ${mg.radio}m`}
+                            accentColor={
+                              mg.color ||
+                              MG_PALETTE[idx % MG_PALETTE.length].primary
+                            }
+                            isHidden={visibility.hiddenMagosradares.has(mg.id)}
+                            onToggle={toggleMG}
+                            onEdit={
+                              onEditMagosradar
+                                ? () => onEditMagosradar(mg)
+                                : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Spotters */}
+                    {spotters.length > 0 && (
+                      <div>
+                        <GroupHeader
+                          icon={<IconCurrentLocation size={11} />}
+                          title="Spotters"
+                          count={spotters.length}
+                          allGroupHidden={allHidden(
+                            spotters.map((s) => s.id),
+                            visibility.hiddenSpotters,
+                          )}
+                          onToggleAll={toggleAllSpotters}
+                        />
+                        {spotters.map((s) => (
+                          <DeviceRow
+                            key={s.id}
+                            id={s.id}
+                            label={s.nombre}
+                            subtitle={`${Number(s.bearing).toFixed(1)}° · ${s.model}`}
+                            accentColor="#38bdf8"
+                            isHidden={visibility.hiddenSpotters.has(s.id)}
+                            onToggle={toggleSpotter}
+                            onEdit={
+                              onEditSpotter ? () => onEditSpotter(s) : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Cámaras */}
+                    {camaras.length > 0 && (
+                      <div>
+                        <GroupHeader
+                          icon={<IconCamera size={11} />}
+                          title="Cámaras"
+                          count={camaras.length}
+                          allGroupHidden={allHidden(
+                            camaras.map((c) => c.id),
+                            visibility.hiddenCamaras,
+                          )}
+                          onToggleAll={toggleAllCamaras}
+                        />
+                        {camaras.map((c) => (
+                          <DeviceRow
+                            key={c.id}
+                            id={c.id}
+                            label={c.nombre}
+                            subtitle={c.tipo}
+                            accentColor={c.color || "#f59e0b"}
+                            isHidden={visibility.hiddenCamaras.has(c.id)}
+                            onToggle={toggleCamera}
+                            onEdit={
+                              onEditCamara ? () => onEditCamara(c) : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* PTZ */}
+                    {ptzList.length > 0 && (
+                      <div>
+                        <GroupHeader
+                          icon={<IconAdjustments size={11} />}
+                          title="PTZ"
+                          count={ptzList.length}
+                          allGroupHidden={allHidden(
+                            ptzList.map((p) => p.id),
+                            visibility.hiddenPtz,
+                          )}
+                          onToggleAll={toggleAllPtz}
+                        />
+                        {ptzList.map((p) => (
+                          <DeviceRow
+                            key={p.id}
+                            id={p.id}
+                            label={p.nombre}
+                            subtitle={p.tipo}
+                            accentColor={p.color || "#8207d5"}
+                            isHidden={visibility.hiddenPtz.has(p.id)}
+                            onToggle={togglePtz}
+                            onEdit={onEditPtz ? () => onEditPtz(p) : undefined}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Footer */}
+                {totalHidden > 0 && (
+                  <div className="border-t border-border px-2 py-1.5">
+                    <button
+                      onClick={showAll}
+                      className="w-full text-xs text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
+                    >
+                      Mostrar todos
+                    </button>
+                  </div>
+                )}
               </div>
-              {isLoading ? (
-                <div className="px-3 py-4 text-center text-xs text-text-100/40">
-                  Cargando...
-                </div>
-              ) : (
-                <div className="p-2 space-y-3 max-h-72 overflow-y-auto">
-                  {/* Nanoradares */}
-                  {nanoradares.length > 0 && (
-                    <div>
-                      <GroupHeader
-                        icon={<IconRadar size={11} />}
-                        title="Nanoradares"
-                        count={nanoradares.length}
-                        allGroupHidden={allHidden(
-                          nanoradares.map((nr) => nr.id),
-                          visibility.hiddenNanoradares,
-                        )}
-                        onToggleAll={toggleAllNR}
-                      />
-                      {nanoradares.map((nr, idx) => (
-                        <DeviceRow
-                          key={nr.id}
-                          id={nr.id}
-                          label={nr.nombre}
-                          subtitle={`Az ${nr.azimut}° · R ${nr.radio}m`}
-                          accentColor={
-                            nr.color ||
-                            NR_PALETTE[idx % NR_PALETTE.length].primary
-                          }
-                          isHidden={visibility.hiddenNanoradares.has(nr.id)}
-                          onToggle={toggleNR}
-                          onEdit={
-                            onEditNanoradar
-                              ? () => onEditNanoradar(nr)
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Magosradares */}
-                  {magosradares.length > 0 && (
-                    <div>
-                      <GroupHeader
-                        icon={<IconRadar size={11} />}
-                        title="MagosRadares"
-                        count={magosradares.length}
-                        allGroupHidden={allHidden(
-                          magosradares.map((mg) => mg.id),
-                          visibility.hiddenMagosradares,
-                        )}
-                        onToggleAll={toggleAllMG}
-                      />
-                      {magosradares.map((mg, idx) => (
-                        <DeviceRow
-                          key={mg.id}
-                          id={mg.id}
-                          label={mg.nombre}
-                          subtitle={`Az ${mg.azimut}° · R ${mg.radio}m`}
-                          accentColor={
-                            mg.color ||
-                            MG_PALETTE[idx % MG_PALETTE.length].primary
-                          }
-                          isHidden={visibility.hiddenMagosradares.has(mg.id)}
-                          onToggle={toggleMG}
-                          onEdit={
-                            onEditMagosradar
-                              ? () => onEditMagosradar(mg)
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Spotters */}
-                  {spotters.length > 0 && (
-                    <div>
-                      <GroupHeader
-                        icon={<IconCurrentLocation size={11} />}
-                        title="Spotters"
-                        count={spotters.length}
-                        allGroupHidden={allHidden(
-                          spotters.map((s) => s.id),
-                          visibility.hiddenSpotters,
-                        )}
-                        onToggleAll={toggleAllSpotters}
-                      />
-                      {spotters.map((s) => (
-                        <DeviceRow
-                          key={s.id}
-                          id={s.id}
-                          label={s.nombre}
-                          subtitle={`${Number(s.bearing).toFixed(1)}° · ${s.model}`}
-                          accentColor="#38bdf8"
-                          isHidden={visibility.hiddenSpotters.has(s.id)}
-                          onToggle={toggleSpotter}
-                          onEdit={
-                            onEditSpotter ? () => onEditSpotter(s) : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Cámaras */}
-                  {camaras.length > 0 && (
-                    <div>
-                      <GroupHeader
-                        icon={<IconCamera size={11} />}
-                        title="Cámaras"
-                        count={camaras.length}
-                        allGroupHidden={allHidden(
-                          camaras.map((c) => c.id),
-                          visibility.hiddenCamaras,
-                        )}
-                        onToggleAll={toggleAllCamaras}
-                      />
-                      {camaras.map((c) => (
-                        <DeviceRow
-                          key={c.id}
-                          id={c.id}
-                          label={c.nombre}
-                          subtitle={c.tipo}
-                          accentColor={c.color || "#f59e0b"}
-                          isHidden={visibility.hiddenCamaras.has(c.id)}
-                          onToggle={toggleCamera}
-                          onEdit={
-                            onEditCamara ? () => onEditCamara(c) : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* PTZ */}
-                  {ptzList.length > 0 && (
-                    <div>
-                      <GroupHeader
-                        icon={<IconAdjustments size={11} />}
-                        title="PTZ"
-                        count={ptzList.length}
-                        allGroupHidden={allHidden(
-                          ptzList.map((p) => p.id),
-                          visibility.hiddenPtz,
-                        )}
-                        onToggleAll={toggleAllPtz}
-                      />
-                      {ptzList.map((p) => (
-                        <DeviceRow
-                          key={p.id}
-                          id={p.id}
-                          label={p.nombre}
-                          subtitle={p.tipo}
-                          accentColor={p.color || "#8207d5"}
-                          isHidden={visibility.hiddenPtz.has(p.id)}
-                          onToggle={togglePtz}
-                          onEdit={
-                            onEditPtz ? () => onEditPtz(p) : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              {/* Footer */}
-              {totalHidden > 0 && (
-                <div className="border-t border-border px-2 py-1.5">
-                  <button
-                    onClick={showAll}
-                    className="w-full text-xs text-emerald-400 hover:text-emerald-300 font-medium py-0.5 hover:bg-emerald-500/10 rounded transition-colors"
-                  >
-                    Mostrar todos
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
+            </PanelShell>
+          )}
+        </MapPanelPortal>
+      )}
       {addModalOpen && (
         <AddDeviceModal onClose={() => setAddModalOpen(false)} />
       )}

@@ -3,7 +3,10 @@ import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter, TrackHistoryPoint } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
 import { isPointInPolygon } from "./utils/geoHelpers";
-import { useRadarContext, useRadarTargets } from "../../context/useRadarContext";
+import {
+  useRadarContext,
+  useRadarTargets,
+} from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
 import { ZONE_DETECTION_CATEGORIES } from "../../config";
@@ -11,6 +14,9 @@ import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
 import { DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
+
+/** Opacidad mínima de la parte más antigua de la traza (la cola no se pierde) */
+const TRAIL_BASE_OPACITY = 0.35;
 
 function isTargetMoving(
   target: RadarTarget,
@@ -122,7 +128,8 @@ export function RadarTargetsLayer({
   }, [categoryFilteredTargets, historyRange, timeBounds]);
 
   const [now, setNow] = useState(0);
-  const selected = categoryFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
+  const selected =
+    categoryFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -131,67 +138,75 @@ export function RadarTargetsLayer({
     return () => window.clearInterval(intervalId);
   }, [timing.COLOR_REFRESH_MS]);
 
-  const trailsData = useMemo(
-    () => {
-      const hasSelection = selectedTargetId !== null;
-      return {
-        type: "FeatureCollection" as const,
-        features: slicedTargets
-          .filter((t) => t.history.length > 1)
-          .flatMap((t) => {
-            let history = t.history;
+  const trailsData = useMemo(() => {
+    const hasSelection = selectedTargetId !== null;
+    return {
+      type: "FeatureCollection" as const,
+      features: slicedTargets
+        .filter((t) => t.history.length > 1)
+        .flatMap((t) => {
+          let history = t.history;
 
-            // Filtrar por duración configurable (0 = sin límite)
-            if (trackDurationSec > 0 && history.length > 1) {
-              const newestTs = history[history.length - 1][2];
-              const cutoff = newestTs - trackDurationSec * 1000;
-              history = history.filter((p) => p[2] >= cutoff);
-              if (history.length < 2) return [];
+          // Filtrar por duración configurable (0 = sin límite)
+          if (trackDurationSec > 0 && history.length > 1) {
+            const newestTs = history[history.length - 1][2];
+            const cutoff = newestTs - trackDurationSec * 1000;
+            history = history.filter((p) => p[2] >= cutoff);
+            if (history.length < 2) return [];
+          }
+
+          // La traza usa TODO el historial disponible: la cola antigua se
+          // dibuja con una opacidad base y solo la cabecera (últimos
+          // TRAIL_FADE_POINTS segmentos) sube hasta opacidad plena.
+          const dimmed = hasSelection && t.id !== selectedTargetId;
+          const totalSegs = history.length - 1;
+          const fadeSegs = Math.min(timing.TRAIL_FADE_POINTS, totalSegs);
+          const fadeStart = totalSegs - fadeSegs;
+          const ti = t.trackIntensity ?? 1;
+
+          return history.slice(1).map((point, i) => {
+            const prevPoint = history[i];
+            const segIdx = i;
+            const opacity =
+              totalSegs === 0
+                ? 1
+                : segIdx >= fadeStart && fadeSegs > 0
+                  ? TRAIL_BASE_OPACITY +
+                    (1 - TRAIL_BASE_OPACITY) * ((segIdx - fadeStart) / fadeSegs)
+                  : TRAIL_BASE_OPACITY;
+            const lineWidth = trackStrokeWidth * (1.15 + ti * 0.85);
+            let trailColor = t.trackColor ?? null;
+            if (trailColor && trailColor.startsWith("rgba")) {
+              const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
+              if (m) trailColor = `rgb(${m[1]},${m[2]},${m[3]})`;
             }
-
-            const fadeLen = timing.TRAIL_FADE_POINTS;
-            const recentHistory = history.length > fadeLen
-              ? history.slice(-fadeLen)
-              : history;
-
-            const dimmed = hasSelection && t.id !== selectedTargetId;
-
-            return recentHistory.slice(1).map((point, i) => {
-              const prevPoint = recentHistory[i];
-              const totalSegments = recentHistory.length - 1;
-              const opacity = totalSegments > 0
-                ? Math.max(0, (i + 1) / totalSegments)
-                : 1;
-              const ti = t.trackIntensity ?? 1;
-              const lineWidth = trackStrokeWidth * (0.5 + ti * 0.5);
-              let trailColor = t.trackColor ?? null;
-              if (trailColor && trailColor.startsWith("rgba")) {
-                const m = trailColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
-                if (m) trailColor = `rgb(${m[1]},${m[2]},${m[3]})`;
-              }
-              return {
-                type: "Feature" as const,
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: [
-                    [prevPoint[1], prevPoint[0]],
-                    [point[1], point[0]],
-                  ],
-                },
-                properties: {
-                  id: t.id,
-                  opacity,
-                  color: trailColor,
-                  lineWidth,
-                  dimmed,
-                },
-              };
-            });
-          }),
-      };
-    },
-    [slicedTargets, timing.TRAIL_FADE_POINTS, selectedTargetId, trackStrokeWidth, trackDurationSec],
-  );
+            return {
+              type: "Feature" as const,
+              geometry: {
+                type: "LineString" as const,
+                coordinates: [
+                  [prevPoint[1], prevPoint[0]],
+                  [point[1], point[0]],
+                ],
+              },
+              properties: {
+                id: t.id,
+                opacity,
+                color: trailColor,
+                lineWidth,
+                dimmed,
+              },
+            };
+          });
+        }),
+    };
+  }, [
+    slicedTargets,
+    timing.TRAIL_FADE_POINTS,
+    selectedTargetId,
+    trackStrokeWidth,
+    trackDurationSec,
+  ]);
 
   const trailLayer = {
     id: `targets-trails-${id}`,
@@ -218,8 +233,12 @@ export function RadarTargetsLayer({
   const historyTrailData = useMemo(() => {
     if (!historyTrackPoints || historyTrackPoints.length < 2) return null;
 
-    const startIdx = Math.floor((historyTrackRange.start / 100) * historyTrackPoints.length);
-    const endIdx = Math.ceil((historyTrackRange.end / 100) * historyTrackPoints.length);
+    const startIdx = Math.floor(
+      (historyTrackRange.start / 100) * historyTrackPoints.length,
+    );
+    const endIdx = Math.ceil(
+      (historyTrackRange.end / 100) * historyTrackPoints.length,
+    );
     const sliced = historyTrackPoints.slice(startIdx, endIdx);
 
     if (sliced.length < 2) return null;
@@ -258,15 +277,19 @@ export function RadarTargetsLayer({
 
       {/* Traza histórica del backend (track seleccionado) */}
       {historyTrailData && (
-        <Source id={`history-trail-${id}`} type="geojson" data={historyTrailData}>
+        <Source
+          id={`history-trail-${id}`}
+          type="geojson"
+          data={historyTrailData}
+        >
           <Layer
             id={`history-trail-layer-${id}`}
             type="line"
             paint={{
-              "line-color": "#f59e0b",
-              "line-width": Math.max(1, trackStrokeWidth * 0.45),
-              "line-opacity": ["get", "opacity"],
-              "line-blur": 0.5,
+              "line-color": "#d7f443",
+              "line-width": Math.max(2, trackStrokeWidth * 1),
+              // "line-opacity": ["get", "opacity"],
+              "line-blur": 0.2,
             }}
             beforeId={DEVICES_BELOW_LAYER_ID}
           />
@@ -291,15 +314,13 @@ export function RadarTargetsLayer({
           // Modo 3D: activo para todas las categorías cuando use3DBoat está activado
           const show3D = use3DBoat;
           // Modelo GLB según la categoría (preferencia del usuario o default)
-          const modelPath = categoryModels[catId] ?? DEFAULT_CATEGORY_MODELS[catId] ?? "/3d/glb/cargo_ship.glb";
+          const modelPath =
+            categoryModels[catId] ??
+            DEFAULT_CATEGORY_MODELS[catId] ??
+            "/3d/glb/cargo_ship.glb";
 
           return (
-            <Marker
-              key={t.id}
-              longitude={lon}
-              latitude={lat}
-              anchor="center"
-            >
+            <Marker key={t.id} longitude={lon} latitude={lat} anchor="center">
               {show3D ? (
                 <div
                   onClick={(e) => {
@@ -325,11 +346,18 @@ export function RadarTargetsLayer({
                 </div>
               ) : (
                 (() => {
-                  const mgIntensity = t.deviceType === "magosradar" ? (t.trackIntensity ?? 1) : 1;
+                  const mgIntensity =
+                    t.deviceType === "magosradar" ? (t.trackIntensity ?? 1) : 1;
                   const sizeScale = 0.5 + mgIntensity * 0.5;
-                  const baseW = moving ? iconStyle2D.movingSize : iconStyle2D.size;
-                  const baseH = moving ? iconStyle2D.movingSize : iconStyle2D.size;
-                  const borderCol = moving ? iconStyle2D.movingBorderColor : iconStyle2D.borderColor;
+                  const baseW = moving
+                    ? iconStyle2D.movingSize
+                    : iconStyle2D.size;
+                  const baseH = moving
+                    ? iconStyle2D.movingSize
+                    : iconStyle2D.size;
+                  const borderCol = moving
+                    ? iconStyle2D.movingBorderColor
+                    : iconStyle2D.borderColor;
 
                   return (
                     <div
@@ -341,28 +369,50 @@ export function RadarTargetsLayer({
                         width: baseW * sizeScale,
                         height: baseH * sizeScale,
                         borderRadius: `${moving ? iconStyle2D.movingBorderRadius : iconStyle2D.borderRadius}%`,
-                        borderWidth: moving ? iconStyle2D.movingBorderWidth : iconStyle2D.borderWidth,
+                        borderWidth: moving
+                          ? iconStyle2D.movingBorderWidth
+                          : iconStyle2D.borderWidth,
                         borderStyle: "solid",
                         borderColor: borderCol,
-                        backgroundColor: iconStyle2D.bgColor + Math.round((moving ? iconStyle2D.movingBgOpacity : iconStyle2D.bgOpacity) * 255).toString(16).padStart(2, "0"),
+                        backgroundColor:
+                          iconStyle2D.bgColor +
+                          Math.round(
+                            (moving
+                              ? iconStyle2D.movingBgOpacity
+                              : iconStyle2D.bgOpacity) * 255,
+                          )
+                            .toString(16)
+                            .padStart(2, "0"),
                         boxShadow: moving
                           ? `0 0 0 4px ${borderCol}40`
                           : undefined,
                         outline: isSelected ? "2px solid white" : undefined,
-                        transform: isSelected ? "scale(1.5)" : dimmed ? "scale(0.9)" : undefined,
+                        transform: isSelected
+                          ? "scale(1.5)"
+                          : dimmed
+                            ? "scale(0.9)"
+                            : undefined,
                         opacity: dimmed ? 0.4 : 1,
                         transition: "opacity 0.2s, transform 0.2s",
                       }}
                       className="relative cursor-pointer flex items-center justify-center hover:scale-110"
                     >
-                      {(moving ? iconStyle2D.movingShowIcon : iconStyle2D.showIcon) && (
+                      {(moving
+                        ? iconStyle2D.movingShowIcon
+                        : iconStyle2D.showIcon) && (
                         <span
                           style={{
-                            color: moving ? iconStyle2D.movingIconColor : iconStyle2D.iconColor,
+                            color: moving
+                              ? iconStyle2D.movingIconColor
+                              : iconStyle2D.iconColor,
                           }}
                         >
                           <Icon
-                            size={moving ? iconStyle2D.movingIconSize : iconStyle2D.iconSize}
+                            size={
+                              moving
+                                ? iconStyle2D.movingIconSize
+                                : iconStyle2D.iconSize
+                            }
                             stroke={2}
                           />
                         </span>
@@ -379,52 +429,65 @@ export function RadarTargetsLayer({
         })}
 
       {/* Marcador para track seleccionado de la BD (no está en targets en vivo) */}
-      {selectedTargetId && !selected && historyTrackPoints && historyTrackPoints.length > 0 && (() => {
-        const lastPt = historyTrackPoints[historyTrackPoints.length - 1];
-        const show3D = use3DBoat;
-        const modelPath = DEFAULT_CATEGORY_MODELS[defaultCategoria] ?? "/3d/glb/cargo_ship.glb";
-        return (
-          <Marker
-            key={`bd-${selectedTargetId}`}
-            longitude={lastPt.lon}
-            latitude={lastPt.lat}
-            anchor="center"
-          >
-            {show3D ? (
-              <div className="relative">
-                <Boat3DMarker
-                  id={`bd-${selectedTargetId}`}
-                  lng={lastPt.lon}
-                  lat={lastPt.lat}
-                  modelPath={modelPath}
-                  history={historyTrackPoints.map((p) => [p.lat, p.lon, new Date(p.fecha).getTime()])}
-                  moving={false}
-                  isSelected
-                  size={64}
-                />
-              </div>
-            ) : (
-              // Marcador activo del historial
-              <div
-                className="relative cursor-pointer flex items-center justify-center"
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  border: "4px solid #fff",
-                  backgroundColor: "#f59e0b40",
-                  transform: "scale(1.8)",
-                  boxShadow: "0 0 0 6px #f59e0b30, 0 0 12px #f59e0b60",
-                }}
-              >
-                <span className="text-[5px] font-bold text-white">
-                  {selectedTargetId.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
-                </span>
-              </div>
-            )}
-          </Marker>
-        );
-      })()}
+      {selectedTargetId &&
+        !selected &&
+        historyTrackPoints &&
+        historyTrackPoints.length > 0 &&
+        (() => {
+          const lastPt = historyTrackPoints[historyTrackPoints.length - 1];
+          const show3D = use3DBoat;
+          const modelPath =
+            DEFAULT_CATEGORY_MODELS[defaultCategoria] ??
+            "/3d/glb/cargo_ship.glb";
+          return (
+            <Marker
+              key={`bd-${selectedTargetId}`}
+              longitude={lastPt.lon}
+              latitude={lastPt.lat}
+              anchor="center"
+            >
+              {show3D ? (
+                <div className="relative">
+                  <Boat3DMarker
+                    id={`bd-${selectedTargetId}`}
+                    lng={lastPt.lon}
+                    lat={lastPt.lat}
+                    modelPath={modelPath}
+                    history={historyTrackPoints.map((p) => [
+                      p.lat,
+                      p.lon,
+                      new Date(p.fecha).getTime(),
+                    ])}
+                    moving={false}
+                    isSelected
+                    size={64}
+                  />
+                </div>
+              ) : (
+                // Marcador activo del historial
+                <div
+                  className="relative cursor-pointer flex items-center justify-center"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    border: "4px solid #fff",
+                    backgroundColor: "#f59e0b40",
+                    transform: "scale(1.8)",
+                    boxShadow: "0 0 0 6px #f59e0b30, 0 0 12px #f59e0b60",
+                  }}
+                >
+                  <span className="text-[5px] font-bold text-white">
+                    {selectedTargetId.replace(
+                      /^(nanoRadar|magosradar|spotter)_/,
+                      "",
+                    )}
+                  </span>
+                </div>
+              )}
+            </Marker>
+          );
+        })()}
 
       {selected && showPopup && (
         <Popup
@@ -438,7 +501,8 @@ export function RadarTargetsLayer({
           <div className="text-[12px] flex flex-col justify-center items-center text-text-100 bg-bg-100/50 backdrop-blur shadow-2xl p-5 min-w-64 rounded-lg">
             <div>
               <h4 className="pb-2">
-                Detección: {selected.id.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
+                Detección:{" "}
+                {selected.id.replace(/^(nanoRadar|magosradar|spotter)_/, "")}
               </h4>
               <ul className="tracking-[0.12rem]">
                 <li>
@@ -456,16 +520,10 @@ export function RadarTargetsLayer({
                   <span className="font-bold">{selected.zona || "N/A"}</span>
                 </li>
                 <li>
-                  Nivel: <span className="font-bold">{selected.nivel}</span>
+                  Nive Alerta:{" "}
+                  <span className="font-bold">{selected.nivel}</span>
                 </li>
-                {selected.speed != null && (
-                  <li>
-                    Velocidad:{" "}
-                    <span className="text-brand-200 font-bold">
-                      {selected.speed.toFixed(1)} km/h
-                    </span>
-                  </li>
-                )}
+
                 <li>
                   Pos:{" "}
                   <span className="font-bold">
@@ -480,4 +538,3 @@ export function RadarTargetsLayer({
     </>
   );
 }
-

@@ -59,8 +59,8 @@ export interface IconStyle2D {
 }
 
 export const DEFAULT_ICON_STYLE_2D: IconStyle2D = {
-  size: 38,
-  iconSize: 18,
+  size: 42,
+  iconSize: 13,
   borderRadius: 50,
   borderWidth: 1,
   borderColor: "rgba(255,255,255,0.18)",
@@ -69,13 +69,13 @@ export const DEFAULT_ICON_STYLE_2D: IconStyle2D = {
   iconColor: "rgba(255,255,255,0.45)",
   showIcon: true,
 
-  movingSize: 38,
-  movingIconSize: 18,
+  movingSize: 42,
+  movingIconSize: 13,
   movingBorderRadius: 50,
-  movingBorderWidth: 2,
-  movingBorderColor: "#38bdf8",
+  movingBorderWidth: 3,
+  movingBorderColor: "#eeff00",
   movingBgOpacity: 0.9,
-  movingIconColor: "#7dd3fc",
+  movingIconColor: "#eeff00",
   movingShowIcon: true,
 };
 
@@ -136,12 +136,12 @@ interface TargetVisualStore extends TargetVisualState {
 }
 
 const DEFAULTS: TargetVisualState = {
-  trackStrokeWidth: 7,
-  trackDurationSec: 0,
+  trackStrokeWidth: 10,
+  trackDurationSec: 120,
   inactiveIconTimeoutSec: 0,
   autoZoomEnabled: true,
   defaultCategoriaDeteccion: 2, // Barco
-  use3DBoat: false,             // alto rendimiento por defecto
+  use3DBoat: false, // alto rendimiento por defecto
   boat3DConfig: { ...DEFAULT_BOAT3D_CONFIG },
   categoryModels: { ...DEFAULT_CATEGORY_MODELS },
   iconStyle2D: { ...DEFAULT_ICON_STYLE_2D },
@@ -164,12 +164,15 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
       setBoat3DConfig: (cfg) =>
         set((s) => ({ boat3DConfig: { ...s.boat3DConfig, ...cfg } })),
       setCategoryModel: (catId, path) =>
-        set((s) => ({ categoryModels: { ...s.categoryModels, [catId]: path } })),
+        set((s) => ({
+          categoryModels: { ...s.categoryModels, [catId]: path },
+        })),
       setIconStyle2D: (style) =>
         set((s) => ({ iconStyle2D: { ...s.iconStyle2D, ...style } })),
       setCustomMapCenter: (center) => set({ customMapCenter: center }),
       setCustomMapZoom: (zoom) => set({ customMapZoom: zoom }),
-      setCurrentViewportCenter: (center) => set({ currentViewportCenter: center }),
+      setCurrentViewportCenter: (center) =>
+        set({ currentViewportCenter: center }),
       setCurrentViewportZoom: (zoom) => set({ currentViewportZoom: zoom }),
       reset: () => set(DEFAULTS),
     }),
@@ -187,7 +190,6 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
         iconStyle2D: state.iconStyle2D,
         customMapCenter: state.customMapCenter,
         customMapZoom: state.customMapZoom,
-
       }),
     },
   ),

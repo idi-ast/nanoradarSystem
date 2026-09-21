@@ -17,6 +17,9 @@ interface PtzToolbarProps {
   visionStarting?: boolean;
   onToggleVision?: () => void;
   onOpenVisionConfig?: () => void;
+  dragHandleProps?: {
+    onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  };
 }
 
 export function PtzToolbar({
@@ -29,9 +32,13 @@ export function PtzToolbar({
   visionStarting,
   onToggleVision,
   onOpenVisionConfig,
+  dragHandleProps,
 }: PtzToolbarProps) {
   return (
-    <div className="flex items-center gap-3 px-2 py-1 border-b border-border">
+    <div
+      {...dragHandleProps}
+      className={`flex items-center gap-3 px-2 py-1 border-b border-border ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none" : ""}`}
+    >
       <span className="text-[11px] font-medium text-text-100 flex-1 truncate">
         {name}
       </span>

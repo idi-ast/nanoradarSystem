@@ -10,22 +10,24 @@ interface Props {
   zoneColor?: string | null;
 }
 
-export const TargetCard = memo(function TargetCard({ target, onClick, isSelected, zoneColor }: Props) {
+export const TargetCard = memo(function TargetCard({
+  target,
+  onClick,
+  isSelected,
+  zoneColor,
+}: Props) {
   const isCritical = target.nivel === 4;
   const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
-  const deviceColor =
-    DEVICE_COLOR[target.deviceType] ??
-    "bg-slate-500/20 text-slate-300 border-slate-500/40";
   const rawId = target.id.replace(/^(nanoRadar|magosradar|spotter)_/, "");
   const inZone = !!zoneColor;
 
   return (
     <div
-      className={`p-3 cursor-pointer transition-colors hover:bg-bg-300/50 ${
-        isSelected ? "ring-1 ring-sky-400/60" : ""
+      className={`p-3 border-t border-t-white/20  bg-bg-400/10 backdrop-blur-lg border border-transparent cursor-pointer rounded-xl transition-colors hover:bg-bg-300 ${
+        isSelected ? "ring-1 ring-bg-400/60" : ""
       }`}
       style={{
-        borderLeft: inZone ? `3px solid ${zoneColor}` : undefined,
+        border: inZone ? `1px solid ${zoneColor}69` : undefined,
         backgroundColor: inZone ? `${zoneColor}12` : undefined,
       }}
       onClick={() => onClick?.(target.id)}
@@ -41,28 +43,36 @@ export const TargetCard = memo(function TargetCard({ target, onClick, isSelected
           Track id: {rawId.slice(-4)}
         </span>
         <div className="flex gap-1">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${deviceColor}`}>
+          <span
+            className={`text-[10px] font-bold px-1.5 py-0.5 pe-2 me-1 border-e`}
+          >
             {deviceLabel}
           </span>
           <span
-            className={`text-[10px] rounded px-2 py-0.5  ${
+            className={`text-[10px] rounded-full px-2 py-0.5  ${
               isCritical
-                ? "bg-brand-100 text-text-100"
-                : "bg-sky-500 text-text-100 font-bold"
+                ? " border border-brand-100 bg-brand-100/20 text-text-100"
+                : "  text-text-200 font-bold"
             }`}
           >
-            LVL {target.nivel}
+            Nivel {target.nivel}
           </span>
         </div>
       </div>
-      {target.speed != null && (
+      <div className="flex items-center gap-5">
         <p className="text-[10px] text-text-200 mt-0.5">
-          Velocidad:{" "}
-          <span className="text-sky-300 font-bold">
-            {target.speed.toFixed(1)} km/h
+          SNR:{" "}
+          <span className="text-lime-300 font-bold">
+            {target.snr?.toFixed(4)}
           </span>
         </p>
-      )}
+        <p className="text-[10px] text-text-200 mt-0.5">
+          Nro Tracks:{" "}
+          <span className="text-sky-300 font-bold">
+            {target.history?.length ? `(${target.history.length})` : ""}
+          </span>
+        </p>
+      </div>
     </div>
   );
 });

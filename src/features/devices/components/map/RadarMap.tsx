@@ -172,6 +172,17 @@ export const RadarMap = memo(function RadarMap({
     flyToZoneFn,
   } = useRadarContext();
   const mapRef = useRef<MapRef>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     flyToZoneFn.current = (lat: number, lon: number, zoom = 16) => {
@@ -503,7 +514,7 @@ export const RadarMap = memo(function RadarMap({
   // }
 
   return (
-    <div className="radar-shell grow h-full flex border-r border-emerald-500/20">
+    <div ref={shellRef} className="radar-shell grow h-full flex border-r border-emerald-500/20">
       <div className="relative flex-1 h-full">
         {/* {!mapLoaded && <PageLoader />} */}
         <ReactMapGL

@@ -7,6 +7,7 @@ import { useRadarContext } from "../context/useRadarContext";
 import { useRadarTargets } from "../context/useRadarContext";
 import { useRadarStableTargets } from "../context/useRadarContext";
 import { RadarMap } from "../components/map/RadarMap";
+import { MapPanelsHost } from "../components/map/MapPanelsHost";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { TrackHistoryPanel } from "../components/panel/TrackHistoryPanel";
@@ -17,24 +18,30 @@ import { useTrackHistory } from "../hooks/useTrackHistory";
 import { RADAR_INSTANCES } from "../config";
 import type { DeviceFilter, TrackHistoryPoint } from "../types";
 import type { DeviceVisibility } from "../components/map/DevicesOverlay";
-import { ALL_VISIBLE, getActiveDeviceTypes, DEVICE_LABEL } from "../components/map/devicesConfig";
+import {
+  ALL_VISIBLE,
+  getActiveDeviceTypes,
+  DEVICE_LABEL,
+} from "../components/map/devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import Camera from "../components/map/cameras/Camera";
 import { useCameraActivityStore } from "../stores/cameraActivityStore";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import PtzCameraOverlay from "./PtzCameraOverlay";
+import { FloatingTargetsPanel } from "../components/map/FloatingTargetsPanel";
 
 function NanoPages() {
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isTablet } = useBreakpoint();
   return (
     <RadarProvider instance={RADAR_INSTANCES[0]}>
-      <NanoPagesContent isMobile={isMobile} />
+      <NanoPagesContent isCompact={isMobile || isTablet} />
     </RadarProvider>
   );
 }
 
-function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
+function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
   const [isOpenRightBar, setOpenRightBar] = useState(false);
+  const [isRightBarOpen, setIsRightBarOpen] = useState(true);
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>("all");
   const [historyRange, setHistoryRange] = useState<HistoryRange>({
     start: 0,
@@ -43,7 +50,9 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
   // ─── Historial de track ───
-  const [selectedHistoryTrackId, setSelectedHistoryTrackId] = useState<string | null>(null);
+  const [selectedHistoryTrackId, setSelectedHistoryTrackId] = useState<
+    string | null
+  >(null);
   const [showPopup, setShowPopup] = useState(false);
   const [historyTrackRange, setHistoryTrackRange] = useState<HistoryRange>({
     start: 0,
@@ -76,14 +85,36 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
 
   // Encontrar el target seleccionado
   const { targets } = useRadarTargets();
+
+  // Límites temporales del historial de los targets (para mostrar fechas en la barra)
+  const mainHistoryBounds = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const t of targets) {
+      for (const p of t.history) {
+        if (p[2] < min) min = p[2];
+        if (p[2] > max) max = p[2];
+      }
+    }
+    if (!isFinite(min) || !isFinite(max)) return undefined;
+    return { minTime: min, maxTime: max };
+  }, [targets]);
+
   const selectedTarget = useMemo(
     () => targets.find((t) => t.id === selectedHistoryTrackId) ?? null,
     [targets, selectedHistoryTrackId],
   );
 
   // Obtener historial del backend para el track seleccionado
-  const rawTrackId = selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ?? null;
-  const tipoRadar = selectedTarget?.deviceType === "magosradar" ? "magos" : selectedTarget?.deviceType === "nanoRadar" ? "nano" : undefined;
+  const rawTrackId =
+    selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ??
+    null;
+  const tipoRadar =
+    selectedTarget?.deviceType === "magosradar"
+      ? "magos"
+      : selectedTarget?.deviceType === "nanoRadar"
+        ? "nano"
+        : undefined;
   const { data: backendHistory } = useTrackHistory({
     trackId: rawTrackId,
     tipoRadar,
@@ -102,8 +133,10 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
       nivel: 0,
       zona: firstPoint?.zona ?? "",
       lastUpdate: firstPoint ? new Date(firstPoint.fecha).getTime() : 0,
-      deviceType: (backendHistory.tipo_radar === "magos" ? "magosradar"
-        : backendHistory.tipo_radar === "nano" ? "nanoRadar"
+      deviceType: (backendHistory.tipo_radar === "magos"
+        ? "magosradar"
+        : backendHistory.tipo_radar === "nano"
+          ? "nanoRadar"
           : "spotter") as "magosradar" | "nanoRadar" | "spotter",
       history: [] as [number, number, number][],
     };
@@ -112,7 +145,9 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const effectiveTarget = selectedTarget ?? virtualTarget;
   // Merge in-memory + backend history, deduplicado
   const mergedHistoryPoints = useMemo(() => {
-    const inMemoryPoints: TrackHistoryPoint[] = (selectedTarget?.history ?? []).map(([lat, lon, ts]) => ({
+    const inMemoryPoints: TrackHistoryPoint[] = (
+      selectedTarget?.history ?? []
+    ).map(([lat, lon, ts]) => ({
       fecha: new Date(ts).toISOString(),
       lat,
       lon,
@@ -145,6 +180,7 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
   const handleSelectHistoryTrack = useCallback((id: string | null) => {
     setSelectedHistoryTrackId(id);
     setHistoryTrackRange({ start: 0, end: 100 });
+    if (id) setIsRightBarOpen(true);
     setShowPopup(false);
   }, []);
 
@@ -154,11 +190,18 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
     setShowPopup(id !== null);
   }, []);
 
+  // En compact (mobile/tablet) al seleccionar un track se abre el drawer
+  const drawerOpen = isCompact && (isOpenRightBar || !!selectedHistoryTrackId);
+
+  const drawerWidthClass = isCompact ? "w-[min(88vw,20rem)]" : "w-72";
+
   return (
     <div
-      className={`w-full h-full ${isMobile ? "flex flex-row" : "grid grid-cols-12 overflow-hidden"}`}
+      className={`w-full h-full ${isCompact ? "relative flex flex-row overflow-hidden" : "grid grid-cols-12 overflow-hidden"}`}
     >
-      <div className="col-span-10 h-full flex flex-col w-full">
+      <div
+        className={`${isCompact ? "flex-1 min-w-0" : isRightBarOpen ? "col-span-10" : "col-span-12"} h-full flex flex-col w-full`}
+      >
         <div className="flex-1 min-h-0 w-full relative">
           <GeofenceFlash />
           <RadarMap
@@ -172,52 +215,98 @@ function NanoPagesContent({ isMobile }: { isMobile: boolean }) {
             historyTrackPoints={mergedHistoryPoints}
             historyTrackRange={historyTrackRange}
           />
+          {!isCompact && !isRightBarOpen && (
+            <>
+              <div className="absolute bottom-3 left-3 z-20 flex w-80 max-h-[70%] flex-col overflow-hidden ">
+                <div className="flex min-h-0 flex-1">
+                  <FloatingTargetsPanel
+                    deviceFilter={deviceFilter}
+                    onDeviceFilterChange={setDeviceFilter}
+                    onSelectTrack={handleSelectHistoryTrack}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsRightBarOpen(true)}
+                className="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border border-border bg-brand-100 px-1.5 py-3 shadow-lg transition-colors hover:bg-lime-300"
+                title="Mostrar panel derecho"
+              >
+                <IconArrowNarrowLeft size={20} stroke={1.5} />
+              </button>
+            </>
+          )}
+          {!isCompact && (
+            <div className="absolute right-20 top-13 z-20 flex max-h-[72%] w-82 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <PtzCameraOverlay
+                  hiddenPtz={deviceVisibility.hiddenPtz}
+                  onHidePtz={handleHidePtz}
+                />
+              </div>
+            </div>
+          )}
         </div>
-        <HistoryRangeBar onChange={handleRangeChange} />
-        <BottomBar title="Estado del Radar">
+        <BottomBar title="Línea de tiempo">
+          <HistoryRangeBar
+            onChange={handleRangeChange}
+            minTime={mainHistoryBounds?.minTime}
+            maxTime={mainHistoryBounds?.maxTime}
+          />
           <RadarStatusBar />
         </BottomBar>
       </div>
 
-      {!isMobile ? (
-        effectiveTarget ? (
-          <TrackHistoryPanel
-            target={effectiveTarget}
-            historyRange={historyTrackRange}
-            onHistoryRangeChange={handleHistoryTrackRangeChange}
-            onClose={() => setSelectedHistoryTrackId(null)}
-          />
-        ) : (
-          <RightBarNano
-            deviceFilter={deviceFilter}
-            onDeviceFilterChange={setDeviceFilter}
-            hiddenCamaras={deviceVisibility.hiddenCamaras}
-            onHideCamera={handleHideCamera}
-            hiddenPtz={deviceVisibility.hiddenPtz}
-            onHidePtz={handleHidePtz}
-            onSelectTrack={handleSelectHistoryTrack}
-          />
-        )
-      ) : isOpenRightBar ? (
-        effectiveTarget ? (
-          <TrackHistoryPanel
-            target={effectiveTarget}
-            historyRange={historyTrackRange}
-            onHistoryRangeChange={handleHistoryTrackRangeChange}
-            onClose={() => setSelectedHistoryTrackId(null)}
-          />
-        ) : (
-          <RightBarNano
-            setOpenRightBar={setOpenRightBar}
-            deviceFilter={deviceFilter}
-            onDeviceFilterChange={setDeviceFilter}
-            hiddenCamaras={deviceVisibility.hiddenCamaras}
-            onHideCamera={handleHideCamera}
-            hiddenPtz={deviceVisibility.hiddenPtz}
-            onHidePtz={handleHidePtz}
-            onSelectTrack={handleSelectHistoryTrack}
-          />
-        )
+      {!isCompact ? (
+        isRightBarOpen ? (
+          <div className="col-span-2 relative h-full overflow-hidden">
+            {effectiveTarget ? (
+              <TrackHistoryPanel
+                target={effectiveTarget}
+                historyRange={historyTrackRange}
+                onHistoryRangeChange={handleHistoryTrackRangeChange}
+                onClose={() => setSelectedHistoryTrackId(null)}
+              />
+            ) : (
+              <RightBarNano
+                deviceFilter={deviceFilter}
+                onDeviceFilterChange={setDeviceFilter}
+                hiddenCamaras={deviceVisibility.hiddenCamaras}
+                onHideCamera={handleHideCamera}
+                hiddenPtz={deviceVisibility.hiddenPtz}
+                onHidePtz={handleHidePtz}
+                onSelectTrack={handleSelectHistoryTrack}
+                onClose={() => setIsRightBarOpen(false)}
+              />
+            )}
+            <MapPanelsHost />
+          </div>
+        ) : null
+      ) : drawerOpen ? (
+        <div
+          className={`absolute inset-y-0 right-0 z-40 ${drawerWidthClass} border-s border-border shadow-2xl animate-slide-in-right bg-bg-100 overflow-hidden relative`}
+        >
+          {effectiveTarget ? (
+            <TrackHistoryPanel
+              target={effectiveTarget}
+              historyRange={historyTrackRange}
+              onHistoryRangeChange={handleHistoryTrackRangeChange}
+              onClose={() => setSelectedHistoryTrackId(null)}
+            />
+          ) : (
+            <RightBarNano
+              setOpenRightBar={setOpenRightBar}
+              deviceFilter={deviceFilter}
+              onDeviceFilterChange={setDeviceFilter}
+              hiddenCamaras={deviceVisibility.hiddenCamaras}
+              onHideCamera={handleHideCamera}
+              hiddenPtz={deviceVisibility.hiddenPtz}
+              onHidePtz={handleHidePtz}
+              onSelectTrack={handleSelectHistoryTrack}
+            />
+          )}
+          <MapPanelsHost />
+        </div>
       ) : (
         <button
           className="absolute right-0 z-50 top-[50%] rounded-s-sm bg-brand-100"
@@ -260,10 +349,11 @@ const RadarStatusBar = memo(() => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${criticalCount > 0
-            ? "text-red-500 animate-pulse"
-            : "text-text-100/30"
-            }`}
+          className={`font-bold text-xl leading-tight ${
+            criticalCount > 0
+              ? "text-red-500 animate-pulse"
+              : "text-text-100/30"
+          }`}
         >
           {criticalCount}
         </span>
@@ -282,6 +372,7 @@ const RightBarNano = memo(
     hiddenPtz,
     onHidePtz,
     onSelectTrack,
+    onClose,
   }: {
     setOpenRightBar?: (isOpen: boolean) => void;
     deviceFilter: DeviceFilter;
@@ -291,6 +382,7 @@ const RightBarNano = memo(
     hiddenPtz: Set<number>;
     onHidePtz?: (id: number) => void;
     onSelectTrack?: (id: string | null) => void;
+    onClose?: () => void;
   }) {
     const { zones, instanceConfig } = useRadarContext();
     const { targets } = useRadarTargets();
@@ -304,18 +396,22 @@ const RightBarNano = memo(
 
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
-        {isDesktop && <div className="shrink-0 p-5 bg-bg-100 rounded-xl m-1">
-          <h3>Control Radar</h3>
-          <h5>Zonas y Detecciones</h5>
-          {setOpenRightBar && (
-            <button
-              onClick={() => setOpenRightBar(false)}
-              className="absolute top-3 right-3 z-50"
-            >
-              <IconX size={20} stroke={1.5} />
-            </button>
-          )}
-        </div>}
+        {(isDesktop || setOpenRightBar) && (
+          <div className="shrink-0 px-5 bg-bg-100 rounded-xl m-1">
+            <h3>Control Radar</h3>
+            <h5 className="text-text-200">Zonas y Detecciones</h5>
+            {(setOpenRightBar || onClose) && (
+              <button
+                onClick={() => (onClose ? onClose() : setOpenRightBar?.(false))}
+                className="absolute top-3 flex items-center gap-1 right-3 z-50"
+                title="Ocultar panel"
+              >
+                <span className="text-[11px] uppercase">Ocultar</span>
+                <IconX size={20} stroke={1.5} />
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 gap-3">
           <div className="shrink-0 space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1">
@@ -338,13 +434,22 @@ const RightBarNano = memo(
             )}
           </div>
 
-          {isDesktop && <TargetsDynamicPanel
-            deviceFilter={deviceFilter}
-            onDeviceFilterChange={onDeviceFilterChange}
-            onSelectTrack={onSelectTrack}
-          />}
-          {isDesktop && <CamerasOverlay hiddenCamaras={hiddenCamaras} onHideCamera={onHideCamera} />}
-          <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
+          {isDesktop && (
+            <TargetsDynamicPanel
+              deviceFilter={deviceFilter}
+              onDeviceFilterChange={onDeviceFilterChange}
+              onSelectTrack={onSelectTrack}
+            />
+          )}
+          {isDesktop && (
+            <CamerasOverlay
+              hiddenCamaras={hiddenCamaras}
+              onHideCamera={onHideCamera}
+            />
+          )}
+          {!isDesktop && (
+            <PtzCameraOverlay hiddenPtz={hiddenPtz} onHidePtz={onHidePtz} />
+          )}
         </div>
       </div>
     );
@@ -358,6 +463,7 @@ const RightBarNano = memo(
     if (prev.hiddenPtz !== next.hiddenPtz) return false;
     if (prev.onHidePtz !== next.onHidePtz) return false;
     if (prev.onSelectTrack !== next.onSelectTrack) return false;
+    if (prev.onClose !== next.onClose) return false;
     return true;
   },
 );
@@ -381,11 +487,16 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
     return stableTargets.filter((t) => t.id.toLowerCase().includes(lower));
   }, [stableTargets, searchTrackId]);
 
-  const handleSearchTrackSelect = useCallback((id: string | null) => {
-    if (!id || !onSelectTrack) return;
-    const match = stableTargets.find((t) => t.id.toLowerCase().includes(id.toLowerCase()));
-    onSelectTrack(match?.id ?? id);
-  }, [onSelectTrack, stableTargets]);
+  const handleSearchTrackSelect = useCallback(
+    (id: string | null) => {
+      if (!id || !onSelectTrack) return;
+      const match = stableTargets.find((t) =>
+        t.id.toLowerCase().includes(id.toLowerCase()),
+      );
+      onSelectTrack(match?.id ?? id);
+    },
+    [onSelectTrack, stableTargets],
+  );
   const { zones } = useRadarContext();
   const { data: configData } = useConfigDevices();
   const activeTypes = useMemo(
@@ -401,7 +512,13 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
         const rawVertices = Array.isArray(zone.poligono.vertices)
           ? zone.poligono.vertices
           : Object.values(zone.poligono.vertices);
-        if (isPointInPolygon(target.lat, target.lon, rawVertices as [number, number][])) {
+        if (
+          isPointInPolygon(
+            target.lat,
+            target.lon,
+            rawVertices as [number, number][],
+          )
+        ) {
           // Si ya tiene zona asignada, no sobreescribir (prioridad primera zona encontrada)
           if (!map.has(target.id)) {
             map.set(target.id, zone.poligono.color);
@@ -414,8 +531,10 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div className="flex justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
-      ">
+      <div
+        className="flex justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
+      "
+      >
         <span>Buscar track </span>
         <input
           type="text"
@@ -460,8 +579,7 @@ const GeofenceFlash = memo(function GeofenceFlash() {
     hasAlert &&
     zones.some(
       (z) =>
-        activeZoneIds.has(z.id?.toString() ?? z.nombre) &&
-        (z.destello ?? true),
+        activeZoneIds.has(z.id?.toString() ?? z.nombre) && (z.destello ?? true),
     );
 
   if (!shouldFlash) return null;
@@ -540,14 +658,15 @@ const TargetsSection = memo(function TargetsSection({
             <button
               key={key}
               onClick={() => onDeviceFilterChange(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
-                ? "border-sky-400 text-sky-400"
-                : "border-transparent text-text-100/40 hover:text-text-100/70"
-                }`}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
+                isActive
+                  ? "border-bg-400 text-bg-400"
+                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+              }`}
             >
               {label}
               <span
-                className={`ml-1 px-1 rounded-full text-[12px] ${isActive ? "bg-sky-500/30" : "bg-bg-300"}`}
+                className={`ml-1 px-1 rounded-full text-[12px]  ${isActive ? "bg-bg-400 text-text-400" : "bg-bg-300 "}`}
               >
                 {count}
               </span>
@@ -601,7 +720,7 @@ const CamerasOverlay = memo(function CamerasOverlay({
 
   if (!camaras || camaras.length === 0)
     return (
-      <div className="h-40 w-full flex justify-center items-center border border-border rounded-lg ">
+      <div className="max-h-40 w-full py-1 flex justify-center items-center border border-border rounded-lg ">
         <div>
           <p className="text-text-200">
             No hay <span className="font-bold">cámaras</span> ingresadas
@@ -614,23 +733,25 @@ const CamerasOverlay = memo(function CamerasOverlay({
       <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1 w-full">
         Cámaras({camaras.length > 0 ? camaras.length : "0"})
       </h4>
-      {camaras.filter((cam) => !hiddenCamaras.has(cam.id)).map((cam) => {
-        const stackIndex = maximizedIds.indexOf(cam.id);
-        const activity = isEnabled(cam.id)
-          ? cameraActivities.find((a) => a.ip === cam.direccionIp)
-          : undefined;
-        return (
-          <Camera
-            key={cam.id}
-            camera={cam}
-            stackIndex={stackIndex >= 0 ? stackIndex : 0}
-            onBecomeMaximized={() => handleMaximize(cam.id)}
-            onBecomeMinimized={() => handleMinimize(cam.id)}
-            onClose={onHideCamera ? () => onHideCamera(cam.id) : undefined}
-            activity={activity}
-          />
-        );
-      })}
+      {camaras
+        .filter((cam) => !hiddenCamaras.has(cam.id))
+        .map((cam) => {
+          const stackIndex = maximizedIds.indexOf(cam.id);
+          const activity = isEnabled(cam.id)
+            ? cameraActivities.find((a) => a.ip === cam.direccionIp)
+            : undefined;
+          return (
+            <Camera
+              key={cam.id}
+              camera={cam}
+              stackIndex={stackIndex >= 0 ? stackIndex : 0}
+              onBecomeMaximized={() => handleMaximize(cam.id)}
+              onBecomeMinimized={() => handleMinimize(cam.id)}
+              onClose={onHideCamera ? () => onHideCamera(cam.id) : undefined}
+              activity={activity}
+            />
+          );
+        })}
     </div>
   );
-})
+});

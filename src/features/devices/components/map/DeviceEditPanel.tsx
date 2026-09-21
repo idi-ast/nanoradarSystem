@@ -1,7 +1,20 @@
 import { useState, useEffect } from "react";
-import { ptzGetTiltInclination, ptzSetTiltInclination } from "./cameras/ptz/service";
+import { createPortal } from "react-dom";
+import {
+  ptzGetTiltInclination,
+  ptzSetTiltInclination,
+} from "./cameras/ptz/service";
 import { TiltSlider } from "./cameras/ptz/components/TiltSlider";
-import { IconX, IconDeviceFloppy, IconTrash, IconAlertTriangle, IconMapPin, IconCrosshair, IconSettings, IconFilter, IconFilterOff } from "@tabler/icons-react";
+import {
+  IconX,
+  IconDeviceFloppy,
+  IconTrash,
+  IconAlertTriangle,
+  IconMapPin,
+  IconSettings,
+  IconFilter,
+  IconFilterOff,
+} from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
 import type {
@@ -11,16 +24,31 @@ import type {
   Camaras,
   Ptz,
 } from "@/features/config-devices/types/ConfigServices.type";
-import { useUpdateNanoradar, useDeleteNanoradar } from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
+import {
+  useUpdateNanoradar,
+  useDeleteNanoradar,
+} from "@/features/config-devices/nanoradar/hooks/useUpdateNanoradar";
 import type { NanoradarPayload } from "@/features/config-devices/nanoradar/service";
-import { useUpdateMagosradar, useDeleteMagosradar } from "@/features/config-devices/magosradar/hooks/useUpdateMagosradar";
+import {
+  useUpdateMagosradar,
+  useDeleteMagosradar,
+} from "@/features/config-devices/magosradar/hooks/useUpdateMagosradar";
 import type { MagosradarPayload } from "@/features/config-devices/magosradar/service";
-import { useUpdateSpotter, useDeleteSpotter } from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
+import {
+  useUpdateSpotter,
+  useDeleteSpotter,
+} from "@/features/config-devices/spotter/hooks/useUpdateSpotter";
 import type { SpotterPayload } from "@/features/config-devices/spotter/service";
-import { useUpdateCamara, useDeleteCamara } from "@/features/config-devices/camara/hooks/useUpdateCamara";
+import {
+  useUpdateCamara,
+  useDeleteCamara,
+} from "@/features/config-devices/camara/hooks/useUpdateCamara";
 import { useCameraActivityStore } from "../../stores/cameraActivityStore";
 import type { CamaraPayload } from "@/features/config-devices/camara/service";
-import { useUpdatePtz, useDeletePtz } from "@/features/config-devices/ptz/hooks";
+import {
+  useUpdatePtz,
+  useDeletePtz,
+} from "@/features/config-devices/ptz/hooks";
 import type { PtzPayload } from "@/features/config-devices/ptz/service";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { magosradarService } from "@/features/config-devices/magosradar/service/magosradar.service";
@@ -105,13 +133,7 @@ interface TextFieldProps {
   disabled?: boolean;
 }
 
-function TextField({
-  label,
-  value,
-  type,
-  onChange,
-  disabled,
-}: TextFieldProps) {
+function TextField({ label, value, type, onChange, disabled }: TextFieldProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
@@ -124,7 +146,6 @@ function TextField({
         disabled={disabled}
         className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 focus:outline-none focus:border-emerald-500/60 disabled:opacity-50 disabled:cursor-not-allowed"
       />
-
     </div>
   );
 }
@@ -134,10 +155,7 @@ interface ColorFieldProps {
   onChange: (v: string) => void;
 }
 
-function ColorField({
-  value,
-  onChange,
-}: ColorFieldProps) {
+function ColorField({ value, onChange }: ColorFieldProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
@@ -182,9 +200,6 @@ function PositionField({
   onLatChange,
   onLngChange,
   liveEditPos,
-  isPickingPosition,
-  onPickPosition,
-  onCancelPickPosition,
 }: PositionFieldProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -199,39 +214,8 @@ function PositionField({
         )}
       </div>
 
-      {/* Map pick button */}
-      {isPickingPosition ? (
-        <button
-          type="button"
-          onClick={onCancelPickPosition}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold"
-          style={{
-            background: "rgba(239,68,68,0.15)",
-            border: "1px solid rgba(239,68,68,0.4)",
-            color: "#f87171",
-          }}
-        >
-          <IconX size={11} />
-          Cancelar selección
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onPickPosition}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-semibold transition-colors hover:opacity-90"
-          style={{
-            background: "rgba(16,185,129,0.12)",
-            border: "1px solid rgba(16,185,129,0.35)",
-            color: "#10b981",
-          }}
-        >
-          <IconCrosshair size={11} />
-          Mover en mapa
-        </button>
-      )}
-
       {/* Lat / Lng inputs */}
-      <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <div className="flex items-center gap-1.5">
           <IconMapPin size={10} className="text-text-100/30 shrink-0" />
           <span className="text-[9px] text-text-100/40 w-7 shrink-0">Lat</span>
@@ -287,15 +271,81 @@ function ToggleField({
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`relative shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${value ? "bg-emerald-500" : "bg-bg-400"
-          }`}
+        className={`relative shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+          value ? "bg-emerald-500" : "bg-bg-400"
+        }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-4" : "translate-x-1"
-            }`}
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+            value ? "translate-x-4" : "translate-x-1"
+          }`}
         />
       </button>
     </div>
+  );
+}
+
+interface ConfirmDeleteModalProps {
+  deviceName: string;
+  isDeleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmDeleteModal({
+  deviceName,
+  isDeleting,
+  onCancel,
+  onConfirm,
+}: ConfirmDeleteModalProps) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onCancel]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div className="bg-bg-100 border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20">
+            <IconAlertTriangle size={18} className="text-red-400" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-text-100">
+              Eliminar dispositivo
+            </h3>
+            <p className="text-xs text-text-200 mt-1 leading-relaxed">
+              ¿Confirmar eliminación de{" "}
+              <span className="text-text-100 font-semibold">{deviceName}</span>?
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="flex-1 py-2 rounded-md text-[11px] font-semibold text-text-100/50 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 py-2 rounded-md text-[11px] font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? "Quitando..." : "Sí, quitar"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -327,8 +377,9 @@ function PanelWrapper({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const rootCls =
     mode === "floating"
-      ? "flex flex-col w-60 max-h-[calc(100vh-6rem)]"
-      : "flex flex-col h-full w-60 border-r border-emerald-500";
+      ? "flex flex-col  min-w-60 max-h-[calc(100vh-6rem)]"
+      : "flex flex-col h-full min-w-60 border-r border-emerald-500";
+
   return (
     <div className={rootCls}>
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 ">
@@ -357,7 +408,15 @@ function PanelWrapper({
         {children}
       </div>
 
-      <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
+      <div className="px-3 py-2 border-t border-border/60 shrink-0 grid grid-cols-2 gap-1.5">
+        <button
+          onClick={() => setConfirmDelete(true)}
+          disabled={isPending || isDeleting}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+        >
+          <IconTrash size={12} />
+          Quitar dispositivo
+        </button>
         <button
           onClick={onSave}
           disabled={isPending || isDeleting}
@@ -366,43 +425,16 @@ function PanelWrapper({
           <IconDeviceFloppy size={13} />
           {isPending ? "Guardando..." : "Guardar cambios"}
         </button>
-
-        {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            disabled={isPending || isDeleting}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-          >
-            <IconTrash size={12} />
-            Quitar dispositivo
-          </button>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 px-1 py-1 rounded-md bg-red-500/10 border border-red-500/20">
-              <IconAlertTriangle size={11} className="text-red-400 shrink-0" />
-              <span className="text-[10px] text-red-300 leading-tight">
-                ¿Confirmar eliminación?
-              </span>
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                disabled={isDeleting}
-                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold text-text-100/50 hover:text-text-100/80 hover:bg-bg-300/60 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={onDelete}
-                disabled={isDeleting}
-                className="flex-1 py-1.5 rounded-md text-[11px] font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? "Quitando..." : "Sí, quitar"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          deviceName={subtitle}
+          isDeleting={isDeleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={onDelete}
+        />
+      )}
     </div>
   );
 }
@@ -579,18 +611,6 @@ function MagosradarForm({
     azimut: device.azimut ?? "0",
   });
 
-  // ── Sincronizar form.latitud/longitud cuando el marker se arrastra en el mapa ──
-  // (liveEditPos cambia en el padre RadarMap, pero form es la fuente de verdad local)
-  useEffect(() => {
-    if (liveEditPos) {
-      setForm((p) => ({
-        ...p,
-        latitud: liveEditPos.lat.toFixed(7),
-        longitud: liveEditPos.lng.toFixed(7),
-      }));
-    }
-  }, [liveEditPos?.lat, liveEditPos?.lng]);
-
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
   const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
@@ -741,8 +761,12 @@ function SpotterForm({
   });
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatSP = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitude;
-  const effectiveLngSP = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitude;
+  const effectiveLatSP = liveEditPos
+    ? liveEditPos.lat.toFixed(7)
+    : form.latitude;
+  const effectiveLngSP = liveEditPos
+    ? liveEditPos.lng.toFixed(7)
+    : form.longitude;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -831,11 +855,17 @@ function SpotterForm({
         lng={effectiveLngSP}
         onLatChange={(v) => {
           set("latitude", v);
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(effectiveLngSP) });
+          onLiveEditPosChange?.({
+            lat: Number(v),
+            lng: Number(effectiveLngSP),
+          });
         }}
         onLngChange={(v) => {
           set("longitude", v);
-          onLiveEditPosChange?.({ lat: Number(effectiveLatSP), lng: Number(v) });
+          onLiveEditPosChange?.({
+            lat: Number(effectiveLatSP),
+            lng: Number(v),
+          });
         }}
         liveEditPos={liveEditPos}
         isPickingPosition={isPickingPosition}
@@ -897,8 +927,12 @@ function CamaraForm({
   });
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatCF = liveEditPos ? liveEditPos.lat.toFixed(7) : posForm.latitud;
-  const effectiveLngCF = liveEditPos ? liveEditPos.lng.toFixed(7) : posForm.longitud;
+  const effectiveLatCF = liveEditPos
+    ? liveEditPos.lat.toFixed(7)
+    : posForm.latitud;
+  const effectiveLngCF = liveEditPos
+    ? liveEditPos.lng.toFixed(7)
+    : posForm.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -981,13 +1015,7 @@ function CamaraForm({
         step={50}
         unit="m"
       />
-      <RangeNumberField
-        label="Channel"
-        value={form.channel}
-        onChange={(v) => set("channel", v)}
-        min={1}
-        max={64}
-      />
+
       <RangeNumberField
         label="Subtype"
         value={form.subtype}
@@ -1016,11 +1044,17 @@ function CamaraForm({
         lng={posForm.longitud}
         onLatChange={(v) => {
           setPosForm((p) => ({ ...p, latitud: v }));
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(posForm.longitud) });
+          onLiveEditPosChange?.({
+            lat: Number(v),
+            lng: Number(posForm.longitud),
+          });
         }}
         onLngChange={(v) => {
           setPosForm((p) => ({ ...p, longitud: v }));
-          onLiveEditPosChange?.({ lat: Number(posForm.latitud), lng: Number(v) });
+          onLiveEditPosChange?.({
+            lat: Number(posForm.latitud),
+            lng: Number(v),
+          });
         }}
         liveEditPos={liveEditPos}
         isPickingPosition={isPickingPosition}
@@ -1100,8 +1134,12 @@ function PtzForm({
   const [tiltAngle, setTiltAngle] = useState<number | null>(null);
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatPTZ = liveEditPos ? liveEditPos.lat.toFixed(7) : posForm.latitud;
-  const effectiveLngPTZ = liveEditPos ? liveEditPos.lng.toFixed(7) : posForm.longitud;
+  const effectiveLatPTZ = liveEditPos
+    ? liveEditPos.lat.toFixed(7)
+    : posForm.latitud;
+  const effectiveLngPTZ = liveEditPos
+    ? liveEditPos.lng.toFixed(7)
+    : posForm.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -1126,7 +1164,9 @@ function PtzForm({
         setTiltAngle(Number(res.data.inclination.toFixed(1)));
       }
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [device.id]);
 
   function save() {
@@ -1162,7 +1202,7 @@ function PtzForm({
 
   return (
     <PanelWrapper
-      title="PTZ"
+      title="Configuración PTZ"
       subtitle={form.nombre}
       onClose={onClose}
       onSave={save}
@@ -1174,64 +1214,99 @@ function PtzForm({
     >
       {/* ── Identificación ── */}
       <div className="grid grid-cols-2 gap-2">
-        <TextField label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
-        <TextField label="Dirección IP" value={form.direccionIp} onChange={(v) => set("direccionIp", v)} />
+        <TextField
+          label="Nombre"
+          value={form.nombre}
+          onChange={(v) => set("nombre", v)}
+        />
+        <TextField
+          label="Dirección IP"
+          value={form.direccionIp}
+          onChange={(v) => set("direccionIp", v)}
+        />
       </div>
 
       {/* ── Conexión ── */}
-      <div className="grid grid-cols-2 gap-2">
-        <TextField label="Puerto ONVIF" value={String(form.puertoOnvif)} onChange={(v) => set("puertoOnvif", v === "" ? 80 : Number(v))} />
-        <TextField label="Puerto RTSP" value={String(form.puertoRtsp)} onChange={(v) => set("puertoRtsp", v === "" ? 554 : Number(v))} />
+      <div className="grid grid-cols-4 gap-2">
+        <TextField
+          label="Puerto ONVIF"
+          value={String(form.puertoOnvif)}
+          onChange={(v) => set("puertoOnvif", v === "" ? 80 : Number(v))}
+        />
+        <TextField
+          label="Puerto RTSP"
+          value={String(form.puertoRtsp)}
+          onChange={(v) => set("puertoRtsp", v === "" ? 554 : Number(v))}
+        />
+        <TextField
+          label="Usuario"
+          value={form.usuario}
+          onChange={(v) => set("usuario", v)}
+        />
+        <TextField
+          label="Password"
+          type="password"
+          value={form.password}
+          onChange={(v) => set("password", v)}
+        />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <TextField label="Usuario" value={form.usuario} onChange={(v) => set("usuario", v)} />
-        <TextField label="Password" type="password" value={form.password} onChange={(v) => set("password", v)} />
-      </div>
-      <TextField label="URL Stream" value={form.url_stream} onChange={(v) => set("url_stream", v)} />
-
+      <TextField
+        label="URL Stream"
+        value={form.url_stream}
+        onChange={(v) => set("url_stream", v)}
+      />
       {/* ── Posición ── */}
       <PositionField
         lat={posForm.latitud}
         lng={posForm.longitud}
         onLatChange={(v) => {
           setPosForm((p) => ({ ...p, latitud: v }));
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(posForm.longitud) });
+          onLiveEditPosChange?.({
+            lat: Number(v),
+            lng: Number(posForm.longitud),
+          });
         }}
         onLngChange={(v) => {
           setPosForm((p) => ({ ...p, longitud: v }));
-          onLiveEditPosChange?.({ lat: Number(posForm.latitud), lng: Number(v) });
+          onLiveEditPosChange?.({
+            lat: Number(posForm.latitud),
+            lng: Number(v),
+          });
         }}
         liveEditPos={liveEditPos}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
       />
-      <TiltSlider
-        value={tiltAngle == null ? "" : String(tiltAngle)}
-        onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
-        onCommit={(angle) => onCommitTilt(angle)}
-      />
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
-          Azimut (pan 0°) · solo-lectura
-        </span>
-        <input
-          type="text"
-          value={form.azimut}
-          disabled
-          title="El azimut se fija con el panel de Calibración"
-          className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 opacity-50 cursor-not-allowed"
+      <div className="grid grid-cols-2">
+        <TiltSlider
+          value={tiltAngle == null ? "" : String(tiltAngle)}
+          onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
+          onCommit={(angle) => onCommitTilt(angle)}
         />
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
-          Calibración inmutable
-        </span>
-        <p className="text-[10px] text-text-100/50 leading-snug">
-          El azimut y el tiltOffset se calculan en el panel de{" "}
-          <span className="text-amber-400/80 font-medium">Calibración</span> de
-          la cámara: apunta físicamente a un punto de referencia y guárdalo.
-        </p>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+            Azimut (pan 0°) · solo-lectura
+          </span>
+          <input
+            type="text"
+            value={form.azimut}
+            disabled
+            title="El azimut se fija con el panel de Calibración"
+            className="text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 opacity-50 cursor-not-allowed"
+          />
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
+              Calibración inmutable
+            </span>
+            <p className="text-[10px] text-text-100/50 leading-snug max-w-xs">
+              El azimut y el tiltOffset se calculan en el panel de{" "}
+              <span className="text-amber-400/80 font-medium">Calibración</span>{" "}
+              de la cámara: apunta físicamente a un punto de referencia y
+              guárdalo.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Cobertura ── */}
@@ -1253,35 +1328,79 @@ function PtzForm({
         />
       </div>
       <div className="grid grid-cols-1 gap-2">
-        <RangeNumberField label="Apertura" value={liveEdit.apertura} onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })} min={1} max={180} unit="°" />
+        <RangeNumberField
+          label="Apertura"
+          value={liveEdit.apertura}
+          onChange={(v) => onLiveEditChange({ ...liveEdit, apertura: v })}
+          min={1}
+          max={180}
+          unit="°"
+        />
       </div>
-      <RangeNumberField label="Radio" value={liveEdit.radio} onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })} min={0} max={10000} step={50} unit="m" />
-      <ColorField value={liveEdit.color} onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })} />
+      <RangeNumberField
+        label="Radio"
+        value={liveEdit.radio}
+        onChange={(v) => onLiveEditChange({ ...liveEdit, radio: v })}
+        min={0}
+        max={10000}
+        step={50}
+        unit="m"
+      />
 
       {/* ── Video ── */}
-      <div className="grid grid-cols-2 gap-2">
-        <RangeNumberField label="Channel" value={form.channel} onChange={(v) => set("channel", v)} min={1} max={64} />
-        <RangeNumberField label="Subtype" value={form.subtype} onChange={(v) => set("subtype", v)} min={0} max={10} />
+      <div className="grid grid-cols-3 gap-2">
+        <ColorField
+          value={liveEdit.color}
+          onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
+        />
+        <RangeNumberField
+          label="Channel"
+          value={form.channel}
+          onChange={(v) => set("channel", v)}
+          min={1}
+          max={64}
+        />
+        <RangeNumberField
+          label="Subtype"
+          value={form.subtype}
+          onChange={(v) => set("subtype", v)}
+          min={0}
+          max={10}
+        />
       </div>
 
       {/* ── Corrección de ejes ── */}
       <div className="flex flex-col gap-2 border-t border-border/30">
-        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">Corrección de ejes</span>
-        <div className="grid grid-cols-2 gap-1">
+        <span className="text-[10px] font-semibold text-text-100/40 uppercase tracking-widest">
+          Corrección de ejes
+        </span>
+        <div className="grid grid-cols-3 gap-1">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.panInvertido === 1} onChange={(e) => set("panInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
+            <input
+              type="checkbox"
+              checked={form.panInvertido === 1}
+              onChange={(e) => set("panInvertido", e.target.checked ? 1 : 0)}
+              className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer"
+            />
             <span className="text-[11px] text-text-100/70">Espejo X (pan)</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.tiltInvertido === 1} onChange={(e) => set("tiltInvertido", e.target.checked ? 1 : 0)} className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer" />
-            <span className="text-[11px] text-text-100/70">Espejo Y (tilt)</span>
+            <input
+              type="checkbox"
+              checked={form.tiltInvertido === 1}
+              onChange={(e) => set("tiltInvertido", e.target.checked ? 1 : 0)}
+              className="w-3.5 h-3.5 rounded accent-emerald-400 cursor-pointer"
+            />
+            <span className="text-[11px] text-text-100/70">
+              Espejo Y (tilt)
+            </span>
           </label>
+          <TextField
+            label="Pan Offset (°)"
+            value={String(form.panOffset)}
+            onChange={(v) => set("panOffset", v === "" ? 0 : Number(v))}
+          />
         </div>
-        <TextField
-          label="Pan Offset (°)"
-          value={String(form.panOffset)}
-          onChange={(v) => set("panOffset", v === "" ? 0 : Number(v))}
-        />
       </div>
     </PanelWrapper>
   );
@@ -1322,7 +1441,16 @@ interface SliderFieldProps {
   info: string;
 }
 
-function SliderField({ label, value, onChange, min, max, step = 1, unit, info }: SliderFieldProps) {
+function SliderField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  unit,
+  info,
+}: SliderFieldProps) {
   const num = value === "" ? 0 : Number(value);
   return (
     <div className="flex flex-col gap-1">
@@ -1330,7 +1458,9 @@ function SliderField({ label, value, onChange, min, max, step = 1, unit, info }:
         <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
           {label}
         </span>
-        {unit && <span className="text-xs font-mono text-text-100/25">{unit}</span>}
+        {unit && (
+          <span className="text-xs font-mono text-text-100/25">{unit}</span>
+        )}
         <InfoIcon text={info} />
       </div>
       <div className="flex items-center gap-2">
@@ -1340,7 +1470,11 @@ function SliderField({ label, value, onChange, min, max, step = 1, unit, info }:
           max={max}
           step={step}
           value={isNaN(num) ? min : Math.min(Math.max(num, min), max)}
-          onChange={(e) => onChange(e.target.value === "" ? "" : String(Number(e.target.value)))}
+          onChange={(e) =>
+            onChange(
+              e.target.value === "" ? "" : String(Number(e.target.value)),
+            )
+          }
           className="flex-1 accent-emerald-400 cursor-pointer"
           style={{ height: "4px" }}
         />
@@ -1367,7 +1501,14 @@ interface TextFieldInfoProps {
   placeholder?: string;
 }
 
-function TextFieldInfo({ label, value, onChange, info, type, placeholder }: TextFieldInfoProps) {
+function TextFieldInfo({
+  label,
+  value,
+  onChange,
+  info,
+  type,
+  placeholder,
+}: TextFieldInfoProps) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
@@ -1390,7 +1531,9 @@ function TextFieldInfo({ label, value, onChange, info, type, placeholder }: Text
 // ════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════
-export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps) {
+export function MagosradarAdvancedPanel({
+  device,
+}: MagosradarAdvancedFormProps) {
   const { mutate, isPending } = useUpdateMagosradar();
   const { success, error: showError } = useToast();
 
@@ -1430,8 +1573,12 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
   // ─── PTZ Auto-Tracking ───
   const { data: configData } = useConfigDevices();
   const ptzCameras = configData?.data?.ptz ?? [];
-  const [selectedPtzId, setSelectedPtzId] = useState<number | null>(device.idPtz ?? null);
-  const [autoTracking, setAutoTracking] = useState(device.ptzAutoTracking ?? false);
+  const [selectedPtzId, setSelectedPtzId] = useState<number | null>(
+    device.idPtz ?? null,
+  );
+  const [autoTracking, setAutoTracking] = useState(
+    device.ptzAutoTracking ?? false,
+  );
   const [ptzLoading, setPtzLoading] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
 
@@ -1475,8 +1622,6 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
     }
   }
 
-
-
   function set(k: string, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
   }
@@ -1502,12 +1647,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           rcs: nn(form.rcs),
           maxSpeed: nn(form.maxSpeed),
           associationDist: nn(form.associationDist),
-          minTrackPoints: form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
+          minTrackPoints:
+            form.minTrackPoints === "" ? null : Number(form.minTrackPoints),
           ttl: nn(form.ttl),
           stationaryTtl: nn(form.stationaryTtl),
           emaSmooth: nn(form.emaSmooth),
           velSmooth: nn(form.velSmooth),
-          maxDetections: form.maxDetections === "" ? null : Number(form.maxDetections),
+          maxDetections:
+            form.maxDetections === "" ? null : Number(form.maxDetections),
           clusterDist: nn(form.clusterDist),
           zoomAutomatico: form.zoomAutomatico === "1" ? 1 : 0,
           zoomMin: nn(form.zoomMin),
@@ -1515,8 +1662,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
         },
       },
       {
-        onSuccess: () => success("Parámetros avanzados guardados correctamente"),
-        onError: (err) => showError(err instanceof Error ? err.message : "Error al guardar parámetros avanzados"),
+        onSuccess: () =>
+          success("Parámetros avanzados guardados correctamente"),
+        onError: (err) =>
+          showError(
+            err instanceof Error
+              ? err.message
+              : "Error al guardar parámetros avanzados",
+          ),
       },
     );
   }
@@ -1530,7 +1683,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <span className="text-[9px] font-bold uppercase tracking-widest text-text-100/40">
             MagosRadar · Avanzado
           </span>
-          <span className="text-[7px] text-text-100/20 uppercase">{globalHint}</span>
+          <span className="text-[7px] text-text-100/20 uppercase">
+            {globalHint}
+          </span>
         </div>
 
         {/* Scrollable content */}
@@ -1540,28 +1695,38 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             Estado & modelo
           </p>
           <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5">
-
-            <TextFieldInfo label="Modelo" value={form.modelo} onChange={(v) => set("modelo", v)} placeholder="Magos X7" />
+            <TextFieldInfo
+              label="Modelo"
+              value={form.modelo}
+              onChange={(v) => set("modelo", v)}
+              placeholder="Magos X7"
+            />
             <div>
-              <TextFieldInfo label="Notas" value={form.notas} onChange={(v) => set("notas", v)} placeholder="Radar principal sector norte" />
+              <TextFieldInfo
+                label="Notas"
+                value={form.notas}
+                onChange={(v) => set("notas", v)}
+                placeholder="Radar principal sector norte"
+              />
             </div>
             <div className="flex items-center gap-3 w-full justify-end">
               <button
                 type="button"
                 onClick={() => set("enabled", form.enabled === "1" ? "0" : "1")}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
-                  }`}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  form.enabled === "1" ? "bg-emerald-500" : "bg-bg-400"
+                }`}
               >
                 <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${form.enabled === "1" ? "translate-x-4" : "translate-x-1"
-                    }`}
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                    form.enabled === "1" ? "translate-x-4" : "translate-x-1"
+                  }`}
                 />
               </button>
               <div>
                 <InfoIcon text="Activa/desactiva el radar. 0 = no se conecta. 1 = operativo." />
               </div>
             </div>
-
           </div>
 
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-5">
@@ -1570,7 +1735,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Cámara PTZ</span>
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+                  Cámara PTZ
+                </span>
                 <InfoIcon text="Asigna una cámara PTZ para que siga automáticamente los tracks del radar en zonas de alerta." />
               </div>
               <select
@@ -1593,7 +1760,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Auto-tracking</span>
+                <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+                  Auto-tracking
+                </span>
                 <InfoIcon text="La cámara PTZ seguirá automáticamente los tracks del radar dentro de las zonas de alerta." />
               </div>
               <div className="flex items-center gap-3 pt-1">
@@ -1607,19 +1776,33 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                     className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${autoTracking ? "translate-x-4" : "translate-x-1"}`}
                   />
                 </button>
-                <span className={`text-[10px] ${selectedPtzId === null ? "text-text-200/30" : autoTracking ? "text-emerald-400" : "text-text-200/60"}`}>
-                  {selectedPtzId === null ? "Asigna una PTZ" : autoTracking ? "Activo" : "Inactivo"}
+                <span
+                  className={`text-[10px] ${selectedPtzId === null ? "text-text-200/30" : autoTracking ? "text-emerald-400" : "text-text-200/60"}`}
+                >
+                  {selectedPtzId === null
+                    ? "Asigna una PTZ"
+                    : autoTracking
+                      ? "Activo"
+                      : "Inactivo"}
                 </span>
-                {trackingLoading && <span className="text-[9px] text-text-200/50 animate-pulse">···</span>}
+                {trackingLoading && (
+                  <span className="text-[9px] text-text-200/50 animate-pulse">
+                    ···
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {/* ═══ ZOOM AUTOMÁTICO ═══ */}
-          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-5 ${form.zoomAutomatico === "1" ? "bg-brand-200/10 border-brand-200/40" : "bg-bg-100/40 border-border/40"}`}>
+          <div
+            className={`rounded-md px-2 py-1.5 border transition-colors mb-5 ${form.zoomAutomatico === "1" ? "bg-brand-200/10 border-brand-200/40" : "bg-bg-100/40 border-border/40"}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="leading-tight">
-                <span className="text-[10px] font-semibold text-text-100/80">Zoom automático</span>
+                <span className="text-[10px] font-semibold text-text-100/80">
+                  Zoom automático
+                </span>
                 <p className="text-[8px] text-text-200/60 italic">
                   {form.zoomAutomatico === "1"
                     ? "La cámara acerca el zoom cuando un track entra a una zona"
@@ -1630,15 +1813,21 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 type="button"
                 role="switch"
                 aria-checked={form.zoomAutomatico === "1"}
-                onClick={() => set("zoomAutomatico", form.zoomAutomatico === "1" ? "0" : "1")}
+                onClick={() =>
+                  set("zoomAutomatico", form.zoomAutomatico === "1" ? "0" : "1")
+                }
                 className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.zoomAutomatico === "1" ? "bg-brand-200" : "bg-bg-300"}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.zoomAutomatico === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.zoomAutomatico === "1" ? "translate-x-4" : "translate-x-0"}`}
+                />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <label className="flex flex-col gap-0.5">
-                <span className="text-[8px] uppercase tracking-widest text-text-200/50">Zoom máx (0-1)</span>
+                <span className="text-[8px] uppercase tracking-widest text-text-200/50">
+                  Zoom máx (0-1)
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -1652,7 +1841,9 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 />
               </label>
               <label className="flex flex-col gap-0.5">
-                <span className="text-[8px] uppercase tracking-widest text-text-200/50">Zoom mín (0-1)</span>
+                <span className="text-[8px] uppercase tracking-widest text-text-200/50">
+                  Zoom mín (0-1)
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -1672,14 +1863,46 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
             Geo & RF
           </p>
           <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-5 hidden">
-            <SliderField label="Elevación" value={form.elevacion} onChange={(v) => set("elevacion", v)} min={-90} max={90} step={0.1} unit="°"
-              info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo." />
-            <SliderField label="Altitud" value={form.altitud} onChange={(v) => set("altitud", v)} min={0} max={9000} step={1} unit="msnm"
-              info="Altitud del radar sobre el nivel del mar. Solo informativo." />
-            <SliderField label="Frecuencia" value={form.frecuencia} onChange={(v) => set("frecuencia", v)} min={1} max={100} step={0.1} unit="GHz"
-              info="Frecuencia de operación del hardware. Solo informativo." />
-            <SliderField label="Potencia" value={form.potencia} onChange={(v) => set("potencia", v)} min={-20} max={50} step={0.1} unit="dBm"
-              info="Potencia de transmisión del hardware. Solo informativo." />
+            <SliderField
+              label="Elevación"
+              value={form.elevacion}
+              onChange={(v) => set("elevacion", v)}
+              min={-90}
+              max={90}
+              step={0.1}
+              unit="°"
+              info="Ángulo de elevación de la antena respecto al horizonte. Solo informativo."
+            />
+            <SliderField
+              label="Altitud"
+              value={form.altitud}
+              onChange={(v) => set("altitud", v)}
+              min={0}
+              max={9000}
+              step={1}
+              unit="msnm"
+              info="Altitud del radar sobre el nivel del mar. Solo informativo."
+            />
+            <SliderField
+              label="Frecuencia"
+              value={form.frecuencia}
+              onChange={(v) => set("frecuencia", v)}
+              min={1}
+              max={100}
+              step={0.1}
+              unit="GHz"
+              info="Frecuencia de operación del hardware. Solo informativo."
+            />
+            <SliderField
+              label="Potencia"
+              value={form.potencia}
+              onChange={(v) => set("potencia", v)}
+              min={-20}
+              max={50}
+              step={0.1}
+              unit="dBm"
+              info="Potencia de transmisión del hardware. Solo informativo."
+            />
           </div>
 
           <p className="text-[9px] font-semibold uppercase tracking-widest text-text-100/30 mb-2 mt-5">
@@ -1688,20 +1911,32 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           {/* trackColor — input texto + color picker */}
           <div className="flex flex-col gap-1 mb-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">Color tracks</span>
+              <span className="text-[9px] font-semibold text-text-100/50 uppercase tracking-widest">
+                Color tracks
+              </span>
               <InfoIcon text="Color único para todos los tracks de este radar. Vacío = paleta automática." />
             </div>
             <div className="flex items-center gap-1.5">
-              <input type="color" value={form.trackColor || "#00e5ff"} onChange={(e) => set("trackColor", e.target.value)}
-                className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0" />
-              <input type="text" value={form.trackColor} onChange={(e) => set("trackColor", e.target.value)}
+              <input
+                type="color"
+                value={form.trackColor || "#00e5ff"}
+                onChange={(e) => set("trackColor", e.target.value)}
+                className="w-6 h-6 rounded border border-border/60 cursor-pointer bg-transparent shrink-0"
+              />
+              <input
+                type="text"
+                value={form.trackColor}
+                onChange={(e) => set("trackColor", e.target.value)}
                 placeholder="#00e5ff"
-                className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60" />
+                className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded-md px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60"
+              />
             </div>
           </div>
 
           {/* ═══ TOGGLE: VER TRACKS SIN FILTROS ═══ */}
-          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-3 ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}>
+          <div
+            className={`rounded-md px-2 py-1.5 border transition-colors mb-3 ${form.sinFiltro === "1" ? "bg-rose-500/10 border-rose-500/40" : "bg-bg-100/40 border-border/40"}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 {form.sinFiltro === "1" ? (
@@ -1710,15 +1945,22 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                   <IconFilter size={13} className="text-text-100/60 shrink-0" />
                 )}
                 <div className="leading-tight">
-                  <span className="text-[10px] font-semibold text-text-100/80">Ver tracks sin filtros</span>
-                  <p className="text-xs text-text-200/60 italic">Detecciones crudas post-procesadas (sin SNR, RCS, clustering ni tracking)</p>
+                  <span className="text-[10px] font-semibold text-text-100/80">
+                    Ver tracks sin filtros
+                  </span>
+                  <p className="text-xs text-text-200/60 italic">
+                    Detecciones crudas post-procesadas (sin SNR, RCS, clustering
+                    ni tracking)
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={form.sinFiltro === "1"}
-                onClick={() => set("sinFiltro", form.sinFiltro === "1" ? "0" : "1")}
+                onClick={() =>
+                  set("sinFiltro", form.sinFiltro === "1" ? "0" : "1")
+                }
                 className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.sinFiltro === "1" ? "bg-rose-500" : "bg-bg-300"}`}
               >
                 <span
@@ -1731,8 +1973,12 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           {/* ═══ MODO ESPEJO (ORIENTACIÓN) ═══ */}
           <div className="rounded-md px-2 py-1.5 border border-border/40 mb-3 bg-bg-100/40">
             <div className="leading-tight mb-1.5">
-              <span className="text-[10px] font-semibold text-text-100/80">Modo espejo</span>
-              <p className="text-xs text-text-200/60 italic">Invierte los ejes para alinear los tracks con la realidad</p>
+              <span className="text-[10px] font-semibold text-text-100/80">
+                Modo espejo
+              </span>
+              <p className="text-xs text-text-200/60 italic">
+                Invierte los ejes para alinear los tracks con la realidad
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center justify-between gap-1.5 rounded border border-border/40 px-1.5 py-1">
@@ -1741,10 +1987,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                   type="button"
                   role="switch"
                   aria-checked={form.espejoX === "1"}
-                  onClick={() => set("espejoX", form.espejoX === "1" ? "0" : "1")}
+                  onClick={() =>
+                    set("espejoX", form.espejoX === "1" ? "0" : "1")
+                  }
                   className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoX === "1" ? "bg-brand-200" : "bg-bg-300"}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoX === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoX === "1" ? "translate-x-4" : "translate-x-0"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-center justify-between gap-1.5 rounded border border-border/40 px-1.5 py-1">
@@ -1753,10 +2003,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                   type="button"
                   role="switch"
                   aria-checked={form.espejoY === "1"}
-                  onClick={() => set("espejoY", form.espejoY === "1" ? "0" : "1")}
+                  onClick={() =>
+                    set("espejoY", form.espejoY === "1" ? "0" : "1")
+                  }
                   className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.espejoY === "1" ? "bg-brand-200" : "bg-bg-300"}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoY === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.espejoY === "1" ? "translate-x-4" : "translate-x-0"}`}
+                  />
                 </button>
               </div>
             </div>
@@ -1767,10 +2021,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           </p>
 
           {/* ═══ TOGGLE: MODO MANUAL DE TRACKING ═══ */}
-          <div className={`rounded-md px-2 py-1.5 border transition-colors mb-2 ${form.trackingManual === "1" ? "bg-zinc-200/10 border-zinc-200/10" : "bg-bg-100/40 border-border/40"}`}>
+          <div
+            className={`rounded-md px-2 py-1.5 border transition-colors mb-2 ${form.trackingManual === "1" ? "bg-zinc-200/10 border-zinc-200/10" : "bg-bg-100/40 border-border/40"}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="leading-tight">
-                <span className="text-[10px] font-semibold text-text-100/80">Modo manual</span>
+                <span className="text-[10px] font-semibold text-text-100/80">
+                  Modo manual
+                </span>
                 <p className="text-xs text-text-200/60 italic">
                   {form.trackingManual === "1"
                     ? "Parámetros manuales de tracking"
@@ -1781,10 +2039,14 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 type="button"
                 role="switch"
                 aria-checked={form.trackingManual === "1"}
-                onClick={() => set("trackingManual", form.trackingManual === "1" ? "0" : "1")}
+                onClick={() =>
+                  set("trackingManual", form.trackingManual === "1" ? "0" : "1")
+                }
                 className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.trackingManual === "1" ? "bg-brand-200" : "bg-bg-300"}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.trackingManual === "1" ? "translate-x-4" : "translate-x-0"}`} />
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.trackingManual === "1" ? "translate-x-4" : "translate-x-0"}`}
+                />
               </button>
             </div>
           </div>
@@ -1795,32 +2057,115 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
                 Deja un campo vacío para usar el valor fijo del sistema.
               </p>
               <div className="grid grid-cols-3 gap-x-3 gap-y-3 mb-3">
-                <SliderField label="SNR" value={form.snr} onChange={(v) => set("snr", v)} min={5} max={40} step={0.5} unit="dB"
-                  info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan." />
-                <SliderField label="RCS" value={form.rcs} onChange={(v) => set("rcs", v)} min={0} max={100} step={0.1} unit="m²"
-                  info="Tamaño estimado del blanco radar." />
-                <SliderField label="Vel. máx" value={form.maxSpeed} onChange={(v) => set("maxSpeed", v)} min={1} max={200} step={1} unit="m/s"
-                  info="Velocidad máxima esperada en el escenario." />
-                <SliderField label="Dist. asociación" value={form.associationDist} onChange={(v) => set("associationDist", v)} min={5} max={200} step={1} unit="m"
-                  info="Distancia máxima para asignar una detección a un track existente." />
-                <SliderField label="Puntos mín." value={form.minTrackPoints} onChange={(v) => set("minTrackPoints", v)} min={1} max={10} step={1}
-                  info="Detecciones consecutivas para confirmar un track." />
-                <SliderField label="TTL track" value={form.ttl} onChange={(v) => set("ttl", v)} min={1} max={60} step={0.5} unit="seg"
-                  info="Segundos sin detección antes de eliminar un track confirmado." />
-                <SliderField label="TTL detenido" value={form.stationaryTtl} onChange={(v) => set("stationaryTtl", v)} min={1} max={120} step={1} unit="seg"
-                  info="TTL extendido para objetos detenidos." />
-                <SliderField label="Suav. posición" value={form.emaSmooth} onChange={(v) => set("emaSmooth", v)} min={0.05} max={0.80} step={0.01}
-                  info="Factor EMA para suavizar posición del track." />
-                <SliderField label="Suav. velocidad" value={form.velSmooth} onChange={(v) => set("velSmooth", v)} min={0.05} max={0.60} step={0.01}
-                  info="Factor EMA para suavizar velocidad del track." />
-                <SliderField label="Máx detecciones" value={form.maxDetections} onChange={(v) => set("maxDetections", v)} min={5} max={200} step={1}
-                  info="Máximo de detecciones por mensaje." />
-                <SliderField label="Dist. clustering" value={form.clusterDist} onChange={(v) => set("clusterDist", v)} min={1} max={30} step={0.5} unit="m"
-                  info="Distancia para agrupar detecciones cercanas." />
+                <SliderField
+                  label="SNR"
+                  value={form.snr}
+                  onChange={(v) => set("snr", v)}
+                  min={5}
+                  max={40}
+                  step={0.5}
+                  unit="dB"
+                  info="Umbral mínimo de calidad de señal. Detecciones con SNR menor se descartan."
+                />
+                <SliderField
+                  label="RCS"
+                  value={form.rcs}
+                  onChange={(v) => set("rcs", v)}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  unit="m²"
+                  info="Tamaño estimado del blanco radar."
+                />
+                <SliderField
+                  label="Vel. máx"
+                  value={form.maxSpeed}
+                  onChange={(v) => set("maxSpeed", v)}
+                  min={1}
+                  max={200}
+                  step={1}
+                  unit="m/s"
+                  info="Velocidad máxima esperada en el escenario."
+                />
+                <SliderField
+                  label="Dist. asociación"
+                  value={form.associationDist}
+                  onChange={(v) => set("associationDist", v)}
+                  min={5}
+                  max={200}
+                  step={1}
+                  unit="m"
+                  info="Distancia máxima para asignar una detección a un track existente."
+                />
+                <SliderField
+                  label="Puntos mín."
+                  value={form.minTrackPoints}
+                  onChange={(v) => set("minTrackPoints", v)}
+                  min={1}
+                  max={10}
+                  step={1}
+                  info="Detecciones consecutivas para confirmar un track."
+                />
+                <SliderField
+                  label="TTL track"
+                  value={form.ttl}
+                  onChange={(v) => set("ttl", v)}
+                  min={1}
+                  max={60}
+                  step={0.5}
+                  unit="seg"
+                  info="Segundos sin detección antes de eliminar un track confirmado."
+                />
+                <SliderField
+                  label="TTL detenido"
+                  value={form.stationaryTtl}
+                  onChange={(v) => set("stationaryTtl", v)}
+                  min={1}
+                  max={120}
+                  step={1}
+                  unit="seg"
+                  info="TTL extendido para objetos detenidos."
+                />
+                <SliderField
+                  label="Suav. posición"
+                  value={form.emaSmooth}
+                  onChange={(v) => set("emaSmooth", v)}
+                  min={0.05}
+                  max={0.8}
+                  step={0.01}
+                  info="Factor EMA para suavizar posición del track."
+                />
+                <SliderField
+                  label="Suav. velocidad"
+                  value={form.velSmooth}
+                  onChange={(v) => set("velSmooth", v)}
+                  min={0.05}
+                  max={0.6}
+                  step={0.01}
+                  info="Factor EMA para suavizar velocidad del track."
+                />
+                <SliderField
+                  label="Máx detecciones"
+                  value={form.maxDetections}
+                  onChange={(v) => set("maxDetections", v)}
+                  min={5}
+                  max={200}
+                  step={1}
+                  info="Máximo de detecciones por mensaje."
+                />
+                <SliderField
+                  label="Dist. clustering"
+                  value={form.clusterDist}
+                  onChange={(v) => set("clusterDist", v)}
+                  min={1}
+                  max={30}
+                  step={0.5}
+                  unit="m"
+                  info="Distancia para agrupar detecciones cercanas."
+                />
               </div>
             </>
           )}
-
         </div>
 
         <div className="px-3 py-2 border-t border-border/60 shrink-0 flex flex-col gap-1.5">
@@ -1834,7 +2179,8 @@ export function MagosradarAdvancedPanel({ device }: MagosradarAdvancedFormProps)
           </button>
         </div>
       </div>
-    </>);
+    </>
+  );
 }
 
 export interface DeviceEditPanelProps {

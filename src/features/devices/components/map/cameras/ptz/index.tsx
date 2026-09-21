@@ -1,10 +1,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWebRtcPlayer, getWhepBaseUrl } from "./hooks/useWebRtcPlayer";
+import { useDraggable, dragTransform } from "@/hooks/useDraggable";
 import { PtzToolbar } from "./components/PtzToolbar";
 import { PtzVideo } from "./components/PtzVideo";
 import { PtzFullscreenModal } from "./components/PtzFullscreenModal";
 import { VisionConfigPanel } from "./components/VisionConfigPanel";
+import { VisionLoadingModal } from "./components/VisionLoadingModal";
 import { useVisionDetection } from "@/features/devices/hooks/useVisionDetection";
 import type { PtzCameraProps, CameraMode } from "./types";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
@@ -25,9 +27,12 @@ const PtzCamera = memo(
     const {
       visionOn,
       starting: visionStarting,
+      connecting: visionConnecting,
+      connectingMode: visionConnectingMode,
       config: visionConfig,
       toggleVision,
       applyConfig,
+      finishConnecting,
     } = useVisionDetection(camera.id);
     const [visionGrace, setVisionGrace] = useState(false);
     const [visionConfigOpen, setVisionConfigOpen] = useState(false);
@@ -80,10 +85,28 @@ const PtzCamera = memo(
       return applied;
     }
 
-    const { isDesktop } = useBreakpoint();
+    const { isDesktop, isTablet } = useBreakpoint();
 
+    const maximizedRef = useRef<HTMLDivElement>(null);
+    const {
+      delta,
+      reset: resetDrag,
+      dragHandleProps,
+    } = useDraggable({
+      enabled: mode === "maximized",
+      containerRef: maximizedRef,
+    });
 
-    const leftPosition = isDesktop ? "78px" : "2px";
+    useEffect(() => {
+      if (mode === "maximized") resetDrag();
+    }, [mode, resetDrag]);
+
+    const leftPosition = isDesktop ? "78px" : isTablet ? "60px" : "2px";
+    const sizeClass = isDesktop
+      ? "w-165 h-100"
+      : isTablet
+        ? "w-125 h-75"
+        : "w-80 h-55";
 
     const maximizedStyle: React.CSSProperties = position
       ? {
@@ -102,7 +125,7 @@ const PtzCamera = memo(
     return (
       <>
         {mode === "minimized" && (
-          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col transition-all duration-500">
+          <div className="w-full rounded-xl  border border-border shadow-xl bg-bg-100 flex flex-col relative overflow-hidden transition-all duration-500">
             <PtzToolbar
               name={camera.nombre}
               mode="minimized"
@@ -120,16 +143,27 @@ const PtzCamera = memo(
               connectionError={connectionError}
               onRetry={retry}
               ptz_id={camera.id}
-              showControls
             />
+            {visionConnecting && visionConnectingMode && (
+              <VisionLoadingModal
+                name={camera.nombre}
+                ptzId={camera.id}
+                mode={visionConnectingMode}
+                onComplete={finishConnecting}
+              />
+            )}
           </div>
         )}
 
         {mode === "maximized" &&
           createPortal(
             <div
-              style={maximizedStyle}
-              className={`z-9000  border border-border shadow-2xl bg-bg-100 flex flex-col ${isDesktop ? "w-165 h-100": " w-80 h-55"}`}
+              ref={maximizedRef}
+              style={{
+                ...maximizedStyle,
+                ...dragTransform(delta),
+              }}
+              className={`z-9000 border border-border shadow-2xl bg-bg-100 flex flex-col ${sizeClass}`}
             >
               <PtzToolbar
                 name={camera.nombre}
@@ -141,6 +175,7 @@ const PtzCamera = memo(
                 visionStarting={visionStarting}
                 onToggleVision={handleToggleVision}
                 onOpenVisionConfig={() => setVisionConfigOpen(true)}
+                dragHandleProps={dragHandleProps}
               />
 
               <PtzVideo
@@ -155,6 +190,14 @@ const PtzCamera = memo(
                     : null
                 }
               />
+              {visionConnecting && visionConnectingMode && (
+                <VisionLoadingModal
+                  name={camera.nombre}
+                  ptzId={camera.id}
+                  mode={visionConnectingMode}
+                  onComplete={finishConnecting}
+                />
+              )}
             </div>,
             document.body,
           )}

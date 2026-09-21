@@ -10,19 +10,21 @@ import { useBreakpoint } from "@/hooks/useBreakpoints";
 function Template() {
   const { useCompany, useConfigApp } = configServer();
   const [isOpenSidebar, setOpenSidebar] = useState(false);
-  const { isDesktop } = useBreakpoint();
+  const { isDesktop, isTablet } = useBreakpoint();
   return (
     <DropdownProvider>
       <PageLoader />
-      <div className="h-screen w-screen flex overflow-hidden">
-        {isDesktop && <Sidebar
-          useCompany={useCompany}
-          useConfigApp={useConfigApp}
-          isOpenSidebar={isOpenSidebar}
-          setIsOpenSidebar={setOpenSidebar}
-        />}
+      <div className="h-screen w-screen bg-bg-100 flex overflow-hidden">
+        {(isDesktop || isTablet) && (
+          <Sidebar
+            useCompany={useCompany}
+            useConfigApp={useConfigApp}
+            isOpenSidebar={isOpenSidebar}
+            setIsOpenSidebar={setOpenSidebar}
+          />
+        )}
         <div className="flex-1 flex flex-col z-0   pe-2 pb-2">
-          <div className="relative bg-bg-100  p-1 animate-slide-in-top z-60">
+          <div className="relative bg-bg-200  p-1 animate-slide-in-top z-60">
             {/* <div className="absolute left-1/2 -top-5 rotate-45 w-13 h-13  bg-blue-600 -translate-x-1/2 blur-lg"></div> */}
 
             <Header
@@ -31,7 +33,7 @@ function Template() {
               setIsOpenSidebar={setOpenSidebar}
             />
           </div>
-          <div className="flex-1 flex flex-col z-0 rounded-2xl rounded-ss-none overflow-hidden bg-bg-200 ">
+          <div className="flex-1 flex flex-col z-0 overflow-hidden bg-bg-300 ">
             <main className="flex-1 overflow-auto w-full  ">
               <Outlet />
             </main>
