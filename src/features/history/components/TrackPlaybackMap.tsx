@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { Fragment, useEffect, useMemo, useRef } from "react";
 import ReactMapGL, { Marker, Source, Layer } from "react-map-gl";
 import type { MapRef } from "react-map-gl";
 import {
@@ -9,91 +9,90 @@ import {
 import type { TrackHistoryPoint } from "@/features/devices/types";
 import { toGeoCoord } from "@/features/devices/components/map/utils/geoHelpers";
 import type { RadarZone } from "@/features/devices/types";
-import type { TrackSummary } from "../types";
+import type { TrackPlaybackItem } from "../hooks/useTrackPlayback";
+import { trackKey } from "../hooks/useTrackPlayback";
 
 interface Props {
-  track: TrackSummary | null;
-  points: TrackHistoryPoint[];
+  tracks: TrackPlaybackItem[];
   playbackIndex: number;
   zones: RadarZone[];
   loading: boolean;
 }
 
-const PLAYED_COLOR = "#e4ff99";
-const REMAINING_COLOR = "#bbff00";
+const TRACK_COLORS = [
+  "#bbff00",
+  "#38bdf8",
+  "#f472b6",
+  "#fb923c",
+  "#a78bfa",
+  "#34d399",
+  "#facc15",
+  "#f87171",
+  "#22d3ee",
+  "#c084fc",
+];
+
+function pointAt(
+  points: TrackHistoryPoint[],
+  i: number,
+): TrackHistoryPoint | null {
+  if (points.length === 0) return null;
+  return points[Math.max(0, Math.min(i, points.length - 1))];
+}
 
 export function TrackPlaybackMap({
-  track,
-  points,
+  tracks,
   playbackIndex,
   zones,
   loading,
 }: Props) {
   const mapRef = useRef<MapRef>(null);
 
-  const firstPoint = useMemo(() => points[0] ?? null, [points]);
-  const currentPoint = useMemo(
-    () =>
-      points.length > 0
-        ? points[Math.max(0, Math.min(playbackIndex, points.length - 1))]
-        : null,
-    [points, playbackIndex],
+  const selectionKey = useMemo(
+    () => tracks.map((t) => trackKey(t.summary)).join("|"),
+    [tracks],
   );
 
-  // Al seleccionar un track: centrar en el punto de inicio (inicio de reproducción)
+  // Al cambiar la selección: encuadrar los tracks cargados.
   useEffect(() => {
-    if (!firstPoint || !mapRef.current) return;
-    mapRef.current.easeTo({
-      center: [firstPoint.lon, firstPoint.lat],
-      zoom: Math.max(mapRef.current.getZoom(), 15),
-      duration: 400,
-    });
-  }, [firstPoint]);
+    if (!mapRef.current) return;
+    const pts = tracks.flatMap((t) => t.points);
+    if (pts.length === 0) return;
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLon = Infinity,
+      maxLon = -Infinity;
+    for (const p of pts) {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lon < minLon) minLon = p.lon;
+      if (p.lon > maxLon) maxLon = p.lon;
+    }
+    if (!Number.isFinite(minLat)) return;
+    const pad = 80;
+    mapRef.current.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat],
+      ],
+      { padding: pad, duration: 500, maxZoom: 16.5, minZoom: 12 },
+    );
+  }, [selectionKey, tracks]);
 
-  // Durante la reproducción: ir siguiendo el punto actual
+  // Durante la reproducción con un solo track: seguirlo.
+  const singleCurrent = useMemo(() => {
+    if (tracks.length !== 1) return null;
+    return pointAt(tracks[0].points, playbackIndex);
+  }, [tracks, playbackIndex]);
+
   useEffect(() => {
-    if (!currentPoint || !mapRef.current) return;
+    if (!singleCurrent || !mapRef.current) return;
     mapRef.current.easeTo({
-      center: [currentPoint.lon, currentPoint.lat],
+      center: [singleCurrent.lon, singleCurrent.lat],
       duration: 250,
     });
-  }, [currentPoint]);
-
-  const trailGeo = useMemo(() => {
-    if (points.length < 2) return null;
-    const coords = points.map((p) => [p.lon, p.lat] as [number, number]);
-    const played = coords.slice(0, playbackIndex + 1);
-    const remaining = coords.slice(playbackIndex);
-    return {
-      type: "FeatureCollection" as const,
-      features: [
-        {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: coords,
-          },
-          properties: { kind: "full" },
-        },
-        {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: played,
-          },
-          properties: { kind: "played" },
-        },
-        {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: remaining,
-          },
-          properties: { kind: "remaining" },
-        },
-      ],
-    };
-  }, [points, playbackIndex]);
+  }, [singleCurrent]);
 
   const zonesGeo = useMemo(() => {
     if (zones.length === 0) return null;
@@ -120,6 +119,11 @@ export function TrackPlaybackMap({
       }),
     };
   }, [zones]);
+
+  const hasPoints = useMemo(
+    () => tracks.some((t) => t.points.length > 0),
+    [tracks],
+  );
 
   return (
     <div className="relative w-full h-full">
@@ -174,68 +178,109 @@ export function TrackPlaybackMap({
           </Source>
         )}
 
-        {trailGeo && (
-          <Source id="history-trail" type="geojson" data={trailGeo}>
-            <Layer
-              id="trail-full"
-              type="line"
-              paint={{
-                "line-color": REMAINING_COLOR,
-                "line-width": 20,
-                "line-opacity": 1,
-                "line-blur": 52,
-              }}
-            />
-            <Layer
-              id="trail-remaining"
-              type="line"
-              paint={{
-                "line-color": REMAINING_COLOR,
-                "line-width": 5,
-                "line-opacity": 0.45,
-                "line-dasharray": [2, 1.2] as unknown as number[],
-              }}
-            />
-            <Layer
-              id="trail-played"
-              type="line"
-              paint={{
-                "line-color": PLAYED_COLOR,
-                "line-width": 3,
-                "line-opacity": 0.95,
-              }}
-            />
-          </Source>
-        )}
+        {tracks.map((t, i) => {
+          const color = TRACK_COLORS[i % TRACK_COLORS.length];
+          const id = `track-${i}-${trackKey(t.summary)}`;
+          const coords = t.points.map(
+            (p) => [p.lon, p.lat] as [number, number],
+          );
+          if (coords.length < 2) return null;
+          const clamp = Math.max(0, Math.min(playbackIndex, coords.length - 1));
+          const played = coords.slice(0, clamp + 1);
+          const remaining = coords.slice(clamp);
+          const geo = {
+            type: "FeatureCollection" as const,
+            features: [
+              {
+                type: "Feature" as const,
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: coords,
+                },
+                properties: { kind: "full" },
+              },
+              {
+                type: "Feature" as const,
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: played,
+                },
+                properties: { kind: "played" },
+              },
+              {
+                type: "Feature" as const,
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: remaining,
+                },
+                properties: { kind: "remaining" },
+              },
+            ],
+          };
+          return (
+            <Source key={`src-${id}`} id={`src-${id}`} type="geojson" data={geo}>
+              <Layer
+                id={`${id}-full`}
+                type="line"
+                paint={{
+                  "line-color": color,
+                  "line-width": 20,
+                  "line-opacity": 0.22,
+                  "line-blur": 52,
+                }}
+              />
+              <Layer
+                id={`${id}-remaining`}
+                type="line"
+                paint={{
+                  "line-color": color,
+                  "line-width": 5,
+                  "line-opacity": 0.4,
+                  "line-dasharray": [2, 1.2] as unknown as number[],
+                }}
+              />
+              <Layer
+                id={`${id}-played`}
+                type="line"
+                paint={{
+                  "line-color": color,
+                  "line-width": 3,
+                  "line-opacity": 0.95,
+                }}
+              />
+            </Source>
+          );
+        })}
 
-        {firstPoint && (
-          <Marker
-            longitude={firstPoint.lon}
-            latitude={firstPoint.lat}
-            anchor="center"
-          >
-            <div
-              className="h-3 w-3 rounded-full border-2 border-white ring-2 ring-emerald-500/40"
-              style={{ background: "#10b981" }}
-            />
-          </Marker>
-        )}
-
-        {currentPoint && (
-          <Marker
-            longitude={currentPoint.lon}
-            latitude={currentPoint.lat}
-            anchor="center"
-          >
-            <div
-              className="h-3 w-3 rounded-full ring-4"
-              style={{
-                background: "white",
-                boxShadow: "0 0 12px #fff",
-              }}
-            />
-          </Marker>
-        )}
+        {tracks.map((t, i) => {
+          const color = TRACK_COLORS[i % TRACK_COLORS.length];
+          const first = t.points[0] ?? null;
+          const cur = pointAt(t.points, playbackIndex);
+          const key = `${trackKey(t.summary)}`;
+          return (
+            <Fragment key={`markers-${key}`}>
+              {first && (
+                <Marker longitude={first.lon} latitude={first.lat} anchor="center">
+                  <div
+                    className="h-3 w-3 rounded-full border-2 border-white"
+                    style={{ background: color }}
+                  />
+                </Marker>
+              )}
+              {cur && (
+                <Marker longitude={cur.lon} latitude={cur.lat} anchor="center">
+                  <div
+                    className="h-3 w-3 rounded-full ring-4"
+                    style={{
+                      background: "#ffffff",
+                      boxShadow: `0 0 12px ${color}`,
+                    }}
+                  />
+                </Marker>
+              )}
+            </Fragment>
+          );
+        })}
       </ReactMapGL>
 
       {loading && (
@@ -244,24 +289,31 @@ export function TrackPlaybackMap({
         </div>
       )}
 
-      {!track && !loading && (
+      {tracks.length === 0 && !loading && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
           <p className="text-text-100/60 text-sm">
-            Selecciona un track del historial para reproducirlo
+            Selecciona uno o más tracks del historial para reproducirlos
           </p>
         </div>
       )}
 
-      {track && !loading && points.length === 0 && (
+      {tracks.length > 0 && !loading && !hasPoints && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <p className="text-text-100/60 text-sm">Sin puntos para este track</p>
+          <p className="text-text-100/60 text-sm">
+            Sin puntos para los tracks seleccionados
+          </p>
         </div>
       )}
 
       <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
-        <LegendChip color={PLAYED_COLOR} label="Reproducido" solid />
-        <LegendChip color={REMAINING_COLOR} label="Pendiente" dash />
-        <LegendChip color="#10b981" label="Inicio" />
+        {tracks.slice(0, 12).map((t, i) => (
+          <LegendChip
+            key={trackKey(t.summary)}
+            color={TRACK_COLORS[i % TRACK_COLORS.length]}
+            label={`${t.summary.track_id}${t.loading ? "…" : ""}`}
+            solid
+          />
+        ))}
         <LegendChip color="#ffffff" label="Zonas" />
       </div>
     </div>

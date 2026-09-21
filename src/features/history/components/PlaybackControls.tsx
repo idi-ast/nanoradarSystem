@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { IconPlayerPlay, IconPlayerPause, IconX } from "@tabler/icons-react";
 import type { TrackHistoryPoint } from "@/features/devices/types";
 import { PLAYBACK_SPEEDS } from "../hooks/useTrackPlayback";
-import type { TrackSummary } from "../types";
+import type { TrackPlaybackItem } from "../hooks/useTrackPlayback";
+import { trackKey } from "../hooks/useTrackPlayback";
 
 interface Props {
-  track: TrackSummary | null;
-  points: TrackHistoryPoint[];
+  tracks: TrackPlaybackItem[];
   index: number;
   isPlaying: boolean;
   speed: number;
@@ -60,8 +60,7 @@ function formatDistanceKm(value: number): string {
 }
 
 export function PlaybackControls({
-  track,
-  points,
+  tracks,
   index,
   isPlaying,
   speed,
@@ -70,34 +69,46 @@ export function PlaybackControls({
   onSeek,
   onClose,
 }: Props) {
-  const length = points.length;
+  const allPoints = useMemo(
+    () => tracks.reduce<TrackHistoryPoint[]>((acc, t) => acc.concat(t.points), []),
+    [tracks],
+  );
+  const length = useMemo(
+    () => tracks.reduce((m, t) => Math.max(m, t.points.length), 0),
+    [tracks],
+  );
   const clamped = Math.min(Math.max(index, 0), Math.max(length - 1, 0));
 
   const durationMs = useMemo(() => {
     if (length < 2) return 0;
     return (
-      new Date(points[length - 1].fecha).getTime() -
-      new Date(points[0].fecha).getTime()
+      new Date(allPoints[length - 1].fecha).getTime() -
+      new Date(allPoints[0].fecha).getTime()
     );
-  }, [points, length]);
+  }, [allPoints, length]);
 
   const distanceKm = useMemo(() => {
     let total = 0;
-    let prev: TrackHistoryPoint | null = null;
-    for (const p of points) {
-      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
-      if (p.lat === 0 && p.lon === 0) continue;
-      if (prev) {
-        total += haversineDistanceKm(prev.lat, prev.lon, p.lat, p.lon);
+    for (const t of tracks) {
+      let prev: TrackHistoryPoint | null = null;
+      for (const p of t.points) {
+        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+        if (p.lat === 0 && p.lon === 0) continue;
+        if (prev) {
+          total += haversineDistanceKm(prev.lat, prev.lon, p.lat, p.lon);
+        }
+        prev = p;
       }
-      prev = p;
     }
     return total;
-  }, [points]);
+  }, [tracks]);
 
-  const lastPointTime = points[length - 1]?.fecha;
+  const lastPointTime = allPoints[length - 1]?.fecha;
 
-  if (!track || length === 0) return null;
+  if (tracks.length === 0 || length === 0) return null;
+
+  const totalPoints = tracks.reduce((acc, t) => acc + t.points.length, 0);
+  const loadingCount = tracks.filter((t) => t.loading).length;
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-10 bg-bg-100/90 backdrop-blur border-t border-border rounded-t-xl overflow-hidden">
@@ -151,28 +162,43 @@ export function PlaybackControls({
 
         <div className="flex items-center gap-2 text-[11px] text-text-100/70 font-mono shrink-0">
           <span>
-            {fmtTime(points[clamped]?.fecha)} /{" "}
-            {fmtTime(points[length - 1]?.fecha)}
+            {fmtTime(allPoints[0]?.fecha)} → {fmtTime(lastPointTime)}
           </span>
           <span className="text-text-100/40">·</span>
           <span>{fmtDuration(durationMs)}</span>
         </div>
 
         <div className="flex-1 min-w-0 truncate text-[11px] text-text-100/60">
-          <span className="font-bold text-text-100/90">{track.track_id}</span>
+          <span className="font-bold text-text-100/90">
+            {tracks.length} track{tracks.length !== 1 ? "s" : ""}
+          </span>
           <span className="mx-1.5 text-text-100/30">·</span>
-          {track.tipo_radar}
+          {tracks.slice(0, 5).map((t, i) => (
+            <span key={trackKey(t.summary)}>
+              {t.summary.track_id}
+              {t.loading && <span className="text-text-100/40">…</span>}
+              {i < Math.min(tracks.length, 5) - 1 && (
+                <span className="mx-1 text-text-100/30">,</span>
+              )}
+            </span>
+          ))}
+          {tracks.length > 5 && (
+            <span className="mx-1 text-text-100/40">+{tracks.length - 5}</span>
+          )}
           <span className="mx-1.5 text-text-100/30">·</span>
-          {length} puntos
+          {totalPoints} pts
           <span className="mx-1.5 text-[11px] text-text-100/70 font-mono shrink-0">
             {clamped + 1} / {length}
           </span>
+          {loadingCount > 0 && (
+            <span className="ml-2 text-lime-300/80">Cargando {loadingCount}…</span>
+          )}
         </div>
 
         <button
           onClick={onClose}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-100/50 hover:bg-bg-200 hover:text-text-100 transition-colors"
-          title="Cerrar track"
+          title="Cerrar tracks"
         >
           <IconX size={16} />
         </button>

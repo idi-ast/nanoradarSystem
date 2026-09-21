@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTrackSummaries } from "../hooks/useTrackSummaries";
 import { useZones } from "../hooks/useZones";
 import { useTrackPlayback } from "../hooks/useTrackPlayback";
+import { trackKey } from "../hooks/useTrackPlayback";
 import { HistoryListPanel } from "../components/HistoryListPanel";
 import { TrackPlaybackMap } from "../components/TrackPlaybackMap";
 import { PlaybackControls } from "../components/PlaybackControls";
@@ -21,6 +22,11 @@ export default function HistoryPage() {
     [tracks, onlyWithZones],
   );
 
+  const selectedKeys = useMemo(
+    () => new Set(playback.tracks.map((it) => trackKey(it.summary))),
+    [playback.tracks],
+  );
+
   return (
     <div className="w-full h-full grid grid-cols-12 overflow-hidden bg-bg-300 text-text-100">
       <aside className="col-span-3 xl:col-span-2 h-full border-r border-border overflow-hidden">
@@ -29,8 +35,9 @@ export default function HistoryPage() {
           onFiltersChange={setFilters}
           tracks={filteredTracks}
           isLoading={isFetching}
-          selectedTrackId={playback.selectedTrack?.track_id ?? null}
-          onSelectTrack={playback.selectTrack}
+          selectedKeys={selectedKeys}
+          onToggleTrack={playback.toggleTrack}
+          onPlayAll={playback.playAll}
           zones={zones}
           onlyWithZones={onlyWithZones}
           onOnlyWithZonesChange={setOnlyWithZones}
@@ -38,22 +45,20 @@ export default function HistoryPage() {
       </aside>
       <div className="col-span-9 xl:col-span-10 h-full relative overflow-hidden">
         <TrackPlaybackMap
-          track={playback.selectedTrack}
-          points={playback.points}
+          tracks={playback.tracks}
           playbackIndex={playback.index}
           zones={zones}
           loading={playback.loading}
         />
         <PlaybackControls
-          track={playback.selectedTrack}
-          points={playback.points}
+          tracks={playback.tracks}
           index={playback.index}
           isPlaying={playback.isPlaying}
           speed={playback.speed}
           onTogglePlay={playback.togglePlay}
           onSpeedChange={playback.changeSpeed}
           onSeek={playback.seekTo}
-          onClose={playback.close}
+          onClose={playback.clearAll}
         />
       </div>
     </div>

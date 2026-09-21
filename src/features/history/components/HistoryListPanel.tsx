@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { IconSearch, IconPlaylist } from "@tabler/icons-react";
 import type { RadarZone } from "@/features/devices/types";
 import type { TrackSummary, TrackSummaryFilters } from "../types";
+import { trackKey } from "../hooks/useTrackPlayback";
 
 interface Props {
   filters: TrackSummaryFilters;
   onFiltersChange: (f: TrackSummaryFilters) => void;
   tracks: TrackSummary[];
   isLoading: boolean;
-  selectedTrackId: string | null;
-  onSelectTrack: (t: TrackSummary) => void;
+  selectedKeys: Set<string>;
+  onToggleTrack: (t: TrackSummary) => void;
+  onPlayAll: (list: TrackSummary[]) => void;
   zones: RadarZone[];
   onlyWithZones: boolean;
   onOnlyWithZonesChange: (v: boolean) => void;
@@ -33,8 +35,9 @@ export function HistoryListPanel({
   onFiltersChange,
   tracks,
   isLoading,
-  selectedTrackId,
-  onSelectTrack,
+  selectedKeys,
+  onToggleTrack,
+  onPlayAll,
   zones,
   onlyWithZones,
   onOnlyWithZonesChange,
@@ -189,6 +192,19 @@ export function HistoryListPanel({
         </label>
       </div>
 
+      {tracks.length > 0 && (
+        <div className="shrink-0 px-3 pt-2 pb-1">
+          <button
+            onClick={() => onPlayAll(tracks)}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-lime-500/50 bg-lime-500/10 px-3 py-2 text-[12px] font-semibold text-lime-300 hover:bg-lime-500/20 transition-colors"
+            title={`Reproducir todos los tracks del rango (${tracks.length})`}
+          >
+            <IconPlaylist size={15} stroke={1.8} />
+            Mostrar todos ({tracks.length})
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
         {isLoading ? (
           <p className="text-text-100/40 text-[11px] italic text-center pt-6">
@@ -204,8 +220,8 @@ export function HistoryListPanel({
               <TrackCard
                 key={`${t.tipo_radar}-${t.track_id}`}
                 track={t}
-                selected={t.track_id === selectedTrackId}
-                onClick={() => onSelectTrack(t)}
+                selected={selectedKeys.has(trackKey(t))}
+                onClick={() => onToggleTrack(t)}
                 zoneColor={zoneColor}
               />
             ))
@@ -223,8 +239,8 @@ export function HistoryListPanel({
                 zoneName={z.nombre}
                 color={zoneColor.get(z.nombre) ?? "#64748b"}
                 tracks={tracksByZone.get(z.nombre) ?? []}
-                selectedTrackId={selectedTrackId}
-                onSelectTrack={onSelectTrack}
+                selectedKeys={selectedKeys}
+                onToggleTrack={onToggleTrack}
               />
             ))}
             {otherZones.map((name) => (
@@ -233,8 +249,8 @@ export function HistoryListPanel({
                 zoneName={name}
                 color="#64748b"
                 tracks={tracksByZone.get(name) ?? []}
-                selectedTrackId={selectedTrackId}
-                onSelectTrack={onSelectTrack}
+                selectedKeys={selectedKeys}
+                onToggleTrack={onToggleTrack}
               />
             ))}
           </>
@@ -341,16 +357,17 @@ function ZoneGroup({
   zoneName,
   color,
   tracks,
-  selectedTrackId,
-  onSelectTrack,
+  selectedKeys,
+  onToggleTrack,
 }: {
   zoneName: string;
   color: string;
   tracks: TrackSummary[];
-  selectedTrackId: string | null;
-  onSelectTrack: (t: TrackSummary) => void;
+  selectedKeys: Set<string>;
+  onToggleTrack: (t: TrackSummary) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const selectedCount = tracks.filter((t) => selectedKeys.has(trackKey(t))).length;
   return (
     <div className="rounded-lg border border-border overflow-hidden">
       <button
@@ -364,23 +381,31 @@ function ZoneGroup({
         <span className="flex-1 text-left">{zoneName}</span>
         <span className="text-text-100/50 text-[10px]">
           {tracks.length} track{tracks.length !== 1 ? "s" : ""}
+          {selectedCount > 0 && (
+            <span className="ml-1.5 text-lime-300">
+              ({selectedCount})
+            </span>
+          )}
         </span>
       </button>
       {open && (
         <div className="flex flex-wrap gap-1.5 p-2 bg-bg-100">
-          {tracks.map((t) => (
-            <button
-              key={`${t.tipo_radar}-${t.track_id}`}
-              onClick={() => onSelectTrack(t)}
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
-                t.track_id === selectedTrackId
-                  ? "border-lime-500 text-lime-400 bg-lime-500/10"
-                  : "border-border-200 text-text-100/70 hover:bg-bg-200"
-              }`}
-            >
-              {t.track_id}
-            </button>
-          ))}
+          {tracks.map((t) => {
+            const selected = selectedKeys.has(trackKey(t));
+            return (
+              <button
+                key={`${t.tipo_radar}-${t.track_id}`}
+                onClick={() => onToggleTrack(t)}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                  selected
+                    ? "border-lime-500 text-lime-400 bg-lime-500/10"
+                    : "border-border-200 text-text-100/70 hover:bg-bg-200"
+                }`}
+              >
+                {t.track_id}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

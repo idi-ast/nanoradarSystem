@@ -6,86 +6,145 @@ import type { TrackSummary } from "../types";
 export const BASE_STEP_MS = 500;
 export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4, 8] as const;
 
-interface UseTrackPlaybackResult {
-  selectedTrack: TrackSummary | null;
+export interface TrackPlaybackItem {
+  summary: TrackSummary;
   points: TrackHistoryPoint[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function trackKey(t: { track_id: string; tipo_radar: string }): string {
+  return `${t.tipo_radar}:${t.track_id}`;
+}
+
+interface UseTrackPlaybackResult {
+  tracks: TrackPlaybackItem[];
   index: number;
   isPlaying: boolean;
   speed: number;
   loading: boolean;
-  error: string | null;
-  selectTrack: (track: TrackSummary | null) => void;
+  toggleTrack: (t: TrackSummary) => void;
+  playAll: (list: TrackSummary[]) => void;
   togglePlay: () => void;
   changeSpeed: (s: number) => void;
   seekTo: (i: number) => void;
-  close: () => void;
+  clearAll: () => void;
+}
+
+async function loadPoints(track: TrackSummary): Promise<TrackHistoryPoint[]> {
+  const res = await fetchTrackHistory(track.track_id, {
+    tipo_radar: track.tipo_radar,
+    from: track.first_seen
+      ? new Date(track.first_seen).toISOString()
+      : undefined,
+    to: track.last_seen ? new Date(track.last_seen).toISOString() : undefined,
+    session_ref: track.last_seen
+      ? new Date(track.last_seen).toISOString()
+      : undefined,
+    limit: 20000,
+  });
+
+  const seen = new Map<string, TrackHistoryPoint>();
+  for (const p of res.points ?? []) {
+    if (p.lat === 0 && p.lon === 0) continue;
+    if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+    const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
+    if (!seen.has(key)) seen.set(key, p);
+  }
+  return Array.from(seen.values()).sort(
+    (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
+  );
+}
+
+function maxPointsLength(tracks: TrackPlaybackItem[]): number {
+  return tracks.reduce((m, t) => Math.max(m, t.points.length), 0);
 }
 
 export function useTrackPlayback(): UseTrackPlaybackResult {
-  const [selectedTrack, setSelectedTrack] = useState<TrackSummary | null>(null);
-  const [points, setPoints] = useState<TrackHistoryPoint[]>([]);
+  const [tracks, setTracks] = useState<TrackPlaybackItem[]>([]);
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const pointsRef = useRef<TrackHistoryPoint[]>([]);
+  const tracksRef = useRef<TrackPlaybackItem[]>([]);
   useEffect(() => {
-    pointsRef.current = points;
-  }, [points]);
+    tracksRef.current = tracks;
+  }, [tracks]);
 
-  const selectTrack = useCallback(async (track: TrackSummary | null) => {
-    setSelectedTrack(track);
+  const toggleTrack = useCallback(async (track: TrackSummary) => {
+    const key = trackKey(track);
     setIsPlaying(false);
-    setError(null);
-    if (!track) {
-      setPoints([]);
-      setIndex(0);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetchTrackHistory(track.track_id, {
-        tipo_radar: track.tipo_radar,
-        from: track.first_seen
-          ? new Date(track.first_seen).toISOString()
-          : undefined,
-        to: track.last_seen
-          ? new Date(track.last_seen).toISOString()
-          : undefined,
-        session_ref: track.last_seen
-          ? new Date(track.last_seen).toISOString()
-          : undefined,
-        limit: 20000,
-      });
-
-      const seen = new Map<string, TrackHistoryPoint>();
-      for (const p of res.points ?? []) {
-        if (p.lat === 0 && p.lon === 0) continue;
-        const key = `${Math.round(new Date(p.fecha).getTime() / 1000)}`;
-        if (!seen.has(key)) seen.set(key, p);
+    setIndex(0);
+    setTracks((prev) => {
+      if (prev.some((it) => trackKey(it.summary) === key)) {
+        return prev.filter((it) => trackKey(it.summary) !== key);
       }
-      setPoints(
-        Array.from(seen.values()).sort(
-          (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
+      return [...prev, { summary: track, points: [], loading: true, error: null }];
+    });
+    try {
+      const points = await loadPoints(track);
+      setTracks((prev) =>
+        prev.filter((it) => trackKey(it.summary) === key).length === 0
+          ? prev
+          : prev.map((it) =>
+              trackKey(it.summary) === key
+                ? { ...it, points, loading: false, error: null }
+                : it,
+            ),
+      );
+    } catch (e) {
+      setTracks((prev) =>
+        prev.map((it) =>
+          trackKey(it.summary) === key
+            ? {
+                ...it,
+                loading: false,
+                error: e instanceof Error ? e.message : "Error cargando el track",
+              }
+            : it,
         ),
       );
-      setIndex(0);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error cargando el track");
-      setPoints([]);
-      setIndex(0);
+    }
+  }, []);
+
+  const playAll = useCallback(async (list: TrackSummary[]) => {
+    if (list.length === 0) return;
+    setIsPlaying(false);
+    setIndex(0);
+    setLoading(true);
+    setTracks(
+      list.map((t) => ({ summary: t, points: [], loading: true, error: null })),
+    );
+    try {
+      const loaded = await Promise.all(
+        list.map(async (t) => {
+          try {
+            const points = await loadPoints(t);
+            return { summary: t, points, loading: false, error: null };
+          } catch (e) {
+            return {
+              summary: t,
+              points: [],
+              loading: false,
+              error: e instanceof Error ? e.message : "Error cargando el track",
+            } as TrackPlaybackItem;
+          }
+        }),
+      );
+      setTracks(loaded);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!isPlaying || points.length === 0) return;
+    if (!isPlaying) return;
+    const maxLen = maxPointsLength(tracksRef.current);
+    if (maxLen === 0) return;
     const intervalId = window.setInterval(() => {
       setIndex((i) => {
-        if (pointsRef.current.length === 0 || i >= pointsRef.current.length - 1) {
+        if (i >= maxLen - 1) {
           setIsPlaying(false);
           return i;
         }
@@ -93,41 +152,40 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
       });
     }, BASE_STEP_MS / speed);
     return () => window.clearInterval(intervalId);
-  }, [isPlaying, speed, points.length]);
+  }, [isPlaying, speed, tracks]);
 
   const togglePlay = useCallback(() => {
-    if (pointsRef.current.length === 0) return;
-    setIndex((i) => (i >= pointsRef.current.length - 1 ? 0 : i));
+    const maxLen = maxPointsLength(tracksRef.current);
+    if (maxLen === 0) return;
+    setIndex((i) => (i >= maxLen - 1 ? 0 : i));
     setIsPlaying((p) => !p);
   }, []);
 
   const changeSpeed = useCallback((s: number) => setSpeed(s), []);
 
   const seekTo = useCallback((i: number) => {
-    const max = Math.max(0, pointsRef.current.length - 1);
+    const maxLen = maxPointsLength(tracksRef.current);
+    const max = Math.max(0, maxLen - 1);
     setIndex(Math.max(0, Math.min(max, Math.round(i))));
   }, []);
 
-  const close = useCallback(() => {
+  const clearAll = useCallback(() => {
     setIsPlaying(false);
-    setSelectedTrack(null);
-    setPoints([]);
+    setTracks([]);
     setIndex(0);
-    setError(null);
   }, []);
 
   return {
-    selectedTrack,
-    points,
+    tracks,
     index,
     isPlaying,
     speed,
     loading,
-    error,
-    selectTrack,
+    toggleTrack,
+    playAll,
     togglePlay,
     changeSpeed,
     seekTo,
-    close,
+    clearAll,
   };
 }
