@@ -20,4 +20,10 @@ export interface TrackSummaryFilters {
 export interface TrackListResponse {
   data: TrackSummary[];
   message: string;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
 }
+
+export const TRACKS_PAGE_SIZE = 100;

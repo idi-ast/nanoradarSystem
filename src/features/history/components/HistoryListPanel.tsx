@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { IconSearch, IconPlaylist } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconPlaylist, IconSearch } from "@tabler/icons-react";
 import type { RadarZone } from "@/features/devices/types";
 import type { TrackSummary, TrackSummaryFilters } from "../types";
 import { trackKey } from "../hooks/useTrackPlayback";
@@ -9,6 +9,10 @@ interface Props {
   onFiltersChange: (f: TrackSummaryFilters) => void;
   tracks: TrackSummary[];
   isLoading: boolean;
+  total: number;
+  page: number;
+  pages: number;
+  onPageChange: (p: number) => void;
   selectedKeys: Set<string>;
   onToggleTrack: (t: TrackSummary) => void;
   onPlayAll: (list: TrackSummary[]) => void;
@@ -35,6 +39,10 @@ export function HistoryListPanel({
   onFiltersChange,
   tracks,
   isLoading,
+  total,
+  page,
+  pages,
+  onPageChange,
   selectedKeys,
   onToggleTrack,
   onPlayAll,
@@ -75,6 +83,13 @@ export function HistoryListPanel({
     [tracksByZone, zoneColor],
   );
 
+  const allTracksSelected = useMemo(
+    () =>
+      tracks.length > 0 &&
+      tracks.every((t) => selectedKeys.has(trackKey(t))),
+    [tracks, selectedKeys],
+  );
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden bg-bg-100 text-text-100">
       <div className="shrink-0 px-4 pt-3 pb-2">
@@ -87,7 +102,7 @@ export function HistoryListPanel({
       <div className="shrink-0 flex border-b border-border-200 mx-3">
         <TabButton
           active={tab === "tracks"}
-          label={`Tracks (${tracks.length})`}
+          label={`Tracks (${total})`}
           onClick={() => setTab("tracks")}
         />
         <TabButton
@@ -196,11 +211,21 @@ export function HistoryListPanel({
         <div className="shrink-0 px-3 pt-2 pb-1">
           <button
             onClick={() => onPlayAll(tracks)}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-lime-500/50 bg-lime-500/10 px-3 py-2 text-[12px] font-semibold text-lime-300 hover:bg-lime-500/20 transition-colors"
-            title={`Reproducir todos los tracks del rango (${tracks.length})`}
+            className={`w-full flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-semibold transition-colors ${
+              allTracksSelected
+                ? "border-text-100/40 bg-bg-200 text-text-100/70 hover:bg-bg-300"
+                : "border-lime-500/50 bg-lime-500/10 text-lime-300 hover:bg-lime-500/20"
+            }`}
+            title={
+              allTracksSelected
+                ? "Vaciar la selección"
+                : `Reproducir todos los tracks del rango (${tracks.length})`
+            }
           >
             <IconPlaylist size={15} stroke={1.8} />
-            Mostrar todos ({tracks.length})
+            {allTracksSelected
+              ? `Vaciar selección (${tracks.length})`
+              : `Mostrar todos (${tracks.length})`}
           </button>
         </div>
       )}
@@ -256,6 +281,32 @@ export function HistoryListPanel({
           </>
         )}
       </div>
+
+      {pages > 1 && (
+        <div className="shrink-0 flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+          <span className="text-[10px] text-text-100/50">
+            {total} tracks · Pág {page}/{pages}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-text-100/70 hover:bg-bg-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Página anterior"
+            >
+              <IconChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= pages}
+              className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-text-100/70 hover:bg-bg-200 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Página siguiente"
+            >
+              <IconChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

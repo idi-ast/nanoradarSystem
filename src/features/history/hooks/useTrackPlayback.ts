@@ -108,8 +108,21 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
     }
   }, []);
 
-  const playAll = useCallback(async (list: TrackSummary[]) => {
+  const playAll = useCallback(
+  async (list: TrackSummary[]) => {
     if (list.length === 0) return;
+    const current = tracksRef.current;
+    const allSelected =
+      current.length > 0 &&
+      list.every((t) =>
+        current.some((it) => trackKey(it.summary) === trackKey(t)),
+      );
+    if (allSelected) {
+      setIsPlaying(false);
+      setTracks([]);
+      setIndex(0);
+      return;
+    }
     setIsPlaying(false);
     setIndex(0);
     setLoading(true);
@@ -136,7 +149,9 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  },
+  [],
+);
 
   useEffect(() => {
     if (!isPlaying) return;
