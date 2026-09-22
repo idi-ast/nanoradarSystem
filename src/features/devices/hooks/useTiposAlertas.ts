@@ -10,7 +10,6 @@ export function useTiposAlertas() {
       try {
         const data = await fetchTiposAlertas();
         setTiposAlertas(data);
-        console.log(data, "Tidascdkdskfsk");
       } finally {
         // opcional: limpieza
       }

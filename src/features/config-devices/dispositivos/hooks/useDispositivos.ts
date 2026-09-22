@@ -17,7 +17,7 @@ export function useDispositivos(params?: { tipo_radar?: string; modelo?: string 
   return useQuery({
     queryKey: ["dispositivos", params?.tipo_radar ?? "all", params?.modelo ?? ""],
     queryFn: () => dispositivosService.getDispositivos(params),
-    refetchInterval: 5000,
+     refetchInterval: 30_000,
   });
 }
 

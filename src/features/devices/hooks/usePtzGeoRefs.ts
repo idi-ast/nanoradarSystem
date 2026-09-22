@@ -6,8 +6,8 @@ export const usePtzGeoRefs = () =>
   useQuery({
     queryKey: ["ptz-georef"],
     queryFn: ptzGeoRefs,
-    refetchInterval: 3000,
-    staleTime: 2500,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
   });
 
 export type { PtzGeoRef };
