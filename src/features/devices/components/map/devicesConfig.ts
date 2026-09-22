@@ -1,27 +1,39 @@
 import type { DeviceVisibility } from "./DevicesOverlay";
 import type { Data } from "@/features/config-devices/types/ConfigServices.type";
+import { tipoMeta } from "@/features/config-devices/dispositivos/types";
 
 export const DEVICES_BELOW_LAYER_ID = "device-layers-upper-bound";
 
+/** Claves UI de deviceType → nombre de tipo (tipo_dispositivos) */
+const UI_KEY_TO_TIPO: Record<string, string> = {
+  nanoRadar: "nano",
+  magosradar: "magos",
+  spotter: "spotter",
+};
+
+function metaDe(uiKey: string) {
+  return tipoMeta(UI_KEY_TO_TIPO[uiKey] ?? uiKey);
+}
+
 /** Etiquetas legibles para cada tipo de dispositivo radar */
 export const DEVICE_LABEL: Record<string, string> = {
-  nanoRadar: "NanoRadar",
-  magosradar: "MagosRadar",
-  spotter: "Spotter",
+  nanoRadar: metaDe("nanoRadar").label,
+  magosradar: metaDe("magosradar").label,
+  spotter: metaDe("spotter").label,
 };
 
 /** Colores de badge para cada tipo de dispositivo radar */
 export const DEVICE_COLOR: Record<string, string> = {
-  nanoRadar: "bg-cyan-500/20 text-text-100 border-cyan-500/40",
-  magosradar: "bg-sky-500/20 text-text-100 border-sky-500/40",
-  spotter: "bg-violet-500/10 text-text-100 border-violet-500/40",
+  nanoRadar: metaDe("nanoRadar").badge,
+  magosradar: metaDe("magosradar").badge,
+  spotter: metaDe("spotter").badge,
 };
 
 /** Mapeo interno: deviceType → clave del array en Data */
 const TYPE_TO_DATA_KEY: Record<string, keyof Data> = {
-  nanoRadar: "nanoradares",
-  magosradar: "magosradares",
-  spotter: "spotters",
+  nanoRadar: metaDe("nanoRadar").dataKey ?? "nanoradares",
+  magosradar: metaDe("magosradar").dataKey ?? "magosradares",
+  spotter: metaDe("spotter").dataKey ?? "spotters",
 };
 
 /**

@@ -5,6 +5,6 @@ export const useConfigDevices = () => {
     return useQuery({
         queryKey: ["config-devices"],
         queryFn: () => configDevicesService.getConfigDevices(),
-        refetchInterval: 2000,
+        staleTime: 120_000,
     });
 };

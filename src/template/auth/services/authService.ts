@@ -17,7 +17,10 @@ export const authService = {
 
       // Validamos cómo viene el token (string directo o en data)
       const tokenData = response.data;
-      const token = typeof tokenData === "string" ? tokenData : (tokenData?.token || String(tokenData));
+      const token =
+        typeof tokenData === "string"
+          ? tokenData
+          : tokenData?.access_token || tokenData?.token || String(tokenData);
       const cleanToken = token.replace(/"/g, "");
 
       if (cleanToken && cleanToken !== "undefined" && cleanToken !== "null") {

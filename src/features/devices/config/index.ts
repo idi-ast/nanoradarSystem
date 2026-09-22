@@ -196,7 +196,7 @@ export function resolveRadarConfig(
 export const RADAR_INSTANCES: RadarInstanceConfig[] = [
   {
     id: "nanoradar-1",
-    label: "NanoRadar Principal",
+    label: "Radar Principal",
     wsUrl: (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + import.meta.env.VITE_SOCKET_URL as string,
   },
   // Para agregar un segundo radar, descomenta y ajusta solo lo que difiera:

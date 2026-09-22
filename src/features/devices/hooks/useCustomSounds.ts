@@ -89,7 +89,7 @@ export const useCustomSounds = create<CustomSoundsState>()(
       },
     }),
     {
-      name: "nanoradar-custom-sounds",
+      name: "wiradar-custom-sounds",
     }
   )
 );

@@ -1,0 +1,1 @@
+export { DispositivosPage, default } from "./components/DispositivosPage";

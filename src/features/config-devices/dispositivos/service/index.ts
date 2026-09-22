@@ -1,0 +1,1 @@
+export { dispositivosService } from "./dispositivos.service";
