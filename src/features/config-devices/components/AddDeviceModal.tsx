@@ -24,6 +24,7 @@ import type { CamaraPayload } from "../camara/service";
 import type { PtzPayload } from "../ptz/service";
 import { MagosradarSimpleForm } from "../magosradar/components/MagosradarSimpleForm";
 import type { SimpleMagosradarFormData } from "../magosradar/components/MagosradarSimpleForm";
+import { tipoLabel } from "../dispositivos/types";
 
 type DeviceTab = "nanoradar" | "magosradar" | "spotter" | "camara" | "ptz";
 
@@ -35,27 +36,27 @@ interface AddDeviceModalProps {
 const TABS: { key: DeviceTab; label: string; icon: React.ReactNode }[] = [
   {
     key: "nanoradar",
-    label: "NanoRadar",
+    label: tipoLabel("nano"),
     icon: <IconRadar size={14} stroke={1.5} />,
   },
   {
     key: "magosradar",
-    label: "MagosRadar",
+    label: tipoLabel("magos"),
     icon: <IconRadar size={14} stroke={1.5} />,
   },
   {
     key: "spotter",
-    label: "Spotter",
+    label: tipoLabel("spotter"),
     icon: <IconCurrentLocation size={14} stroke={1.5} />,
   },
   {
     key: "camara",
-    label: "Cámara",
+    label: tipoLabel("camara"),
     icon: <IconCamera size={14} stroke={1.5} />,
   },
   {
     key: "ptz",
-    label: "PTZ",
+    label: tipoLabel("ptz"),
     icon: <IconAdjustments size={14} stroke={1.5} />,
   },
 ];
