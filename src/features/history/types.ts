@@ -6,6 +6,27 @@ export interface TrackSummary {
   point_count: number;
   nivel_max: number | null;
   zones: string[];
+  duration_seconds?: number | null;
+  distance_m?: number | null;
+  avg_speed?: number | null;
+  max_speed?: number | null;
+  max_snr?: number | null;
+  avg_snr?: number | null;
+  max_confidence?: number | null;
+}
+
+export type TrackSortBy =
+  | "last_seen"
+  | "first_seen"
+  | "distance"
+  | "duration"
+  | "points"
+  | "nivel_max"
+  | "track_id";
+
+export interface TrackSort {
+  by: TrackSortBy;
+  dir: "asc" | "desc";
 }
 
 export interface TrackSummaryFilters {

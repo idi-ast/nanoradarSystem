@@ -43,9 +43,21 @@ class ApiSystem {
       }
     }
 
+    // Inyectar token de autorización si existe (sesión del backend de sistema)
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+    };
+    const storedToken = localStorage.getItem("access_token");
+    const token = storedToken?.trim();
+    const isGarbage =
+      !token || token === "undefined" || token === "null" || token === "[object Object]";
+    if (!isGarbage && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const config: RequestInit = {
       method,
-      headers: this.defaultHeaders,
+      headers,
       credentials: "omit",
     };
 
@@ -94,8 +106,11 @@ class ApiSystem {
     return this.request<T>("PATCH", endpoint, data);
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>("DELETE", endpoint);
+  async delete<T>(
+    endpoint: string,
+    params?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>("DELETE", endpoint, undefined, params);
   }
 
   setHeader(key: string, value: string): void {

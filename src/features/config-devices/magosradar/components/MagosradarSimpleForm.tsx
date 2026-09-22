@@ -337,7 +337,7 @@ export function MagosradarSimpleForm({
           name="modelo"
           value={form.modelo ?? ""}
           onChange={handleChange}
-          placeholder="Magos X7"
+          placeholder="MG 1000"
         />
       </FieldRow>
       <FieldRow>

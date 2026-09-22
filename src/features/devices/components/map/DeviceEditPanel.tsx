@@ -1699,7 +1699,7 @@ export function MagosradarAdvancedPanel({
               label="Modelo"
               value={form.modelo}
               onChange={(v) => set("modelo", v)}
-              placeholder="Magos X7"
+              placeholder="MG 1000"
             />
             <div>
               <TextFieldInfo
