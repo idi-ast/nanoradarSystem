@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   IconAdjustments,
   IconAlertTriangle,
   IconBulb,
   IconCheck,
+  IconChecklist,
+  IconClock,
   IconCompass,
   IconCrosshair,
   IconMapPin,
@@ -69,15 +71,26 @@ const COMPASS_DIRECTIONS = [
 
 type PendingAction = "detect" | "offset" | "verify" | null;
 
+/** Qué se aplicó en cada paso (label + hora) para mostrar el estado persistente. */
+interface AppliedStep {
+  label: string;
+  at: string;
+}
+
+const nowTime = () =>
+  new Date().toLocaleTimeString("es", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
 /**
  * Panel flotante de calibración PTZ.
  *
- * Flujo guiado:
- *  - Paso 1: detectar la dirección del PAN (panInvertido) con auto-fix.
- *  - Paso 2: calibrar apuntando la cámara a un punto conocido (por rumbo o
- *    marcándolo en el mapa) y guardando la referencia (azimut + tiltOffset).
- *  - Paso 3: corregir un offset fijo del pan si la cámara se desvía.
- *  - Verificar: mueve la cámara a posiciones de prueba y valida la calibración.
+ * Flujo GUIADO paso a paso (1-5). Cada paso tiene UN botón de confirmación
+ * explícito y muestra un badge "Aplicado" con el valor guardado y la hora.
+ * El slider de inclinación MUEVE la cámara en vivo pero NO guarda: solo se
+ * persiste al confirmar (0° de referencia).
  */
 export function CalibrationPanel({
   cameraId,
@@ -109,8 +122,12 @@ export function CalibrationPanel({
 
   // ── Inclinación real (tilt) para calibrar altura ──
   const [tiltAngle, setTiltAngle] = useState<number | null>(null);
+  const [tiltMoved, setTiltMoved] = useState(false);
   const [refDistance, setRefDistance] = useState(50);
   const [savingTilt, setSavingTilt] = useState(false);
+
+  // ── Estado "aplicado" por paso (lo que se confirmó) ──
+  const [applied, setApplied] = useState<Record<string, AppliedStep>>({});
 
   const calibrationStatus = useCameraCalibrationStore(
     (s) => s.calibrationStatus,
@@ -125,6 +142,9 @@ export function CalibrationPanel({
   );
   const { saveReference } = useCameraCalibration();
   const queryClient = useQueryClient();
+
+  const markApplied = (key: string, label: string) =>
+    setApplied((prev) => ({ ...prev, [key]: { label, at: nowTime() } }));
 
   // Valores mostrados en "Estado actual" (prioriza el estado refrescado del backend)
   const azimutActual = calibrationStatus?.azimut ?? azimutProp ?? 0;
@@ -158,23 +178,32 @@ export function CalibrationPanel({
         tilt_angle_used: null,
         pan: d.current_pan_deg,
         tilt: d.current_tilt_deg,
-        zoom: 0,
+        zoom: d.current_pan_deg !== undefined ? d.zoom : 0,
       });
       setPreviewBearing(d.bearing);
       await refreshCalibrationStatus(cameraId);
       queryClient.invalidateQueries({ queryKey: ["config-devices"] });
       const jumpMsg = d.remounted_likely
-        ? "El azimut cambió más de 40°: verifica que la cámara apunte al rumbo indicado."
+        ? " El azimut cambió más de 40°: verifica que la cámara apunte al rumbo indicado."
         : "";
       toast.success(`${d.message ?? "Azimut guardado"}.${jumpMsg}`);
+      markApplied("azimut", `azimut ${d.new_azimut.toFixed(1)}°`);
     } else {
       toast.error("Error al calibrar azimut");
     }
   };
 
-  const handleSaveReference = () => {
-    if (!clickPoint) return;
-    saveReference(cameraId, clickPoint.lat, clickPoint.lon);
+  const handleSaveReference = async () => {
+    if (!clickPoint) {
+      toast.warning("Haz clic sobre el punto de referencia en el mapa primero");
+      return;
+    }
+    const ok = await saveReference(cameraId, clickPoint.lat, clickPoint.lon);
+    if (ok) {
+      markApplied("azimut", "referencia azimut + tilt");
+    } else {
+      toast.error("No se pudo guardar la referencia");
+    }
   };
 
   /** Paso 1 · Detecta la dirección del PAN y corrige panInvertido si hace falta. */
@@ -187,6 +216,11 @@ export function CalibrationPanel({
         if (res.data.new_panInvertido !== undefined) {
           setLocalPanInvertido(res.data.new_panInvertido);
         }
+        if (res.data.auto_fix_applied) {
+          markApplied("pan", `panInvertido → ${res.data.new_panInvertido}`);
+        } else if (res.data.match) {
+          markApplied("pan", "dirección PAN correcta");
+        }
         toast.success(res.data.message);
         await refreshCalibrationStatus(cameraId);
         queryClient.invalidateQueries({ queryKey: ["config-devices"] });
@@ -198,7 +232,7 @@ export function CalibrationPanel({
     }
   };
 
-  /** Paso 3 · Corrige un offset fijo del pan (grados a sumar al panOffset). */
+  /** Paso 3 · Establece el valor ABSOLUTO del panOffset (no lo suma). */
   const handleAdjustOffset = async () => {
     const deg = Number(panOffsetInput);
     if (!Number.isFinite(deg)) {
@@ -213,6 +247,7 @@ export function CalibrationPanel({
         setLocalPanOffset(res.data.new_offset);
         setPanOffsetInput(String(res.data.new_offset));
         toast.success(res.data.message);
+        markApplied("offset", `panOffset ${res.data.new_offset.toFixed(1)}°`);
         await refreshCalibrationStatus(cameraId);
         queryClient.invalidateQueries({ queryKey: ["config-devices"] });
       } else {
@@ -231,6 +266,7 @@ export function CalibrationPanel({
       if (res.ok && res.data) {
         setVerifyResult(res.data);
         if (res.data.all_ok) {
+          markApplied("verify", "calibración coherente");
           toast.success("Calibración verificada correctamente");
         } else {
           toast.warning("La calibración no es coherente. Revisa los detalles.");
@@ -258,6 +294,7 @@ export function CalibrationPanel({
 
   const onCommitTilt = (angle: number) => {
     if (Number.isNaN(angle)) return;
+    setTiltMoved(true);
     ptzSetTiltInclination(cameraId, angle, true).then((res) => {
       if (res.ok && res.data) {
         setTiltAngle(Number(res.data.inclination.toFixed(1)));
@@ -269,10 +306,26 @@ export function CalibrationPanel({
   const handleSaveTiltCalibration = async () => {
     setSavingTilt(true);
     try {
-      const res = await ptzCalibrateTilt(cameraId);
+      const usedRef = refDistance > 0;
+      const res = await ptzCalibrateTilt(
+        cameraId,
+        usedRef ? refDistance : undefined,
+        usedRef && calcHeight != null ? calcHeight : undefined,
+      );
       if (res.ok && res.data) {
         setTiltAngle(0);
-        toast.success("Referencia de inclinación guardada (nuevo 0°)");
+        setTiltMoved(false);
+        markApplied(
+          "tilt",
+          usedRef
+            ? `0° a ${refDistance} m (altura ${calcHeight?.toFixed(1) ?? "—"} m)`
+            : "0° = inclinación 0° (horizonte)",
+        );
+        toast.success(
+          usedRef
+            ? `Referencia guardada: 0° calibrado a ${refDistance} m`
+            : "Referencia de inclinación guardada (nuevo 0°)",
+        );
         await refreshCalibrationStatus(cameraId);
         queryClient.invalidateQueries({ queryKey: ["config-devices"] });
       } else {
@@ -289,6 +342,10 @@ export function CalibrationPanel({
       ? null
       : OBJ_ALT + refDistance * Math.tan((tiltAngle * Math.PI) / 180);
 
+  const stepsDone = Object.keys(applied).filter((k) =>
+    ["pan", "azimut", "offset", "tilt", "verify"].includes(k),
+  ).length;
+
   return (
     <div className="max-w-140 px-4 py-3 shadow-2xl w-full max-h-[85vh] overflow-x-hidden overflow-y-auto">
       <div className="flex items-center gap-2 mb-2">
@@ -297,337 +354,384 @@ export function CalibrationPanel({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {/* ── Estado actual ── */}
-        <div className="col-span-2">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
-              Estado actual
-            </span>
-            {calibrationStatus && (
+      {/* ── Progreso del flujo guiado ── */}
+      <div className="flex items-center gap-1 mb-3 rounded-lg border border-border bg-bg-200/40 px-3 py-2">
+        <IconChecklist size={14} className="text-blue-400 shrink-0" />
+        <div className="flex flex-1 items-center justify-between gap-0.5">
+          {[
+            { key: "pan", label: "1 PAN" },
+            { key: "azimut", label: "2 Rumbo" },
+            { key: "offset", label: "3 Offset" },
+            { key: "tilt", label: "4 Tilt" },
+            { key: "verify", label: "5 Verificar" },
+          ].map((s) => {
+            const done = applied[s.key];
+            return (
               <span
-                className={`text-[10px] font-mono ${
-                  calibrationStatus.all_covered
-                    ? "text-green-400"
-                    : "text-red-400"
+                key={s.key}
+                title={done ? `Aplicado: ${done.label} · ${done.at}` : s.label}
+                className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors ${
+                  done
+                    ? "bg-emerald-950/60 text-emerald-400 border border-emerald-700/50"
+                    : "bg-bg-300/50 text-zinc-500 border border-transparent"
                 }`}
               >
-                {calibrationStatus.covered_count}/
-                {calibrationStatus.total_zones} zonas
+                {done ? <IconCheck size={10} /> : null}
+                {s.label}
               </span>
-            )}
+            );
+          })}
+        </div>
+        <span className="text-[9px] font-mono text-zinc-400 shrink-0">
+          {stepsDone}/5
+        </span>
+      </div>
+
+      {/* ── Estado actual ── */}
+      <div className="rounded-lg border border-border bg-bg-200/40 px-3 py-2 mb-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
+            Estado actual
+          </span>
+          {calibrationStatus && (
+            <span
+              className={`text-[10px] font-mono ${
+                calibrationStatus.all_covered
+                  ? "text-green-400"
+                  : "text-red-400"
+              }`}
+            >
+              {calibrationStatus.covered_count}/
+              {calibrationStatus.total_zones} zonas
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-1 text-center">
+          <div className="bg-zinc-800/80 rounded-md py-1">
+            <div className="text-zinc-500 text-[9px] uppercase">Azimut</div>
+            <div className="text-green-400 font-mono text-sm font-bold">
+              {azimutActual.toFixed(1)}°
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-1 text-center">
-            <div className="bg-zinc-800/80 rounded-md py-1">
-              <div className="text-zinc-500 text-[9px] uppercase">Azimut</div>
-              <div className="text-green-400 font-mono text-sm font-bold">
-                {azimutActual.toFixed(1)}°
-              </div>
+          <div className="bg-zinc-800/80 rounded-md py-1">
+            <div className="text-zinc-500 text-[9px] uppercase">Pan offset</div>
+            <div className="text-amber-400 font-mono text-sm font-bold">
+              {localPanOffset > 0 ? "+" : ""}
+              {localPanOffset.toFixed(1)}°
             </div>
-            <div className="bg-zinc-800/80 rounded-md py-1">
-              <div className="text-zinc-500 text-[9px] uppercase">
-                Pan offset
-              </div>
-              <div className="text-amber-400 font-mono text-sm font-bold">
-                {localPanOffset > 0 ? "+" : ""}
-                {localPanOffset.toFixed(1)}°
-              </div>
-            </div>
-            <div className="bg-zinc-800/80 rounded-md py-1">
-              <div className="text-zinc-500 text-[9px] uppercase">Pan inv.</div>
-              <div className="text-cyan-400 font-mono text-sm font-bold">
-                {panInvertidoActual === 1 ? "Sí" : "No"}
-              </div>
+          </div>
+          <div className="bg-zinc-800/80 rounded-md py-1">
+            <div className="text-zinc-500 text-[9px] uppercase">Pan inv.</div>
+            <div className="text-cyan-400 font-mono text-sm font-bold">
+              {panInvertidoActual === 1 ? "Sí" : "No"}
             </div>
           </div>
         </div>
+      </div>
 
-        <div>
-          {/* ── Paso 1: Verificar dirección PAN ── */}
-          <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 mb-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconRotate size={14} className="text-purple-400 shrink-0" />
-              <span className="text-purple-300 text-xs font-semibold">
-                Paso 1 · Verificar dirección PAN
-              </span>
-            </div>
-            <p className="text-zinc-400 text-[10px] leading-snug mb-2">
-              Mueve la cámara y detecta si{" "}
-              <strong className="text-white">panInvertido</strong> está bien
-              configurado (corrige automáticamente si hace falta).
-            </p>
-            <button
-              onClick={handleDetectPanDirection}
-              disabled={pending !== null}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+      <div className="space-y-2">
+        {/* ── Paso 1: Verificar dirección PAN ── */}
+        <StepCard
+          step={1}
+          title="Verificar dirección PAN"
+          accent="purple"
+          icon={<IconRotate size={14} />}
+          applied={applied.pan}
+        >
+          <p className="text-zinc-400 text-[10px] leading-snug mb-2">
+            Mueve la cámara y detecta si{" "}
+            <strong className="text-white">panInvertido</strong> está bien
+            configurado. Corrige automáticamente si hace falta y recalcula el
+            azimut.
+          </p>
+          <button
+            onClick={handleDetectPanDirection}
+            disabled={pending !== null}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+          >
+            <IconCrosshair size={14} />
+            {pending === "detect"
+              ? "Detectando..."
+              : "1 · Confirmar y guardar dirección"}
+          </button>
+
+          {detectResult && (
+            <div
+              className={`mt-2 rounded-md px-2 py-1.5 text-xs leading-snug border ${
+                detectResult.match || detectResult.auto_fix_applied
+                  ? "bg-emerald-950/50 border-emerald-800/50 text-emerald-300"
+                  : "bg-red-950/50 border-red-800/50 text-red-300"
+              }`}
             >
-              <IconCrosshair size={14} />
-              {pending === "detect"
-                ? "Detectando..."
-                : "Detectar dirección PAN"}
-            </button>
-
-            {detectResult && (
-              <div
-                className={`mt-2 rounded-md px-2 py-1.5 text-xs leading-snug border ${
-                  detectResult.match || detectResult.auto_fix_applied
-                    ? "bg-emerald-950/50 border-emerald-800/50 text-emerald-300"
-                    : "bg-red-950/50 border-red-800/50 text-red-300"
-                }`}
-              >
-                <p className="flex items-start gap-1.5">
-                  {detectResult.match || detectResult.auto_fix_applied ? (
-                    <IconCheck size={12} className="mt-0.5 shrink-0" />
-                  ) : (
-                    <IconAlertTriangle size={12} className="mt-0.5 shrink-0" />
-                  )}
-                  <span>{detectResult.message}</span>
-                </p>
-                <p className="text-zinc-400 mt-1 font-mono">
-                  pan {detectResult.pan_before.toFixed(1)}° →{" "}
-                  {detectResult.pan_after.toFixed(1)}° · Δ{" "}
-                  {detectResult.delta_deg.toFixed(1)}°
-                  {detectResult.auto_fix_applied &&
-                    detectResult.new_panInvertido !== undefined &&
-                    ` · panInvertido → ${detectResult.new_panInvertido}`}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Paso 2: Calibrar ── */}
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 mb-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconCompass size={14} className="text-emerald-400 shrink-0" />
-              <span className="text-emerald-300 text-xs font-semibold">
-                Paso 2 · Calibrar
-              </span>
-            </div>
-            <p className="text-zinc-300 text-[10px] leading-snug mb-2">
-              1. Apunta la cámara al punto conocido (rumbo abajo o flechas del
-              joystick). 2. Marca ese punto en el mapa y guarda la calibración.
-            </p>
-
-            {/* Puntos cardinales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-1 mb-2">
-              {COMPASS_DIRECTIONS.map((d) => (
-                <button
-                  key={d.label}
-                  onClick={() => handleAimBearing(d.bearing)}
-                  className="px-1 py-1.5 rounded-md bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px] font-bold transition-colors"
-                  title={`Apuntar al rumbo ${d.bearing}°`}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Entrada numérica + apuntar */}
-            <div className="flex gap-1.5 items-center mb-2">
-              <input
-                type="number"
-                min={0}
-                max={359}
-                value={bearingInput}
-                onChange={(e) => setBearingInput(e.target.value)}
-                className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-emerald-500"
-              />
-              <span className="text-zinc-400 text-xs font-mono">°</span>
-              <button
-                onClick={() => handleAimBearing(currentBearing)}
-                className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
-              >
-                <IconTarget size={13} />
-                Apuntar
-              </button>
-            </div>
-
-            {/* Calibrar azimut por rumbo */}
-            <button
-              onClick={handleCalibrateAzimut}
-              className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-medium transition-colors"
-            >
-              <IconCrosshair size={14} />
-              Calibrar azimut con rumbo {currentBearing}°
-            </button>
-
-            {/* Alternativa: punto en el mapa */}
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 mt-2">
-              <div className="flex items-center gap-2 mb-1.5">
-                <IconMapPin size={13} className="text-amber-400 shrink-0" />
-                <span className="text-amber-300 text-[10px] font-semibold">
-                  Alternativa: punto en el mapa
-                </span>
-                <button
-                  onClick={onToggleMode}
-                  className="ml-auto px-2 py-0.5 rounded-md bg-amber-700/60 hover:bg-amber-600 text-white text-[10px] font-medium transition-colors"
-                >
-                  {isSave ? "Volver a girar" : "Guardar referencia"}
-                </button>
-              </div>
-
-              {isSave ? (
-                <>
-                  <p className="text-zinc-300 text-[10px] leading-snug mb-1.5">
-                    Apunta la cámara físicamente a un punto conocido del terreno
-                    y haz clic sobre él en el mapa; luego confirma abajo.
-                  </p>
-                  {clickPoint && (
-                    <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 mb-1.5 text-[10px]">
-                      <IconMapPin
-                        size={12}
-                        className="text-emerald-400 shrink-0"
-                      />
-                      <span className="text-emerald-300 font-mono">
-                        {clickPoint.lat.toFixed(6)}, {clickPoint.lon.toFixed(6)}
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    onClick={handleSaveReference}
-                    disabled={!clickPoint}
-                    className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
-                  >
-                    <IconTarget size={14} />
-                    Guardar calibración
-                  </button>
-                </>
-              ) : (
-                <p className="text-zinc-300 text-[10px] leading-snug">
-                  Haz clic en el mapa y la cámara girará hacia ese punto (sin
-                  guardar). Usa "Guardar referencia" para fijar el punto.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          {/* ── Paso 3: Corregir offset ── */}
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 mb-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconAdjustments size={14} className="text-amber-400 shrink-0" />
-              <span className="text-amber-300 text-xs font-semibold">
-                Paso 3 · Corregir offset fijo
-              </span>
-            </div>
-            <p className="text-zinc-400 text-[10px] leading-snug mb-2">
-              Si la cámara se desvía a la{" "}
-              <strong className="text-white">derecha</strong> X° usa{" "}
-              <span className="font-mono text-white">+X</span>; si se desvía a
-              la <strong className="text-white">izquierda</strong> usa{" "}
-              <span className="font-mono text-white">-X</span>.
-            </p>
-            <div className="flex gap-1.5 items-center">
-              <input
-                type="number"
-                step="any"
-                value={panOffsetInput}
-                onChange={(e) => setPanOffsetInput(e.target.value)}
-                placeholder="0"
-                className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-amber-500"
-              />
-              <span className="text-zinc-400 text-xs font-mono">°</span>
-              <button
-                onClick={handleAdjustOffset}
-                disabled={pending !== null}
-                className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
-              >
-                {pending === "offset" ? "Aplicando..." : "Corregir offset"}
-              </button>
-            </div>
-            {offsetResult && (
-              <p className="mt-2 text-xs text-emerald-300 flex items-center gap-1.5">
-                <IconCheck size={12} className="shrink-0" />
-                {offsetResult.message}
+              <p className="flex items-start gap-1.5">
+                {detectResult.match || detectResult.auto_fix_applied ? (
+                  <IconCheck size={12} className="mt-0.5 shrink-0" />
+                ) : (
+                  <IconAlertTriangle size={12} className="mt-0.5 shrink-0" />
+                )}
+                <span>{detectResult.message}</span>
               </p>
-            )}
+              <p className="text-zinc-400 mt-1 font-mono">
+                pan {detectResult.pan_before.toFixed(1)}° →{" "}
+                {detectResult.pan_after.toFixed(1)}° · Δ{" "}
+                {detectResult.delta_deg.toFixed(1)}°
+                {detectResult.auto_fix_applied &&
+                  detectResult.new_panInvertido !== undefined &&
+                  ` · panInvertido → ${detectResult.new_panInvertido}`}
+              </p>
+            </div>
+          )}
+        </StepCard>
+
+        {/* ── Paso 2: Calibrar azimut / rumbo ── */}
+        <StepCard
+          step={2}
+          title="Calibrar azimut (rumbo)"
+          accent="emerald"
+          icon={<IconCompass size={14} />}
+          applied={applied.azimut}
+        >
+          <p className="text-zinc-300 text-[10px] leading-snug mb-2">
+            1. Apunta la cámara al punto conocido (rumbo abajo o flechas del
+            joystick). 2. Confirma el rumbo y guarda la calibración.
+          </p>
+
+          {/* Puntos cardinales */}
+          <div className="grid grid-cols-4 gap-1 mb-2">
+            {COMPASS_DIRECTIONS.map((d) => (
+              <button
+                key={d.label}
+                onClick={() => handleAimBearing(d.bearing)}
+                className="px-1 py-1.5 rounded-md bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px] font-bold transition-colors"
+                title={`Apuntar al rumbo ${d.bearing}°`}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
 
-          {/* ── Calibrar altura / inclinación ── */}
-          <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 mb-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconAdjustments size={14} className="text-indigo-400 shrink-0" />
-              <span className="text-indigo-300 text-xs font-semibold">
-                Calibrar altura / inclinación
-              </span>
-            </div>
-            <p className="text-zinc-400 text-[10px] leading-snug mb-2">
-              Ajusta la inclinación para que la cámara apunte como quieras. La
-              cámara se mueve al soltar el slider. Luego puedes fijar esta
-              posición como tu nuevo <strong className="text-white">0°</strong>{" "}
-              (horizonte de referencia).
-            </p>
-
-            <TiltSlider
-              value={tiltAngle == null ? "" : String(tiltAngle)}
-              onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
-              onCommit={onCommitTilt}
-              label="Inclinación actual (°)"
-              hint="Ángulo real de la cámara"
+          {/* Entrada numérica + apuntar */}
+          <div className="flex gap-1.5 items-center mb-2">
+            <input
+              type="number"
+              min={0}
+              max={359}
+              value={bearingInput}
+              onChange={(e) => setBearingInput(e.target.value)}
+              className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-emerald-500"
             />
-
-            {/* Distancia de referencia + altura calculada */}
-            <div className="mt-2 flex items-end gap-2">
-              <label className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <span className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest">
-                  Distancia de referencia (m)
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={10000}
-                  value={String(refDistance)}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v) && v > 0) setRefDistance(v);
-                  }}
-                  className="text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-orange-500 w-full"
-                />
-              </label>
-              <div className="rounded-md bg-zinc-800/70 border border-zinc-700 px-2 py-1 text-center min-w-[7rem]">
-                <div className="text-zinc-500 text-[9px] uppercase">
-                  Altura eq.
-                </div>
-                <div className="text-indigo-300 font-mono text-sm font-bold">
-                  {calcHeight == null ? "—" : `${calcHeight.toFixed(1)} m`}
-                </div>
-              </div>
-            </div>
-            {tiltAngle != null && (
-              <p className="text-zinc-400 text-[9px] leading-snug mt-1">
-                Equivale a apuntar a un objetivo a {refDistance} m de distancia
-                con la cámara a{" "}
-                {calcHeight == null ? "—" : calcHeight.toFixed(1)} m de altura
-                {calibrationStatus && calibrationStatus.altura_m > 0
-                  ? ` (montaje: ${calibrationStatus.altura_m.toFixed(1)} m)`
-                  : ""}
-                .
-              </p>
-            )}
-
+            <span className="text-zinc-400 text-xs font-mono">°</span>
             <button
-              onClick={handleSaveTiltCalibration}
-              disabled={savingTilt || tiltAngle == null}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors mt-2"
+              onClick={() => handleAimBearing(currentBearing)}
+              className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
             >
-              <IconTarget size={14} />
-              {savingTilt
-                ? "Guardando..."
-                : "Usar esta inclinación como calibración (0°)"}
+              <IconTarget size={13} />
+              Apuntar
             </button>
           </div>
-        </div>
 
-        {/* ── Verificar calibración ── */}
-        <div className="col-span-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 mb-2">
+          {/* Confirmar y guardar azimut por rumbo */}
+          <button
+            onClick={handleCalibrateAzimut}
+            className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-medium transition-colors"
+          >
+            <IconCheck size={14} />
+            2 · Confirmar y guardar azimut ({currentBearing}°)
+          </button>
+
+          {/* Alternativa: punto en el mapa */}
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 mt-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <IconMapPin size={13} className="text-amber-400 shrink-0" />
+              <span className="text-amber-300 text-[10px] font-semibold">
+                Alternativa: punto en el mapa
+              </span>
+              <button
+                onClick={onToggleMode}
+                className="ml-auto px-2 py-0.5 rounded-md bg-amber-700/60 hover:bg-amber-600 text-white text-[10px] font-medium transition-colors"
+              >
+                {isSave ? "Volver a girar" : "Guardar referencia"}
+              </button>
+            </div>
+
+            {isSave ? (
+              <>
+                <p className="text-zinc-300 text-[10px] leading-snug mb-1.5">
+                  Apunta la cámara físicamente a un punto conocido del terreno
+                  y haz clic sobre él en el mapa; luego confirma abajo.
+                </p>
+                {clickPoint && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 mb-1.5 text-[10px]">
+                    <IconMapPin
+                      size={12}
+                      className="text-emerald-400 shrink-0"
+                    />
+                    <span className="text-emerald-300 font-mono">
+                      {clickPoint.lat.toFixed(6)}, {clickPoint.lon.toFixed(6)}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={handleSaveReference}
+                  disabled={!clickPoint}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+                >
+                  <IconCheck size={14} />
+                  Guardar y confirmar referencia
+                </button>
+              </>
+            ) : (
+              <p className="text-zinc-300 text-[10px] leading-snug">
+                Haz clic en el mapa y la cámara girará hacia ese punto (sin
+                guardar). Usa "Guardar referencia" para fijar el punto.
+              </p>
+            )}
+          </div>
+        </StepCard>
+
+        {/* ── Paso 3: Corregir offset ── */}
+        <StepCard
+          step={3}
+          title="Corregir offset fijo"
+          accent="amber"
+          icon={<IconAdjustments size={14} />}
+          applied={applied.offset}
+        >
+          <p className="text-zinc-400 text-[10px] leading-snug mb-2">
+            Este campo es el{" "}
+            <strong className="text-white">valor absoluto</strong> del
+            panOffset (el que se suma al rumbo del encoder para llegar al de
+            brújula) y se precarga con el valor actual de la cámara. Escribe el
+            número tal cual debe quedar, sin sumar: si dice{" "}
+            <span className="font-mono text-white">30</span> y guardas, queda{" "}
+            <span className="font-mono text-white">30</span>, no 60.
+          </p>
+          <div className="flex gap-1.5 items-center">
+            <input
+              type="number"
+              step="any"
+              value={panOffsetInput}
+              onChange={(e) => setPanOffsetInput(e.target.value)}
+              placeholder="0"
+              className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-amber-500"
+            />
+            <span className="text-zinc-400 text-xs font-mono">°</span>
+            <button
+              onClick={handleAdjustOffset}
+              disabled={pending !== null}
+              className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+            >
+              {pending === "offset" ? "Aplicando..." : "3 · Guardar offset"}
+            </button>
+          </div>
+          {offsetResult && (
+            <p className="mt-2 text-xs text-emerald-300 flex items-center gap-1.5">
+              <IconCheck size={12} className="shrink-0" />
+              {offsetResult.message}
+            </p>
+          )}
+        </StepCard>
+
+        {/* ── Paso 4: Calibrar altura / inclinación ── */}
+        <StepCard
+          step={4}
+          title="Calibrar inclinación (tilt)"
+          accent="indigo"
+          icon={<IconAdjustments size={14} />}
+          applied={applied.tilt}
+        >
+          <p className="text-zinc-400 text-[10px] leading-snug mb-2">
+            El slider <strong className="text-white">mueve la cámara en vivo
+            pero no guarda</strong>. Cuando esté apuntando como quieras,
+            confirma esa posición como nuevo{" "}
+            <strong className="text-white">0°</strong> (horizonte).
+          </p>
+
+          {tiltMoved && !applied.tilt && (
+            <div className="flex items-center gap-1.5 rounded-md bg-amber-950/40 border border-amber-700/40 px-2 py-1 mb-2 text-amber-300 text-[10px]">
+              <IconClock size={12} className="shrink-0" />
+              Cambio sin guardar: confirma la inclinación abajo para aplicarlo.
+            </div>
+          )}
+
+          <TiltSlider
+            value={tiltAngle == null ? "" : String(tiltAngle)}
+            onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
+            onCommit={onCommitTilt}
+            label="Inclinación actual (°)"
+            hint="Ángulo real de la cámara"
+          />
+
+          {/* Distancia de referencia + altura calculada */}
+          <div className="mt-2 flex items-end gap-2">
+            <label className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <span className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest">
+                Distancia de referencia (m)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={10000}
+                value={String(refDistance)}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isNaN(v) && v > 0) setRefDistance(v);
+                }}
+                className="text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-orange-500 w-full"
+              />
+            </label>
+            <div className="rounded-md bg-zinc-800/70 border border-zinc-700 px-2 py-1 text-center min-w-[7rem]">
+              <div className="text-zinc-500 text-[9px] uppercase">
+                Altura eq.
+              </div>
+              <div className="text-indigo-300 font-mono text-sm font-bold">
+                {calcHeight == null ? "—" : `${calcHeight.toFixed(1)} m`}
+              </div>
+            </div>
+          </div>
+          {tiltAngle != null && (
+            <p className="text-zinc-400 text-[9px] leading-snug mt-1">
+              Equivale a apuntar a un objetivo a {refDistance} m de distancia
+              con la cámara a{" "}
+              {calcHeight == null ? "—" : calcHeight.toFixed(1)} m de altura
+              {calibrationStatus && calibrationStatus.altura_m > 0
+                ? ` (montaje: ${calibrationStatus.altura_m.toFixed(1)} m)`
+                : ""}
+              .
+            </p>
+          )}
+
+          <button
+            onClick={handleSaveTiltCalibration}
+            disabled={savingTilt || tiltAngle == null}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors mt-2"
+          >
+            <IconCheck size={14} />
+            {savingTilt
+              ? "Guardando..."
+              : "4 · Confirmar y guardar como 0°"}
+          </button>
+        </StepCard>
+
+        {/* ── Paso 5: Verificar calibración ── */}
+        <StepCard
+          step={5}
+          title="Verificar calibración"
+          accent="cyan"
+          icon={<IconShieldCheck size={14} />}
+          applied={applied.verify}
+        >
+          <p className="text-zinc-400 text-[10px] leading-snug mb-2">
+            Mueve la cámara a posiciones de prueba (home y 90°) y valida que la
+            calibración esté coherente. No guarda nada.
+          </p>
           <button
             onClick={handleVerifyCalibration}
             disabled={pending !== null}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
           >
             <IconShieldCheck size={14} />
-            {pending === "verify" ? "Verificando..." : "Verificar calibración"}
+            {pending === "verify" ? "Verificando..." : "5 · Verificar calibración"}
           </button>
 
           {verifyResult && (
@@ -657,10 +761,7 @@ export function CalibrationPanel({
                       key={issue}
                       className="text-red-300 text-[10px] leading-snug flex items-start gap-1"
                     >
-                      <IconAlertTriangle
-                        size={11}
-                        className="mt-0.5 shrink-0"
-                      />
+                      <IconAlertTriangle size={11} className="mt-0.5 shrink-0" />
                       {issue}
                     </li>
                   ))}
@@ -668,60 +769,112 @@ export function CalibrationPanel({
               )}
             </div>
           )}
-        </div>
-
-        {result && (
-          <>
-            {/* Resultados */}
-            <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-              <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
-                <div className="text-zinc-400">Azimut (pan 0°)</div>
-                <div className="text-green-400 font-mono text-lg font-bold">
-                  {result.recommended_azimut.toFixed(1)}°
-                </div>
-              </div>
-              <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
-                <div className="text-zinc-400">Rumbo</div>
-                <div className="text-green-400 font-mono text-lg font-bold">
-                  {result.bearing.toFixed(1)}°
-                </div>
-              </div>
-              {result.pan !== undefined && (
-                <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
-                  <div className="text-zinc-400">Pan (encoder)</div>
-                  <div className="text-amber-400 font-mono text-lg font-bold">
-                    {result.pan.toFixed(1)}°
-                  </div>
-                </div>
-              )}
-              {result.tilt !== undefined && (
-                <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
-                  <div className="text-zinc-400">Tilt (encoder)</div>
-                  <div className="text-amber-400 font-mono text-lg font-bold">
-                    {result.tilt.toFixed(1)}°
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <p className="text-zinc-400 text-xs mb-3 flex items-center gap-1.5">
-              <IconBulb size={14} className="text-yellow-400 shrink-0" />
-              El azimut quedó fijado al último rumbo calibrado.
-            </p>
-          </>
-        )}
+        </StepCard>
       </div>
+
+      {result && (
+        <>
+          {/* Resultados */}
+          <div className="grid grid-cols-2 gap-2 mb-3 text-xs mt-3">
+            <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
+              <div className="text-zinc-400">Azimut (pan 0°)</div>
+              <div className="text-green-400 font-mono text-lg font-bold">
+                {result.recommended_azimut.toFixed(1)}°
+              </div>
+            </div>
+            <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
+              <div className="text-zinc-400">Rumbo</div>
+              <div className="text-green-400 font-mono text-lg font-bold">
+                {result.bearing.toFixed(1)}°
+              </div>
+            </div>
+            {result.pan !== undefined && (
+              <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
+                <div className="text-zinc-400">Pan (encoder)</div>
+                <div className="text-amber-400 font-mono text-lg font-bold">
+                  {result.pan.toFixed(1)}°
+                </div>
+              </div>
+            )}
+            {result.tilt !== undefined && (
+              <div className="bg-zinc-800/80 rounded-lg px-3 py-2">
+                <div className="text-zinc-400">Tilt (encoder)</div>
+                <div className="text-amber-400 font-mono text-lg font-bold">
+                  {result.tilt.toFixed(1)}°
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-zinc-400 text-xs mb-3 flex items-center gap-1.5">
+            <IconBulb size={14} className="text-yellow-400 shrink-0" />
+            El azimut quedó fijado al último rumbo calibrado.
+          </p>
+        </>
+      )}
       {/* Estado de cobertura de zonas PTZ activas */}
       <CalibrationCoverageInfo status={calibrationStatus} />
 
       {/* Cerrar */}
       <button
         onClick={onCancel}
-        className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition-colors"
+        className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition-colors mt-2"
       >
         <IconX size={14} />
         Cerrar
       </button>
+    </div>
+  );
+}
+
+/** Tarjeta de paso del flujo guiado con badge de "aplicado". */
+function StepCard({
+  step,
+  title,
+  accent,
+  icon,
+  applied,
+  children,
+}: {
+  step: number;
+  title: string;
+  accent: "purple" | "emerald" | "amber" | "indigo" | "cyan";
+  icon: ReactNode;
+  applied?: AppliedStep;
+  children: ReactNode;
+}) {
+  const styles: Record<string, string> = {
+    purple: "border-purple-500/30 bg-purple-500/10 text-purple-300",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    indigo: "border-indigo-500/30 bg-indigo-500/10 text-indigo-300",
+    cyan: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
+  };
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 ${styles[accent]}`}
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-bg-300 text-[9px] font-bold text-text-100 shrink-0">
+          {step}
+        </span>
+        <span className="text-xs font-semibold">{title}</span>
+        {applied ? (
+          <span
+            title={`Aplicado a las ${applied.at}`}
+            className="ml-auto flex items-center gap-1 rounded-md bg-emerald-950/60 border border-emerald-700/40 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300"
+          >
+            <IconCheck size={10} className="shrink-0" />
+            {applied.label}
+            <span className="text-emerald-400/50 font-mono">{applied.at}</span>
+          </span>
+        ) : (
+          <span className="ml-auto text-[9px] font-semibold text-zinc-500">
+            sin confirmar
+          </span>
+        )}
+      </div>
+      {children}
     </div>
   );
 }

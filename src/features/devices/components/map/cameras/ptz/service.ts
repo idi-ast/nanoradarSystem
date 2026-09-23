@@ -357,14 +357,27 @@ export interface CalibrateTiltResponse {
 /**
  * GUARDA la posición ACTUAL de la cámara como nueva referencia de inclinación
  * (0° = horizontal). Devuelve el nuevo tiltOffset. Confirmación requerida.
+ *
+ * Si se indica `refDistanceM` (distancia al punto de referencia al que apunta
+ * la cámara), el backend corrige el offset geométricamente. `cam_alt_m`
+ * (altura de montaje) es opcional y mejora la exactitud de esa corrección.
  */
 export async function ptzCalibrateTilt(
   ptz_id: number,
+  refDistanceM?: number,
+  cam_alt_m?: number,
 ): Promise<{ ok: boolean; data: CalibrateTiltResponse["data"] | null }> {
   try {
+    const body: Record<string, unknown> = { confirm: true };
+    if (refDistanceM !== undefined && refDistanceM > 0) {
+      body.ref_distance_m = refDistanceM;
+    }
+    if (cam_alt_m !== undefined && cam_alt_m > 0) {
+      body.cam_alt_m = cam_alt_m;
+    }
     const res = await apiSystem.post<CalibrateTiltResponse>(
       `/ptz/${ptz_id}/calibrate-tilt`,
-      { confirm: true },
+      body,
     );
     return { ok: res.ok, data: res.data?.data ?? null };
   } catch (e) {

@@ -168,7 +168,7 @@ function ConfigFormFields({
                     key={c}
                     type="button"
                     onClick={() => onChange(key, c)}
-                    className={`w-6 h-6 rounded border-2 transition ${
+                    className={`w-3 h-3 rounded-full border border-border transition ${
                       (val as string) === c
                         ? "ring-2 ring-offset-1 ring-blue-500"
                         : ""
@@ -177,12 +177,15 @@ function ConfigFormFields({
                     aria-label={c}
                   />
                 ))}
-                <Input
-                  type="color"
-                  value={(val as string) ?? "#000"}
-                  onChange={(e) => onChange(key, e.target.value)}
-                  className="w-6 h-6 p-0 cursor-pointer"
-                />
+                <div className="flex items-center gap-1 w-full">
+                  <span className="text-xs text-text-200">Personalizado:</span>
+                  <Input
+                    type="color"
+                    value={(val as string) ?? "#000"}
+                    onChange={(e) => onChange(key, e.target.value)}
+                    className=" h-6 p-0 w-full cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
           );
@@ -198,7 +201,7 @@ function ConfigFormFields({
               <button
                 type="button"
                 onClick={() => toggleBool(key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                className={`px-3 py-1.5  text-xs font-semibold transition ${
                   on
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                     : "bg-red-500/10 text-red-400 border border-red-500/30"
@@ -400,7 +403,7 @@ function DispositivoFormModal({
               value={idTipo}
               onChange={(e) => handleTipoChange(Number(e.target.value))}
               disabled={isPending}
-              className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg border-border"
+              className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500  border-border"
             >
               {tipos.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -469,7 +472,7 @@ function DispositivoFormModal({
                 value={idEmpresa}
                 onChange={(e) => setIdEmpresa(Number(e.target.value))}
                 disabled={isPending}
-                className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg border-border"
+                className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500  border-border"
               >
                 {empresas.map((emp) => (
                   <option key={emp.id} value={emp.id}>
@@ -493,7 +496,7 @@ function DispositivoFormModal({
                   Plantilla{" "}
                   {tipoSeleccionado ? tipoLabel(tipoSeleccionado.nombre) : ""}
                 </button>
-                <div className="flex bg-bg-200 rounded-lg border border-border overflow-hidden">
+                <div className="flex bg-bg-200  border border-border overflow-hidden">
                   <button
                     type="button"
                     onClick={switchToJson}
@@ -525,7 +528,7 @@ function DispositivoFormModal({
                   rows={8}
                   spellCheck={false}
                   disabled={isPending}
-                  className="px-3 py-2.5 border bg-bg-100 text-text-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg border-border resize-y"
+                  className="px-3 py-2.5 border bg-bg-100 text-text-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500  border-border resize-y"
                 />
                 <p className="text-[11px] text-text-200">
                   Configuración como JSON válido.
@@ -629,7 +632,7 @@ export function DispositivosPage() {
       {/* Encabezado */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-bg-400 flex items-center justify-center text-text-400">
+          <div className="h-9 w-9  bg-bg-400 flex items-center justify-center text-text-400">
             <IconDeviceDesktop size={18} stroke={1.5} />
           </div>
           <div>
@@ -658,7 +661,7 @@ export function DispositivosPage() {
               <button
                 key={t.id}
                 onClick={() => setFiltroTipo(t.nombre)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
+                className={`px-3 py-1.5  border text-xs font-medium transition ${
                   filtroTipo === t.nombre
                     ? "border-brand-200 text-brand-200 bg-brand-200/10"
                     : "border-border text-text-200 hover:bg-bg-200"
@@ -670,7 +673,7 @@ export function DispositivosPage() {
           })}
           <button
             onClick={() => setFiltroTipo("all")}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
+            className={`px-3 py-1.5  border text-xs font-medium transition ${
               filtroTipo === "all"
                 ? "border-brand-200 text-brand-200 bg-brand-200/10"
                 : "border-border text-text-200 hover:bg-bg-200"
@@ -755,14 +758,14 @@ export function DispositivosPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => setModal({ abierto: true, editing: d })}
-                        className="p-1.5 rounded-lg text-text-200 hover:text-text-100 hover:bg-bg-200 transition"
+                        className="p-1.5  text-text-200 hover:text-text-100 hover:bg-bg-200 transition"
                         aria-label="Editar"
                       >
                         <IconPencil size={15} stroke={1.5} />
                       </button>
                       <button
                         onClick={() => setBorrar(d)}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition"
+                        className="p-1.5  text-red-400 hover:bg-red-500/10 transition"
                         aria-label="Eliminar"
                       >
                         <IconTrash size={15} stroke={1.5} />
