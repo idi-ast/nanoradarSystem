@@ -1,10 +1,7 @@
 import { memo, useMemo } from "react";
 import { Source, Layer, Marker } from "react-map-gl";
 import type { FilterSpecification } from "mapbox-gl";
-import {
-  useCameraCalibrationStore,
-  type CalibrationResult,
-} from "../../stores/cameraCalibrationStore";
+import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
 import { getGeoPoint } from "./utils/geoHelpers";
 import { DEVICES_BELOW_LAYER_ID } from "./devicesConfig";
 
@@ -20,19 +17,16 @@ export interface CameraCalibrationOverlayProps {
   rangeM: number;
   /** Color de la cámara */
   color?: string;
-  /** Resultado de calibración (para mostrar la línea al punto clickeado) */
-  result?: CalibrationResult | null;
 }
 
 /**
  * Overlay de calibración que se superpone sobre una cámara en modo calibración.
  *
  * Muestra:
- * - Una línea amarilla fija = dirección del PUNTO 0 (azimut), la referencia
+ * - Una línea amarilla tenue = dirección del PUNTO 0 (azimut), la referencia
  *   a partir de la cual se calcula el giro.
  * - Una línea cian = visión ACTUAL de la cámara (rota al girar la cámara).
- * - Una línea verde punteada hacia el punto clickeado.
- * - Un marcador en el punto clickeado.
+ * - Un marcador en el punto clickeado (referencia a guardar).
  */
 export const CameraCalibrationOverlay = memo(
   function CameraCalibrationOverlay({
@@ -42,7 +36,6 @@ export const CameraCalibrationOverlay = memo(
     liveBearing,
     rangeM,
     color = "#ebbe35",
-    result,
   }: CameraCalibrationOverlayProps) {
     const clickPoint = useCameraCalibrationStore((s) => s.clickPoint);
 
@@ -97,48 +90,11 @@ export const CameraCalibrationOverlay = memo(
         });
       }
 
-      // ── Línea de calibración al punto clickeado ──
-      if (result) {
-        const calibEnd = getGeoPoint(
-          cameraLat,
-          cameraLon,
-          result.bearing,
-          Math.max(result.distance_m, 50),
-        );
-        features.push({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: [
-              [cameraLon, cameraLat],
-              calibEnd,
-            ],
-          },
-          properties: { kind: "calib-result" },
-        });
-
-        // Arco pequeño en el extremo de calibración
-        const arcCoords: [number, number][] = [];
-        const arcAngle = result.bearing;
-        for (let a = arcAngle - 30; a <= arcAngle + 30; a += 2) {
-          const p = getGeoPoint(cameraLat, cameraLon, a, result.distance_m);
-          arcCoords.push(p);
-        }
-        features.push({
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: arcCoords,
-          },
-          properties: { kind: "calib-arc" },
-        });
-      }
-
       return {
         type: "FeatureCollection" as const,
         features,
       };
-    }, [cameraLat, cameraLon, currentBearing, liveEnd, effectiveRange, result]);
+    }, [cameraLat, cameraLon, currentBearing, liveEnd, effectiveRange]);
 
     const sourceId = `calib-overlay`;
 
@@ -155,8 +111,9 @@ export const CameraCalibrationOverlay = memo(
             }
             paint={{
               "line-color": calibColor,
-              "line-width": 4,
-              "line-opacity": 0.9,
+              "line-width": 1.5,
+              "line-opacity": 0.4,
+              "line-dasharray": [4, 3],
             }}
           />
 
@@ -171,44 +128,11 @@ export const CameraCalibrationOverlay = memo(
               }
               paint={{
                 "line-color": liveColor,
-                "line-width": 3,
-                "line-opacity": 0.9,
+                "line-width": 4,
+                "line-opacity": 1,
                 "line-dasharray": [2, 2],
               }}
             />
-          )}
-
-          {/* Línea de resultado de calibración */}
-          {result && (
-            <>
-              <Layer
-                id={`${sourceId}-result`}
-                type="line"
-                beforeId={DEVICES_BELOW_LAYER_ID}
-                filter={
-                  ["==", ["get", "kind"], "calib-result"] as unknown as FilterSpecification
-                }
-                paint={{
-                  "line-color": "#00ff88",
-                  "line-width": 2,
-                  "line-opacity": 0.9,
-                  "line-dasharray": [6, 4],
-                }}
-              />
-              <Layer
-                id={`${sourceId}-arc`}
-                type="line"
-                beforeId={DEVICES_BELOW_LAYER_ID}
-                filter={
-                  ["==", ["get", "kind"], "calib-arc"] as unknown as FilterSpecification
-                }
-                paint={{
-                  "line-color": "#00ff88",
-                  "line-width": 2,
-                  "line-opacity": 0.8,
-                }}
-              />
-            </>
           )}
         </Source>
 
@@ -220,11 +144,11 @@ export const CameraCalibrationOverlay = memo(
           style={{ zIndex: 30, pointerEvents: "none" }}
         >
           <div
-            className="w-3 h-3 rounded-full border-2"
+            className="w-2 h-2 rounded-full border"
             style={{
               backgroundColor: calibColor,
               borderColor: "#fff",
-              boxShadow: "0 0 10px rgba(235, 190, 53, 0.8)",
+              boxShadow: "0 0 6px rgba(235, 190, 53, 0.5)",
             }}
             title="Punto 0 de la cámara (referencia fija)"
           />
@@ -239,11 +163,11 @@ export const CameraCalibrationOverlay = memo(
             style={{ zIndex: 30, pointerEvents: "none" }}
           >
             <div
-              className="w-3 h-3 rounded-full border-2"
+              className="w-3.5 h-3.5 rounded-full border-2"
               style={{
                 backgroundColor: liveColor,
                 borderColor: "#fff",
-                boxShadow: "0 0 10px rgba(0, 212, 255, 0.8)",
+                boxShadow: "0 0 10px rgba(0, 212, 255, 0.9)",
               }}
               title="Visión actual de la cámara"
             />
@@ -261,9 +185,9 @@ export const CameraCalibrationOverlay = memo(
             <div
               className="w-4 h-4 rounded-full border-2 animate-pulse"
               style={{
-                backgroundColor: result ? "#00ff88" : calibColor,
-                borderColor: "#fff",
-                boxShadow: "0 0 12px rgba(235, 190, 53, 0.6)",
+                backgroundColor: "#ffffff",
+                borderColor: "#000",
+                boxShadow: "0 0 12px rgba(255, 255, 255, 0.7)",
               }}
             />
           </Marker>

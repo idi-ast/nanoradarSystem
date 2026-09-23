@@ -1,5 +1,9 @@
 import { useState, useCallback, useMemo, memo } from "react";
-import { IconArrowNarrowLeft, IconX } from "@tabler/icons-react";
+import {
+  IconAdjustmentsHorizontal,
+  IconArrowNarrowLeft,
+  IconCircleX,
+} from "@tabler/icons-react";
 import BottomBar from "@/components/bars/BottomBar";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
 import { RadarProvider } from "../context";
@@ -229,10 +233,10 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
 
               <button
                 onClick={() => setIsRightBarOpen(true)}
-                className="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border border-border bg-brand-100 px-1.5 py-3 shadow-lg transition-colors hover:bg-lime-300"
+                className="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border-t border-l border-bg-400/90 bg-bg-400/80 px-1.5 py-3 shadow-lg shadow-bg-400/50 transition-colors text-text-400 hover:text-text-100 hover:bg-bg-300"
                 title="Mostrar panel derecho"
               >
-                <IconArrowNarrowLeft size={20} stroke={1.5} />
+                <IconAdjustmentsHorizontal size={30} stroke={1.5} />
               </button>
             </>
           )}
@@ -403,11 +407,10 @@ const RightBarNano = memo(
             {(setOpenRightBar || onClose) && (
               <button
                 onClick={() => (onClose ? onClose() : setOpenRightBar?.(false))}
-                className="absolute top-3 flex items-center gap-1 right-3 z-50"
+                className="absolute top-3.5 hover:text-red-400 flex items-center justify-center gap-1 right-3"
                 title="Ocultar panel"
               >
-                <span className="text-[11px] uppercase">Ocultar</span>
-                <IconX size={20} stroke={1.5} />
+                <IconCircleX size={25} stroke={2} />
               </button>
             )}
           </div>

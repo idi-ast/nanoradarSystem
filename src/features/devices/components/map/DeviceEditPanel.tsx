@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import {
   ptzGetTiltInclination,
   ptzSetTiltInclination,
+  ptzCalibrateTilt,
+  ptzPauseTracking,
+  ptzResumeTracking,
 } from "./cameras/ptz/service";
 import { TiltSlider } from "./cameras/ptz/components/TiltSlider";
 import {
@@ -14,6 +17,8 @@ import {
   IconSettings,
   IconFilter,
   IconFilterOff,
+  IconCheck,
+  IconClock,
 } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useToast } from "@/libs/sonner";
@@ -1128,10 +1133,34 @@ function PtzForm({
     longitud: String(device.ubicacion.lng),
   });
 
+  // Al abrir el formulario de la PTZ se pausa el auto-tracking para que no
+  // interfiera con el control manual (slider de inclinación, flechas); se
+  // reanuda al cerrar el panel. Sin esto el tracking de zonas con zoom
+  // automático "pelea" contra el usuario y la cámara hace zoom/soluciones
+  // por su cuenta mientras se calibra.
+  useEffect(() => {
+    ptzPauseTracking(device.id).catch(() => {});
+    return () => {
+      ptzResumeTracking(device.id).catch(() => {});
+    };
+  }, [device.id]);
+
   // Inclinación real de la cámara (ángulo respecto a la horizontal):
   // estado independiente de `altitud` (que sigue siendo la altura en metros
   // que ve el autotracking). Se inicializa leyendo la posición física real.
   const [tiltAngle, setTiltAngle] = useState<number | null>(null);
+  // Muestra si el slider movió la cámara sin haber confirmado la inclinación.
+  const [tiltMoved, setTiltMoved] = useState(false);
+  const [savingTilt, setSavingTilt] = useState(false);
+  // Inclinación confirmada como 0° (para el aviso "sin guardar").
+  const [tiltConfirmed, setTiltConfirmed] = useState(false);
+  // Distancia (m) al punto de referencia al que apunta el slider; permite
+  // calibrar el 0° geométricamente en vez de asumir el horizonte. Se persiste
+  // por cámara (localStorage).
+  const [refDistance, setRefDistance] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(`ptz-ref-distance-${device.id}`));
+    return Number.isFinite(saved) && saved > 0 ? saved : 50;
+  });
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLatPTZ = liveEditPos
@@ -1145,15 +1174,38 @@ function PtzForm({
     setForm((p) => ({ ...p, [k]: v }));
   }
 
-  // Al soltar el slider de inclinación → MUEVE la cámara y sincroniza el
-  // indicador con la posición REAL que devuelve el backend.
+  // Al soltar el slider de inclinación → MUEVE la cámara pero NO guarda.
+  // La inclinación solo persiste al confirmar como 0° (flujo de calibración).
   function onCommitTilt(angle: number) {
     if (Number.isNaN(angle)) return;
+    setTiltMoved(true);
+    setTiltConfirmed(false);
     ptzSetTiltInclination(device.id, angle, true).then((res) => {
       if (res.ok && res.data) {
         setTiltAngle(Number(res.data.inclination.toFixed(1)));
       }
     });
+  }
+
+  // Confirma la posición actual como nuevo 0° de inclinación (guarda tiltOffset).
+  async function handleConfirmTilt() {
+    if (tiltAngle == null) return;
+    setSavingTilt(true);
+    try {
+      const res = await ptzCalibrateTilt(
+        device.id,
+        refDistance > 0 ? refDistance : undefined,
+      );
+      if (res.ok && res.data) {
+        setTiltAngle(0);
+        setTiltMoved(false);
+        setTiltConfirmed(true);
+      } else {
+        // Error: el slider queda con el aviso de "sin guardar" activo.
+      }
+    } finally {
+      setSavingTilt(false);
+    }
   }
 
   // Al abrir el panel, inicializa el slider con la inclinación REAL de la cámara
@@ -1279,11 +1331,54 @@ function PtzForm({
         onCancelPickPosition={onCancelPickPosition}
       />
       <div className="grid grid-cols-2">
-        <TiltSlider
-          value={tiltAngle == null ? "" : String(tiltAngle)}
-          onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
-          onCommit={(angle) => onCommitTilt(angle)}
-        />
+        <div className="flex flex-col gap-1.5">
+          <TiltSlider
+            value={tiltAngle == null ? "" : String(tiltAngle)}
+            onChange={(v) => setTiltAngle(v === "" ? 0 : Number(v))}
+            onCommit={(angle) => onCommitTilt(angle)}
+          />
+          {tiltMoved && !tiltConfirmed && (
+            <div className="flex items-center gap-1.5 rounded-md bg-amber-950/40 border border-amber-700/40 px-2 py-1 text-amber-300 text-[10px]">
+              <IconClock size={12} className="shrink-0" />
+              Cambio sin guardar: confirma abajo para aplicarlo como 0°.
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <label className="text-[9px] text-text-100/60 uppercase tracking-widest">
+              Dist. ref.
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={String(refDistance)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (!Number.isNaN(v) && v > 0) {
+                  setRefDistance(v);
+                  localStorage.setItem(
+                    `ptz-ref-distance-${device.id}`,
+                    String(v),
+                  );
+                }
+              }}
+              title="Distancia al punto de referencia al que apunta el slider"
+              className="flex-1 min-w-0 text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 font-mono focus:outline-none focus:border-indigo-500"
+            />
+            <span className="text-[9px] text-text-100/60">m</span>
+          </div>
+          <button
+            onClick={handleConfirmTilt}
+            disabled={savingTilt || tiltAngle == null}
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+          >
+            <IconCheck size={14} />
+            {savingTilt
+              ? "Guardando..."
+              : tiltConfirmed
+                ? `0° guardado (${refDistance} m)`
+                : "Usar esta inclinación como 0°"}
+          </button>
+        </div>
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
             Azimut (pan 0°) · solo-lectura
