@@ -34,7 +34,6 @@ export const DevicesOverlay = memo(function DevicesOverlay({
   const calibratingCameraId = useCameraCalibrationStore(
     (s) => s.calibratingCameraId,
   );
-  const lastResult = useCameraCalibrationStore((s) => s.lastResult);
   const liveBearing = useCameraCalibrationStore((s) => s.previewBearing);
   const georefs = usePtzGeoRefs().data ?? {};
 
@@ -152,7 +151,6 @@ export const DevicesOverlay = memo(function DevicesOverlay({
                 liveBearing={liveBearing}
                 rangeM={p.radio > 0 ? p.radio : 200}
                 color={p.color || "#8207d5"}
-                result={lastResult}
               />
             )}
           </React.Fragment>
@@ -175,7 +173,6 @@ export const DevicesOverlay = memo(function DevicesOverlay({
                 liveBearing={liveBearing}
                 rangeM={c.radio > 0 ? c.radio : 200}
                 color={c.color || "#f59e0b"}
-                result={lastResult}
               />
             )}
           </React.Fragment>

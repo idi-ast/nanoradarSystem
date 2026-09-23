@@ -1155,8 +1155,12 @@ function PtzForm({
   // Inclinación confirmada como 0° (para el aviso "sin guardar").
   const [tiltConfirmed, setTiltConfirmed] = useState(false);
   // Distancia (m) al punto de referencia al que apunta el slider; permite
-  // calibrar el 0° geométricamente en vez de asumir el horizonte.
-  const [refDistance, setRefDistance] = useState(50);
+  // calibrar el 0° geométricamente en vez de asumir el horizonte. Se persiste
+  // por cámara (localStorage).
+  const [refDistance, setRefDistance] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(`ptz-ref-distance-${device.id}`));
+    return Number.isFinite(saved) && saved > 0 ? saved : 50;
+  });
 
   // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
   const effectiveLatPTZ = liveEditPos
@@ -1349,7 +1353,13 @@ function PtzForm({
               value={String(refDistance)}
               onChange={(e) => {
                 const v = Number(e.target.value);
-                if (!Number.isNaN(v) && v > 0) setRefDistance(v);
+                if (!Number.isNaN(v) && v > 0) {
+                  setRefDistance(v);
+                  localStorage.setItem(
+                    `ptz-ref-distance-${device.id}`,
+                    String(v),
+                  );
+                }
               }}
               title="Distancia al punto de referencia al que apunta el slider"
               className="flex-1 min-w-0 text-[11px] bg-bg-200/50 border border-border/60 rounded-md px-2 py-1 text-text-100 font-mono focus:outline-none focus:border-indigo-500"

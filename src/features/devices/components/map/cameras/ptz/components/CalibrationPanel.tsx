@@ -123,7 +123,11 @@ export function CalibrationPanel({
   // ── Inclinación real (tilt) para calibrar altura ──
   const [tiltAngle, setTiltAngle] = useState<number | null>(null);
   const [tiltMoved, setTiltMoved] = useState(false);
-  const [refDistance, setRefDistance] = useState(50);
+  // Distancia al punto de referencia; se persiste por cámara (localStorage).
+  const [refDistance, setRefDistance] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(`ptz-ref-distance-${cameraId}`));
+    return Number.isFinite(saved) && saved > 0 ? saved : 50;
+  });
   const [savingTilt, setSavingTilt] = useState(false);
 
   // ── Estado "aplicado" por paso (lo que se confirmó) ──
@@ -354,6 +358,37 @@ export function CalibrationPanel({
         </span>
       </div>
 
+      {/* ── Leyenda del mapa ── */}
+      <div className="rounded-lg border border-border bg-bg-200/40 px-3 py-2 mb-2">
+        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-1.5">
+          Líneas en el mapa
+        </span>
+        <div className="flex flex-col gap-1 text-[10px] leading-snug">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-0.5 w-6 rounded"
+              style={{
+                backgroundColor: "#00d4ff",
+                boxShadow: "0 0 6px rgba(0,212,255,0.8)",
+              }}
+            />
+            <span className="text-white font-medium">Vista actual de la cámara</span>
+            <span className="text-zinc-400">— girá hasta que coincida con el punto</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-1 w-6 rounded"
+              style={{
+                backgroundColor: "#ebbe35",
+                boxShadow: "0 0 6px rgba(235,190,53,0.6)",
+              }}
+            />
+            <span className="text-zinc-300">Punto 0 (referencia pan 0°)</span>
+            <span className="text-zinc-500">— no es hacia dónde mira la cámara</span>
+          </div>
+        </div>
+      </div>
+
       {/* ── Progreso del flujo guiado ── */}
       <div className="flex items-center gap-1 mb-3 rounded-lg border border-border bg-bg-200/40 px-3 py-2">
         <IconChecklist size={14} className="text-blue-400 shrink-0" />
@@ -492,63 +527,20 @@ export function CalibrationPanel({
           applied={applied.azimut}
         >
           <p className="text-zinc-300 text-[10px] leading-snug mb-2">
-            1. Apunta la cámara al punto conocido (rumbo abajo o flechas del
-            joystick). 2. Confirma el rumbo y guarda la calibración.
+            1. Apunta la cámara al punto conocido (joystick o "girar").
+            2. Haz clic en el mapa sobre ese punto y confirma la referencia.
           </p>
 
-          {/* Puntos cardinales */}
-          <div className="grid grid-cols-4 gap-1 mb-2">
-            {COMPASS_DIRECTIONS.map((d) => (
-              <button
-                key={d.label}
-                onClick={() => handleAimBearing(d.bearing)}
-                className="px-1 py-1.5 rounded-md bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px] font-bold transition-colors"
-                title={`Apuntar al rumbo ${d.bearing}°`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Entrada numérica + apuntar */}
-          <div className="flex gap-1.5 items-center mb-2">
-            <input
-              type="number"
-              min={0}
-              max={359}
-              value={bearingInput}
-              onChange={(e) => setBearingInput(e.target.value)}
-              className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-emerald-500"
-            />
-            <span className="text-zinc-400 text-xs font-mono">°</span>
-            <button
-              onClick={() => handleAimBearing(currentBearing)}
-              className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
-            >
-              <IconTarget size={13} />
-              Apuntar
-            </button>
-          </div>
-
-          {/* Confirmar y guardar azimut por rumbo */}
-          <button
-            onClick={handleCalibrateAzimut}
-            className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-medium transition-colors"
-          >
-            <IconCheck size={14} />
-            2 · Confirmar y guardar azimut ({currentBearing}°)
-          </button>
-
-          {/* Alternativa: punto en el mapa */}
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 mt-2">
+          {/* Principal: punto en el mapa → guardar referencia */}
+          <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-2">
             <div className="flex items-center gap-2 mb-1.5">
-              <IconMapPin size={13} className="text-amber-400 shrink-0" />
-              <span className="text-amber-300 text-[10px] font-semibold">
-                Alternativa: punto en el mapa
+              <IconMapPin size={13} className="text-cyan-400 shrink-0" />
+              <span className="text-cyan-200 text-[10px] font-semibold">
+                Punto en el mapa + confirmar
               </span>
               <button
                 onClick={onToggleMode}
-                className="ml-auto px-2 py-0.5 rounded-md bg-amber-700/60 hover:bg-amber-600 text-white text-[10px] font-medium transition-colors"
+                className="ml-auto px-2 py-0.5 rounded-md bg-cyan-700/60 hover:bg-cyan-600 text-white text-[10px] font-medium transition-colors"
               >
                 {isSave ? "Volver a girar" : "Guardar referencia"}
               </button>
@@ -557,8 +549,9 @@ export function CalibrationPanel({
             {isSave ? (
               <>
                 <p className="text-zinc-300 text-[10px] leading-snug mb-1.5">
-                  Apunta la cámara físicamente a un punto conocido del terreno
-                  y haz clic sobre él en el mapa; luego confirma abajo.
+                  Al hacer clic marcás el punto en el mapa (la cámara no se
+                  mueve). Apuntala al punto conocido con el joystick, hace clic
+                  y confirma abajo:
                 </p>
                 {clickPoint && (
                   <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 mb-1.5 text-[10px]">
@@ -574,19 +567,83 @@ export function CalibrationPanel({
                 <button
                   onClick={handleSaveReference}
                   disabled={!clickPoint}
-                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
                 >
                   <IconCheck size={14} />
-                  Guardar y confirmar referencia
+                  2 · Guardar y confirmar referencia
                 </button>
               </>
             ) : (
-              <p className="text-zinc-300 text-[10px] leading-snug">
-                Haz clic en el mapa y la cámara girará hacia ese punto (sin
-                guardar). Usa "Guardar referencia" para fijar el punto.
-              </p>
+              <>
+                <p className="text-zinc-300 text-[10px] leading-snug mb-1.5">
+                  Con "girar" activo, al hacer clic en el mapa la cámara
+                  apunta a ese punto (sin guardar). Usala para llevarla al
+                  lugar correcto y después tocá{" "}
+                  <strong className="text-white">"Guardar referencia"</strong>.
+                </p>
+                <button
+                  onClick={onToggleMode}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-700/60 hover:bg-cyan-600 text-white text-xs font-medium transition-colors"
+                >
+                  <IconMapPin size={13} />
+                  Entrar en "Guardar referencia"
+                </button>
+              </>
             )}
           </div>
+
+          {/* Alternativa: confirmar por rumbo numérico */}
+          <details className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 mt-2">
+            <summary className="cursor-pointer flex items-center gap-1.5 text-amber-300 text-[10px] font-semibold select-none">
+              <IconCompass size={13} className="shrink-0" />
+              Alternativa: escribir el rumbo en grados
+            </summary>
+
+            <div className="mt-2">
+              {/* Puntos cardinales */}
+              <div className="grid grid-cols-4 gap-1 mb-2">
+                {COMPASS_DIRECTIONS.map((d) => (
+                  <button
+                    key={d.label}
+                    onClick={() => handleAimBearing(d.bearing)}
+                    className="px-1 py-1.5 rounded-md bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px] font-bold transition-colors"
+                    title={`Apuntar al rumbo ${d.bearing}°`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Entrada numérica + apuntar */}
+              <div className="flex gap-1.5 items-center mb-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={359}
+                  value={bearingInput}
+                  onChange={(e) => setBearingInput(e.target.value)}
+                  className="flex-1 min-w-0 text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-zinc-400 text-xs font-mono">°</span>
+                <button
+                  onClick={() => handleAimBearing(currentBearing)}
+                  className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium transition-colors"
+                >
+                  <IconTarget size={13} />
+                  Apuntar
+                </button>
+              </div>
+
+              {/* Confirmar por rumbo */}
+              <button
+                onClick={handleCalibrateAzimut}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-xs font-medium transition-colors"
+              >
+                <IconCheck size={14} />
+                Confirmar azimut ({currentBearing}°)
+              </button>
+            </div>
+          </details>
         </StepCard>
 
         {/* ── Paso 3: Corregir offset ── */}
@@ -675,7 +732,13 @@ export function CalibrationPanel({
                 value={String(refDistance)}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  if (!Number.isNaN(v) && v > 0) setRefDistance(v);
+                  if (!Number.isNaN(v) && v > 0) {
+                    setRefDistance(v);
+                    localStorage.setItem(
+                      `ptz-ref-distance-${cameraId}`,
+                      String(v),
+                    );
+                  }
                 }}
                 className="text-xs bg-zinc-800 border border-zinc-600 rounded-md px-2 py-1.5 text-white font-mono focus:outline-none focus:border-orange-500 w-full"
               />
