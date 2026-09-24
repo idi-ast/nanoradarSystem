@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { PageLoader } from "@/components/ui/PageLoader";
+import { useRole } from "@/context/role";
 import {
   useCreateDispositivo,
   useDeleteDispositivo,
@@ -671,6 +672,8 @@ function DispositivoFormModal({
 }
 
 export function DispositivosPage() {
+  const { isSuperAdmin, isAdmin } = useRole();
+  const puedeGestionar = isSuperAdmin || isAdmin;
   const [filtroTipo, setFiltroTipo] = useState<string>("all");
   const [busqueda, setBusqueda] = useState<string>("");
   const [modal, setModal] = useState<{
@@ -755,12 +758,14 @@ export function DispositivosPage() {
             </p>
           </div>
         </div>
-        <Button
-          onClick={() => setModal({ abierto: true, editing: null })}
-          leftIcon={<IconPlus size={15} stroke={1.5} />}
-        >
-          Nuevo dispositivo
-        </Button>
+        {puedeGestionar && (
+          <Button
+            onClick={() => setModal({ abierto: true, editing: null })}
+            leftIcon={<IconPlus size={15} stroke={1.5} />}
+          >
+            Nuevo dispositivo
+          </Button>
+        )}
       </div>
 
       {/* Resumen por tipo */}
@@ -830,7 +835,9 @@ export function DispositivosPage() {
                 <th className="px-4 py-2.5">Estado</th>
                 <th className="px-4 py-2.5">Empresa</th>
                 <th className="px-4 py-2.5">Config</th>
-                <th className="px-4 py-2.5 text-right">Acciones</th>
+                <th className="px-4 py-2.5 text-right">
+                  {puedeGestionar ? "Acciones" : ""}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -874,22 +881,26 @@ export function DispositivosPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setModal({ abierto: true, editing: d })}
-                        className="p-1.5  text-text-200 hover:text-text-100 hover:bg-bg-200 transition"
-                        aria-label="Editar"
-                      >
-                        <IconPencil size={15} stroke={1.5} />
-                      </button>
-                      <button
-                        onClick={() => setBorrar(d)}
-                        className="p-1.5  text-red-400 hover:bg-red-500/10 transition"
-                        aria-label="Eliminar"
-                      >
-                        <IconTrash size={15} stroke={1.5} />
-                      </button>
-                    </div>
+                    {puedeGestionar ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setModal({ abierto: true, editing: d })}
+                          className="p-1.5  text-text-200 hover:text-text-100 hover:bg-bg-200 transition"
+                          aria-label="Editar"
+                        >
+                          <IconPencil size={15} stroke={1.5} />
+                        </button>
+                        <button
+                          onClick={() => setBorrar(d)}
+                          className="p-1.5  text-red-400 hover:bg-red-500/10 transition"
+                          aria-label="Eliminar"
+                        >
+                          <IconTrash size={15} stroke={1.5} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-text-200/50 text-xs">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -899,7 +910,7 @@ export function DispositivosPage() {
       )}
 
       {/* Modal crear/editar */}
-      {modal.abierto && (
+      {modal.abierto && puedeGestionar && (
         <DispositivoFormModal
           editing={modal.editing}
           tipos={tipos}
@@ -910,6 +921,7 @@ export function DispositivosPage() {
 
       {/* Confirmación de borrado */}
       {borrar &&
+        puedeGestionar &&
         createPortal(
           <div
             className="fixed inset-0 z-99999 flex items-center justify-center bg-black/60 backdrop-blur-sm"
