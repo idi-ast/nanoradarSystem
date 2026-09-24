@@ -13,6 +13,14 @@ export function useTiposDispositivos() {
   });
 }
 
+export function useCategorias() {
+  return useQuery({
+    queryKey: ["dispositivos", "categorias"],
+    queryFn: () => dispositivosService.getCategorias(),
+    staleTime: 60_000,
+  });
+}
+
 export function useDispositivos(params?: { tipo_radar?: string; modelo?: string }) {
   return useQuery({
     queryKey: ["dispositivos", params?.tipo_radar ?? "all", params?.modelo ?? ""],

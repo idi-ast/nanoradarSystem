@@ -924,6 +924,7 @@ function CamaraForm({
     password: device.password,
     url_stream: device.url_stream,
     tipo: device.tipo,
+    modelo: device.modelo ?? "",
   });
 
   const [posForm, setPosForm] = useState({
@@ -958,6 +959,7 @@ function CamaraForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
+      modelo: form.modelo,
       latitud: effectiveLatCF,
       longitud: effectiveLngCF,
     };
@@ -1027,6 +1029,11 @@ function CamaraForm({
         onChange={(v) => set("subtype", v)}
         min={0}
         max={10}
+      />
+      <TextField
+        label="Modelo / Marca"
+        value={form.modelo}
+        onChange={(v) => set("modelo", v)}
       />
       <TextField
         label="URL Stream"
@@ -1126,6 +1133,7 @@ function PtzForm({
     panOffset: device.panOffset ?? 0,
     url_stream: device.url_stream,
     tipo: device.tipo,
+    modelo: device.modelo ?? "",
   });
 
   const [posForm, setPosForm] = useState({
@@ -1242,6 +1250,7 @@ function PtzForm({
       color: liveEdit.color,
       url_stream: form.url_stream,
       tipo: form.tipo,
+      modelo: form.modelo,
       latitud: effectiveLatPTZ,
       longitud: effectiveLngPTZ,
     };
@@ -1302,6 +1311,11 @@ function PtzForm({
           onChange={(v) => set("password", v)}
         />
       </div>
+      <TextField
+        label="Modelo / Marca"
+        value={form.modelo}
+        onChange={(v) => set("modelo", v)}
+      />
       <TextField
         label="URL Stream"
         value={form.url_stream}

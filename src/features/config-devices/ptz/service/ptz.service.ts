@@ -22,6 +22,7 @@ export type PtzPayload = Pick<
   | "panOffset"
   | "url_stream"
   | "tipo"
+  | "modelo"
 > & {
   latitud: string;
   longitud: string;

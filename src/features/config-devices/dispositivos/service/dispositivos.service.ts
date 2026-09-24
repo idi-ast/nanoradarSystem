@@ -1,5 +1,6 @@
 import { apiSystem } from "@/apis";
 import type {
+  Categoria,
   Dispositivo,
   DispositivoPayload,
   DispositivoUpdatePayload,
@@ -25,6 +26,12 @@ export const dispositivosService = {
   // ── Tipos de dispositivo ──
   getTiposDispositivos: async (): Promise<TipoDispositivo[]> => {
     const res = await apiSystem.get<ApiListResponse<TipoDispositivo>>("/dispositivos/tipos");
+    return res.data.data;
+  },
+
+  // ── Categorías con sus tipos ──
+  getCategorias: async (): Promise<Categoria[]> => {
+    const res = await apiSystem.get<ApiListResponse<Categoria>>("/dispositivos/categorias");
     return res.data.data;
   },
 

@@ -48,6 +48,7 @@ export interface Camaras {
   apertura: number;
   url_stream: string;
   tipo: string;
+  modelo?: string | null;
 }
 
 
@@ -101,6 +102,7 @@ export interface Ptz {
   panOffset?: number;
   url_stream: string;
   tipo: string;
+  modelo?: string | null;
   idEmpresa?: number;
 }
 
