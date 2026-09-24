@@ -42,6 +42,8 @@ interface AddDeviceModalProps {
  * Nombre de tipo de la BD → formulario destino.
  * La tabla tipo_dispositivos (categoría Radar/PTZ/Cámara) agrupa los tipos;
  * cada tipo concreto mapea a un formulario de alta existente.
+ * La resolución es por CATEGORÍA (robusta a renombres del tipo); el nombre
+ * del tipo solo se usa como fallback (nano/magos/spotter).
  */
 const TIPO_TAB: Partial<Record<string, DeviceTab>> = {
   nano: "nanoradar",
@@ -50,6 +52,20 @@ const TIPO_TAB: Partial<Record<string, DeviceTab>> = {
   camara: "camara",
   ptz: "ptz",
 };
+
+const TIPO_TAB_POR_CATEGORIA: Partial<Record<string, DeviceTab>> = {
+  Cámara: "camara",
+  PTZ: "ptz",
+};
+
+function tabDelTipo(t: {
+  nombre: string;
+  categoria?: string | null;
+}): DeviceTab | undefined {
+  const porCategoria = TIPO_TAB_POR_CATEGORIA[t.categoria ?? ""];
+  if (porCategoria) return porCategoria;
+  return TIPO_TAB[t.nombre];
+}
 
 const KIND_CATEGORIA: Record<string, DeviceKind> = {
   Radar: "radar",
@@ -1098,18 +1114,16 @@ function PtzForm({
   );
 }
 
-export function AddDeviceModal({
-  onClose,
-  defaultTab,
-}: AddDeviceModalProps) {
+export function AddDeviceModal({ onClose, defaultTab }: AddDeviceModalProps) {
   const categoriasQuery = useCategorias();
   const categorias = categoriasQuery.data ?? [];
 
   const [step, setStep] = useState<"kind" | "model" | "form">(
     defaultTab ? "form" : "kind",
   );
-  const [selectedCategoria, setSelectedCategoria] =
-    useState<Categoria | null>(null);
+  const [selectedCategoria, setSelectedCategoria] = useState<Categoria | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState<DeviceTab>(
     defaultTab ?? "nanoradar",
   );
@@ -1196,9 +1210,7 @@ export function AddDeviceModal({
         {step === "kind" && (
           <div className="grid grid-cols-1 gap-3 px-5 py-5">
             {categoriasQuery.isLoading && (
-              <p className="text-xs text-text-200 px-1 py-4">
-                Cargando tipos…
-              </p>
+              <p className="text-xs text-text-200 px-1 py-4">Cargando tipos…</p>
             )}
             {categorias.map((cat) => {
               const kind = KIND_CATEGORIA[cat.nombre];
@@ -1244,15 +1256,15 @@ export function AddDeviceModal({
         {step === "model" && selectedCategoria && (
           <div className="grid grid-cols-1 gap-3 px-5 py-5">
             {selectedCategoria.tipos
-              .filter((t) => TIPO_TAB[t.nombre])
-              .map((t) => {
-                const tab = TIPO_TAB[t.nombre]!;
+              .map((t) => ({ t, tab: tabDelTipo(t) }))
+              .filter(({ tab }) => tab)
+              .map(({ t, tab }) => {
                 const kind = KIND_CATEGORIA[selectedCategoria.nombre];
                 return (
                   <button
                     key={t.id}
                     onClick={() => {
-                      setActiveTab(tab);
+                      setActiveTab(tab!);
                       setStep("form");
                     }}
                     className="flex items-center gap-4 rounded-lg border border-border bg-bg-200/40 px-4 py-3 text-left transition-colors hover:border-brand-200/40 hover:bg-bg-200"

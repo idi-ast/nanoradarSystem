@@ -86,12 +86,40 @@ const TIPO_PLANTILLAS: Record<string, Record<string, unknown>> = {
     password: "",
   },
   sensor: {},
+  "Cámara": {
+    direccionIp: "",
+    channel: 1,
+    subtype: 0,
+    azimut: "0",
+    usuario: "admin",
+    password: "",
+  },
+  PTZ: {
+    direccionIp: "",
+    puertoOnvif: 80,
+    puertoRtsp: 554,
+    azimut: "0",
+    usuario: "admin",
+    password: "",
+    channel: 1,
+    subtype: 0,
+  },
 };
 
 const toJsonText = (
   config: Record<string, unknown> | null | undefined,
 ): string =>
   JSON.stringify(config && Object.keys(config).length ? config : {}, null, 2);
+
+/** Plantilla de config por categoría (robusta a renombres) o por nombre. */
+function plantillaPara(tipo?: { nombre: string; categoria?: string | null }) {
+  if (!tipo) return {};
+  return (
+    TIPO_PLANTILLAS[tipo.categoria ?? ""] ??
+    TIPO_PLANTILLAS[tipo.nombre] ??
+    {}
+  );
+}
 
 const configKeyCount = (
   config: Record<string, unknown> | null | undefined,
@@ -303,7 +331,7 @@ function DispositivoFormModal({
   }, [tipos]);
 
   const template = useMemo(
-    () => TIPO_PLANTILLAS[tipoSeleccionado?.nombre ?? ""] ?? {},
+    () => plantillaPara(tipoSeleccionado),
     [tipoSeleccionado],
   );
 
@@ -313,7 +341,7 @@ function DispositivoFormModal({
   };
 
   const aplicarPlantillaPara = (_categoria: string, tipoNombre: string) => {
-    const newValues = { ...(TIPO_PLANTILLAS[tipoNombre] ?? {}) };
+    const newValues = { ...(plantillaPara({ nombre: tipoNombre }) ?? {}) };
     setConfigState({
       values: newValues,
       text: JSON.stringify(newValues, null, 2),
