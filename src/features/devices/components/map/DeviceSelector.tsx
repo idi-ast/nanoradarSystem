@@ -517,7 +517,11 @@ export const DeviceSelector = memo(function DeviceSelector({
                             key={c.id}
                             id={c.id}
                             label={c.nombre}
-                            subtitle={c.tipo}
+                            subtitle={
+                              c.modelo
+                                ? `${c.modelo} · ${c.tipo}`
+                                : c.tipo
+                            }
                             accentColor={c.color || "#f59e0b"}
                             isHidden={visibility.hiddenCamaras.has(c.id)}
                             onToggle={toggleCamera}
@@ -547,7 +551,11 @@ export const DeviceSelector = memo(function DeviceSelector({
                             key={p.id}
                             id={p.id}
                             label={p.nombre}
-                            subtitle={p.tipo}
+                            subtitle={
+                              p.modelo
+                                ? `${p.modelo} · ${p.tipo}`
+                                : p.tipo
+                            }
                             accentColor={p.color || "#8207d5"}
                             isHidden={visibility.hiddenPtz.has(p.id)}
                             onToggle={togglePtz}

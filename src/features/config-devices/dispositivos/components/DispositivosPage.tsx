@@ -27,7 +27,7 @@ import type {
   DispositivoPayload,
   TipoDispositivo,
 } from "../types";
-import { parseConfig, tipoLabel, tipoMeta } from "../types";
+import { parseConfig, tipoLabel } from "../types";
 
 /** Plantillar de config por tipo (mismas claves que las tablas legacy). */
 const TIPO_PLANTILLAS: Record<string, Record<string, unknown>> = {
@@ -262,6 +262,11 @@ function DispositivoFormModal({
   const updateMut = useUpdateDispositivo();
 
   const magosTipo = tipos.find((t) => t.nombre === "magos");
+  const [categoria, setCategoria] = useState<string | null>(() => {
+    if (!editing) return null;
+    const tipoActual = tipos.find((t) => t.id === editing.id_tipo_dispositivo);
+    return tipoActual?.categoria ?? null;
+  });
   const [idTipo, setIdTipo] = useState<number>(
     editing?.id_tipo_dispositivo ?? magosTipo?.id ?? tipos[0]?.id ?? 0,
   );
@@ -284,6 +289,19 @@ function DispositivoFormModal({
   const tipoSeleccionado = tipos.find((t) => t.id === idTipo);
   const isPending = createMut.isPending || updateMut.isPending;
 
+  // Grupos Categoría → tipos, solo con las categorías que tienen al menos un tipo.
+  const gruposCategoria = useMemo(() => {
+    const map = new Map<string, TipoDispositivo[]>();
+    for (const t of tipos) {
+      const cat = t.categoria ?? "";
+      if (!cat) continue;
+      const arr = map.get(cat) ?? [];
+      arr.push(t);
+      map.set(cat, arr);
+    }
+    return [...map.entries()];
+  }, [tipos]);
+
   const template = useMemo(
     () => TIPO_PLANTILLAS[tipoSeleccionado?.nombre ?? ""] ?? {},
     [tipoSeleccionado],
@@ -292,6 +310,15 @@ function DispositivoFormModal({
   const handleTipoChange = (newId: number) => {
     setIdTipo(newId);
     aplicarPlantilla();
+  };
+
+  const aplicarPlantillaPara = (_categoria: string, tipoNombre: string) => {
+    const newValues = { ...(TIPO_PLANTILLAS[tipoNombre] ?? {}) };
+    setConfigState({
+      values: newValues,
+      text: JSON.stringify(newValues, null, 2),
+    });
+    setError(null);
   };
 
   const aplicarPlantilla = () => {
@@ -329,6 +356,10 @@ function DispositivoFormModal({
     e.preventDefault();
     setError(null);
 
+    if (!categoria) {
+      setError("Selecciona el tipo de dispositivo");
+      return;
+    }
     if (!idTipo) {
       setError("Selecciona el tipo de dispositivo");
       return;
@@ -394,30 +425,75 @@ function DispositivoFormModal({
           {error && <Alert variant="error">{error}</Alert>}
 
           {/* Tipo de dispositivo */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tipo" className={labelCampo}>
-              Tipo de dispositivo
-            </Label>
-            <select
-              id="tipo"
-              value={idTipo}
-              onChange={(e) => handleTipoChange(Number(e.target.value))}
-              disabled={isPending}
-              className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500  border-border"
-            >
-              {tipos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {tipoLabel(t.nombre)} ({t.nombre})
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-text-200">
-              tipo_radar heredado:{" "}
-              <span className="font-mono text-brand-200">
-                {tipoSeleccionado?.nombre ?? "—"}
-              </span>
-            </p>
-          </div>
+          {!categoria ? (
+            <div className="flex flex-col gap-2">
+              <Label className={labelCampo}>Categoría</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {gruposCategoria.map(([cat, disponibles]) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setCategoria(cat);
+                      const primerTipo = disponibles[0];
+                      if (primerTipo) {
+                        setIdTipo(primerTipo.id);
+                        aplicarPlantillaPara(cat, primerTipo.nombre);
+                      }
+                    }}
+                    className="flex flex-col items-start gap-1 px-4 py-4 border border-border bg-bg-100 text-left transition hover:border-brand-200/40 hover:bg-bg-200"
+                  >
+                    <span className="text-sm font-semibold text-text-100">
+                      {cat}
+                    </span>
+                    <span className="text-[10px] text-text-200/70 uppercase tracking-widest">
+                      {disponibles.map((t) => tipoLabel(t.nombre)).join(" · ")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {error && <Alert variant="error">{error}</Alert>}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tipo" className={labelCampo}>
+                Tipo de dispositivo
+              </Label>
+              <select
+                id="tipo"
+                value={idTipo}
+                onChange={(e) => handleTipoChange(Number(e.target.value))}
+                disabled={isPending}
+                className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500  border-border"
+              >
+                {gruposCategoria
+                  .filter(([cat]) => cat === categoria)
+                  .flatMap(([, ts]) => ts)
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-[11px] text-text-200">
+                Categoría:{" "}
+                <span className="font-mono text-brand-200">{categoria}</span> ·
+                tipo_radar heredado:{" "}
+                <span className="font-mono text-brand-200">
+                  {tipoSeleccionado?.nombre ?? "—"}
+                </span>
+                {!editing && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoria(null)}
+                    className="ml-2 text-brand-200 hover:underline underline-offset-2"
+                  >
+                    Cambiar categoría
+                  </button>
+                )}
+              </p>
+            </div>
+          )}
 
           {/* Identificación */}
           <div className="grid grid-cols-2 gap-3">
@@ -616,13 +692,20 @@ export function DispositivosPage() {
   const isLoading =
     tiposQuery.isLoading || disposQuery.isLoading || empresasQuery.isLoading;
 
-  const badge = (nombre: string) => {
-    const meta = tipoMeta(nombre);
+  const categoriaBadge = (cat: string | null | undefined) => {
+    if (!cat) return <span className="text-text-200">—</span>;
+    const color: Record<string, string> = {
+      Radar: "text-cyan-300",
+      PTZ: "text-violet-300",
+      Cámara: "text-emerald-300",
+    };
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${meta.badge}`}
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium  ${
+          color[cat] ?? "bg-bg-200 text-text-200 border-border"
+        }`}
       >
-        {meta.label}
+        {cat}
       </span>
     );
   };
@@ -657,6 +740,7 @@ export function DispositivosPage() {
         <div className="flex flex-wrap gap-2">
           {tiposQuery.data.map((t) => {
             const n = stats.get(t.nombre) ?? 0;
+            const cat = t.categoria;
             return (
               <button
                 key={t.id}
@@ -668,14 +752,19 @@ export function DispositivosPage() {
                 }`}
               >
                 {tipoLabel(t.nombre)} · {n}
+                {cat && (
+                  <span className="ml-1.5 text-[10px] uppercase tracking-wider text-text-200/70">
+                    {cat}
+                  </span>
+                )}
               </button>
             );
           })}
           <button
             onClick={() => setFiltroTipo("all")}
-            className={`px-3 py-1.5  border text-xs font-medium transition ${
+            className={`px-3 py-1.5 rounded border text-xs font-medium transition ${
               filtroTipo === "all"
-                ? "border-brand-200 text-brand-200 bg-brand-200/10"
+                ? "border-text-200 text-text-200 bg-bg-200/10"
                 : "border-border text-text-200 hover:bg-bg-200"
             }`}
           >
@@ -706,6 +795,7 @@ export function DispositivosPage() {
             <thead>
               <tr className="border-b border-border text-left text-xs text-text-200">
                 <th className="px-4 py-2.5">ID</th>
+                <th className="px-4 py-2.5">Categoría</th>
                 <th className="px-4 py-2.5">Tipo</th>
                 <th className="px-4 py-2.5">Modelo</th>
                 <th className="px-4 py-2.5">Serial</th>
@@ -724,7 +814,8 @@ export function DispositivosPage() {
                   <td className="px-4 py-2.5 text-text-200 font-mono text-xs">
                     {d.id}
                   </td>
-                  <td className="px-4 py-2.5">{badge(d.tipo_radar)}</td>
+                  <td className="px-4 py-2.5">{categoriaBadge(d.categoria)}</td>
+                  <td className="px-4 py-2.5">{d.tipo_radar}</td>
                   <td className="px-4 py-2.5 text-text-100 font-medium">
                     {d.modelo}
                   </td>

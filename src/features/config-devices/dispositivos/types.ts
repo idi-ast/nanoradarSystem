@@ -9,7 +9,19 @@ import type { Data } from "../types/ConfigServices.type";
 export interface TipoDispositivo {
   id: number;
   nombre: string;
+  /** Referencia al tipo_dispositivos.id_categoria (tabla categorias) */
+  id_categoria?: number | null;
+  /** Nombre de la categoría (Radar, PTZ, Cámara) — viene del backend */
+  categoria?: string | null;
   fecha_ingreso?: string | null;
+}
+
+/** Categoría con sus tipos asociados (GET /dispositivos/categorias) */
+export interface Categoria {
+  id: number;
+  nombre: string;
+  fecha_ingreso?: string | null;
+  tipos: TipoDispositivo[];
 }
 
 export interface Dispositivo {
@@ -17,6 +29,8 @@ export interface Dispositivo {
   id_tipo_dispositivo: number;
   /** Heredado automáticamente de tipo_dispositivos.nombre */
   tipo_radar: string;
+  /** Categoría resuelta desde tipo_dispositivos.id_categoria (Radar, PTZ, Cámara) */
+  categoria?: string | null;
   modelo: string;
   serial?: string | null;
   status: boolean;

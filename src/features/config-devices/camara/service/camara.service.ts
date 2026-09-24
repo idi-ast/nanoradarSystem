@@ -16,6 +16,7 @@ export type CamaraPayload = Pick<
   | "apertura"
   | "url_stream"
   | "tipo"
+  | "modelo"
 > & {
   latitud: string;
   longitud: string;

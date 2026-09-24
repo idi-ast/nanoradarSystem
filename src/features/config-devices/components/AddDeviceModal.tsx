@@ -7,6 +7,7 @@ import {
   IconCurrentLocation,
   IconCamera,
   IconAdjustments,
+  IconArrowLeft,
 } from "@tabler/icons-react";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -25,41 +26,56 @@ import type { PtzPayload } from "../ptz/service";
 import { MagosradarSimpleForm } from "../magosradar/components/MagosradarSimpleForm";
 import type { SimpleMagosradarFormData } from "../magosradar/components/MagosradarSimpleForm";
 import { tipoLabel } from "../dispositivos/types";
+import { useCategorias } from "../dispositivos/hooks/useDispositivos";
+import type { Categoria } from "../dispositivos/types";
 
 type DeviceTab = "nanoradar" | "magosradar" | "spotter" | "camara" | "ptz";
+
+type DeviceKind = "radar" | "camara" | "ptz";
 
 interface AddDeviceModalProps {
   onClose: () => void;
   defaultTab?: DeviceTab;
 }
 
-const TABS: { key: DeviceTab; label: string; icon: React.ReactNode }[] = [
-  {
-    key: "nanoradar",
-    label: tipoLabel("nano"),
-    icon: <IconRadar size={14} stroke={1.5} />,
-  },
-  {
-    key: "magosradar",
-    label: tipoLabel("magos"),
-    icon: <IconRadar size={14} stroke={1.5} />,
-  },
-  {
-    key: "spotter",
-    label: tipoLabel("spotter"),
-    icon: <IconCurrentLocation size={14} stroke={1.5} />,
-  },
-  {
-    key: "camara",
-    label: tipoLabel("camara"),
-    icon: <IconCamera size={14} stroke={1.5} />,
-  },
-  {
-    key: "ptz",
-    label: tipoLabel("ptz"),
-    icon: <IconAdjustments size={14} stroke={1.5} />,
-  },
-];
+/**
+ * Nombre de tipo de la BD → formulario destino.
+ * La tabla tipo_dispositivos (categoría Radar/PTZ/Cámara) agrupa los tipos;
+ * cada tipo concreto mapea a un formulario de alta existente.
+ */
+const TIPO_TAB: Partial<Record<string, DeviceTab>> = {
+  nano: "nanoradar",
+  magos: "magosradar",
+  spotter: "spotter",
+  camara: "camara",
+  ptz: "ptz",
+};
+
+const KIND_CATEGORIA: Record<string, DeviceKind> = {
+  Radar: "radar",
+  Cámara: "camara",
+  PTZ: "ptz",
+};
+
+const KIND_ICON: Record<DeviceKind, React.ReactNode> = {
+  radar: <IconRadar size={22} stroke={1.5} />,
+  camara: <IconCamera size={22} stroke={1.5} />,
+  ptz: <IconAdjustments size={22} stroke={1.5} />,
+};
+
+const KIND_DESCRIPTION: Record<DeviceKind, string> = {
+  radar: "NanoRadar, MagosRadar o Spotter",
+  camara: "Cámara fija de vigilancia",
+  ptz: "Cámara con pan, tilt y zoom",
+};
+
+const TIPO_TAB_LABEL: Record<string, string> = {
+  nanoradar: "Nuevo NanoRadar",
+  magosradar: "Nuevo MagosRadar",
+  spotter: "Nuevo Spotter",
+  camara: "Nueva Cámara",
+  ptz: "Nuevo PTZ",
+};
 
 const defaultNanoradar: NanoradarPayload = {
   nombre: "",
@@ -121,6 +137,7 @@ const defaultCamara: CamaraPayload = {
   apertura: 90,
   url_stream: "",
   tipo: "IP",
+  modelo: "",
   latitud: "",
   longitud: "",
   idEmpresa: 1,
@@ -146,6 +163,7 @@ const defaultPtz: PtzPayload = {
   panOffset: 0,
   url_stream: "",
   tipo: "IP",
+  modelo: "",
   latitud: "",
   longitud: "",
   idEmpresa: 1,
@@ -244,7 +262,7 @@ function NanoradarForm({ onClose }: { onClose: () => void }) {
           name="nombre"
           value={form.nombre}
           onChange={handleChange}
-          placeholder="NanoRadar-01"
+          placeholder="MG-01"
         />
         <Field
           label="Dirección IP"
@@ -516,9 +534,18 @@ function SpotterForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function CamaraForm({ onClose }: { onClose: () => void }) {
+function CamaraForm({
+  onClose,
+  modeloInicial = "",
+}: {
+  onClose: () => void;
+  modeloInicial?: string;
+}) {
   const { mutate, isPending, error } = useCreateCamara();
-  const [form, setForm] = useState<CamaraPayload>(defaultCamara);
+  const [form, setForm] = useState<CamaraPayload>({
+    ...defaultCamara,
+    modelo: modeloInicial || defaultCamara.modelo,
+  });
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -616,6 +643,28 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
       <FieldRow>
         <div className="flex flex-col gap-1">
           <Label
+            htmlFor="modelo_cam"
+            className="text-[11px] text-text-100/60 uppercase tracking-widest"
+          >
+            Modelo / Marca
+          </Label>
+          <Input
+            id="modelo_cam"
+            name="modelo"
+            list="modelos_cam"
+            value={form.modelo ?? ""}
+            onChange={handleChange}
+            placeholder="Dahua, Hikvision, Genérico…"
+            className="h-8 text-sm"
+          />
+          <datalist id="modelos_cam">
+            <option value="Genérico" />
+            <option value="Dahua" />
+            <option value="Hikvision" />
+          </datalist>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label
             htmlFor="tipo"
             className="text-[11px] text-text-100/60 uppercase tracking-widest"
           >
@@ -631,10 +680,10 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
             <option value="IP">IP</option>
             <option value="RTSP">RTSP</option>
             <option value="ONVIF">ONVIF</option>
-            <option value="Hikvision">Hikvision</option>
-            <option value="Dahua">Dahua</option>
           </select>
         </div>
+      </FieldRow>
+      <FieldRow>
         <Field
           label="Azimut (°)"
           name="azimut"
@@ -643,8 +692,6 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
           type="number"
           placeholder="0"
         />
-      </FieldRow>
-      <FieldRow>
         <Field
           label="Canal"
           name="channel"
@@ -653,6 +700,8 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
           type="number"
           placeholder="1"
         />
+      </FieldRow>
+      <FieldRow>
         <Field
           label="Subtipo"
           name="subtype"
@@ -721,9 +770,18 @@ function CamaraForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PtzForm({ onClose }: { onClose: () => void }) {
+function PtzForm({
+  onClose,
+  modeloInicial = "",
+}: {
+  onClose: () => void;
+  modeloInicial?: string;
+}) {
   const { mutate, isPending, error } = useCreatePtz();
-  const [form, setForm] = useState<PtzPayload>(defaultPtz);
+  const [form, setForm] = useState<PtzPayload>({
+    ...defaultPtz,
+    modelo: modeloInicial || defaultPtz.modelo,
+  });
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -936,6 +994,28 @@ function PtzForm({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex flex-col gap-1">
         <Label
+          htmlFor="modelo_ptz"
+          className="text-[11px] text-text-100/60 uppercase tracking-widest"
+        >
+          Modelo / Marca
+        </Label>
+        <Input
+          id="modelo_ptz"
+          name="modelo"
+          list="modelos_ptz"
+          value={form.modelo ?? ""}
+          onChange={handleChange}
+          placeholder="Dahua, Hikvision, Genérico…"
+          className="h-8 text-sm"
+        />
+        <datalist id="modelos_ptz">
+          <option value="Genérico" />
+          <option value="Dahua" />
+          <option value="Hikvision" />
+        </datalist>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label
           htmlFor="tipo_ptz"
           className="text-[11px] text-text-100/60 uppercase tracking-widest"
         >
@@ -951,8 +1031,6 @@ function PtzForm({ onClose }: { onClose: () => void }) {
           <option value="IP">IP</option>
           <option value="RTSP">RTSP</option>
           <option value="ONVIF">ONVIF</option>
-          <option value="Hikvision">Hikvision</option>
-          <option value="Dahua">Dahua</option>
         </select>
       </div>
 
@@ -1022,9 +1100,19 @@ function PtzForm({ onClose }: { onClose: () => void }) {
 
 export function AddDeviceModal({
   onClose,
-  defaultTab = "nanoradar",
+  defaultTab,
 }: AddDeviceModalProps) {
-  const [activeTab, setActiveTab] = useState<DeviceTab>(defaultTab);
+  const categoriasQuery = useCategorias();
+  const categorias = categoriasQuery.data ?? [];
+
+  const [step, setStep] = useState<"kind" | "model" | "form">(
+    defaultTab ? "form" : "kind",
+  );
+  const [selectedCategoria, setSelectedCategoria] =
+    useState<Categoria | null>(null);
+  const [activeTab, setActiveTab] = useState<DeviceTab>(
+    defaultTab ?? "nanoradar",
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1034,6 +1122,21 @@ export function AddDeviceModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const irAtras = () => {
+    if (step === "model") {
+      setStep("kind");
+      setSelectedCategoria(null);
+    } else if (step === "form") {
+      const kind = KIND_CATEGORIA[selectedCategoria?.nombre ?? ""];
+      if (selectedCategoria && kind) {
+        setStep("model");
+      } else {
+        setStep("kind");
+        setSelectedCategoria(null);
+      }
+    }
+  };
+
   return createPortal(
     <div
       className="fixed inset-0 z-99999 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -1042,9 +1145,23 @@ export function AddDeviceModal({
       <div className="bg-bg-100 border border-border rounded-xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-100">
-            Agregar dispositivo
-          </h2>
+          <div className="flex items-center gap-2">
+            {!defaultTab && step !== "kind" && (
+              <button
+                onClick={irAtras}
+                className="text-text-200 hover:text-text-100 transition"
+                aria-label="Volver"
+              >
+                <IconArrowLeft size={16} stroke={1.5} />
+              </button>
+            )}
+            <h2 className="text-sm font-semibold text-text-100">
+              {step === "kind" && "Agregar dispositivo"}
+              {step === "model" &&
+                `Elegir modelo de ${selectedCategoria?.nombre?.toLowerCase() ?? "dispositivo"}`}
+              {step === "form" && TIPO_TAB_LABEL[activeTab]}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="text-text-200 hover:text-text-100 transition"
@@ -1054,32 +1171,123 @@ export function AddDeviceModal({
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          {TABS.map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${
-                activeTab === key
-                  ? "border-brand-200 text-brand-200"
-                  : "border-transparent text-text-100/40 hover:text-text-100/70"
+        {/* Stepper */}
+        {!defaultTab && step !== "form" && (
+          <div className="flex items-center gap-2 px-5 pt-4">
+            <span
+              className={`text-[10px] font-bold uppercase tracking-widest ${
+                step === "kind" ? "text-brand-200" : "text-brand-200/60"
               }`}
             >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
+              1 · Tipo
+            </span>
+            <span className="h-px flex-1 bg-border" />
+            <span
+              className={`text-[10px] font-bold uppercase tracking-widest ${
+                step === "model" ? "text-brand-200" : "text-text-100/40"
+              }`}
+            >
+              2 · Subtipo
+            </span>
+          </div>
+        )}
 
-        {/* Form */}
-        <div className="px-5 py-4">
-          {activeTab === "nanoradar" && <NanoradarForm onClose={onClose} />}
-          {activeTab === "magosradar" && <MagosradarForm onClose={onClose} />}
-          {activeTab === "spotter" && <SpotterForm onClose={onClose} />}
-          {activeTab === "camara" && <CamaraForm onClose={onClose} />}
-          {activeTab === "ptz" && <PtzForm onClose={onClose} />}
-        </div>
+        {/* Step 1: Tipo (categorías desde la BD) */}
+        {step === "kind" && (
+          <div className="grid grid-cols-1 gap-3 px-5 py-5">
+            {categoriasQuery.isLoading && (
+              <p className="text-xs text-text-200 px-1 py-4">
+                Cargando tipos…
+              </p>
+            )}
+            {categorias.map((cat) => {
+              const kind = KIND_CATEGORIA[cat.nombre];
+              if (!kind) return null;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCategoria(cat);
+                    setStep("model");
+                  }}
+                  className="flex items-center gap-4 rounded-lg border border-border bg-bg-200/40 px-4 py-4 text-left transition-colors hover:border-brand-200/40 hover:bg-bg-200"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-200/10 text-brand-200">
+                    {KIND_ICON[kind]}
+                  </span>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-text-100">
+                      {cat.nombre}
+                    </span>
+                    <span className="text-xs text-text-100/50">
+                      {KIND_DESCRIPTION[kind]}
+                    </span>
+                    <span className="text-[10px] text-text-100/40 uppercase tracking-widest">
+                      {cat.tipos
+                        .map((t) => tipoLabel(t.nombre))
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            {!categoriasQuery.isLoading && categorias.length === 0 && (
+              <p className="text-xs text-text-200 px-1 py-4">
+                No hay categorías registradas.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Subtipo (tipos de la categoría desde la BD) */}
+        {step === "model" && selectedCategoria && (
+          <div className="grid grid-cols-1 gap-3 px-5 py-5">
+            {selectedCategoria.tipos
+              .filter((t) => TIPO_TAB[t.nombre])
+              .map((t) => {
+                const tab = TIPO_TAB[t.nombre]!;
+                const kind = KIND_CATEGORIA[selectedCategoria.nombre];
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      setStep("form");
+                    }}
+                    className="flex items-center gap-4 rounded-lg border border-border bg-bg-200/40 px-4 py-3 text-left transition-colors hover:border-brand-200/40 hover:bg-bg-200"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-200/10 text-brand-200">
+                      {kind === "radar" ? (
+                        <IconCurrentLocation size={18} stroke={1.5} />
+                      ) : (
+                        KIND_ICON[kind ?? "camara"]
+                      )}
+                    </span>
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-sm font-semibold text-text-100">
+                        {tipoLabel(t.nombre)}
+                      </span>
+                      <span className="text-xs text-text-100/50">
+                        Type: {t.nombre}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        )}
+
+        {/* Step 3: Form */}
+        {step === "form" && (
+          <div className="px-5 py-4">
+            {activeTab === "nanoradar" && <NanoradarForm onClose={onClose} />}
+            {activeTab === "magosradar" && <MagosradarForm onClose={onClose} />}
+            {activeTab === "spotter" && <SpotterForm onClose={onClose} />}
+            {activeTab === "camara" && <CamaraForm onClose={onClose} />}
+            {activeTab === "ptz" && <PtzForm onClose={onClose} />}
+          </div>
+        )}
       </div>
     </div>,
     document.body,
