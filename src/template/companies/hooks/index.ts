@@ -1,2 +1,2 @@
-export * from './useCompaniesPanel';
-export * from './useCompanyConfig';
+export { useCompaniesPanel } from "./useCompaniesPanel";
+export { useCompanyConfig } from "./useCompanyConfig";

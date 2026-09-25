@@ -8,8 +8,17 @@ export const ROLES = {
 
 export const ROLE_STORAGE_KEY = "auth_role_id";
 
+/** Clave en localStorage para el flag de empresa principal. */
+export const EMPRESA_PRINCIPAL_STORAGE_KEY = "auth_empresa_principal";
+
 export interface RoleContextValue {
   roleId: RoleId | null;
+
+  /** id de la empresa del usuario autenticado (idEmpresa). */
+  idEmpresa: number | null;
+
+  /** True si la empresa del usuario está marcada como principal. */
+  empresaEsPrincipal: boolean;
 
   /** id 1 — puede hacer todo: crear, editar, eliminar */
   isSuperAdmin: boolean;
@@ -30,4 +39,13 @@ export interface RoleContextValue {
 
   /** Actualiza el rol (llamado internamente tras login/logout) */
   setRoleId: (id: RoleId | null) => void;
+
+  /** Actualiza la empresa del usuario autenticado */
+  setRoleEmpresa: (idEmpresa: number | null) => void;
+
+  /** Actualiza el flag de empresa principal del usuario autenticado */
+  setEmpresaEsPrincipal: (esPrincipal: boolean) => void;
 }
+
+/** Clave en localStorage para la empresa del usuario. */
+export const EMPRESA_STORAGE_KEY = "auth_id_empresa";

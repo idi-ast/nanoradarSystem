@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { apiClient } from '@/apis/apiClient';
+import { apiSystem } from '@/apis/apiSystem';
 
 export interface DashboardStats {
   total_users: number;
@@ -28,7 +28,7 @@ export function useAdminDashboard(): UseAdminDashboardReturn {
   const loadStats = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<DashboardStats>('/companies/admin/dashboard-stats');
+      const response = await apiSystem.get<DashboardStats>('/companies/admin/dashboard-stats');
       setStats(response.data);
       setError(null);
     } catch (err: any) {

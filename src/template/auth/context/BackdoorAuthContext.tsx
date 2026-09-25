@@ -19,6 +19,7 @@ import type {
 import { authService } from "../services/authService";
 import { useRole } from "@/context/role";
 import type { RoleId } from "@/context/role";
+import { queryClient } from "@/libs/tanstack-query";
 
 const USER_STORAGE_KEY = "auth_user";
 
@@ -27,7 +28,7 @@ interface BackdoorAuthProviderProps {
 }
 
 export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
-  const { setRoleId } = useRole();
+  const { setRoleId, setRoleEmpresa, setEmpresaEsPrincipal } = useRole();
 
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -93,6 +94,19 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
       if (parsed === 1 || parsed === 2 || parsed === 3) {
         setRoleId(parsed as RoleId);
       }
+
+      const storedEmpresaId = localStorage.getItem("auth_id_empresa");
+      const empresaId = storedEmpresaId ? parseInt(storedEmpresaId, 10) : NaN;
+      if (Number.isFinite(empresaId)) {
+        setRoleEmpresa(empresaId);
+      }
+
+      const storedEsPrincipal = localStorage.getItem("auth_empresa_principal");
+      setEmpresaEsPrincipal(storedEsPrincipal === "true");
+
+      // Limpiar cache de React Query para que la nueva sesión no vea
+      // datos de dispositivos/empresas de la cuenta anterior.
+      queryClient.clear();
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +129,11 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     setSession(null);
     localStorage.removeItem(USER_STORAGE_KEY);
     setRoleId(null);
-  }, [setRoleId]);
+    setRoleEmpresa(null);
+    setEmpresaEsPrincipal(false);
+    // Limpiar cache de React Query para que la siguiente sesión arranque limpia.
+    queryClient.clear();
+  }, [setRoleId, setRoleEmpresa, setEmpresaEsPrincipal]);
 
   const refreshSession = useCallback(async () => {}, []);
 

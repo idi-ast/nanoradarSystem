@@ -11,7 +11,6 @@ import {
   ptzLimpiaVidrio,
   PTZ_SPEED_X,
 } from "../service";
-import { PtzDpad } from "./PtzDpad";
 
 const BTN_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm";
@@ -78,9 +77,6 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
           <IconDroplet size={14} stroke={1.5} />
         </button>
       </div>
-
-      {/* D-pad (mantener presionado para mover) */}
-      <PtzDpad ptz_id={ptz_id} />
     </div>
   );
 }

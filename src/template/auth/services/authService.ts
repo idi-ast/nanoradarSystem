@@ -33,6 +33,18 @@ export const authService = {
           localStorage.setItem("auth_role_id", String(roleId));
         }
 
+        // Guardar empresa del usuario (idEmpresa) para filtrar dispositivos
+        const empresaId = tokenData?.user?.empresaId;
+        if (empresaId !== undefined && empresaId !== null) {
+          localStorage.setItem("auth_id_empresa", String(empresaId));
+        }
+
+        // Guardar si la empresa del usuario es principal (puede ver todo)
+        const empresaEsPrincipal = tokenData?.user?.empresaEsPrincipal;
+        if (empresaEsPrincipal !== undefined && empresaEsPrincipal !== null) {
+          localStorage.setItem("auth_empresa_principal", String(empresaEsPrincipal));
+        }
+
         let user = null;
         try {
           // Obtener usuarios para buscar los datos del usuario actual
@@ -87,6 +99,8 @@ export const authService = {
   async logout(): Promise<void> {
     localStorage.removeItem("access_token");
     localStorage.removeItem("auth_role_id");
+    localStorage.removeItem("auth_id_empresa");
+    localStorage.removeItem("auth_empresa_principal");
     apiSystem.removeHeader("Authorization");
   },
 
