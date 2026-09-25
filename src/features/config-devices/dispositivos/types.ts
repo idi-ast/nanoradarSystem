@@ -69,7 +69,7 @@ export const TIPO_DISPOSITIVO_META: Record<
     dataKey: "nanoradares",
   },
   magos: {
-    label: "MagosRadar",
+    label: "MG-1000",
     badge: "bg-sky-500/20 text-text-100 border-sky-500/40",
     dataKey: "magosradares",
   },
