@@ -1,25 +1,34 @@
-export interface Company {
+export interface Empresa {
   id: number;
-  name: string;
+  nombre: string;
   rut: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  status: boolean;
-  color_theme?: string;
-  url_image?: string;
-  url_website?: string;
-  coordinates?: string;
-  total_users?: number;
-  total_services?: number;
+  direccion: string;
+  telefono: string;
+  email: string;
+  principal: boolean;
 }
 
-export interface User {
+export interface UsuarioEmpresa {
   id: number;
+  nombre: string;
+  apellido: string;
   email: string;
-  name: string;
-  is_active: boolean;
-  is_superuser?: boolean;
-  created_at: string;
-  total_services?: number;
+  role_id: number;
+  idEmpresa: number;
+}
+
+export interface DispositivoEmpresa {
+  id: number;
+  modelo: string;
+  serial: string | null;
+  status: boolean;
+  categoria: string | null;
+  tipo_radar: string;
+  id_empresa: number;
+}
+
+export interface EmpresaProfile {
+  empresa: Empresa;
+  usuarios: UsuarioEmpresa[];
+  dispositivos: DispositivoEmpresa[];
 }

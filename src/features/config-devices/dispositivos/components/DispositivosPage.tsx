@@ -287,6 +287,7 @@ function DispositivoFormModal({
   empresas,
   onClose,
 }: ModalProps) {
+  const { idEmpresa, isSuperAdmin, empresaEsPrincipal } = useRole();
   const createMut = useCreateDispositivo();
   const updateMut = useUpdateDispositivo();
 
@@ -302,8 +303,8 @@ function DispositivoFormModal({
   const [modelo, setModelo] = useState<string>(editing?.modelo ?? "");
   const [serial, setSerial] = useState<string>(editing?.serial ?? "");
   const [status, setStatus] = useState<boolean>(editing?.status ?? true);
-  const [idEmpresa, setIdEmpresa] = useState<number>(
-    editing?.id_empresa ?? empresas[0]?.id ?? 1,
+  const [idEmpresaSel, setIdEmpresaSel] = useState<number>(
+    editing?.id_empresa ?? idEmpresa ?? empresas[0]?.id ?? 1,
   );
   const [configState, setConfigState] = useState<{
     values: Record<string, unknown>;
@@ -413,7 +414,7 @@ function DispositivoFormModal({
       modelo: modelo.trim(),
       serial: serial.trim() || null,
       status,
-      id_empresa: idEmpresa,
+      id_empresa: idEmpresaSel,
       config,
     };
 
@@ -574,9 +575,9 @@ function DispositivoFormModal({
               </Label>
               <select
                 id="empresa"
-                value={idEmpresa}
-                onChange={(e) => setIdEmpresa(Number(e.target.value))}
-                disabled={isPending}
+                value={idEmpresaSel}
+                onChange={(e) => setIdEmpresaSel(Number(e.target.value))}
+                disabled={isPending || !(isSuperAdmin && empresaEsPrincipal)}
                 className="py-2.5 px-3 border bg-bg-100 text-text-100 placeholder-text-200 focus:outline-none focus:ring-2 focus:ring-blue-500  border-border"
               >
                 {empresas.map((emp) => (
@@ -672,7 +673,7 @@ function DispositivoFormModal({
 }
 
 export function DispositivosPage() {
-  const { isSuperAdmin, isAdmin } = useRole();
+  const { isSuperAdmin, isAdmin, idEmpresa, empresaEsPrincipal } = useRole();
   const puedeGestionar = isSuperAdmin || isAdmin;
   const [filtroTipo, setFiltroTipo] = useState<string>("all");
   const [busqueda, setBusqueda] = useState<string>("");
@@ -700,6 +701,13 @@ export function DispositivosPage() {
   const empresasMap = useMemo(
     () => new Map(empresas.map((e) => [e.id, e.nombre])),
     [empresas],
+  );
+  const empresasVisibles = useMemo(
+    () =>
+      isSuperAdmin && empresaEsPrincipal
+        ? empresas
+        : empresas.filter((e) => e.id === idEmpresa),
+    [empresas, isSuperAdmin, empresaEsPrincipal, idEmpresa],
   );
 
   const filas = useMemo(() => {
@@ -914,7 +922,7 @@ export function DispositivosPage() {
         <DispositivoFormModal
           editing={modal.editing}
           tipos={tipos}
-          empresas={empresas}
+          empresas={empresasVisibles}
           onClose={() => setModal({ abierto: false, editing: null })}
         />
       )}

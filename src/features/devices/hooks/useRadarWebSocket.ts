@@ -375,7 +375,11 @@ export function useRadarWebSocket(
       if (destroyed) return;
       setWsStatus(retryCount === 0 ? "connecting" : "reconnecting");
 
-      ws = new WebSocket(url);
+      // Obtener token del localStorage y agregarlo como query param
+      const token = localStorage.getItem("access_token");
+      const wsUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+
+      ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         if (destroyed) { ws?.close(); return; }
