@@ -675,7 +675,7 @@ function DispositivoFormModal({
 export function DispositivosPage() {
   const { isSuperAdmin, isAdmin, idEmpresa, empresaEsPrincipal } = useRole();
   const puedeGestionar = isSuperAdmin || isAdmin;
-  const [filtroTipo, setFiltroTipo] = useState<string>("all");
+  const [filtroModelo, setFiltroModelo] = useState<string>("all");
   const [busqueda, setBusqueda] = useState<string>("");
   const [modal, setModal] = useState<{
     abierto: boolean;
@@ -688,7 +688,7 @@ export function DispositivosPage() {
 
   const tiposQuery = useTiposDispositivos();
   const disposQuery = useDispositivos({
-    tipo_radar: filtroTipo === "all" ? undefined : filtroTipo,
+    modelo: filtroModelo === "all" ? undefined : filtroModelo,
   });
   const empresasQuery = useEmpresas();
   const deleteMut = useDeleteDispositivo();
@@ -719,14 +719,6 @@ export function DispositivosPage() {
         (d.serial ?? "").toLowerCase().includes(q),
     );
   }, [disposQuery.data, busqueda]);
-
-  const stats = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const d of disposQuery.data ?? []) {
-      map.set(d.tipo_radar, (map.get(d.tipo_radar) ?? 0) + 1);
-    }
-    return map;
-  }, [disposQuery.data]);
 
   const isLoading =
     tiposQuery.isLoading || disposQuery.isLoading || empresasQuery.isLoading;
@@ -776,35 +768,33 @@ export function DispositivosPage() {
         )}
       </div>
 
-      {/* Resumen por tipo */}
-      {tiposQuery.data && tiposQuery.data.length > 0 && (
+      {/* Resumen por modelo */}
+      {disposQuery.data && disposQuery.data.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {tiposQuery.data.map((t) => {
-            const n = stats.get(t.nombre) ?? 0;
-            const cat = t.categoria;
+          {Array.from(
+            new Map(
+              (disposQuery.data ?? []).map((d) => [d.modelo, (d.modelo || "—")]),
+            ).keys(),
+          ).map((modelo) => {
+            const n = (disposQuery.data ?? []).filter((d) => d.modelo === modelo).length;
             return (
               <button
-                key={t.id}
-                onClick={() => setFiltroTipo(t.nombre)}
+                key={modelo}
+                onClick={() => setFiltroModelo(modelo)}
                 className={`px-3 py-1.5  border text-xs font-medium transition ${
-                  filtroTipo === t.nombre
+                  filtroModelo === modelo
                     ? "border-brand-200 text-brand-200 bg-brand-200/10"
                     : "border-border text-text-200 hover:bg-bg-200"
                 }`}
               >
-                {tipoLabel(t.nombre)} · {n}
-                {cat && (
-                  <span className="ml-1.5 text-[10px] uppercase tracking-wider text-text-200/70">
-                    {cat}
-                  </span>
-                )}
+                {modelo} · {n}
               </button>
             );
           })}
           <button
-            onClick={() => setFiltroTipo("all")}
+            onClick={() => setFiltroModelo("all")}
             className={`px-3 py-1.5 rounded border text-xs font-medium transition ${
-              filtroTipo === "all"
+              filtroModelo === "all"
                 ? "border-text-200 text-text-200 bg-bg-200/10"
                 : "border-border text-text-200 hover:bg-bg-200"
             }`}
