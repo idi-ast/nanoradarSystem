@@ -40,6 +40,8 @@ interface Props {
   zones: RadarZone[];
   onlyWithZones: boolean;
   onOnlyWithZonesChange: (v: boolean) => void;
+  onlyFavorites: boolean;
+  onOnlyFavoritesChange: (v: boolean) => void;
 }
 
 type Tab = "tracks" | "zones";
@@ -225,10 +227,11 @@ export function HistoryListPanel({
   zones,
   onlyWithZones,
   onOnlyWithZonesChange,
+  onlyFavorites,
+  onOnlyFavoritesChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>("tracks");
   const [sort, setSort] = useState<TrackSort>({ by: "last_seen", dir: "desc" });
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { favorites, hasFavorite, toggleAsync } = useTrackFavorites();
 
   const set = (patch: Partial<TrackSummaryFilters>) =>
@@ -272,12 +275,11 @@ export function HistoryListPanel({
     [tracks, sort.by, sort.dir],
   );
 
+  // `tracks` ya viene filtrado (incluye favoritos fuera de rango cuando
+  // `onlyFavorites` está activo), así que no filtramos aquí por favoritos.
   const displayedTracks = useMemo(
-    () =>
-      onlyFavorites
-        ? sortedTracks.filter((t) => hasFavorite(t))
-        : sortedTracks,
-    [sortedTracks, onlyFavorites, hasFavorite],
+    () => sortedTracks,
+    [sortedTracks],
   );
 
   const totalDistance = useMemo(
@@ -452,7 +454,7 @@ export function HistoryListPanel({
             <input
               type="checkbox"
               checked={onlyFavorites}
-              onChange={(e) => setOnlyFavorites(e.target.checked)}
+              onChange={(e) => onOnlyFavoritesChange(e.target.checked)}
               className="accent-yellow-300"
             />
             Solo favoritos{" "}

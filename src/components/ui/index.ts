@@ -6,3 +6,4 @@ export { Alert, type AlertProps, type AlertVariant } from "./Alert";
 export { Dropdown } from "./Dropdown";
 export { Tooltip } from "./Tooltip";
 export { PageLoader } from "./PageLoader";
+export { SessionExpiredModal } from "./SessionExpiredModal";

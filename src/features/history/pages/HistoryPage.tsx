@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { useTrackSummaries } from "../hooks/useTrackSummaries";
+import {
+  useTrackSummaries,
+  useFavoriteTrackSummaries,
+} from "../hooks/useTrackSummaries";
 import { useZones } from "../hooks/useZones";
 import { useTrackPlayback } from "../hooks/useTrackPlayback";
 import { trackKey } from "../hooks/useTrackPlayback";
@@ -15,24 +18,40 @@ export default function HistoryPage() {
   });
   const [page, setPage] = useState(1);
   const [onlyWithZones, setOnlyWithZones] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { data: zones = [] } = useZones();
   const hasDateRange = Boolean(filters.from || filters.to);
   const pageSize = hasDateRange ? 20000 : TRACKS_PAGE_SIZE;
+
   const summaries = useTrackSummaries(
     filters,
     hasDateRange ? 1 : page,
     pageSize,
     onlyWithZones,
   );
+
+  // Cuando "Solo favoritos" está activo, traemos los resúmenes completos
+  // de todos los favoritos (ignora filtros de fecha/búsqueda).
+  const favoritesSummaries = useFavoriteTrackSummaries(onlyFavorites);
+
   const playback = useTrackPlayback();
+
+  const mergedTracks = useMemo(
+    () => {
+      const main = summaries.data?.tracks ?? [];
+      const favs = favoritesSummaries.data ?? [];
+      return onlyFavorites ? favs : main;
+    },
+    [summaries.data, favoritesSummaries.data, onlyFavorites],
+  );
 
   const { tracks, total, pages } = useMemo(
     () => ({
-      tracks: summaries.data?.tracks ?? [],
+      tracks: mergedTracks,
       total: summaries.data?.total ?? 0,
       pages: summaries.data?.pages ?? 1,
     }),
-    [summaries.data],
+    [summaries.data, mergedTracks],
   );
 
   const selectedKeys = useMemo(
@@ -50,6 +69,11 @@ export default function HistoryPage() {
     setPage(1);
   }, []);
 
+  const handleOnlyFavoritesChange = useCallback((v: boolean) => {
+    setOnlyFavorites(v);
+    setPage(1);
+  }, []);
+
   return (
     <div className="w-full h-full grid grid-cols-12 overflow-hidden bg-bg-300 text-text-100">
       <aside className="col-span-3 xl:col-span-2 h-full border-r border-border overflow-hidden">
@@ -57,7 +81,7 @@ export default function HistoryPage() {
           filters={filters}
           onFiltersChange={handleFiltersChange}
           tracks={tracks}
-          isLoading={summaries.isFetching}
+          isLoading={summaries.isFetching || (onlyFavorites && favoritesSummaries.isFetching)}
           total={total}
           page={hasDateRange ? 1 : page}
           pages={hasDateRange ? 1 : pages}
@@ -68,6 +92,8 @@ export default function HistoryPage() {
           zones={zones}
           onlyWithZones={onlyWithZones}
           onOnlyWithZonesChange={handleOnlyWithZonesChange}
+          onlyFavorites={onlyFavorites}
+          onOnlyFavoritesChange={handleOnlyFavoritesChange}
         />
       </aside>
       <div className="col-span-9 xl:col-span-10 h-full relative overflow-hidden">

@@ -10,6 +10,7 @@ import { VisionLoadingModal } from "./components/VisionLoadingModal";
 import { useVisionDetection } from "@/features/devices/hooks/useVisionDetection";
 import type { PtzCameraProps, CameraMode } from "./types";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
+import ManualPtzButton from "./components/ManualPtzButton";
 
 const SLOT_HEIGHT = 360;
 const BASE_TOP = 50;
@@ -79,7 +80,9 @@ const PtzCamera = memo(
       void toggleVision();
     }
 
-    async function handleApplyVisionConfig(config: Parameters<typeof applyConfig>[0]) {
+    async function handleApplyVisionConfig(
+      config: Parameters<typeof applyConfig>[0],
+    ) {
       const applied = await applyConfig(config);
       if (applied && visionOn) setVisionGrace(true);
       return applied;
@@ -110,17 +113,17 @@ const PtzCamera = memo(
 
     const maximizedStyle: React.CSSProperties = position
       ? {
-        position: "fixed",
-        top: position.top,
-        left: position.left,
-        right: position.right,
-        bottom: position.bottom,
-      }
+          position: "fixed",
+          top: position.top,
+          left: position.left,
+          right: position.right,
+          bottom: position.bottom,
+        }
       : {
-        position: "fixed",
-        top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
-        left: leftPosition,
-      };
+          position: "fixed",
+          top: `${BASE_TOP + stackIndex * SLOT_HEIGHT}px`,
+          left: leftPosition,
+        };
 
     return (
       <>
@@ -163,41 +166,48 @@ const PtzCamera = memo(
                 ...maximizedStyle,
                 ...dragTransform(delta),
               }}
-              className={`z-9000 border border-border shadow-2xl bg-bg-100 flex flex-col ${sizeClass}`}
+              className={`z-9000   flex `}
             >
-              <PtzToolbar
-                name={camera.nombre}
-                mode="maximized"
-                onToggleMaximize={toggleMaximize}
-                onToggleFullscreen={() => setMode("fullscreen")}
-                onHide={onClose}
-                visionOn={visionOn}
-                visionStarting={visionStarting}
-                onToggleVision={handleToggleVision}
-                onOpenVisionConfig={() => setVisionConfigOpen(true)}
-                dragHandleProps={dragHandleProps}
-              />
-
-              <PtzVideo
-                videoRef={videoRef}
-                connectionError={connectionError}
-                onRetry={retry}
-                ptz_id={camera.id}
-                showControls
-                overlayText={
-                  visionGrace && !connectionError
-                    ? "Iniciando detección IA..."
-                    : null
-                }
-              />
-              {visionConnecting && visionConnectingMode && (
-                <VisionLoadingModal
+              <div
+                className={`flex flex-col bg-bg-100 border border-border shadow-2xl ${sizeClass}`}
+              >
+                <PtzToolbar
                   name={camera.nombre}
-                  ptzId={camera.id}
-                  mode={visionConnectingMode}
-                  onComplete={finishConnecting}
+                  mode="maximized"
+                  onToggleMaximize={toggleMaximize}
+                  onToggleFullscreen={() => setMode("fullscreen")}
+                  onHide={onClose}
+                  visionOn={visionOn}
+                  visionStarting={visionStarting}
+                  onToggleVision={handleToggleVision}
+                  onOpenVisionConfig={() => setVisionConfigOpen(true)}
+                  dragHandleProps={dragHandleProps}
                 />
-              )}
+
+                <PtzVideo
+                  videoRef={videoRef}
+                  connectionError={connectionError}
+                  onRetry={retry}
+                  ptz_id={camera.id}
+                  showControls
+                  overlayText={
+                    visionGrace && !connectionError
+                      ? "Iniciando detección IA..."
+                      : null
+                  }
+                />
+                {visionConnecting && visionConnectingMode && (
+                  <VisionLoadingModal
+                    name={camera.nombre}
+                    ptzId={camera.id}
+                    mode={visionConnectingMode}
+                    onComplete={finishConnecting}
+                  />
+                )}
+              </div>
+              <div>
+                <ManualPtzButton />
+              </div>
             </div>,
             document.body,
           )}

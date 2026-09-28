@@ -1,5 +1,11 @@
 import { apiSystem } from "@/apis";
-import type { Empresa, UsuarioEmpresa, DispositivoEmpresa } from "../types";
+import type {
+  Empresa,
+  UsuarioEmpresa,
+  DispositivoEmpresa,
+  CreateUserForEmpresaDto,
+  UpdateEmpresaDto,
+} from "../types";
 
 interface ApiListResponse<T> {
   data: T[];
@@ -9,15 +15,6 @@ interface ApiListResponse<T> {
 interface ApiItemResponse<T> {
   data: T;
   message: string;
-}
-
-export interface CreateUserForEmpresaDto {
-  nombre: string;
-  apellido: string;
-  email: string;
-  password: string;
-  role_id: number;
-  idEmpresa: number;
 }
 
 export const companiesService = {
@@ -34,6 +31,15 @@ export const companiesService = {
   createEmpresa: async (empresa: Omit<Empresa, "id">): Promise<Empresa> => {
     const res = await apiSystem.post<ApiItemResponse<Empresa>>("/empresas", empresa);
     return res.data.data;
+  },
+
+  updateEmpresa: async (id: number, payload: UpdateEmpresaDto): Promise<Empresa> => {
+    const res = await apiSystem.put<ApiItemResponse<Empresa>>(`/empresas/${id}`, payload);
+    return res.data.data;
+  },
+
+  deleteEmpresa: async (id: number): Promise<void> => {
+    await apiSystem.delete(`/empresas/${id}`);
   },
 
   getEmpresaUsers: async (): Promise<UsuarioEmpresa[]> => {

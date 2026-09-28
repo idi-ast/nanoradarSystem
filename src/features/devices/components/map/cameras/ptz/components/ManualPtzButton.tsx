@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
-import { IconDeviceGamepad2, IconCamera, IconChevronDown } from "@tabler/icons-react";
+import { IconCamera, IconChevronDown, IconDroplet } from "@tabler/icons-react";
 import { Tooltip } from "@/components/ui";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { PtzDpad } from "./PtzDpad";
@@ -7,6 +7,8 @@ import {
   ptzPauseTracking,
   ptzResumeTracking,
   ptzZoom,
+  ptzLuz,
+  ptzLimpiaVidrio,
   PTZ_SPEED_X,
 } from "../service";
 
@@ -16,15 +18,11 @@ const BTN_CLS =
 const ManualPtzButton = memo(function ManualPtzButton() {
   const [open, setOpen] = useState(false);
   const [selectedPtzId, setSelectedPtzId] = useState<number | null>(null);
+  const [luz, setLuz] = useState(false);
+  const [limpia, setLimpia] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const { data } = useConfigDevices();
   const ptzList = data?.data?.ptz ?? [];
-
-  useEffect(() => {
-    if (ptzList.length > 0 && selectedPtzId === null) {
-      setSelectedPtzId(ptzList[0].id);
-    }
-  }, [ptzList, selectedPtzId]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,17 +80,14 @@ const ManualPtzButton = memo(function ManualPtzButton() {
               : BTN_CLS
           }
         >
-          <IconDeviceGamepad2 size={20} />
+          <IconCamera size={20} />
         </button>
       </Tooltip>
 
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute top-0 right-12 z-50 animate-fade-in-left animate-duration-100 bg-bg-100 border border-border shadow-xl rounded-lg p-3 min-w-52">
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute top-0 left-12 z-50 animate-fade-in-left animate-duration-100 bg-bg-100 border border-border shadow-xl rounded-lg p-3 min-w-52">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
               <IconCamera size={14} className="text-text-200" />
               <span className="text-xs font-semibold text-text-100 uppercase tracking-wider">
@@ -130,26 +125,63 @@ const ManualPtzButton = memo(function ManualPtzButton() {
               <PtzDpad ptz_id={ptzId} disableAutoTracking />
             </div>
 
-            <div className="flex justify-center gap-1">
-              <button
-                className="flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold"
-                title="Zoom -"
-                onClick={() => ptzZoom(ptzId, -PTZ_SPEED_X)}
-              >
-                Z-
-              </button>
-              <button
-                className="flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold"
-                title="Zoom +"
-                onClick={() => ptzZoom(ptzId, PTZ_SPEED_X)}
-              >
-                Z+
-              </button>
-            </div>
+            <div className="hidden flex flex-col items-center gap-2">
+              <div className="flex justify-center gap-1">
+                <button
+                  className="flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold"
+                  title="Zoom -"
+                  onClick={() => ptzZoom(ptzId, -PTZ_SPEED_X)}
+                >
+                  Z-
+                </button>
+                <button
+                  className="flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold"
+                  title="Zoom +"
+                  onClick={() => ptzZoom(ptzId, PTZ_SPEED_X)}
+                >
+                  Z+
+                </button>
+              </div>
 
-            <p className="text-[9px] text-text-200/50 text-center mt-2 leading-tight">
-              Tracking pausado — se reanuda al cerrar
-            </p>
+              <div className="flex justify-center gap-2">
+                <button
+                  onClick={() => {
+                    const next = !luz;
+                    setLuz(next);
+                    ptzLuz(ptzId, next);
+                  }}
+                  title={luz ? "Apagar luz" : "Encender luz"}
+                  className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold ${
+                    luz
+                      ? "bg-amber-500/80 text-white border-amber-500"
+                      : "bg-black/60 hover:bg-black/80 text-white/80 hover:text-white"
+                  }`}
+                >
+                  ☀
+                </button>
+                <button
+                  onClick={() => {
+                    const next = !limpia;
+                    setLimpia(next);
+                    ptzLimpiaVidrio(ptzId, next);
+                  }}
+                  title={
+                    limpia ? "Apagar limpiavidrios" : "Encender limpiavidrios"
+                  }
+                  className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors border border-white/10 backdrop-blur-sm text-xs font-bold ${
+                    limpia
+                      ? "bg-blue-500/80 text-white border-blue-500"
+                      : "bg-black/60 hover:bg-black/80 text-white/80 hover:text-white"
+                  }`}
+                >
+                  <IconDroplet stroke={2} size={16} />
+                </button>
+              </div>
+
+              <p className="text-[9px] text-text-200/50 text-center mt-2 leading-tight">
+                Tracking pausado — se reanuda al cerrar
+              </p>
+            </div>
           </div>
         </>
       )}

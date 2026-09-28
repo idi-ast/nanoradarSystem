@@ -29,6 +29,7 @@ export async function fetchTrackSummaries(
     only_with_zones: onlyWithZones,
     page,
     limit: pageSize,
+    track_ids: filters.trackIds?.join(","),
   });
   return res.data;
 }

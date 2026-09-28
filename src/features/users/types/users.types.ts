@@ -9,7 +9,8 @@ export interface Data {
   apellido: string;
   email: string;
   role_id: number;
-  idEmpresa: number;
+  /** La FK es nullable en el modelo: un usuario puede no tener empresa. */
+  idEmpresa: number | null;
 }
 
 export interface CreateUserDto {
@@ -27,5 +28,5 @@ export interface UpdateUserDto {
   email?: string;
   password?: string;
   role_id?: number;
-  idEmpresa?: number;
+  idEmpresa?: number | null;
 }

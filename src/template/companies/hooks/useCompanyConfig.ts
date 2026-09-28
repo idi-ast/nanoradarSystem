@@ -8,7 +8,7 @@ const QUERY_KEYS = {
 export function useCompanyConfig(companyId?: number) {
   const query = useQuery({
     queryKey: [...QUERY_KEYS.companyConfig, companyId],
-    queryFn: () => companiesService.getCompanyDetails(companyId!),
+    queryFn: () => companiesService.getEmpresa(companyId!),
     enabled: Boolean(companyId),
     staleTime: 30 * 1000,
   });

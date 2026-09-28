@@ -32,3 +32,15 @@ export interface EmpresaProfile {
   usuarios: UsuarioEmpresa[];
   dispositivos: DispositivoEmpresa[];
 }
+
+export interface CreateUserForEmpresaDto {
+  nombre: string;
+  apellido: string;
+  email: string;
+  password: string;
+  role_id: number;
+  idEmpresa: number;
+}
+
+/** Todos los campos son opcionales: el backend solo aplica los enviados. */
+export type UpdateEmpresaDto = Partial<Omit<Empresa, "id">>;

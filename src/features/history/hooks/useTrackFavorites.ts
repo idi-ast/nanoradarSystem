@@ -7,12 +7,10 @@ import {
   type TrackFavorite,
 } from "../api";
 import type { TrackSummary } from "../types";
-import { trackKey } from "./useTrackPlayback";
-
 const FAVORITES_KEY = ["history-favorites"] as const;
 
-function favoriteKey(f: { track_id: string; tipo_radar: string }): string {
-  return `${(f.tipo_radar || "unknown").toLowerCase()}:${f.track_id.toUpperCase()}`;
+function favoriteKey(t: { track_id: string; tipo_radar: string }): string {
+  return `${t.tipo_radar}:${t.track_id}`;
 }
 
 export function useTrackFavorites() {
@@ -48,7 +46,7 @@ export function useTrackFavorites() {
     onMutate: async ({ track, add }) => {
       await queryClient.cancelQueries({ queryKey: FAVORITES_KEY });
       const prev = queryClient.getQueryData<TrackFavorite[]>(FAVORITES_KEY) ?? [];
-      const key = trackKey(track);
+      const key = favoriteKey(track);
       queryClient.setQueryData<TrackFavorite[]>(FAVORITES_KEY, (old = []) => {
         if (add) {
           if (old.some((f) => favoriteKey(f) === key)) return old;
@@ -74,13 +72,13 @@ export function useTrackFavorites() {
   });
 
   const hasFavorite = useCallback(
-    (t: TrackSummary) => favorites.has(trackKey(t)),
+    (t: TrackSummary) => favorites.has(favoriteKey(t)),
     [favorites],
   );
 
   const toggle = useCallback(
     (t: TrackSummary) => {
-      const isFav = favorites.has(trackKey(t));
+      const isFav = favorites.has(favoriteKey(t));
       mutation.mutate({ track: t, add: !isFav });
     },
     [favorites, mutation],
@@ -88,7 +86,7 @@ export function useTrackFavorites() {
 
   const toggleAsync = useCallback(
     async (t: TrackSummary) => {
-      const isFav = favorites.has(trackKey(t));
+      const isFav = favorites.has(favoriteKey(t));
       return mutation.mutateAsync({ track: t, add: !isFav });
     },
     [favorites, mutation],

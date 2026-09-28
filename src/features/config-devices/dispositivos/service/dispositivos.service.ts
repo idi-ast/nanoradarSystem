@@ -17,9 +17,15 @@ interface ApiItemResponse<T> {
   message: string;
 }
 
-interface Empresa {
+export interface Empresa {
   id: number;
   nombre: string;
+  rut: string;
+  direccion: string;
+  telefono: string;
+  email: string;
+  /** Empresa principal: única que puede ver todas las empresas y asignar superadmin. */
+  principal: boolean;
 }
 
 export const dispositivosService = {
