@@ -166,7 +166,7 @@ const PtzCamera = memo(
                 ...maximizedStyle,
                 ...dragTransform(delta),
               }}
-              className={`z-9000   flex `}
+              className={`z-9000   flex gap-2`}
             >
               <div
                 className={`flex flex-col bg-bg-100 border border-border shadow-2xl ${sizeClass}`}
