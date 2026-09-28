@@ -2,15 +2,14 @@ import { useState } from "react";
 import {
   IconBuildingSkyscraper,
   IconPlus,
-  IconPencil,
-  IconTrash,
   IconUser,
   IconDeviceDesktop,
-  IconX,
+  IconPencil,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useRole } from "@/context/role";
-import { useCompaniesPanel, type CreateUserForEmpresaDto } from "../hooks";
-import type { Empresa, UsuarioEmpresa, DispositivoEmpresa } from "../types";
+import { useCompaniesPanel } from "../hooks";
+import type { CreateUserForEmpresaDto, Empresa } from "../types";
 
 const ROLE_LABELS: Record<number, string> = {
   1: "Super Admin",
@@ -25,7 +24,7 @@ const ROLE_COLORS: Record<number, string> = {
 };
 
 export default function CompaniesPanel() {
-  const { isSuperAdmin, idEmpresa, empresaEsPrincipal } = useRole();
+  const { isSuperAdmin, empresaEsPrincipal } = useRole();
 
   /** Solo el superadmin de la empresa principal puede marcar empresas como principal. */
   const puedeMarcarPrincipal = isSuperAdmin && empresaEsPrincipal;
@@ -38,19 +37,60 @@ export default function CompaniesPanel() {
     loadingUsers,
     loadingDevices,
     error,
+    actionError,
     loadCompanies,
     handleCompanyClick,
     handleCreateCompany,
     handleCreateUser,
+    handleUpdateCompany,
+    handleDeleteCompany,
     createCompanyMut,
     createUserMut,
+    updateCompanyMut,
+    deleteCompanyMut,
     setSelectedCompanyId,
   } = useCompaniesPanel();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
-  const [newCompany, setNewCompany] = useState({ nombre: "", rut: "", direccion: "", telefono: "", email: "", principal: false });
-  const [newUser, setNewUser] = useState({ nombre: "", apellido: "", email: "", password: "", role_id: 3 as number });
+  // Guardamos el id y no un booleano: al cambiar de empresa seleccionada el
+  // panel se cierra solo, sin necesidad de un efecto que sincronice estado.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [newCompany, setNewCompany] = useState({
+    nombre: "",
+    rut: "",
+    direccion: "",
+    telefono: "",
+    email: "",
+    principal: false,
+  });
+  const [editCompany, setEditCompany] = useState(newCompany);
+  const [newUser, setNewUser] = useState({
+    nombre: "",
+    apellido: "",
+    email: "",
+    password: "",
+    role_id: 3 as number,
+  });
+
+  const empresaSeleccionada = selectedCompany?.id ?? null;
+  const showEditForm = editingId !== null && editingId === empresaSeleccionada;
+  const confirmDelete = deletingId !== null && deletingId === empresaSeleccionada;
+
+  /** Carga el formulario de edición con los datos de la empresa indicada. */
+  const abrirEdicion = (empresa: Empresa) => {
+    setEditCompany({
+      nombre: empresa.nombre,
+      rut: empresa.rut,
+      direccion: empresa.direccion,
+      telefono: empresa.telefono,
+      email: empresa.email,
+      principal: empresa.principal,
+    });
+    setEditingId(empresa.id);
+    setDeletingId(null);
+  };
 
   if (loading) {
     return (
@@ -68,7 +108,10 @@ export default function CompaniesPanel() {
       <div className="rounded-lg bg-red-50 p-4 text-red-800">
         <h3 className="font-semibold">Error</h3>
         <p className="text-sm">{error.message}</p>
-        <button onClick={loadCompanies} className="mt-2 text-sm underline hover:no-underline">
+        <button
+          onClick={loadCompanies}
+          className="mt-2 text-sm underline hover:no-underline"
+        >
           Reintentar
         </button>
       </div>
@@ -87,7 +130,7 @@ export default function CompaniesPanel() {
         {isSuperAdmin && (
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-brand-100 text-text-100 rounded hover:bg-bg-300 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-bg-400 text-text-400 rounded hover:bg-bg-100 hover:text-text-100 transition-colors flex items-center gap-2"
           >
             <IconPlus size={16} stroke={1.5} />
             Crear Empresa
@@ -98,54 +141,76 @@ export default function CompaniesPanel() {
       {/* Formulario crear empresa */}
       {showCreateForm && isSuperAdmin && (
         <div className="bg-bg-100 border border-border rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-text-100 mb-4">Nueva Empresa</h3>
+          <h3 className="text-lg font-semibold text-text-100 mb-4">
+            Nueva Empresa
+          </h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-200 uppercase tracking-widest">Nombre</label>
+              <label className="text-xs text-text-200 uppercase tracking-widest">
+                Nombre
+              </label>
               <input
                 type="text"
                 value={newCompany.nombre}
-                onChange={(e) => setNewCompany({ ...newCompany, nombre: e.target.value })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, nombre: e.target.value })
+                }
                 placeholder="Ej: Mi Empresa S.A."
                 className="h-8 px-3 border border-border bg-bg-200 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-200 uppercase tracking-widest">RUT</label>
+              <label className="text-xs text-text-200 uppercase tracking-widest">
+                RUT
+              </label>
               <input
                 type="text"
                 value={newCompany.rut}
-                onChange={(e) => setNewCompany({ ...newCompany, rut: e.target.value })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, rut: e.target.value })
+                }
                 placeholder="Ej: 12.345.678-9"
                 className="h-8 px-3 border border-border bg-bg-200 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex flex-col gap-1 col-span-2">
-              <label className="text-xs text-text-200 uppercase tracking-widest">Dirección</label>
+              <label className="text-xs text-text-200 uppercase tracking-widest">
+                Dirección
+              </label>
               <input
                 type="text"
                 value={newCompany.direccion}
-                onChange={(e) => setNewCompany({ ...newCompany, direccion: e.target.value })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, direccion: e.target.value })
+                }
                 placeholder="Dirección de la empresa"
                 className="h-8 px-3 border border-border bg-bg-200 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-200 uppercase tracking-widest">Teléfono</label>
+              <label className="text-xs text-text-200 uppercase tracking-widest">
+                Teléfono
+              </label>
               <input
                 type="text"
                 value={newCompany.telefono}
-                onChange={(e) => setNewCompany({ ...newCompany, telefono: e.target.value })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, telefono: e.target.value })
+                }
                 placeholder="+56 9 1234 5678"
                 className="h-8 px-3 border border-border bg-bg-200 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-200 uppercase tracking-widest">Email</label>
+              <label className="text-xs text-text-200 uppercase tracking-widest">
+                Email
+              </label>
               <input
                 type="email"
                 value={newCompany.email}
-                onChange={(e) => setNewCompany({ ...newCompany, email: e.target.value })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, email: e.target.value })
+                }
                 placeholder="contacto@empresa.cl"
                 className="h-8 px-3 border border-border bg-bg-200 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -156,7 +221,9 @@ export default function CompaniesPanel() {
                 type="checkbox"
                 checked={newCompany.principal}
                 disabled={!puedeMarcarPrincipal}
-                onChange={(e) => setNewCompany({ ...newCompany, principal: e.target.checked })}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, principal: e.target.checked })
+                }
                 className="h-4 w-4 rounded border-border bg-bg-200 accent-amber-500 disabled:opacity-40"
               />
               <label
@@ -177,7 +244,14 @@ export default function CompaniesPanel() {
             <button
               onClick={async () => {
                 await handleCreateCompany(newCompany);
-                setNewCompany({ nombre: "", rut: "", direccion: "", telefono: "", email: "", principal: false });
+                setNewCompany({
+                  nombre: "",
+                  rut: "",
+                  direccion: "",
+                  telefono: "",
+                  email: "",
+                  principal: false,
+                });
                 setShowCreateForm(false);
               }}
               disabled={createCompanyMut.isPending}
@@ -195,7 +269,7 @@ export default function CompaniesPanel() {
           <h3 className="mb-4 text-lg font-semibold text-text-100">
             Empresas ({companies.length})
           </h3>
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          <div className="space-y-3 overflow-y-auto">
             {companies.map((company) => (
               <div
                 key={company.id}
@@ -231,39 +305,246 @@ export default function CompaniesPanel() {
         <div className="lg:col-span-2 bg-bg-300 p-6 rounded-xl">
           {selectedCompany ? (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-text-100">
                   {selectedCompany.nombre}
                 </h3>
-                {isSuperAdmin && (
+                <div className="flex items-center gap-3">
+                  {isSuperAdmin && (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (showEditForm) {
+                            setEditingId(null);
+                          } else {
+                            abrirEdicion(selectedCompany);
+                          }
+                        }}
+                        className="text-xs text-text-200 hover:text-text-100 transition flex items-center gap-1"
+                      >
+                        <IconPencil size={14} stroke={1.5} />
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeletingId(showEditForm ? null : selectedCompany.id);
+                          setEditingId(null);
+                        }}
+                        disabled={selectedCompany.principal}
+                        title={
+                          selectedCompany.principal
+                            ? "No se puede eliminar la empresa principal"
+                            : undefined
+                        }
+                        className="text-xs text-text-200 hover:text-red-400 transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-200"
+                      >
+                        <IconTrash size={14} stroke={1.5} />
+                        Eliminar
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => setSelectedCompanyId(undefined as unknown as number)}
+                    onClick={() => {
+                      setSelectedCompanyId(undefined as unknown as number);
+                      setEditingId(null);
+                      setDeletingId(null);
+                    }}
                     className="text-xs text-text-200 hover:text-text-100 transition"
                   >
                     ✕ Cerrar
                   </button>
-                )}
+                </div>
               </div>
 
+              {actionError && (
+                <p className="text-sm text-red-400 bg-red-950/30 border border-red-800 rounded px-3 py-2">
+                  {actionError}
+                </p>
+              )}
+
+              {confirmDelete && (
+                <div className="bg-red-950/30 border border-red-800 rounded-lg p-4 space-y-3">
+                  <p className="text-sm text-text-100">
+                    ¿Eliminar <strong>{selectedCompany.nombre}</strong>? Esta acción
+                    no se puede deshacer.
+                  </p>
+                  {(companyUsers.length > 0 || companyDevices.length > 0) && (
+                    <p className="text-xs text-amber-300">
+                      Esta empresa tiene {companyUsers.length} usuario(s) y{" "}
+                      {companyDevices.length} dispositivo(s) asociados. El backend
+                      rechazará la eliminación: reasigna o elimina primero sus
+                      usuarios y dispositivos.
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setDeletingId(null)}
+                      className="px-3 py-1.5 text-sm text-text-200 hover:text-text-100 transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await handleDeleteCompany(selectedCompany.id);
+                        setEditingId(null);
+                        setDeletingId(null);
+                      }}
+                      disabled={deleteCompanyMut.isPending}
+                      className="px-3 py-1.5 text-sm bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition disabled:opacity-50"
+                    >
+                      {deleteCompanyMut.isPending ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showEditForm && (
+                <div className="bg-bg-200 border border-border rounded-lg p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-text-100">
+                    Editar empresa
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-text-200 uppercase tracking-widest">
+                        Nombre
+                      </label>
+                      <input
+                        type="text"
+                        value={editCompany.nombre}
+                        onChange={(e) =>
+                          setEditCompany({ ...editCompany, nombre: e.target.value })
+                        }
+                        className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-text-200 uppercase tracking-widest">
+                        RUT
+                      </label>
+                      <input
+                        type="text"
+                        value={editCompany.rut}
+                        onChange={(e) =>
+                          setEditCompany({ ...editCompany, rut: e.target.value })
+                        }
+                        className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 col-span-2">
+                      <label className="text-xs text-text-200 uppercase tracking-widest">
+                        Dirección
+                      </label>
+                      <input
+                        type="text"
+                        value={editCompany.direccion}
+                        onChange={(e) =>
+                          setEditCompany({
+                            ...editCompany,
+                            direccion: e.target.value,
+                          })
+                        }
+                        className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-text-200 uppercase tracking-widest">
+                        Teléfono
+                      </label>
+                      <input
+                        type="text"
+                        value={editCompany.telefono}
+                        onChange={(e) =>
+                          setEditCompany({
+                            ...editCompany,
+                            telefono: e.target.value,
+                          })
+                        }
+                        className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-text-200 uppercase tracking-widest">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={editCompany.email}
+                        onChange={(e) =>
+                          setEditCompany({ ...editCompany, email: e.target.value })
+                        }
+                        className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 col-span-2">
+                      <input
+                        id="edit-empresa-principal"
+                        type="checkbox"
+                        checked={editCompany.principal}
+                        disabled={!puedeMarcarPrincipal}
+                        onChange={(e) =>
+                          setEditCompany({
+                            ...editCompany,
+                            principal: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-border bg-bg-100 accent-amber-500 disabled:opacity-40"
+                      />
+                      <label
+                        htmlFor="edit-empresa-principal"
+                        className={`text-sm text-text-100 ${!puedeMarcarPrincipal ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                      >
+                        Empresa principal (puede ver todos los dispositivos)
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-3 py-1.5 text-sm text-text-200 hover:text-text-100 transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await handleUpdateCompany(selectedCompany.id, editCompany);
+                        setEditingId(null);
+                      }}
+                      disabled={updateCompanyMut.isPending}
+                      className="px-4 py-1.5 text-sm bg-brand-100 text-text-100 rounded hover:bg-bg-300 transition disabled:opacity-50"
+                    >
+                      {updateCompanyMut.isPending ? "Guardando..." : "Guardar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Info de empresa */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-text-200">RUT:</span>{" "}
-                  <span className="text-text-100">{selectedCompany.rut}</span>
+              {!showEditForm && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-text-200">RUT:</span>{" "}
+                    <span className="text-text-100">{selectedCompany.rut}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-200">Email:</span>{" "}
+                    <span className="text-text-100">
+                      {selectedCompany.email || "—"}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-text-200">Dirección:</span>{" "}
+                    <span className="text-text-100">
+                      {selectedCompany.direccion || "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-200">Teléfono:</span>{" "}
+                    <span className="text-text-100">
+                      {selectedCompany.telefono || "—"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-text-200">Email:</span>{" "}
-                  <span className="text-text-100">{selectedCompany.email || "—"}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-text-200">Dirección:</span>{" "}
-                  <span className="text-text-100">{selectedCompany.direccion || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-text-200">Teléfono:</span>{" "}
-                  <span className="text-text-100">{selectedCompany.telefono || "—"}</span>
-                </div>
-              </div>
+              )}
 
               {/* Usuarios de la empresa */}
               <div>
@@ -285,39 +566,54 @@ export default function CompaniesPanel() {
 
                 {showCreateUser && isSuperAdmin && (
                   <div className="bg-bg-200 border border-border rounded-lg p-4 mb-3 space-y-3">
-                    <h5 className="text-sm font-medium text-text-100">Crear Usuario para {selectedCompany.nombre}</h5>
+                    <h5 className="text-sm font-medium text-text-100">
+                      Crear Usuario para {selectedCompany.nombre}
+                    </h5>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         placeholder="Nombre"
                         value={newUser.nombre}
-                        onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, nombre: e.target.value })
+                        }
                         className="h-7 px-2 border border-border bg-bg-100 text-text-100 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="text"
                         placeholder="Apellido"
                         value={newUser.apellido}
-                        onChange={(e) => setNewUser({ ...newUser, apellido: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, apellido: e.target.value })
+                        }
                         className="h-7 px-2 border border-border bg-bg-100 text-text-100 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="email"
                         placeholder="Email"
                         value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, email: e.target.value })
+                        }
                         className="h-7 px-2 border border-border bg-bg-100 text-text-100 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <input
                         type="password"
                         placeholder="Contraseña"
                         value={newUser.password}
-                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, password: e.target.value })
+                        }
                         className="h-7 px-2 border border-border bg-bg-100 text-text-100 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                       <select
                         value={newUser.role_id}
-                        onChange={(e) => setNewUser({ ...newUser, role_id: Number(e.target.value) })}
+                        onChange={(e) =>
+                          setNewUser({
+                            ...newUser,
+                            role_id: Number(e.target.value),
+                          })
+                        }
                         className="h-7 px-2 border border-border bg-bg-100 text-text-100 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value={2}>Admin</option>
@@ -328,7 +624,13 @@ export default function CompaniesPanel() {
                       <button
                         onClick={() => {
                           setShowCreateUser(false);
-                          setNewUser({ nombre: "", apellido: "", email: "", password: "", role_id: 3 });
+                          setNewUser({
+                            nombre: "",
+                            apellido: "",
+                            email: "",
+                            password: "",
+                            role_id: 3,
+                          });
                         }}
                         className="px-3 py-1 text-xs text-text-200 hover:text-text-100 transition"
                       >
@@ -342,12 +644,20 @@ export default function CompaniesPanel() {
                           };
                           await handleCreateUser(payload);
                           setShowCreateUser(false);
-                          setNewUser({ nombre: "", apellido: "", email: "", password: "", role_id: 3 });
+                          setNewUser({
+                            nombre: "",
+                            apellido: "",
+                            email: "",
+                            password: "",
+                            role_id: 3,
+                          });
                         }}
                         disabled={createUserMut.isPending}
                         className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 rounded hover:bg-blue-500/30 disabled:opacity-50 transition"
                       >
-                        {createUserMut.isPending ? "Creando..." : "Crear Usuario"}
+                        {createUserMut.isPending
+                          ? "Creando..."
+                          : "Crear Usuario"}
                       </button>
                     </div>
                   </div>
@@ -358,21 +668,28 @@ export default function CompaniesPanel() {
                 ) : companyUsers.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {companyUsers.map((user) => (
-                      <div key={user.id} className="bg-bg-200 border border-border p-3 flex items-center justify-between">
+                      <div
+                        key={user.id}
+                        className="bg-bg-200 border border-border p-3 flex items-center justify-between"
+                      >
                         <div>
                           <p className="font-medium text-text-100 text-sm">
                             {user.nombre} {user.apellido}
                           </p>
                           <p className="text-xs text-text-200">{user.email}</p>
                         </div>
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold border ${ROLE_COLORS[user.role_id]}`}>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold border ${ROLE_COLORS[user.role_id]}`}
+                        >
                           {ROLE_LABELS[user.role_id]}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-text-200">No hay usuarios asignados</p>
+                  <p className="text-sm text-text-200">
+                    No hay usuarios asignados
+                  </p>
                 )}
               </div>
 
@@ -383,23 +700,36 @@ export default function CompaniesPanel() {
                   Dispositivos ({companyDevices.length})
                 </h4>
                 {loadingDevices ? (
-                  <p className="text-sm text-text-200">Cargando dispositivos...</p>
+                  <p className="text-sm text-text-200">
+                    Cargando dispositivos...
+                  </p>
                 ) : companyDevices.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {companyDevices.map((device) => (
-                      <div key={device.id} className="bg-bg-200 border border-border p-3 flex items-center justify-between">
+                      <div
+                        key={device.id}
+                        className="bg-bg-200 border border-border p-3 flex items-center justify-between"
+                      >
                         <div>
-                          <p className="font-medium text-text-100 text-sm">{device.modelo}</p>
+                          <p className="font-medium text-text-100 text-sm">
+                            {device.modelo}
+                          </p>
                           <p className="text-xs text-text-200">
-                            {device.tipo_radar} {device.serial ? `· ${device.serial}` : ""} · {device.categoria ?? ""}
+                            {device.tipo_radar}{" "}
+                            {device.serial ? `· ${device.serial}` : ""} ·{" "}
+                            {device.categoria ?? ""}
                           </p>
                         </div>
-                        <span className={`inline-flex w-2 h-2 rounded-full ${device.status ? "bg-emerald-400" : "bg-text-200"}`} />
+                        <span
+                          className={`inline-flex w-2 h-2 rounded-full ${device.status ? "bg-emerald-400" : "bg-text-200"}`}
+                        />
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-text-200">No hay dispositivos asignados</p>
+                  <p className="text-sm text-text-200">
+                    No hay dispositivos asignados
+                  </p>
                 )}
               </div>
             </div>

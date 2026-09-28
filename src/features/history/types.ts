@@ -36,6 +36,8 @@ export interface TrackSummaryFilters {
   search?: string;
   minPoints: number;
   zone?: string;
+  /** IDs de tracks a forzar en la respuesta (ej. favoritos fuera de rango). */
+  trackIds?: string[];
 }
 
 export interface TrackListResponse {

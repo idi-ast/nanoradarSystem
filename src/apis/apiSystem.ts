@@ -9,9 +9,16 @@ interface ApiSystemConfig {
   headers?: Record<string, string>;
 }
 
+type SessionExpiredCallback = (options: { stay: () => void; logout: () => void }) => void;
+
 class ApiSystem {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
+  private isRefreshing = false;
+  private refreshPromise: Promise<string | null> | null = null;
+  private sessionExpiredCallback: SessionExpiredCallback | null = null;
+  private activityTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly ACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
   constructor(config: ApiSystemConfig) {
     this.baseURL = config.baseURL;
@@ -19,17 +26,117 @@ class ApiSystem {
       "Content-Type": "application/json",
       ...config.headers,
     };
+    this.startActivityMonitor();
+  }
+
+  private startActivityMonitor() {
+    if (typeof window === "undefined") return;
+    const resetTimer = () => {
+      if (this.activityTimer) clearTimeout(this.activityTimer);
+      this.activityTimer = setTimeout(() => {
+        this.handleInactivity();
+      }, this.ACTIVITY_TIMEOUT_MS);
+    };
+    ["mousedown", "keydown", "touchstart", "scroll"].forEach((evt) =>
+      window.addEventListener(evt, resetTimer, { passive: true })
+    );
+    resetTimer();
+  }
+
+  private handleInactivity() {
+    const token = localStorage.getItem("access_token");
+    if (token && !this.isTokenExpired(token)) {
+      this.refreshTokenSilently();
+    }
+  }
+
+  private isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+
+  setSessionExpiredHandler(callback: SessionExpiredCallback | null) {
+    this.sessionExpiredCallback = callback;
+  }
+
+  private notifySessionExpired() {
+    if (this.sessionExpiredCallback) {
+      this.sessionExpiredCallback({
+        stay: () => this.refreshTokenSilently(),
+        logout: () => this.clearAuth(),
+      });
+    }
+  }
+
+  private clearAuth() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("auth_role_id");
+    localStorage.removeItem("auth_id_empresa");
+    localStorage.removeItem("auth_empresa_principal");
+    this.removeHeader("Authorization");
+    window.location.href = "/login";
+  }
+
+  private async refreshTokenSilently(): Promise<string | null> {
+    if (this.isRefreshing) {
+      return this.refreshPromise!;
+    }
+
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      this.notifySessionExpired();
+      return null;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseURL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (!response.ok) throw new Error("Refresh failed");
+
+        const data = await response.json();
+        const newAccessToken = data.access_token;
+        const newRefreshToken = data.refresh_token;
+
+        if (newAccessToken) {
+          localStorage.setItem("access_token", newAccessToken);
+          this.setHeader("Authorization", `Bearer ${newAccessToken}`);
+        }
+        if (newRefreshToken) {
+          localStorage.setItem("refresh_token", newRefreshToken);
+        }
+
+        this.isRefreshing = false;
+        return newAccessToken;
+      } catch {
+        this.isRefreshing = false;
+        this.notifySessionExpired();
+        return null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   private async request<T>(
     method: string,
     endpoint: string,
     data?: unknown,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    isRetry = false
   ): Promise<ApiResponse<T>> {
     let url = `${this.baseURL}${endpoint}`;
 
-    // Agregar query params si existen
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -43,7 +150,6 @@ class ApiSystem {
       }
     }
 
-    // Inyectar token de autorización si existe (sesión del backend de sistema)
     const headers: Record<string, string> = {
       ...this.defaultHeaders,
     };
@@ -67,6 +173,20 @@ class ApiSystem {
 
     const response = await fetch(url, config);
 
+    if (response.status === 401 && !isRetry) {
+      const newToken = await this.refreshTokenSilently();
+      if (newToken) {
+        headers["Authorization"] = `Bearer ${newToken}`;
+        const retryConfig = { ...config, headers };
+        const retryResponse = await fetch(url, retryConfig);
+        if (retryResponse.ok) {
+          const text = await retryResponse.text();
+          const responseData = text ? JSON.parse(text) : null;
+          return { data: responseData as T, status: retryResponse.status, ok: retryResponse.ok };
+        }
+      }
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
@@ -76,7 +196,6 @@ class ApiSystem {
       );
     }
 
-    // Manejar respuestas vacías (ej: DELETE)
     const text = await response.text();
     const responseData = text ? JSON.parse(text) : null;
 

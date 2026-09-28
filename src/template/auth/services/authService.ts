@@ -27,6 +27,12 @@ export const authService = {
         localStorage.setItem("access_token", cleanToken);
         apiSystem.setHeader("Authorization", `Bearer ${cleanToken}`);
 
+        // Guardar refresh_token si viene en la respuesta
+        const refreshToken = tokenData?.refresh_token || tokenData?.refreshToken;
+        if (refreshToken && typeof refreshToken === "string") {
+          localStorage.setItem("refresh_token", refreshToken);
+        }
+
         // Guardar role_id si viene en la respuesta del login
         const roleId = tokenData?.user?.role_id;
         if (roleId !== undefined && roleId !== null) {
@@ -98,6 +104,7 @@ export const authService = {
 
   async logout(): Promise<void> {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("auth_role_id");
     localStorage.removeItem("auth_id_empresa");
     localStorage.removeItem("auth_empresa_principal");

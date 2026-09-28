@@ -57,7 +57,7 @@ export function PtzVideo({
           </div>
         </div>
       )}
-      {showControls && !connectionError && <PtzControls ptz_id={ptz_id} />}
+      {!showControls && !connectionError && <PtzControls ptz_id={ptz_id} />}
     </div>
   );
 }

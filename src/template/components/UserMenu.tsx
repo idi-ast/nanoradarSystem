@@ -61,15 +61,11 @@ export default function UserMenu() {
             <p className="text-sm font-semibold">{user?.name}</p>
             <p className="text-xs text-text-100">{user?.email}</p>
           </div>
-          {isSuperAdmin && <div className="px-5 flex flex-col gap-3 py-4">
-            <Link to="/perfil">
-              Perfil
-            </Link>
-            <Link to="/usuarios">
-              Usuarios
-            </Link>
+          <div className="px-5 flex flex-col gap-3 py-4">
+            <Link to="/perfil">Perfil</Link>
+            {isSuperAdmin && <Link to="/usuarios">Usuarios</Link>}
           </div>
-          }
+
           <div className="border-t border-border">
             <button
               onClick={handleLogout}

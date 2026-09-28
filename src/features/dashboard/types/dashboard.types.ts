@@ -11,7 +11,8 @@ export interface DashboardStats {
 }
 
 // Re-exports desde carpetas específicas
-export type { Company, User } from '../../companies/types';
-export type { UserProfile } from '../../user-profile/types';
-export type { Service } from '../../services-panel/types';
+// (vive bajo src/template/, no bajo src/features/)
+export type { Empresa } from '../../../template/companies/types';
+export type { User, UserProfile } from '../../../template/user-profile/types';
+export type { Service } from '../../../template/services-panel/types';
 

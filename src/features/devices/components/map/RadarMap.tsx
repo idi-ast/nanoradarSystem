@@ -85,7 +85,7 @@ function SecondaryRadarLayers({
       <RadarTargetsLayer
         historyRange={historyRange}
         selectedTargetId={null}
-        onSelectTarget={() => { }}
+        onSelectTarget={() => {}}
         historyTrackPoints={undefined}
         historyTrackRange={{ start: 0, end: 100 }}
       />
@@ -119,7 +119,9 @@ function LiveDevicePreviewLayer({
           type: "Feature" as const,
           geometry: {
             type: "Polygon" as const,
-            coordinates: [createSectorCoords(lat, lng, radio, startAngle, endAngle, 64)],
+            coordinates: [
+              createSectorCoords(lat, lng, radio, startAngle, endAngle, 64),
+            ],
           },
           properties: {},
         },
@@ -198,9 +200,13 @@ export const RadarMap = memo(function RadarMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [internalSelectedTargetId, setInternalSelectedTargetId] = useState<string | null>(null);
-  const selectedTargetId = controlledSelectedTargetId ?? internalSelectedTargetId;
-  const setSelectedTargetId = controlledOnSelectTarget ?? setInternalSelectedTargetId;
+  const [internalSelectedTargetId, setInternalSelectedTargetId] = useState<
+    string | null
+  >(null);
+  const selectedTargetId =
+    controlledSelectedTargetId ?? internalSelectedTargetId;
+  const setSelectedTargetId =
+    controlledOnSelectTarget ?? setInternalSelectedTargetId;
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("satellite");
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
@@ -234,14 +240,16 @@ export const RadarMap = memo(function RadarMap({
   const calibratingCameraId = useCameraCalibrationStore(
     (s) => s.calibratingCameraId,
   );
-  const calibratingIsPtz = useCameraCalibrationStore(
-    (s) => s.calibratingIsPtz,
-  );
+  const calibratingIsPtz = useCameraCalibrationStore((s) => s.calibratingIsPtz);
   const calibrationMode = useCameraCalibrationStore((s) => s.mode);
   const isCalibrating = calibratingCameraId !== null;
 
-  const setCurrentViewportCenter = useTargetVisualStore((s) => s.setCurrentViewportCenter);
-  const setCurrentViewportZoom = useTargetVisualStore((s) => s.setCurrentViewportZoom);
+  const setCurrentViewportCenter = useTargetVisualStore(
+    (s) => s.setCurrentViewportCenter,
+  );
+  const setCurrentViewportZoom = useTargetVisualStore(
+    (s) => s.setCurrentViewportZoom,
+  );
 
   const handleMoveEnd = useCallback(() => {
     const center = mapRef.current?.getCenter();
@@ -412,7 +420,6 @@ export const RadarMap = memo(function RadarMap({
         icon: <IconLeaf size={20} />,
         style: "mapbox://styles/mapbox/emerald-v8",
       },
-
     }),
     [],
   );
@@ -435,12 +442,7 @@ export const RadarMap = memo(function RadarMap({
       if (isCalibrating && calibratingCameraId !== null) {
         if (!calibratingIsPtz) {
           // Cámaras fijas: solo vista previa (no pueden girar)
-          calibrate(
-            calibratingCameraId,
-            false,
-            e.lngLat.lat,
-            e.lngLat.lng,
-          );
+          calibrate(calibratingCameraId, false, e.lngLat.lat, e.lngLat.lng);
           return;
         }
 
@@ -453,11 +455,7 @@ export const RadarMap = memo(function RadarMap({
             .setClickPoint({ lat: e.lngLat.lat, lon: e.lngLat.lng });
         } else {
           // Giro: la cámara apunta físicamente al punto clickeado (sin guardar)
-          gotoGps(
-            calibratingCameraId,
-            e.lngLat.lat,
-            e.lngLat.lng,
-          );
+          gotoGps(calibratingCameraId, e.lngLat.lat, e.lngLat.lng);
         }
         return;
       }
@@ -496,7 +494,6 @@ export const RadarMap = memo(function RadarMap({
     ],
   );
 
-
   const defaultCenter = instanceConfig.map.fallbackCenter;
   const customMapCenter = useTargetVisualStore((s) => s.customMapCenter);
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
@@ -514,14 +511,21 @@ export const RadarMap = memo(function RadarMap({
   // }
 
   return (
-    <div ref={shellRef} className="radar-shell grow h-full flex border-r border-emerald-500/20">
+    <div
+      ref={shellRef}
+      className="radar-shell grow h-full flex border-r border-emerald-500/20"
+    >
       <div className="relative flex-1 h-full">
         {/* {!mapLoaded && <PageLoader />} */}
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
-            latitude: customMapCenter?.latitude ?? (defaultCenter.latitude || initialCenter.latitude),
-            longitude: customMapCenter?.longitude ?? (defaultCenter.longitude || initialCenter.longitude),
+            latitude:
+              customMapCenter?.latitude ??
+              (defaultCenter.latitude || initialCenter.latitude),
+            longitude:
+              customMapCenter?.longitude ??
+              (defaultCenter.longitude || initialCenter.longitude),
             zoom: customMapZoom ?? instanceConfig.map.zoom,
             pitch: instanceConfig.map.pitch,
             bearing: instanceConfig.map.bearing,
@@ -696,28 +700,32 @@ export const RadarMap = memo(function RadarMap({
       <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
         <MapPanelProvider>
           <div className="flex flex-col gap-1 p-2 ">
-            {(isSuperAdmin || isAdmin) && <DeviceSelector
-              visibility={effectiveVisibility}
-              onChange={handleVisibilityChange}
-              onEditNanoradar={(device) =>
-                openEdit({ kind: "nanoradar", device })
-              }
-              onEditMagosradar={(device) =>
-                openEdit({ kind: "magosradar", device })
-              }
-              onEditSpotter={(device) => openEdit({ kind: "spotter", device })}
-              onEditCamara={(device) => openEdit({ kind: "camara", device })}
-              onEditPtz={(device) => openEdit({ kind: "ptz", device })}
-              editingDevice={editingDevice}
-              liveEdit={liveEdit}
-              onLiveEditChange={setLiveEdit}
-              onEditClose={closeEdit}
-              liveEditPos={liveEditPos}
-              onLiveEditPosChange={setLiveEditPos}
-              isPickingPosition={isPickingPosition}
-              onPickPosition={() => setIsPickingPosition(true)}
-              onCancelPickPosition={() => setIsPickingPosition(false)}
-            />}
+            {(isSuperAdmin || isAdmin) && (
+              <DeviceSelector
+                visibility={effectiveVisibility}
+                onChange={handleVisibilityChange}
+                onEditNanoradar={(device) =>
+                  openEdit({ kind: "nanoradar", device })
+                }
+                onEditMagosradar={(device) =>
+                  openEdit({ kind: "magosradar", device })
+                }
+                onEditSpotter={(device) =>
+                  openEdit({ kind: "spotter", device })
+                }
+                onEditCamara={(device) => openEdit({ kind: "camara", device })}
+                onEditPtz={(device) => openEdit({ kind: "ptz", device })}
+                editingDevice={editingDevice}
+                liveEdit={liveEdit}
+                onLiveEditChange={setLiveEdit}
+                onEditClose={closeEdit}
+                liveEditPos={liveEditPos}
+                onLiveEditPosChange={setLiveEditPos}
+                isPickingPosition={isPickingPosition}
+                onPickPosition={() => setIsPickingPosition(true)}
+                onCancelPickPosition={() => setIsPickingPosition(false)}
+              />
+            )}
             <ZonesPanel />
 
             {/* <div className="flex justify-center items-center flex-1">

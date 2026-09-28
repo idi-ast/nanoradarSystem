@@ -134,16 +134,13 @@ export default function UserProfilePanel() {
               {companies.map((company) => (
                 <div
                   key={company.id}
-                  style={{
-                    backgroundColor: companyConfig?.color_theme,
-                  }}
                   className="flex items-center  rounded justify-between  border border-border-200 p-4 hover:bg-bg-200"
                 >
                   <div>
                     <h2 className="font-bold text-text-100">{company.name} </h2>
                     <p className="text-sm text-text-100">RUT: {company.rut}</p>
                     <p className="text-sm text-text-100">
-                      {companyConfig?.address}
+                      {companyConfig?.direccion}
                     </p>
                   </div>
                 </div>
