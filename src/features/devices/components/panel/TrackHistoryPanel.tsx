@@ -1,9 +1,11 @@
-import { useMemo, memo } from "react";
-import { IconX, IconRoute, IconClock, IconSpeedboat } from "@tabler/icons-react";
+import { useMemo, memo, useCallback } from "react";
+import { IconX, IconRoute, IconClock, IconSpeedboat, IconStar } from "@tabler/icons-react";
 import type { RadarTarget, TrackHistoryPoint } from "../../types";
 import { DEVICE_LABEL, DEVICE_COLOR } from "../map/devicesConfig";
 import { useTrackHistory } from "../../hooks/useTrackHistory";
 import { HistoryRangeBar, type HistoryRange } from "../controls/HistoryRangeBar";
+import { useTrackFavorites } from "@/features/history/hooks/useTrackFavorites";
+import { toast } from "sonner";
 
 interface Props {
   target: RadarTarget;
@@ -54,6 +56,24 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
   const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
   const deviceColor = DEVICE_COLOR[target.deviceType] ?? "bg-slate-500/20 text-slate-300";
   const rawId = target.id.replace(/^(nanoRadar|magosradar|spotter)_/, "");
+
+  const tipoRadar = target.deviceType === "magosradar" ? "magos" : target.deviceType === "nanoRadar" ? "nano" : "spotter";
+  const trackSummary = useMemo(() => ({
+    track_id: rawId,
+    tipo_radar: tipoRadar,
+  }), [rawId, tipoRadar]);
+
+  const { favorites, hasFavorite, toggle } = useTrackFavorites();
+  const isFavorite = hasFavorite(trackSummary);
+
+  const handleToggleFavorite = useCallback(async () => {
+    try {
+      await toggle(trackSummary);
+      toast.success(isFavorite ? "Eliminado de favoritos" : "Agregado a favoritos");
+    } catch {
+      toast.error("Error al actualizar favoritos");
+    }
+  }, [trackSummary, isFavorite, toggle]);
 
   const { data: backendHistory, isLoading } = useTrackHistory({
     trackId: rawId,
@@ -152,12 +172,23 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
           <h3 className="text-sm font-bold uppercase tracking-widest text-text-100/80">
             Historial del Track
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-bg-300 transition-colors"
-          >
-            <IconX size={18} stroke={1.5} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleToggleFavorite}
+              className={`p-1 rounded hover:bg-bg-300 transition-colors ${
+                isFavorite ? "text-yellow-400" : "text-text-200 hover:text-yellow-400"
+              }`}
+              title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+            >
+              <IconStar size={18} stroke={1.5} fill={isFavorite ? "currentColor" : "none"} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-bg-300 transition-colors"
+            >
+              <IconX size={18} stroke={1.5} />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 mb-2">
