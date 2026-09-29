@@ -304,7 +304,7 @@ export const ZoneCard = memo(function ZoneCard({
 
   return (
     <div
-      className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-2xl"
+      className="relative bg-bg-200 overflow-hidden group cursor-pointer rounded-lg border-t border-t-bg-200"
       style={
         hasAlert
           ? ({
@@ -336,7 +336,7 @@ export const ZoneCard = memo(function ZoneCard({
         className={`absolute blur-xl left-0 top-0 w-full h-full ${hasAlert ? "animate-pulse opacity-60" : "opacity-30"}`}
         style={{ backgroundColor: zone.poligono.color }}
       />
-      <div className="relative bg-linear-to-r from-bg-200 from-25% to-bg-100/40 px-4 py-1 w-full h-full">
+      <div className="relative bg-linear-to-r from-bg-300 from-25% to-bg-100/40 px-2 py-1 w-full h-full">
         <p className="text-sm font-bold text-text-100 uppercase pr-16">
           {zone.nombre}
         </p>
@@ -347,7 +347,7 @@ export const ZoneCard = memo(function ZoneCard({
               (c) => c.id === (zone.categoriaDeteccion ?? 1),
             );
             return cat ? (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-bg-100 text-text-200 border border-border flex items-center gap-0.5">
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-bg-100 text-text-200 flex items-center gap-0.5">
                 <cat.icon size={10} stroke={1.5} />
                 {cat.label}
               </span>
@@ -361,13 +361,13 @@ export const ZoneCard = memo(function ZoneCard({
         </div>
 
         <div
-          className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1"
+          className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
         >
           <div
-            className={`w-3 h-3 rounded-full shrink-0 ${hasAlert ? "animate-ping" : ""}`}
+            className={`w-5 h-5 rounded-full shrink-0 border-2 ${hasAlert ? "animate-ping" : ""}`}
             style={{
-              backgroundColor: zone.poligono.color,
+              borderColor: zone.poligono.color,
               boxShadow: hasAlert
                 ? `0 0 8px 2px ${zone.poligono.color}`
                 : undefined,

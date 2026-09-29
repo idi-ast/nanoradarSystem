@@ -1,6 +1,29 @@
 import type { MapRef } from "react-map-gl";
 
-export type MapLayer = "street" | "dark" | "satellite" | "smooth";
+/**
+ * Claves de capa compartidas por los registros de `mapLayers` de RadarMap y
+ * BaseMap. `THEME_MAP_LAYER` debe formar parte de esta union para poder
+ * forzarla desde el tema.
+ */
+export type MapLayer =
+  | "street"
+  | "dark"
+  | "satellite"
+  | "smooth"
+  | "light"
+  | "outdoors"
+  | "navigation_day"
+  | "navigation_night"
+  | "terrain"
+  | "blueprint"
+  | "standard"
+  | "traffic_day"
+  | "traffic_night"
+  | "blank"
+  | "streets_v11"
+  | "light_v10"
+  | "dark_v10"
+  | "emerald";
 
 export interface MapLayerConfig {
   name: string;

@@ -5,15 +5,10 @@ import {
   IconBulb,
   IconDroplet,
 } from "@tabler/icons-react";
-import {
-  ptzZoom,
-  ptzLuz,
-  ptzLimpiaVidrio,
-  PTZ_SPEED_X,
-} from "../service";
+import { ptzZoom, ptzLuz, ptzLimpiaVidrio, PTZ_SPEED_X } from "../service";
 
 const BTN_CLS =
-  "flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm";
+  "relative text-white hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 border-t border-t-white/20 shadow-sm backdrop-blur-lg bg-bg-100/20 rounded h-10 w-10 flex justify-center items-center transition-all";
 
 const BTN_ON_CLS =
   "flex items-center justify-center w-8 h-8 rounded-md bg-yellow-500/70 hover:bg-yellow-400/80 text-white transition-colors border border-yellow-400/50 backdrop-blur-sm";
@@ -39,24 +34,24 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
 
   return (
     <div
-      className="absolute bottom-2 left-2 right-2 z-50 flex flex-col items-center gap-1 select-none"
+      className="absolute bottom-0 -right-12  z-50 flex flex-col items-center gap-1 select-none"
       onPointerDown={(e) => e.stopPropagation()}
     >
       {/* Zoom + extras row */}
-      <div className="flex gap-1">
+      <div className="flex flex-col gap-1">
         <button
           className={BTN_CLS}
           title="Zoom out"
           onClick={() => ptzZoom(ptz_id, -PTZ_SPEED_X)}
         >
-          <IconZoomOut size={14} stroke={1.5} />
+          <IconZoomOut size={19} stroke={1.5} />
         </button>
         <button
           className={BTN_CLS}
           title="Zoom in"
           onClick={() => ptzZoom(ptz_id, PTZ_SPEED_X)}
         >
-          <IconZoomIn size={14} stroke={1.5} />
+          <IconZoomIn size={19} stroke={1.5} />
         </button>
 
         {/* Luz toggle */}
@@ -65,7 +60,7 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
           title={luz ? "Apagar luz" : "Encender luz"}
           onClick={toggleLuz}
         >
-          <IconBulb size={14} stroke={1.5} />
+          <IconBulb size={19} stroke={1.5} />
         </button>
 
         {/* Limpiavidrio toggle */}
@@ -74,7 +69,7 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
           title={limpiaVidrio ? "Detener limpiavidrio" : "Activar limpiavidrio"}
           onClick={toggleLimpiaVidrio}
         >
-          <IconDroplet size={14} stroke={1.5} />
+          <IconDroplet size={19} stroke={1.5} />
         </button>
       </div>
     </div>

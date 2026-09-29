@@ -22,7 +22,7 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
     <Tooltip text="Limpiar Tracks">
       <button
         onClick={clearTargets}
-        className="h-10 w-10 flex justify-center items-center rounded bg-bg-300 text-text-100 hover:text-text-400 hover:bg-bg-400 transition-colors"
+        className="h-10 w-10 flex justify-center items-center rounded bg-bg-200 text-text-100 hover:text-text-400 hover:bg-bg-400 transition-colors"
       >
         <IconMapPinX size={20} stroke={2} />
       </button>
@@ -76,7 +76,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
             className={`h-10 w-10 flex justify-center items-center rounded text-text-100 hover:text-text-400 transition-colors ${
               isDrawing
                 ? "border border-brand-100 hover:border-red-600"
-                : "border border-transparent bg-bg-300 hover:bg-bg-400"
+                : "border border-transparent bg-bg-200 hover:bg-bg-400"
             }`}
           >
             {isDrawing ? (

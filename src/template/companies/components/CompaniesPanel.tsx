@@ -76,7 +76,8 @@ export default function CompaniesPanel() {
 
   const empresaSeleccionada = selectedCompany?.id ?? null;
   const showEditForm = editingId !== null && editingId === empresaSeleccionada;
-  const confirmDelete = deletingId !== null && deletingId === empresaSeleccionada;
+  const confirmDelete =
+    deletingId !== null && deletingId === empresaSeleccionada;
 
   /** Carga el formulario de edición con los datos de la empresa indicada. */
   const abrirEdicion = (empresa: Empresa) => {
@@ -327,7 +328,9 @@ export default function CompaniesPanel() {
                       </button>
                       <button
                         onClick={() => {
-                          setDeletingId(showEditForm ? null : selectedCompany.id);
+                          setDeletingId(
+                            showEditForm ? null : selectedCompany.id,
+                          );
                           setEditingId(null);
                         }}
                         disabled={selectedCompany.principal}
@@ -365,15 +368,15 @@ export default function CompaniesPanel() {
               {confirmDelete && (
                 <div className="bg-red-950/30 border border-red-800 rounded-lg p-4 space-y-3">
                   <p className="text-sm text-text-100">
-                    ¿Eliminar <strong>{selectedCompany.nombre}</strong>? Esta acción
-                    no se puede deshacer.
+                    ¿Eliminar <strong>{selectedCompany.nombre}</strong>? Esta
+                    acción no se puede deshacer.
                   </p>
                   {(companyUsers.length > 0 || companyDevices.length > 0) && (
                     <p className="text-xs text-amber-300">
                       Esta empresa tiene {companyUsers.length} usuario(s) y{" "}
-                      {companyDevices.length} dispositivo(s) asociados. El backend
-                      rechazará la eliminación: reasigna o elimina primero sus
-                      usuarios y dispositivos.
+                      {companyDevices.length} dispositivo(s) asociados. El
+                      backend rechazará la eliminación: reasigna o elimina
+                      primero sus usuarios y dispositivos.
                     </p>
                   )}
                   <div className="flex justify-end gap-2">
@@ -392,7 +395,9 @@ export default function CompaniesPanel() {
                       disabled={deleteCompanyMut.isPending}
                       className="px-3 py-1.5 text-sm bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition disabled:opacity-50"
                     >
-                      {deleteCompanyMut.isPending ? "Eliminando..." : "Eliminar"}
+                      {deleteCompanyMut.isPending
+                        ? "Eliminando..."
+                        : "Eliminar"}
                     </button>
                   </div>
                 </div>
@@ -412,7 +417,10 @@ export default function CompaniesPanel() {
                         type="text"
                         value={editCompany.nombre}
                         onChange={(e) =>
-                          setEditCompany({ ...editCompany, nombre: e.target.value })
+                          setEditCompany({
+                            ...editCompany,
+                            nombre: e.target.value,
+                          })
                         }
                         className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -425,7 +433,10 @@ export default function CompaniesPanel() {
                         type="text"
                         value={editCompany.rut}
                         onChange={(e) =>
-                          setEditCompany({ ...editCompany, rut: e.target.value })
+                          setEditCompany({
+                            ...editCompany,
+                            rut: e.target.value,
+                          })
                         }
                         className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -470,7 +481,10 @@ export default function CompaniesPanel() {
                         type="email"
                         value={editCompany.email}
                         onChange={(e) =>
-                          setEditCompany({ ...editCompany, email: e.target.value })
+                          setEditCompany({
+                            ...editCompany,
+                            email: e.target.value,
+                          })
                         }
                         className="h-8 px-3 border border-border bg-bg-100 text-text-100 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -506,7 +520,10 @@ export default function CompaniesPanel() {
                     </button>
                     <button
                       onClick={async () => {
-                        await handleUpdateCompany(selectedCompany.id, editCompany);
+                        await handleUpdateCompany(
+                          selectedCompany.id,
+                          editCompany,
+                        );
                         setEditingId(null);
                       }}
                       disabled={updateCompanyMut.isPending}
@@ -556,7 +573,7 @@ export default function CompaniesPanel() {
                   {isSuperAdmin && (
                     <button
                       onClick={() => setShowCreateUser(!showCreateUser)}
-                      className="px-3 py-1 text-xs bg-blue-500/20 text-blue-300 rounded hover:bg-blue-500/30 transition flex items-center gap-1"
+                      className="px-3 py-1 text-xs bg-bg-400 text-text-400 rounded hover:bg-bg-400/80 transition flex items-center gap-1"
                     >
                       <IconPlus size={12} stroke={1.5} />
                       Agregar Usuario
@@ -670,7 +687,7 @@ export default function CompaniesPanel() {
                     {companyUsers.map((user) => (
                       <div
                         key={user.id}
-                        className="bg-bg-200 border border-border p-3 flex items-center justify-between"
+                        className="bg-bg-200 rounded-xl border border-border p-3 flex items-center justify-between"
                       >
                         <div>
                           <p className="font-medium text-text-100 text-sm">
@@ -708,7 +725,7 @@ export default function CompaniesPanel() {
                     {companyDevices.map((device) => (
                       <div
                         key={device.id}
-                        className="bg-bg-200 border border-border p-3 flex items-center justify-between"
+                        className="bg-bg-200 rounded-xl border border-border p-3 flex items-center justify-between"
                       >
                         <div>
                           <p className="font-medium text-text-100 text-sm">

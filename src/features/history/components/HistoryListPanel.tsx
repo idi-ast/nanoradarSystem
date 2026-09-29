@@ -50,7 +50,7 @@ const MIN_POINTS_OPTIONS = [1, 2, 3, 5, 10];
 const RADAR_TYPES = ["magos", "nano", "spotter"];
 
 const LEVEL_COLORS: Record<number, string> = {
-  0: "#fffa",
+  0: "#66c221",
   1: "#22c55e",
   2: "#f59e0b",
   3: "#f97316",
@@ -277,10 +277,7 @@ export function HistoryListPanel({
 
   // `tracks` ya viene filtrado (incluye favoritos fuera de rango cuando
   // `onlyFavorites` está activo), así que no filtramos aquí por favoritos.
-  const displayedTracks = useMemo(
-    () => sortedTracks,
-    [sortedTracks],
-  );
+  const displayedTracks = useMemo(() => sortedTracks, [sortedTracks]);
 
   const totalDistance = useMemo(
     () => displayedTracks.reduce((s, t) => s + (t.distance_m ?? 0), 0),
@@ -348,7 +345,7 @@ export function HistoryListPanel({
         />
       </div>
 
-      <div className="shrink-0 grid grid-cols-4 gap-1 px-3 py-1.5 border-b border-border bg-bg-200/40">
+      <div className="shrink-0 grid grid-cols-4 gap-1 px-3 py-1.5 border-b border-border bg-bg-200">
         <MiniStat label="En vista" value={`${tracks.length} tracks`} />
         <MiniStat label="Distancia" value={formatDistance(totalDistance)} />
         <MiniStat label="Duración" value={formatDuration(totalDuration)} />
@@ -474,7 +471,7 @@ export function HistoryListPanel({
             className={`w-full flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-semibold transition-colors ${
               allTracksSelected
                 ? "border-text-100/40 bg-bg-200 text-text-100/70 hover:bg-bg-300"
-                : "border-lime-500/50 bg-lime-500/10 text-lime-300 hover:bg-lime-500/20"
+                : "border-lime-500/50 bg-lime-500/10 text-lime-500 hover:bg-lime-500/20"
             }`}
             title={
               allTracksSelected
@@ -684,17 +681,17 @@ function TrackCard({
     <div
       className={`rounded-lg border transition-colors ${
         selected
-          ? "border-bg-400/60 bg-bg-400/10"
+          ? "border-border bg-bg-200"
           : "border-border bg-bg-100 hover:border-border-200"
       }`}
     >
       <div className="flex items-start">
         <button onClick={onClick} className="min-w-0 flex-1 p-2.5 text-left">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-bold text-[12px]">
+            <span className="truncate text-text-100 font-bold text-[12px]">
               {track.track_id}
             </span>
-            <span className="shrink-0 text-[10px] uppercase text-text-100/50">
+            <span className="shrink-0 text-[10px] uppercase text-text-200">
               {track.tipo_radar === "magos" ? "MG-1000" : track.tipo_radar}
             </span>
           </div>
@@ -728,7 +725,7 @@ function TrackCard({
             ))}
             {track.nivel_max != null && (
               <span
-                className="ml-auto rounded px-1.5 py-0.5 text-xs font-bold"
+                className="ml-auto rounded text-text-200 px-1.5 py-0.5 text-xs font-bold"
                 style={{
                   color: LEVEL_COLORS[track.nivel_max] ?? LEVEL_COLORS[4],
                 }}
@@ -829,10 +826,10 @@ function TrackCard({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-bg-200/50 px-1.5 py-1">
-      <div className="text-[9px] uppercase tracking-wider text-text-100/40">
+      <div className="text-[9px] uppercase tracking-wider text-text-300">
         {label}
       </div>
-      <div className="truncate text-[11px] font-bold text-text-100">
+      <div className="truncate text-[11px] font-bold text-text-200">
         {value}
       </div>
     </div>

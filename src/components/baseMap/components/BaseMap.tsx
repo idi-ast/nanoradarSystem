@@ -37,8 +37,14 @@ import {
 import CustomZoomControl from "./CustomZoomControl";
 import ViewControls from "./ViewControls";
 import LayerSelector from "./LayerSelector";
-import { MAPBOX_TOKEN, DEFAULT_CENTER, MAP_ZOOM_LEVEL } from "../libs";
+import {
+  MAPBOX_TOKEN,
+  DEFAULT_CENTER,
+  MAP_ZOOM_LEVEL,
+  THEME_MAP_LAYER,
+} from "../libs";
 import type { BaseMapProps, MapLayer, MapLayerConfig } from "../types";
+import { useTheme } from "@/context/ThemeContext";
 
 const BaseMap: React.FC<BaseMapProps> = ({
   children,
@@ -48,6 +54,11 @@ const BaseMap: React.FC<BaseMapProps> = ({
 }) => {
   const mapRef = useRef<MapRef>(null);
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("satellite");
+  const { theme } = useTheme();
+  // En tema light el mapa se fija en "Navegacion Dia" y se descarta la
+  // eleccion manual; al volver a dark se recupera la capa del usuario.
+  const activeLayer: MapLayer =
+    theme === "light" ? THEME_MAP_LAYER : selectedLayer;
 
   const mapLayers = useMemo<Record<MapLayer, MapLayerConfig>>(
     () => ({
@@ -233,7 +244,7 @@ const BaseMap: React.FC<BaseMapProps> = ({
           bearing: 0,
         }}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={mapLayers[selectedLayer].style}
+        mapStyle={mapLayers[activeLayer].style}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         reuseMaps
@@ -248,7 +259,7 @@ const BaseMap: React.FC<BaseMapProps> = ({
       <div className="relative h-full  z-50 bg-bg-100  flex flex-col gap-1 p-1 rounded">
         <div className="flex flex-col p-0.5 gap-1 border border-border rounded py-1">
           <LayerSelector
-            selectedLayer={selectedLayer}
+            selectedLayer={activeLayer}
             onLayerChange={handleLayerChange}
             mapLayers={mapLayers}
           />

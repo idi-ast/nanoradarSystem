@@ -17,11 +17,11 @@ function Header({
 }) {
   const { isMobile } = useBreakpoint();
   return (
-    <header className="max-w-413  h-10 mx-auto    text-text-100 w-full z-100  flex items-center relative">
+    <header className="px-20 h-10 mx-auto text-text-100 w-full z-100  flex items-center relative">
       <LineGradientWhite top="-0.07rem" height="1.5rem" color={"#6b7280"} />
-      <div className="relative w-full rounded-lg  flex items-center justify-between shadow bg-linear-to-l from-bg-300 via-bg-100 to-bg-200 ">
+      <div className="relative w-full rounded-lg flex items-center justify-between shadow bg-bg-200 ">
         <div className="px-5 flex gap-1">
-          <h4 className="font-bold text-text-200">
+          <h4 className="font-bold text-text-100">
             <span className="text-brand-100">
               {useConfigApp.PROVIDER_APP.slice(0, 2)}
             </span>
@@ -29,7 +29,7 @@ function Header({
           </h4>
         </div>
         {!isMobile && (
-          <div className="absolute left-[50%] -translate-x-1/2 text-white text-center">
+          <div className="absolute left-[50%] -translate-x-1/2 text-text-400 text-center">
             <h4 className="uppercase tracking-[0.25em] bg-white to-100% font-black text-shadow-xs/40 text-shadow-gray-900 bg-clip-text text-clip text-transparent">
               {useConfigApp.NAME_APP}
             </h4>
@@ -39,7 +39,7 @@ function Header({
           <div className="flex items-center justify-center gap-3 px-1 rounded-2xl">
             {isMobile && (
               <button
-                className="text-text-100 "
+                className="text-text-400 "
                 onClick={() => setIsOpenSidebar(!isOpenSidebar)}
               >
                 <IconCategory2 size={20} />

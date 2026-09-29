@@ -191,7 +191,7 @@ export function HistoryRangeBar({
     : undefined;
 
   return (
-    <div className="w-full px-1 py-1 bg-bg-300">
+    <div className="w-full px-1 py-1 bg-bg-200">
       <div className="flex justify-between mb-1 py-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-text-100 tabular-nums">
@@ -241,7 +241,7 @@ export function HistoryRangeBar({
           onMouseDown={startDraggingMove}
           onTouchStart={startDraggingMove}
         >
-          <div className="absolute inset-x-0 top-0 h-px bg-red-400/40 rounded-full" />
+          <div className="absolute inset-x-0 top-0 h-4.5 bg-sky-100 rounded-full" />
         </div>
 
         <div

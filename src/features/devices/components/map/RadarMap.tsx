@@ -23,8 +23,9 @@ import {
   IconMoonStars,
   IconLeaf,
 } from "@tabler/icons-react";
-import { MAPBOX_TOKEN } from "@/components/baseMap/libs";
+import { MAPBOX_TOKEN, THEME_MAP_LAYER } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
+import { useTheme } from "@/context/ThemeContext";
 import MapControls from "@/components/baseMap/components/MapControls";
 import ManualPtzButton from "./cameras/ptz/components/ManualPtzButton";
 import { RADAR_INSTANCES } from "../../config";
@@ -208,6 +209,11 @@ export const RadarMap = memo(function RadarMap({
   const setSelectedTargetId =
     controlledOnSelectTarget ?? setInternalSelectedTargetId;
   const [selectedLayer, setSelectedLayer] = useState<MapLayer>("satellite");
+  const { theme } = useTheme();
+  // En tema light el mapa se fija en "Navegacion Dia" y se descarta la
+  // eleccion manual; al volver a dark se recupera la capa del usuario.
+  const activeLayer: MapLayer =
+    theme === "light" ? THEME_MAP_LAYER : selectedLayer;
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
   const effectiveVisibility = controlledVisibility ?? deviceVisibility;
@@ -511,10 +517,7 @@ export const RadarMap = memo(function RadarMap({
   // }
 
   return (
-    <div
-      ref={shellRef}
-      className="radar-shell grow h-full flex border-r border-emerald-500/20"
-    >
+    <div ref={shellRef} className="radar-shell grow h-full flex ">
       <div className="relative flex-1 h-full">
         {/* {!mapLoaded && <PageLoader />} */}
         <ReactMapGL
@@ -532,7 +535,7 @@ export const RadarMap = memo(function RadarMap({
           }}
           //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={mapLayers[selectedLayer].style}
+          mapStyle={mapLayers[activeLayer].style}
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
           reuseMaps
@@ -576,7 +579,7 @@ export const RadarMap = memo(function RadarMap({
           />
           <MapControls
             mapRef={mapRef}
-            selectedLayer={selectedLayer}
+            selectedLayer={activeLayer}
             onLayerChange={handleLayerChange}
             mapLayers={mapLayers}
             initialCenter={initialCenter}
@@ -697,7 +700,7 @@ export const RadarMap = memo(function RadarMap({
         <RadarInfoOverlay mapCenter={mapCenter} />
       </div>
 
-      <div className="relative h-full bg-bg-100 backdrop-blur-sm flex ">
+      <div className="relative h-full bg-bg-200 ">
         <MapPanelProvider>
           <div className="flex flex-col gap-1 p-2 ">
             {(isSuperAdmin || isAdmin) && (

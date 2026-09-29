@@ -22,7 +22,7 @@ export function PtzVideo({
 }: PtzVideoProps) {
   return (
     <div
-      className={`bg-black overflow-hidden relative ${compact ? "h-36" : "flex-1"}`}
+      className={`bg-black   relative ${compact ? "h-36" : "flex-1"}`}
     >
       <video
         ref={videoRef}
@@ -57,7 +57,7 @@ export function PtzVideo({
           </div>
         </div>
       )}
-      {!showControls && !connectionError && <PtzControls ptz_id={ptz_id} />}
+      {showControls && !connectionError && <PtzControls ptz_id={ptz_id} />}
     </div>
   );
 }

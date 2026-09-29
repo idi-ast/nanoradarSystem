@@ -36,10 +36,10 @@ export default function UserMenu() {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 pe-2 ps-0.5 bg-bg-200   shadow-sm shadow-bg-100  hover:bg-bg-300 rounded-lg transition-colors"
+        className="flex items-center gap-2 pe-2 ps-0.5 shadow-sm shadow-bg-100  hover:bg-bg-300 rounded-md transition-colors"
       >
-        <div className="w-8 h-8 bg-bg-100 rounded-lg flex justify-center items-center">
-          <span className="font-bold text-text-100">
+        <div className="w-8 h-8 bg-bg-400 rounded-lg flex justify-center items-center">
+          <span className="font-bold text-text-400">
             {user?.name?.charAt(0).toUpperCase() || "?"}
           </span>
         </div>
