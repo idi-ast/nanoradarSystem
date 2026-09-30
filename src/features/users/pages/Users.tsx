@@ -47,7 +47,7 @@ function Users() {
 
   return (
     <div className="flex flex-col w-full bg-bg-100 h-full">
-      <div className="h-20 bg-bg-100 p-5 flex items-center justify-between">
+      <div className="h-20 bg-bg-100 text-text-100 p-5 flex items-center justify-between">
         <h1>Usuarios</h1>
         <div>
           <button
@@ -66,7 +66,7 @@ function Users() {
           >
             <div className="grid grid-cols-2">
               <div className="flex items-center gap-2">
-                <h3 className="capitalize">
+                <h3 className="capitalize text-text-100">
                   {user.nombre} {user.apellido}
                 </h3>
                 <span

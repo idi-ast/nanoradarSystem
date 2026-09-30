@@ -32,13 +32,13 @@ export function BoatsSharedCanvas() {
       }
     };
 
-    if (mbMap.isStyleLoaded()) {
-      addLayer();
-    } else {
-      mbMap.once("style.load", addLayer);
-    }
+    addLayer();
+    // setStyle() borra los custom layers (p. ej. al cambiar de estilo por
+    // tema), asi que hay que readdarlos en cada carga de estilo.
+    mbMap.on("style.load", addLayer);
 
     return () => {
+      mbMap.off("style.load", addLayer);
       if (mbMap.getLayer(BOAT_LAYER_ID)) {
         mbMap.removeLayer(BOAT_LAYER_ID);
       }

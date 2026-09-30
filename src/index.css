@@ -1,6 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tailwind-animations";
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
+@source "./**/*.{ts,tsx,js,jsx,html}";
+@source "../libs/**/*.{ts,tsx,js,jsx}";
+@source "../index.html";
 
 :root {
   font-family: "Switzer", sans-serif;
@@ -51,9 +53,9 @@
 @layer base {
   :root {
     /* Fondos (Backgrounds) */
-    --bg-100: #f2f2f2;
-    --bg-200: #e7e7e7;
-    --bg-300: #ffffff;
+    --bg-100: #f2f3f4;
+    --bg-200: #ffffff;
+    --bg-300: #e2e3e6;
     --bg-400: #000000;
     --bg-450: #292929;
 
@@ -61,7 +63,7 @@
     --bg-hover: #e2e8f0;
 
     /* Colores de Marca y Acción */
-    --brand-100: #e02c2c;
+    --brand-100: #ff3737;
     --brand-200: #ff4b4b;
 
     /* Textos */
@@ -86,7 +88,7 @@
     /* Interacción */
 
     /* Colores de Marca y Acción */
-    --brand-100: #e51616;
+    --brand-100: #ff3737;
     --brand-200: #006aff;
 
     /* Textos */

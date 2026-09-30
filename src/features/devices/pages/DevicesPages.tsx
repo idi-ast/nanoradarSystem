@@ -251,7 +251,9 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
             </div>
           )}
         </div>
-        <BottomBar title="Línea de tiempo">
+        <BottomBar
+        // title="Línea de tiempo"
+        >
           <HistoryRangeBar
             onChange={handleRangeChange}
             minTime={mainHistoryBounds?.minTime}
@@ -399,15 +401,15 @@ const RightBarNano = memo(
     const { isDesktop } = useBreakpoint();
 
     return (
-      <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative">
+      <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative px-1">
         {(isDesktop || setOpenRightBar) && (
-          <div className="shrink-0 px-5 bg-bg-100 rounded-xl m-1">
+          <div className="shrink-0  bg-bg-200 rounded-lg  p-2">
             <h3>Control Radar</h3>
-            <h5 className="text-text-200">Zonas y Detecciones</h5>
+            <h5 className="text-text-300">Zonas y Detecciones</h5>
             {(setOpenRightBar || onClose) && (
               <button
                 onClick={() => (onClose ? onClose() : setOpenRightBar?.(false))}
-                className="absolute top-3.5 hover:text-red-400 flex items-center justify-center gap-1 right-3"
+                className="absolute top-3.5 hover:text-red-400 text-text-100 flex items-center justify-center gap-1 right-3"
                 title="Ocultar panel"
               >
                 <IconCircleX size={25} stroke={2} />
@@ -415,9 +417,9 @@ const RightBarNano = memo(
             )}
           </div>
         )}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-3 gap-3">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden mt-3 gap-1 ">
           <div className="shrink-0 space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-text-100/60 border-b border-border-200 pb-1">
+            <h4 className="ms-1 text-xs font-bold uppercase tracking-widest text-text-200 border-b border-border-200 pb-1">
               Zonas Activas ({zones.length > 0 ? zones.length : "0"})
             </h4>
             {zones.length === 0 ? (
@@ -533,15 +535,15 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   }, [stableTargets, zones]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col bg-bg-200 rounded-lg p-1">
       <div
-        className="flex justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
+        className="flex bg-bg-100 p-1 ps-2 rounded-lg justify-start items-center mb-2 text-[10px] text-text-100/50 uppercase tracking-widest
       "
       >
-        <span>Buscar track </span>
+        <span className="text-text-200">Buscar track </span>
         <input
           type="text"
-          className="border w-full border-border-200 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-border"
+          className=" bg-bg-200 border w-full border-border-200 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-border"
           value={searchTrackId}
           onChange={(e) => setSearchTrackId(e.target.value)}
           onKeyDown={(e) => {

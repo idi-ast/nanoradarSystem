@@ -1,9 +1,18 @@
 import { useMemo, memo, useCallback } from "react";
-import { IconX, IconRoute, IconClock, IconSpeedboat, IconStar } from "@tabler/icons-react";
+import {
+  IconX,
+  IconRoute,
+  IconClock,
+  IconSpeedboat,
+  IconStar,
+} from "@tabler/icons-react";
 import type { RadarTarget, TrackHistoryPoint } from "../../types";
 import { DEVICE_LABEL, DEVICE_COLOR } from "../map/devicesConfig";
 import { useTrackHistory } from "../../hooks/useTrackHistory";
-import { HistoryRangeBar, type HistoryRange } from "../controls/HistoryRangeBar";
+import {
+  HistoryRangeBar,
+  type HistoryRange,
+} from "../controls/HistoryRangeBar";
 import { useTrackFavorites } from "@/features/history/hooks/useTrackFavorites";
 import { toast } from "sonner";
 
@@ -14,13 +23,20 @@ interface Props {
   onClose: () => void;
 }
 
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -54,14 +70,23 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
   onClose,
 }: Props) {
   const deviceLabel = DEVICE_LABEL[target.deviceType] ?? target.deviceType;
-  const deviceColor = DEVICE_COLOR[target.deviceType] ?? "bg-slate-500/20 text-slate-300";
+  const deviceColor =
+    DEVICE_COLOR[target.deviceType] ?? "bg-slate-500/20 text-slate-300";
   const rawId = target.id.replace(/^(nanoRadar|magosradar|spotter)_/, "");
 
-  const tipoRadar = target.deviceType === "magosradar" ? "magos" : target.deviceType === "nanoRadar" ? "nano" : "spotter";
-  const trackSummary = useMemo(() => ({
-    track_id: rawId,
-    tipo_radar: tipoRadar,
-  }), [rawId, tipoRadar]);
+  const tipoRadar =
+    target.deviceType === "magosradar"
+      ? "magos"
+      : target.deviceType === "nanoRadar"
+        ? "nano"
+        : "spotter";
+  const trackSummary = useMemo(
+    () => ({
+      track_id: rawId,
+      tipo_radar: tipoRadar,
+    }),
+    [rawId, tipoRadar],
+  );
 
   const { favorites, hasFavorite, toggle } = useTrackFavorites();
   const isFavorite = hasFavorite(trackSummary);
@@ -69,7 +94,9 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
   const handleToggleFavorite = useCallback(async () => {
     try {
       await toggle(trackSummary);
-      toast.success(isFavorite ? "Eliminado de favoritos" : "Agregado a favoritos");
+      toast.success(
+        isFavorite ? "Eliminado de favoritos" : "Agregado a favoritos",
+      );
     } catch {
       toast.error("Error al actualizar favoritos");
     }
@@ -77,23 +104,30 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
 
   const { data: backendHistory, isLoading } = useTrackHistory({
     trackId: rawId,
-    tipoRadar: target.deviceType === "magosradar" ? "magos" : target.deviceType === "nanoRadar" ? "nano" : undefined,
+    tipoRadar:
+      target.deviceType === "magosradar"
+        ? "magos"
+        : target.deviceType === "nanoRadar"
+          ? "nano"
+          : undefined,
   });
 
   // Merge in-memory history (reciente) + backend history (antiguo), deduplicando por timestamp
   const mergedHistory = useMemo(() => {
-    const inMemoryPoints: TrackHistoryPoint[] = target.history.map(([lat, lon, ts]) => ({
-      fecha: new Date(ts).toISOString(),
-      lat,
-      lon,
-      speed: null,
-      heading: null,
-      snr: null,
-      nivel: null,
-      track_state: null,
-      confidence: null,
-      zona: null,
-    }));
+    const inMemoryPoints: TrackHistoryPoint[] = target.history.map(
+      ([lat, lon, ts]) => ({
+        fecha: new Date(ts).toISOString(),
+        lat,
+        lon,
+        speed: null,
+        heading: null,
+        snr: null,
+        nivel: null,
+        track_state: null,
+        confidence: null,
+        zona: null,
+      }),
+    );
 
     const backendPoints = backendHistory?.points ?? [];
 
@@ -119,7 +153,9 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
   // Slice by history range
   const slicedHistory = useMemo(() => {
     if (mergedHistory.length === 0) return [];
-    const startIdx = Math.floor((historyRange.start / 100) * mergedHistory.length);
+    const startIdx = Math.floor(
+      (historyRange.start / 100) * mergedHistory.length,
+    );
     const endIdx = Math.ceil((historyRange.end / 100) * mergedHistory.length);
     return mergedHistory.slice(startIdx, endIdx);
   }, [mergedHistory, historyRange]);
@@ -138,7 +174,13 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
   // Stats
   const stats = useMemo(() => {
     if (mergedHistory.length === 0) {
-      return { totalPoints: 0, totalDistance: 0, firstTime: null, lastTime: null, duration: 0 };
+      return {
+        totalPoints: 0,
+        totalDistance: 0,
+        firstTime: null,
+        lastTime: null,
+        duration: 0,
+      };
     }
     let dist = 0;
     for (let i = 1; i < mergedHistory.length; i++) {
@@ -150,7 +192,9 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
       );
     }
     const firstTime = new Date(mergedHistory[0].fecha).getTime();
-    const lastTime = new Date(mergedHistory[mergedHistory.length - 1].fecha).getTime();
+    const lastTime = new Date(
+      mergedHistory[mergedHistory.length - 1].fecha,
+    ).getTime();
     return {
       totalPoints: mergedHistory.length,
       totalDistance: dist,
@@ -176,11 +220,17 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
             <button
               onClick={handleToggleFavorite}
               className={`p-1 rounded hover:bg-bg-300 transition-colors ${
-                isFavorite ? "text-yellow-400" : "text-text-200 hover:text-yellow-400"
+                isFavorite
+                  ? "text-yellow-400"
+                  : "text-text-200 hover:text-yellow-400"
               }`}
               title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
             >
-              <IconStar size={18} stroke={1.5} fill={isFavorite ? "currentColor" : "none"} />
+              <IconStar
+                size={18}
+                stroke={1.5}
+                fill={isFavorite ? "currentColor" : "none"}
+              />
             </button>
             <button
               onClick={onClose}
@@ -195,12 +245,16 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
           <span className="text-xs font-bold text-text-100">
             ID: {rawId.slice(-4)}
           </span>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${deviceColor}`}>
+          <span
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${deviceColor}`}
+          >
             {deviceLabel}
           </span>
           <span
             className={`text-[10px] rounded px-2 py-0.5 ${
-              target.nivel === 4 ? "bg-brand-100 text-text-100" : "bg-sky-500 text-text-100 font-bold"
+              target.nivel === 4
+                ? "bg-brand-100 text-text-100"
+                : "bg-sky-500 text-text-100 font-bold"
             }`}
           >
             LVL {target.nivel}
@@ -210,7 +264,9 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
         {target.speed != null && (
           <p className="text-[10px] text-text-200">
             Velocidad actual:{" "}
-            <span className="text-sky-300 font-bold">{target.speed.toFixed(1)} km/h</span>
+            <span className="text-sky-300 font-bold">
+              {target.speed.toFixed(1)} km/h
+            </span>
           </p>
         )}
       </div>
@@ -230,21 +286,24 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
         <StatItem
           icon={<IconClock size={14} />}
           label="Primera vez"
-          value={stats.firstTime ? formatTimeAgo(Date.now() - stats.firstTime) : "N/A"}
+          value={
+            stats.firstTime
+              ? formatTimeAgo(Date.now() - stats.firstTime)
+              : "N/A"
+          }
         />
         <StatItem
           icon={<IconClock size={14} />}
           label="Última vez"
-          value={stats.lastTime ? formatTimeAgo(Date.now() - stats.lastTime) : "N/A"}
+          value={
+            stats.lastTime ? formatTimeAgo(Date.now() - stats.lastTime) : "N/A"
+          }
         />
       </div>
 
       {/* Timeline scrubber */}
       {mergedHistory.length > 1 && (
         <div className="shrink-0 border-b border-border-200">
-          <p className="text-[9px] text-text-200 px-3 pt-2 uppercase tracking-wider">
-            Línea de tiempo
-          </p>
           <HistoryRangeBar
             onChange={onHistoryRangeChange}
             minTime={historyBounds?.minTime}
@@ -257,11 +316,15 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
-            <span className="text-text-200 text-xs animate-pulse">Cargando historial...</span>
+            <span className="text-text-200 text-xs animate-pulse">
+              Cargando historial...
+            </span>
           </div>
         ) : slicedHistory.length === 0 ? (
           <div className="flex items-center justify-center h-32">
-            <span className="text-text-200 text-xs italic">Sin datos históricos en BD</span>
+            <span className="text-text-200 text-xs italic">
+              Sin datos históricos en BD
+            </span>
           </div>
         ) : (
           <div className="divide-y divide-border-200">
@@ -295,7 +358,13 @@ function StatItem({
   );
 }
 
-function PointRow({ point, index }: { point: TrackHistoryPoint; index: number }) {
+function PointRow({
+  point,
+  index,
+}: {
+  point: TrackHistoryPoint;
+  index: number;
+}) {
   return (
     <div className="px-3 py-2 hover:bg-bg-200/30 transition-colors">
       <div className="flex justify-between items-start">

@@ -24,7 +24,7 @@ interface MapControlsProps {
 }
 
 const BTN =
-  "relative text-text-100 hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 bg-bg-100 rounded h-10 w-10 flex justify-center items-center transition-all";
+  "relative text-white hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 border-t border-t-white/20 shadow-sm backdrop-blur-lg bg-bg-100/20 rounded h-10 w-10 flex justify-center items-center transition-all";
 
 function MapBtn({
   onClick,
@@ -88,7 +88,7 @@ const MapControls = memo(function MapControls({
         <Tooltip text="Capas del mapa" side="bottom">
           <button
             onClick={() => setShowLayers((v) => !v)}
-            className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "bg-bg-450 text-text-400 "} relative hover:text-text-300 outline outline-transparent p-0.5  rounded h-10 w-10 flex justify-center items-center transition-all`}
+            className={`${showLayers ? "bg-bg-100 text-text-100 z-100" : "relative text-white hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 border-t border-t-white/20 shadow-sm backdrop-blur-lg bg-bg-100/20 rounded h-10 w-10 flex justify-center items-center transition-all "} relative hover:text-text-300 outline outline-transparent p-0.5  rounded h-10 w-10 flex justify-center items-center transition-all`}
           >
             <IconMapCog size={20} />
           </button>

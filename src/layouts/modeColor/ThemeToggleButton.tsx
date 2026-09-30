@@ -9,7 +9,7 @@ const ThemeToggleButton: React.FC = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="text-text-300 w-6 h-6 flex justify-center items-center transition-all duration-300 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-300 border-t border-t-white/20 shadow-lg shadow-bg-100 rounded-full"
+      className="text-text-400 w-6 h-6 flex justify-center items-center transition-all duration-300 outline outline-transparent p-0.5 bg-linear-to-b from-bg-100 to-bg-200 border-t border-t-white/20 shadow-lg shadow-bg-100 rounded-full"
       title="Cambiar Tema"
     >
       {theme === "dark" ? (

@@ -429,8 +429,8 @@ const ConfigRadar = memo(function ConfigRadar() {
           onClick={() => (open ? closePanel("radar") : openPanel("radar"))}
           className={`h-10 w-10 flex justify-center items-center rounded transition-colors ${
             open
-              ? "bg-bg-200 text-purple-500 border border-purple-500/50"
-              : "bg-bg-300 border border-transparent hover:bg-bg-400 hover:text-text-400 text-text-100"
+              ? "bg-bg-100 text-purple-500 border border-purple-500/50"
+              : "bg-bg-200 border border-transparent hover:bg-bg-400 hover:text-text-400 text-text-100"
           }`}
         >
           <IconRadar size={20} stroke={1.8} />

@@ -6,6 +6,7 @@ import {
   MAP_STYLES,
   DEFAULT_CENTER,
 } from "@/components/baseMap/libs";
+import { useTheme } from "@/context/ThemeContext";
 import type { TrackHistoryPoint } from "@/features/devices/types";
 import { toGeoCoord } from "@/features/devices/components/map/utils/geoHelpers";
 import type { RadarZone } from "@/features/devices/types";
@@ -47,6 +48,9 @@ export function TrackPlaybackMap({
   loading,
 }: Props) {
   const mapRef = useRef<MapRef>(null);
+  const { theme } = useTheme();
+  const mapStyle =
+    theme === "light" ? MAP_STYLES.navigation_day : MAP_STYLES.dark;
 
   const selectionKey = useMemo(
     () => tracks.map((t) => trackKey(t.summary)).join("|"),
@@ -137,7 +141,7 @@ export function TrackPlaybackMap({
           pitch: 0,
         }}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={MAP_STYLES.dark}
+        mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         reuseMaps

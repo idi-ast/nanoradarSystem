@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { RadarTarget } from "../../types";
-import { DEVICE_LABEL, DEVICE_COLOR } from "../map/devicesConfig";
+import { DEVICE_LABEL } from "../map/devicesConfig";
 
 interface Props {
   target: RadarTarget;
@@ -23,7 +23,7 @@ export const TargetCard = memo(function TargetCard({
 
   return (
     <div
-      className={`p-3 border-t border-t-white/20  bg-bg-400/10 backdrop-blur-lg border border-transparent cursor-pointer rounded-xl transition-colors hover:bg-bg-300 ${
+      className={`p-3 border-t border-t-white/20 bg-bg-100 border border-transparent cursor-pointer rounded-lg transition-colors hover:bg-bg-200 ${
         isSelected ? "ring-1 ring-bg-400/60" : ""
       }`}
       style={{
@@ -33,14 +33,15 @@ export const TargetCard = memo(function TargetCard({
       onClick={() => onClick?.(target.id)}
     >
       <div className="flex justify-between items-start gap-1">
-        <span className="text-text-100 tracking-wide font-bold text-xs flex items-center gap-1.5">
+        <span className="text-text-100 tracking-wide font-bold text-xs flex items-center gap-1">
           {inZone && (
             <span
               className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: zoneColor! }}
             />
           )}
-          Track id: {rawId.slice(-4)}
+          ID{" "}
+          <span className="bg-bg-200 px-2 rounded-full">{rawId.slice(-4)}</span>
         </span>
         <div className="flex gap-1">
           <span
@@ -62,13 +63,13 @@ export const TargetCard = memo(function TargetCard({
       <div className="flex items-center gap-5">
         <p className="text-[10px] text-text-200 mt-0.5">
           SNR:{" "}
-          <span className="text-lime-300 font-bold">
+          <span className="text-text-100 font-bold">
             {target.snr?.toFixed(4)}
           </span>
         </p>
         <p className="text-[10px] text-text-200 mt-0.5">
           Nro Tracks:{" "}
-          <span className="text-sky-300 font-bold">
+          <span className="text-sky-400 font-bold">
             {target.history?.length ? `(${target.history.length})` : ""}
           </span>
         </p>

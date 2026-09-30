@@ -13,7 +13,7 @@ import {
 } from "../service";
 
 const BTN_CLS =
-  "relative text-text-100 hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 bg-bg-100 rounded h-10 w-10 flex justify-center items-center transition-all";
+  "relative text-white hover:text-text-400 hover:bg-bg-450 outline outline-transparent p-0.5 border-t border-t-white/20 shadow-sm backdrop-blur-lg bg-bg-100/20 rounded h-10 w-10 flex justify-center items-center transition-all";
 
 const ManualPtzButton = memo(function ManualPtzButton() {
   const [open, setOpen] = useState(false);

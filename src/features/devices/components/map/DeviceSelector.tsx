@@ -327,7 +327,7 @@ export const DeviceSelector = memo(function DeviceSelector({
           className={`relative w-10 h-10 flex items-center justify-center rounded-md transition-colors ${
             open
               ? "bg-brand-200/20 text-brand-200"
-              : "text-text-100 bg-bg-300 hover:text-text-400 hover:bg-bg-400"
+              : "text-text-100 bg-bg-200 hover:text-text-400 hover:bg-bg-400"
           }`}
         >
           <IconDevicesCog size={20} />
@@ -518,9 +518,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                             id={c.id}
                             label={c.nombre}
                             subtitle={
-                              c.modelo
-                                ? `${c.modelo} · ${c.tipo}`
-                                : c.tipo
+                              c.modelo ? `${c.modelo} · ${c.tipo}` : c.tipo
                             }
                             accentColor={c.color || "#f59e0b"}
                             isHidden={visibility.hiddenCamaras.has(c.id)}
@@ -552,9 +550,7 @@ export const DeviceSelector = memo(function DeviceSelector({
                             id={p.id}
                             label={p.nombre}
                             subtitle={
-                              p.modelo
-                                ? `${p.modelo} · ${p.tipo}`
-                                : p.tipo
+                              p.modelo ? `${p.modelo} · ${p.tipo}` : p.tipo
                             }
                             accentColor={p.color || "#8207d5"}
                             isHidden={visibility.hiddenPtz.has(p.id)}
