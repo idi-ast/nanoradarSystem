@@ -34,7 +34,7 @@ export function PtzControls({ ptz_id }: { ptz_id: number }) {
 
   return (
     <div
-      className="absolute bottom-0 -right-12  z-50 flex flex-col items-center gap-1 select-none"
+      className="absolute top-3.5 -right-12.5  z-50 flex flex-col items-center gap-1 select-none"
       onPointerDown={(e) => e.stopPropagation()}
     >
       {/* Zoom + extras row */}
