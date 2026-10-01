@@ -87,7 +87,7 @@ const TIPO_PLANTILLAS: Record<string, Record<string, unknown>> = {
     password: "",
   },
   sensor: {},
-  "Cámara": {
+  Cámara: {
     direccionIp: "",
     channel: 1,
     subtype: 0,
@@ -116,9 +116,7 @@ const toJsonText = (
 function plantillaPara(tipo?: { nombre: string; categoria?: string | null }) {
   if (!tipo) return {};
   return (
-    TIPO_PLANTILLAS[tipo.categoria ?? ""] ??
-    TIPO_PLANTILLAS[tipo.nombre] ??
-    {}
+    TIPO_PLANTILLAS[tipo.categoria ?? ""] ?? TIPO_PLANTILLAS[tipo.nombre] ?? {}
   );
 }
 
@@ -773,10 +771,12 @@ export function DispositivosPage() {
         <div className="flex flex-wrap gap-2">
           {Array.from(
             new Map(
-              (disposQuery.data ?? []).map((d) => [d.modelo, (d.modelo || "—")]),
+              (disposQuery.data ?? []).map((d) => [d.modelo, d.modelo || "—"]),
             ).keys(),
           ).map((modelo) => {
-            const n = (disposQuery.data ?? []).filter((d) => d.modelo === modelo).length;
+            const n = (disposQuery.data ?? []).filter(
+              (d) => d.modelo === modelo,
+            ).length;
             return (
               <button
                 key={modelo}
@@ -882,7 +882,9 @@ export function DispositivosPage() {
                     {puedeGestionar ? (
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => setModal({ abierto: true, editing: d })}
+                          onClick={() =>
+                            setModal({ abierto: true, editing: d })
+                          }
                           className="p-1.5  text-text-200 hover:text-text-100 hover:bg-bg-200 transition"
                           aria-label="Editar"
                         >
