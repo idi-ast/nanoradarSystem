@@ -272,7 +272,21 @@ function TargetVisualPanel() {
 
   const [inactiveOpen, setInactiveOpen] = useState(true);
   const [activeOpen, setActiveOpen] = useState(true);
+  const [manualLatitude, setManualLatitude] = useState("");
+  const [manualLongitude, setManualLongitude] = useState("");
   const { isSuperAdmin } = useRole();
+
+  const latitudeValue = Number(manualLatitude);
+  const longitudeValue = Number(manualLongitude);
+  const manualCoordinatesValid =
+    manualLatitude.trim() !== "" &&
+    manualLongitude.trim() !== "" &&
+    Number.isFinite(latitudeValue) &&
+    latitudeValue >= -90 &&
+    latitudeValue <= 90 &&
+    Number.isFinite(longitudeValue) &&
+    longitudeValue >= -180 &&
+    longitudeValue <= 180;
 
   function handleConfig(key: keyof Boat3DConfig, value: number | string) {
     const next = { [key]: value } as Partial<Boat3DConfig>;
@@ -335,6 +349,8 @@ function TargetVisualPanel() {
                 if (currentViewportCenter) {
                   setCustomMapCenter(currentViewportCenter);
                   setCustomMapZoom(currentViewportZoom);
+                  setManualLatitude(String(currentViewportCenter.latitude));
+                  setManualLongitude(String(currentViewportCenter.longitude));
                 }
               }}
               className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] rounded-lg border border-border text-text-200 hover:text-text-100 hover:bg-bg-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -342,6 +358,54 @@ function TargetVisualPanel() {
               <IconMapPin size={12} stroke={2} />
               Usar posición actual del mapa
             </button>
+            <form
+              className="space-y-1.5 border-t border-border/40 pt-1.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (manualCoordinatesValid) {
+                  setCustomMapCenter({
+                    latitude: latitudeValue,
+                    longitude: longitudeValue,
+                  });
+                }
+              }}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
+                <label className="space-y-0.5 text-[10px] text-text-200/60">
+                  <span>Latitud</span>
+                  <input
+                    type="number"
+                    min={-90}
+                    max={90}
+                    step="any"
+                    value={manualLatitude}
+                    onChange={(event) => setManualLatitude(event.target.value)}
+                    placeholder="-90 a 90"
+                    className="w-full rounded border border-border bg-bg-100 px-1.5 py-1 text-text-100 outline-none focus:border-brand-100"
+                  />
+                </label>
+                <label className="space-y-0.5 text-[10px] text-text-200/60">
+                  <span>Longitud</span>
+                  <input
+                    type="number"
+                    min={-180}
+                    max={180}
+                    step="any"
+                    value={manualLongitude}
+                    onChange={(event) => setManualLongitude(event.target.value)}
+                    placeholder="-180 a 180"
+                    className="w-full rounded border border-border bg-bg-100 px-1.5 py-1 text-text-100 outline-none focus:border-brand-100"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                disabled={!manualCoordinatesValid}
+                className="w-full rounded-lg border border-border py-1.5 text-[10px] text-text-200 transition-colors hover:bg-bg-300 hover:text-text-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Guardar coordenadas
+              </button>
+            </form>
           </Section>
 
           {/* Tracks */}
