@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type ReactNode, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type PointerEvent,
+} from "react";
 import {
   IconArrowDown,
   IconArrowLeft,
@@ -18,7 +24,7 @@ import {
 import { useCameraCalibrationStore } from "../../../../../stores/cameraCalibrationStore";
 
 const BTN_CLS =
-  "flex items-center justify-center w-8 h-8 rounded-md bg-black/60 hover:bg-black/80 active:bg-brand-200/30 text-white/80 hover:text-white transition-colors border border-white/10 backdrop-blur-sm";
+  "flex items-center justify-center w-8 h-8 rounded-md bg-bg-400 hover:bg-bg-400/80 active:bg-brand-200/30 text-text-400 hover:text-text-400 transition-colors border border-white/10 backdrop-blur-sm";
 
 /** Tiempo sin usar el control antes de reanudar el auto-tracking (ms). */
 const RESUME_TRACKING_AFTER_MS = 10_000;
@@ -139,7 +145,7 @@ export function PtzDpad({
         tilt={PTZ_SPEED_Y}
         onActivity={notifyActivity}
       >
-        <IconArrowUp size={14} stroke={1.5} />
+        <IconArrowUp size={14} stroke={3} />
       </HoldArrowButton>
       <div />
 
@@ -149,25 +155,23 @@ export function PtzDpad({
         pan={-PTZ_SPEED_X}
         onActivity={notifyActivity}
       >
-        <IconArrowLeft size={14} stroke={1.5} />
+        <IconArrowLeft size={14} stroke={3} />
       </HoldArrowButton>
       <button
-        className={`${BTN_CLS} bg-sky-600/60 hover:bg-sky-600/80`}
+        className={`${BTN_CLS}  opacity-0 hover:bg-sky-600/80`}
         title="Home"
         onClick={() => {
           notifyActivity();
           ptzHome(ptz_id);
         }}
-      >
-        <IconPlayerStop size={14} stroke={1.5} />
-      </button>
+      ></button>
       <HoldArrowButton
         title="Derecha"
         ptzId={ptz_id}
         pan={PTZ_SPEED_X}
         onActivity={notifyActivity}
       >
-        <IconArrowRight size={14} stroke={1.5} />
+        <IconArrowRight size={14} stroke={3} />
       </HoldArrowButton>
 
       <div />
@@ -177,7 +181,7 @@ export function PtzDpad({
         tilt={-PTZ_SPEED_Y}
         onActivity={notifyActivity}
       >
-        <IconArrowDown size={14} stroke={1.5} />
+        <IconArrowDown size={14} stroke={3} />
       </HoldArrowButton>
       <div />
     </div>

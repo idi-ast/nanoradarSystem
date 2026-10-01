@@ -87,7 +87,7 @@ const ManualPtzButton = memo(function ManualPtzButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-0 left-12 z-50 animate-fade-in-left animate-duration-100 bg-bg-100 border border-border shadow-xl rounded-lg p-3 min-w-52">
+          <div className="absolute top-0 left-12 z-50 animate-fade-in-left animate-duration-100 bg-bg-100/60 backdrop-blur border border-border shadow-xl rounded-lg p-3 min-w-52">
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
               <IconCamera size={14} className="text-text-200" />
               <span className="text-xs font-semibold text-text-100 uppercase tracking-wider">
