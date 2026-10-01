@@ -1288,7 +1288,7 @@ function PtzForm({
       </div>
 
       {/* ── Conexión ── */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <TextField
           label="Puerto ONVIF"
           value={String(form.puertoOnvif)}
@@ -1321,6 +1321,10 @@ function PtzForm({
         value={form.url_stream}
         onChange={(v) => set("url_stream", v)}
       />
+      <small className="text-[10px] text-text-100/50">
+        URL Stream Por defecto:{" "}
+        <span className="font-mono text-text-100">/streams/ptz_2/</span>
+      </small>
       {/* ── Posición ── */}
       <PositionField
         lat={posForm.latitud}
@@ -1457,11 +1461,7 @@ function PtzForm({
       />
 
       {/* ── Video ── */}
-      <div className="grid grid-cols-3 gap-2">
-        <ColorField
-          value={liveEdit.color}
-          onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
-        />
+      <div className="grid grid-cols-1 gap-2">
         <RangeNumberField
           label="Channel"
           value={form.channel}
@@ -1475,6 +1475,12 @@ function PtzForm({
           onChange={(v) => set("subtype", v)}
           min={0}
           max={10}
+        />
+      </div>
+      <div>
+        <ColorField
+          value={liveEdit.color}
+          onChange={(v) => onLiveEditChange({ ...liveEdit, color: v })}
         />
       </div>
 
