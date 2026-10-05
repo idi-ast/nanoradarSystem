@@ -612,7 +612,7 @@ export const RadarMap = memo(function RadarMap({
             }}
             defaultZoom={instanceConfig.map.zoom}
           />
-          {liveEdit && liveEditPos && (
+          {liveEdit && liveEditPos && !isNaN(liveEditPos.lat) && !isNaN(liveEditPos.lng) && (
             <>
               <LiveDevicePreviewLayer
                 lat={liveEditPos.lat}
