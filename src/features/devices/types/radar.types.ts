@@ -37,6 +37,12 @@ export interface RadarTarget {
   isStationary?: boolean;
   /** Intensidad del track (0-1) según largo de cola (magosRadar) */
   trackIntensity?: number;
+  /** Categoría de comportamiento asignada por el backend (bolla/persona/lancha/...) */
+  behaviorClass?: string;
+  /** Confianza de la clasificación de comportamiento (0-1) */
+  behaviorConfidence?: number;
+  /** Origen de la clasificación: manual | geo_aprendido | regla_estatica | prototipo | none */
+  behaviorSource?: string;
 }
 
 export interface TiposAlertas {
@@ -157,6 +163,14 @@ export interface MagosRadarTrack {
   trackId: number;
   /** Color estable asignado por el backend al track */
   trackColor?: string;
+  /** Clasificación de comportamiento (bolla/persona/lancha/...) */
+  behaviorClass?: string;
+  /** Confianza 0-1 de la clasificación de comportamiento */
+  behaviorConfidence?: number;
+  /** Origen: manual | geo_aprendido | regla_estatica | prototipo | none */
+  behaviorSource?: string;
+  /** RCS del track (dBsm) si el backend lo envía */
+  rcs?: number;
   positions: MagosRadarPosition[];
 }
 

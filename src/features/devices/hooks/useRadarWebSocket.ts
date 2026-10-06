@@ -282,6 +282,10 @@ function processMagosradarMessages(
       snr,
       heading,
       trackIntensity,
+      behaviorClass: track.behaviorClass,
+      behaviorConfidence: track.behaviorConfidence,
+      behaviorSource: track.behaviorSource,
+      rcs: track.rcs,
     });
   }
 }

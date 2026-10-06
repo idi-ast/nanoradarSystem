@@ -6,3 +6,15 @@ export {
   updateRadarZone,
   deleteRadarZone,
 } from "./radarService";
+
+export {
+  fetchTrackBehavior,
+  labelTrack,
+  fetchStaticObjects,
+  fetchBehaviorCategories,
+} from "./behaviorService";
+export type {
+  TrackBehavior,
+  StaticObject,
+  LabelResult,
+} from "./behaviorService";
