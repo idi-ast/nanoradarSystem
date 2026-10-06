@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import { trackKey } from "../hooks/useTrackPlayback";
 import { useTrackFavorites } from "../hooks/useTrackFavorites";
+import { CategorizeMenu } from "@/features/devices/components/panel/CategorizeMenu";
 
 interface Props {
   filters: TrackSummaryFilters;
@@ -758,6 +759,11 @@ function TrackCard({
               <IconStar size={12} stroke={1.8} />
             )}
           </button>
+          <CategorizeMenu
+            trackId={track.track_id}
+            variant="icon"
+            className="flex"
+          />
           {hasDetails && (
             <button
               onClick={() => setOpen((o) => !o)}
