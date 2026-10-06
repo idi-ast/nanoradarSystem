@@ -15,7 +15,9 @@ const SOURCE_LABEL: Record<string, string> = {
   manual: "manual",
   geo_aprendido: "boyas aprendidas",
   regla_estatica: "regla estática",
+  zona_boya: "zona de boya",
   prototipo: "prototipo",
+  regla_velocidad: "regla automática",
   none: "sin clasificar",
 };
 

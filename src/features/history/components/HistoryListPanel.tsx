@@ -25,6 +25,11 @@ import type {
 import { trackKey } from "../hooks/useTrackPlayback";
 import { useTrackFavorites } from "../hooks/useTrackFavorites";
 import { CategorizeMenu } from "@/features/devices/components/panel/CategorizeMenu";
+import {
+  confidenceColor,
+  confidenceLabel,
+} from "@/features/devices/components/panel/ClassificationBadge";
+import { formatSpeed, MS_TO_KMH } from "@/utils/units";
 
 interface Props {
   filters: TrackSummaryFilters;
@@ -83,11 +88,6 @@ function formatDistance(m?: number | null): string {
   if (m == null || !Number.isFinite(m)) return "--";
   if (m >= 1000) return `${(m / 1000).toFixed(2)} km`;
   return `${Math.round(m)} m`;
-}
-
-function formatSpeed(kmh?: number | null): string {
-  if (kmh == null || !Number.isFinite(kmh)) return "--";
-  return `${kmh.toFixed(1)} km/h`;
 }
 
 function formatDateTime(iso?: string | null): string {
@@ -180,6 +180,8 @@ function exportCsv(tracks: TrackSummary[]): void {
     "snr_max",
     "snr_prom",
     "conf_max",
+    "categoria",
+    "conf_categoria_pct",
     "puntos",
     "nivel_max",
     "zonas",
@@ -191,11 +193,16 @@ function exportCsv(tracks: TrackSummary[]): void {
     t.last_seen ?? "",
     t.duration_seconds ?? "",
     t.distance_m ?? "",
-    t.avg_speed ?? "",
-    t.max_speed ?? "",
+    // la BD guarda m/s: el CSV se exporta en km/h (como suenan los headers)
+    t.avg_speed != null ? +(t.avg_speed * MS_TO_KMH).toFixed(1) : "",
+    t.max_speed != null ? +(t.max_speed * MS_TO_KMH).toFixed(1) : "",
     t.max_snr ?? "",
     t.avg_snr ?? "",
     t.max_confidence ?? "",
+    t.behavior_class ?? "",
+    t.behavior_confidence != null
+      ? Math.round(t.behavior_confidence * 100)
+      : "",
     t.point_count,
     t.nivel_max ?? "",
     t.zones.join("|"),
@@ -676,7 +683,8 @@ function TrackCard({
     track.max_speed != null ||
     track.avg_speed != null ||
     track.max_snr != null ||
-    track.max_confidence != null;
+    track.max_confidence != null ||
+    track.behavior_class != null;
 
   return (
     <div
@@ -708,6 +716,26 @@ function TrackCard({
             <span>{track.point_count} pts</span>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {track.behavior_class && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-semibold"
+                style={{
+                  borderColor: confidenceColor(
+                    track.behavior_confidence ?? 0,
+                    track.behavior_class,
+                  ) + "66",
+                  color: confidenceColor(
+                    track.behavior_confidence ?? 0,
+                    track.behavior_class,
+                  ),
+                }}
+                title="Categoría de comportamiento asignada por el clasificador"
+              >
+                {track.behavior_class}
+                {track.behavior_confidence != null &&
+                  ` · ${confidenceLabel(track.behavior_confidence, track.behavior_class)}`}
+              </span>
+            )}
             {track.zones.map((z) => (
               <span
                 key={z}
@@ -787,6 +815,21 @@ function TrackCard({
           <Stat label="Distancia" value={formatDistance(track.distance_m)} />
           <Stat label="Vel. media" value={formatSpeed(track.avg_speed)} />
           <Stat label="Vel. máxima" value={formatSpeed(track.max_speed)} />
+          <Stat
+            label="Categoría"
+            value={
+              track.behavior_class
+                ? `${track.behavior_class}${
+                    track.behavior_confidence != null
+                      ? ` · ${confidenceLabel(
+                          track.behavior_confidence,
+                          track.behavior_class,
+                        )}`
+                      : ""
+                  }`
+                : "--"
+            }
+          />
           <Stat
             label="SNR máx."
             value={track.max_snr != null ? `${track.max_snr} dB` : "--"}

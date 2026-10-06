@@ -20,6 +20,7 @@ import {
   confidenceLabel,
 } from "./ClassificationBadge";
 import { fetchTrackBehavior, type TrackBehavior } from "../../services";
+import { formatSpeed } from "@/utils/units";
 import { toast } from "sonner";
 
 interface Props {
@@ -321,9 +322,7 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
         {target.speed != null && (
           <p className="text-[10px] text-text-200">
             Velocidad actual:{" "}
-            <span className="text-sky-300 font-bold">
-              {target.speed.toFixed(1)} km/h
-            </span>
+            <span className="text-sky-300 font-bold">{formatSpeed(target.speed)}</span>
           </p>
         )}
       </div>
@@ -438,7 +437,7 @@ function PointRow({
         </span>
         {point.speed != null && (
           <span className="text-[10px] text-sky-300">
-            {point.speed.toFixed(1)} km/h
+            {formatSpeed(point.speed)}
           </span>
         )}
         {point.heading != null && (

@@ -13,6 +13,10 @@ export interface TrackSummary {
   max_snr?: number | null;
   avg_snr?: number | null;
   max_confidence?: number | null;
+  /** Categoría de comportamiento asignada por el clasificador (auto o manual). */
+  behavior_class?: string | null;
+  /** Confianza de esa categoría, 0-1. */
+  behavior_confidence?: number | null;
 }
 
 export type TrackSortBy =
