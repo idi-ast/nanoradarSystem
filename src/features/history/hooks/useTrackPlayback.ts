@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { fetchTrackHistory } from "@/features/devices/services/radarService";
 import type { TrackHistoryPoint } from "@/features/devices/types";
 import type { TrackSummary } from "../types";
+
+/** Trayectorias simultaneas que se piden al reproducir varios tracks */
+const MAX_CONCURRENT_LOADS = 4;
+/** Las trayectorias historicas no cambian: se cachean 10 min */
+const TRAJECTORY_STALE_MS = 10 * 60_000;
 
 export const BASE_STEP_MS = 500;
 export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4, 8] as const;
@@ -56,6 +62,38 @@ async function loadPoints(track: TrackSummary): Promise<TrackHistoryPoint[]> {
   );
 }
 
+/** Trayectoria via cache de react-query: volver a seleccionar es instantaneo */
+function getPoints(qc: QueryClient, track: TrackSummary) {
+  return qc.fetchQuery({
+    queryKey: ["history-trajectory", trackKey(track), track.last_seen ?? ""],
+    queryFn: () => loadPoints(track),
+    staleTime: TRAJECTORY_STALE_MS,
+    gcTime: TRAJECTORY_STALE_MS,
+  });
+}
+
+/** Distancia recorrida (m) a partir de la trayectoria ya cargada */
+export function pathDistanceM(points: TrackHistoryPoint[]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+    const dLon = ((b.lon - a.lon) * Math.PI) / 180;
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((a.lat * Math.PI) / 180) *
+        Math.cos((b.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+    total += 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  return total;
+}
+
+function errMsg(e: unknown) {
+  return e instanceof Error ? e.message : "Error cargando el track";
+}
+
 function maxPointsLength(tracks: TrackPlaybackItem[]): number {
   return tracks.reduce((m, t) => Math.max(m, t.points.length), 0);
 }
@@ -67,91 +105,96 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
   const [speed, setSpeed] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const qc = useQueryClient();
+  // invalida cargas en curso cuando cambia la seleccion (playAll/clearAll)
+  const generationRef = useRef(0);
+
   const tracksRef = useRef<TrackPlaybackItem[]>([]);
   useEffect(() => {
     tracksRef.current = tracks;
   }, [tracks]);
 
-  const toggleTrack = useCallback(async (track: TrackSummary) => {
-    const key = trackKey(track);
-    setIsPlaying(false);
-    setIndex(0);
-    setTracks((prev) => {
-      if (prev.some((it) => trackKey(it.summary) === key)) {
-        return prev.filter((it) => trackKey(it.summary) !== key);
+  const patchTrack = useCallback(
+    (key: string, patch: Partial<TrackPlaybackItem>) => {
+      setTracks((prev) =>
+        prev.map((it) => (trackKey(it.summary) === key ? { ...it, ...patch } : it)),
+      );
+    },
+    [],
+  );
+
+  const toggleTrack = useCallback(
+    async (track: TrackSummary) => {
+      const key = trackKey(track);
+      setIsPlaying(false);
+      setIndex(0);
+      if (tracksRef.current.some((it) => trackKey(it.summary) === key)) {
+        setTracks((prev) => prev.filter((it) => trackKey(it.summary) !== key));
+        return; // deseleccion: no se pide nada
       }
-      return [...prev, { summary: track, points: [], loading: true, error: null }];
-    });
-    try {
-      const points = await loadPoints(track);
-      setTracks((prev) =>
-        prev.filter((it) => trackKey(it.summary) === key).length === 0
-          ? prev
-          : prev.map((it) =>
-              trackKey(it.summary) === key
-                ? { ...it, points, loading: false, error: null }
-                : it,
-            ),
-      );
-    } catch (e) {
-      setTracks((prev) =>
-        prev.map((it) =>
-          trackKey(it.summary) === key
-            ? {
-                ...it,
-                loading: false,
-                error: e instanceof Error ? e.message : "Error cargando el track",
-              }
-            : it,
-        ),
-      );
-    }
-  }, []);
+      setTracks((prev) => [
+        ...prev,
+        { summary: track, points: [], loading: true, error: null },
+      ]);
+      try {
+        const points = await getPoints(qc, track);
+        // si se deselecciono mientras cargaba, patchTrack no encuentra nada
+        patchTrack(key, { points, loading: false, error: null });
+      } catch (e) {
+        patchTrack(key, { loading: false, error: errMsg(e) });
+      }
+    },
+    [qc, patchTrack],
+  );
 
   const playAll = useCallback(
-  async (list: TrackSummary[]) => {
-    if (list.length === 0) return;
-    const current = tracksRef.current;
-    const allSelected =
-      current.length > 0 &&
-      list.every((t) =>
-        current.some((it) => trackKey(it.summary) === trackKey(t)),
-      );
-    if (allSelected) {
+    async (list: TrackSummary[]) => {
+      if (list.length === 0) return;
+      const current = tracksRef.current;
+      const allSelected =
+        current.length > 0 &&
+        list.every((t) =>
+          current.some((it) => trackKey(it.summary) === trackKey(t)),
+        );
+      const gen = ++generationRef.current;
       setIsPlaying(false);
-      setTracks([]);
       setIndex(0);
-      return;
-    }
-    setIsPlaying(false);
-    setIndex(0);
-    setLoading(true);
-    setTracks(
-      list.map((t) => ({ summary: t, points: [], loading: true, error: null })),
-    );
-    try {
-      const loaded = await Promise.all(
-        list.map(async (t) => {
-          try {
-            const points = await loadPoints(t);
-            return { summary: t, points, loading: false, error: null };
-          } catch (e) {
-            return {
-              summary: t,
-              points: [],
-              loading: false,
-              error: e instanceof Error ? e.message : "Error cargando el track",
-            } as TrackPlaybackItem;
-          }
-        }),
+      if (allSelected) {
+        setTracks([]);
+        return;
+      }
+      setLoading(true);
+      setTracks(
+        list.map((t) => ({ summary: t, points: [], loading: true, error: null })),
       );
-      setTracks(loaded);
-    } finally {
-      setLoading(false);
-    }
-  },
-  [],
-);
+      // pool con concurrencia limitada; cada track aparece apenas llega
+      let next = 0;
+      const worker = async () => {
+        while (next < list.length && gen === generationRef.current) {
+          const t = list[next++];
+          try {
+            const points = await getPoints(qc, t);
+            if (gen !== generationRef.current) return;
+            patchTrack(trackKey(t), { points, loading: false, error: null });
+          } catch (e) {
+            if (gen !== generationRef.current) return;
+            patchTrack(trackKey(t), { loading: false, error: errMsg(e) });
+          }
+        }
+      };
+      try {
+        await Promise.all(
+          Array.from(
+            { length: Math.min(MAX_CONCURRENT_LOADS, list.length) },
+            worker,
+          ),
+        );
+      } finally {
+        if (gen === generationRef.current) setLoading(false);
+      }
+    },
+    [qc, patchTrack],
+  );
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -185,7 +228,9 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
   }, []);
 
   const clearAll = useCallback(() => {
+    generationRef.current++;
     setIsPlaying(false);
+    setLoading(false);
     setTracks([]);
     setIndex(0);
   }, []);

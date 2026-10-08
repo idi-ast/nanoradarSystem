@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { IconPlayerPlay, IconPlayerPause, IconX } from "@tabler/icons-react";
 import type { TrackHistoryPoint } from "@/features/devices/types";
-import { PLAYBACK_SPEEDS } from "../hooks/useTrackPlayback";
+import { PLAYBACK_SPEEDS, pathDistanceM } from "../hooks/useTrackPlayback";
 import type { TrackPlaybackItem } from "../hooks/useTrackPlayback";
 import { trackKey } from "../hooks/useTrackPlayback";
 
@@ -36,22 +36,7 @@ function fmtDuration(ms: number): string {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
-function haversineDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+
 
 function formatDistanceKm(value: number): string {
   if (value < 1) return `${value.toFixed(2)} km`;
@@ -90,14 +75,8 @@ export function PlaybackControls({
   const distanceKm = useMemo(() => {
     let total = 0;
     for (const t of tracks) {
-      let prev: TrackHistoryPoint | null = null;
-      for (const p of t.points) {
-        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
-        if (p.lat === 0 && p.lon === 0) continue;
-        if (prev) {
-          total += haversineDistanceKm(prev.lat, prev.lon, p.lat, p.lon);
-        }
-        prev = p;
+      if (t.points && t.points.length > 0) {
+        total += pathDistanceM(t.points) / 1000;
       }
     }
     return total;

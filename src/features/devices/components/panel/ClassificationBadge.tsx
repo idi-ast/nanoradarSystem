@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { CategorizeMenu } from "./CategorizeMenu";
+import { BEHAVIOR_CATEGORIES } from "../../config";
 
 interface Props {
   /** track_id tal como lo espera el backend (ej: "T42", sin prefijo) */
@@ -18,6 +19,7 @@ const SOURCE_LABEL: Record<string, string> = {
   zona_boya: "zona de boya",
   prototipo: "prototipo",
   regla_velocidad: "regla automática",
+  regla_comportamiento: "firma de comportamiento",
   none: "sin clasificar",
 };
 
@@ -41,6 +43,8 @@ export const ClassificationBadge = memo(function ClassificationBadge({
   onLabeled,
 }: Props) {
   const color = confidenceColor(behaviorConfidence, behaviorClass);
+  const cat = behaviorClass ? BEHAVIOR_CATEGORIES[behaviorClass] : undefined;
+  const Icon = cat?.icon;
 
   return (
     <div
@@ -52,11 +56,12 @@ export const ClassificationBadge = memo(function ClassificationBadge({
     >
       <div className="flex items-center gap-1.5">
         <span
-          className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
           style={{ backgroundColor: color }}
           title={behaviorSource ? `Origen: ${SOURCE_LABEL[behaviorSource] ?? behaviorSource}` : undefined}
         >
-          {behaviorClass ?? "sin_clasificar"} ·{" "}
+          {Icon && <Icon size={12} stroke={2.5} />}
+          {cat?.label ?? behaviorClass ?? "sin_clasificar"} ·{" "}
           {confidenceLabel(behaviorConfidence, behaviorClass)}
         </span>
         <CategorizeMenu

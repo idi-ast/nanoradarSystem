@@ -6,6 +6,13 @@ import {
   IconDog,
   IconDrone,
   IconCar,
+  IconSpeedboat,
+  IconWalk,
+  IconFeather,
+  IconRipple,
+  IconLifebuoy,
+  IconPaw,
+  IconQuestionMark,
 } from "@tabler/icons-react";
 
 // const IconAutoImg: ComponentType<{ size?: number; stroke?: number; className?: string }> =
@@ -242,3 +249,41 @@ export const ZONE_DETECTION_CATEGORIES: {
   { id: 4, label: "Animal",   icon: IconDog },
   { id: 5, label: "Dron",     icon: IconDrone },
 ];
+
+type IconComp = ComponentType<{ size?: number; stroke?: number; className?: string }>;
+
+/**
+ * Iconos y colores por categoría de COMPORTAMIENTO (backend track_classifier).
+ * Claves = `behaviorClass` que envía el backend.
+ */
+export const BEHAVIOR_CATEGORIES: Record<
+  string,
+  { label: string; icon: IconComp; color: string }
+> = {
+  lancha:      { label: "Lancha",      icon: IconSpeedboat,    color: "#38bdf8" },
+  barco:       { label: "Barco",       icon: IconSailboat,     color: "#0ea5e9" },
+  bolla:       { label: "Boya",        icon: IconLifebuoy,     color: "#f97316" },
+  persona:     { label: "Persona",     icon: IconWalk,         color: "#a78bfa" },
+  pajaro:      { label: "Pájaro",      icon: IconFeather,      color: "#facc15" },
+  ola:         { label: "Ola",         icon: IconRipple,       color: "#5eead4" },
+  animal:      { label: "Animal",      icon: IconPaw,          color: "#a3e635" },
+  dron:        { label: "Dron",        icon: IconDrone,        color: "#f43f5e" },
+  vehiculo:    { label: "Vehículo",    icon: IconCar,          color: "#e879f9" },
+  desconocido: { label: "Desconocido", icon: IconQuestionMark, color: "#9ca3af" },
+};
+
+/** Confianza mínima para que la categoría de comportamiento cambie el icono */
+export const BEHAVIOR_ICON_MIN_CONFIDENCE = 0.6;
+
+/** Devuelve la categoría visual del comportamiento o null si no aplica */
+export function resolveBehaviorCategory(
+  behaviorClass?: string,
+  confidence = 0,
+) {
+  if (!behaviorClass || behaviorClass === "sin_clasificar") return null;
+  const key = behaviorClass.toLowerCase();
+  const cat = BEHAVIOR_CATEGORIES[key === "boya" ? "bolla" : key];
+  if (!cat) return null;
+  if (confidence < BEHAVIOR_ICON_MIN_CONFIDENCE) return null;
+  return cat;
+}
