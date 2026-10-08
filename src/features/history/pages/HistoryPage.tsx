@@ -32,12 +32,11 @@ export default function HistoryPage() {
   const [onlyWithZones, setOnlyWithZones] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { data: zones = [] } = useZones();
-  const hasDateRange = Boolean(filters.from || filters.to);
-  const pageSize = hasDateRange ? 20000 : TRACKS_PAGE_SIZE;
+  const pageSize = TRACKS_PAGE_SIZE;
 
   const summaries = useTrackSummaries(
     filters,
-    hasDateRange ? 1 : page,
+    page,
     pageSize,
     onlyWithZones,
   );
@@ -95,8 +94,8 @@ export default function HistoryPage() {
           tracks={tracks}
           isLoading={summaries.isFetching || (onlyFavorites && favoritesSummaries.isFetching)}
           total={total}
-          page={hasDateRange ? 1 : page}
-          pages={hasDateRange ? 1 : pages}
+          page={page}
+          pages={pages}
           onPageChange={setPage}
           selectedKeys={selectedKeys}
           onToggleTrack={playback.toggleTrack}
