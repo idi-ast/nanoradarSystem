@@ -6,9 +6,11 @@ import {
   IconPaw,
   IconDrone,
   IconLifebuoy,
-  IconQuestionMark,
   IconRipple,
 } from "@tabler/icons-react";
+import { IconTargetNeutral } from "../components/icons/IconTargetNeutral";
+
+export { IconTargetNeutral };
 
 export type TrackCategory =
   | "HUMAN"
@@ -28,14 +30,14 @@ export interface TrackCategoryItem {
 }
 
 export const TRACK_CATEGORIES_CONFIG: TrackCategoryItem[] = [
-  { id: "HUMAN",   label: "Persona",     icon: IconUser,         color: "#a78bfa" },
-  { id: "VEHICLE", label: "Vehículo",    icon: IconCar,          color: "#e879f9" },
-  { id: "BOAT",    label: "Embarcación", icon: IconSailboat,     color: "#38bdf8" },
-  { id: "ANIMAL",  label: "Animal",      icon: IconPaw,          color: "#a3e635" },
-  { id: "DRONE",   label: "Dron",        icon: IconDrone,        color: "#f43f5e" },
-  { id: "BUOY",    label: "Boya",        icon: IconLifebuoy,     color: "#f97316" },
-  { id: "UNKNOWN", label: "Desconocido", icon: IconQuestionMark, color: "#9ca3af" },
-  { id: "OTHER",   label: "Otro",        icon: IconRipple,       color: "#5eead4" },
+  { id: "HUMAN",   label: "Persona",        icon: IconUser,          color: "#a78bfa" },
+  { id: "VEHICLE", label: "Vehículo",       icon: IconCar,           color: "#e879f9" },
+  { id: "BOAT",    label: "Embarcación",    icon: IconSailboat,      color: "#38bdf8" },
+  { id: "ANIMAL",  label: "Animal",         icon: IconPaw,           color: "#a3e635" },
+  { id: "DRONE",   label: "Dron",           icon: IconDrone,         color: "#f43f5e" },
+  { id: "BUOY",    label: "Boya",           icon: IconLifebuoy,      color: "#f97316" },
+  { id: "UNKNOWN", label: "Sin clasificar", icon: IconTargetNeutral, color: "#94a3b8" },
+  { id: "OTHER",   label: "Otro",           icon: IconRipple,        color: "#5eead4" },
 ];
 
 export const ALL_TRACK_CATEGORIES: TrackCategory[] = TRACK_CATEGORIES_CONFIG.map(

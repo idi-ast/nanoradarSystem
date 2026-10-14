@@ -43,7 +43,9 @@ export const ClassificationBadge = memo(function ClassificationBadge({
   onLabeled,
 }: Props) {
   const color = confidenceColor(behaviorConfidence, behaviorClass);
-  const cat = behaviorClass ? BEHAVIOR_CATEGORIES[behaviorClass] : undefined;
+  const cat = behaviorClass
+    ? (BEHAVIOR_CATEGORIES[behaviorClass] ?? BEHAVIOR_CATEGORIES.sin_clasificar)
+    : BEHAVIOR_CATEGORIES.sin_clasificar;
   const Icon = cat?.icon;
 
   return (

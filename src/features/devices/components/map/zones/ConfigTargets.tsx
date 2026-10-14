@@ -29,6 +29,7 @@ const CATEGORY_MODEL_OPTIONS: Record<
   number,
   { path: string; label: string }[]
 > = {
+  0: [{ path: "/3d/glb/cargo_ship.glb", label: "Genérico" }],
   1: [{ path: "/3d/glb/people.glb", label: "Persona" }],
   2: [
     { path: "/3d/glb/cargo_ship.glb", label: "Cargo" },

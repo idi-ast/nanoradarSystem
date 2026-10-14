@@ -8,6 +8,7 @@ import { DEFAULT_BOAT3D_CONFIG } from "../components/map/boatSingleRenderer";
  * Claves = id de ZONE_DETECTION_CATEGORIES.
  */
 export const DEFAULT_CATEGORY_MODELS: Record<number, string> = {
+  0: "/3d/glb/cargo_ship.glb",
   1: "/3d/glb/people.glb",
   2: "/3d/glb/cargo_ship.glb",
   3: "/3d/glb/car2.glb",
@@ -140,7 +141,7 @@ const DEFAULTS: TargetVisualState = {
   trackDurationSec: 120,
   inactiveIconTimeoutSec: 0,
   autoZoomEnabled: true,
-  defaultCategoriaDeteccion: 2, // Barco
+  defaultCategoriaDeteccion: 0, // 0 = Sin clasificar (icono neutro C2)
   use3DBoat: false, // alto rendimiento por defecto
   boat3DConfig: { ...DEFAULT_BOAT3D_CONFIG },
   categoryModels: { ...DEFAULT_CATEGORY_MODELS },

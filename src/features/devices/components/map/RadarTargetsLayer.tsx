@@ -10,6 +10,7 @@ import {
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
 import { ZONE_DETECTION_CATEGORIES, resolveBehaviorCategory } from "../../config";
+import { IconTargetNeutral } from "../../config/categories";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
@@ -306,13 +307,13 @@ export function RadarTargetsLayer({
           const catId = categoryMap.get(t.id) ?? defaultCategoria;
           const cat =
             ZONE_DETECTION_CATEGORIES.find((c) => c.id === catId) ??
-            ZONE_DETECTION_CATEGORIES[1];
+            ZONE_DETECTION_CATEGORIES[0];
           const behaviorCat = resolveBehaviorCategory(
             t.behaviorClass,
             t.behaviorConfidence ?? 0,
           );
           // la clasificacion por comportamiento manda; si no hay, zona/default
-          const Icon = behaviorCat?.icon ?? cat.icon;
+          const Icon = behaviorCat?.icon ?? cat?.icon ?? IconTargetNeutral;
           const isSelected = selectedTargetId === t.id;
           const dimmed = selectedTargetId !== null && !isSelected;
 

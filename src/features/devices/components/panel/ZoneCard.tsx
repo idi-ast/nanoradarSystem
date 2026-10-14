@@ -448,7 +448,7 @@ export const ZoneCard = memo(function ZoneCard({
         <div className="flex flex-wrap gap-1 mt-1">
           {(() => {
             const cat = ZONE_DETECTION_CATEGORIES.find(
-              (c) => c.id === (zone.categoriaDeteccion ?? 1),
+              (c) => c.id === (zone.categoriaDeteccion ?? 0),
             );
             return cat ? (
               <span className="text-xs px-1.5 py-0.5 rounded-full bg-bg-100 text-text-200 flex items-center gap-0.5">
