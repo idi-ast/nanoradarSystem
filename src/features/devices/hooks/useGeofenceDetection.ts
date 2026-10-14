@@ -3,6 +3,8 @@ import type { RadarTarget, RadarZone } from "../types";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 import { GEOFENCE } from "../config";
 
+import { isTrackCategoryAllowed } from "../config/categories";
+
 export interface GeofenceAlert {
   maxLevel: number;
   color: string;
@@ -33,6 +35,11 @@ export function useGeofenceDetection(
 
     for (const target of activeTargets) {
       for (const zone of zones) {
+        // Optimización CPU: Verificar categoría permitida antes del test geométrico
+        if (!isTrackCategoryAllowed(target.behaviorClass, zone.allowed_categories)) {
+          continue;
+        }
+
         const rawVertices = Array.isArray(zone.poligono.vertices)
           ? zone.poligono.vertices
           : Object.values(zone.poligono.vertices);

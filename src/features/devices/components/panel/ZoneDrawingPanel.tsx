@@ -1,7 +1,17 @@
 import { useRef } from "react";
-import { IconArrowBackUp, IconHexagon, IconUpload, IconTrash } from "@tabler/icons-react";
+import {
+  IconArrowBackUp,
+  IconHexagon,
+  IconUpload,
+  IconTrash,
+  IconAlertTriangle,
+} from "@tabler/icons-react";
 import { useRadarContext } from "../../context/useRadarContext";
 import { ZONE_SOUNDS, ZONE_DETECTION_CATEGORIES } from "../../config";
+import {
+  TRACK_CATEGORIES_CONFIG,
+  ALL_TRACK_CATEGORIES,
+} from "../../config/categories";
 import { useCustomSounds, MAX_CUSTOM_SOUNDS } from "../../hooks/useCustomSounds";
 import { useTiposAlertas } from "../../hooks/useTiposAlertas";
 
@@ -16,6 +26,7 @@ export function ZoneDrawingPanel() {
     destello,
     categoriaDeteccion,
     activarPtz,
+    allowedCategories,
     canSave,
     setZoneName,
     setZoneColor,
@@ -24,6 +35,7 @@ export function ZoneDrawingPanel() {
     setDestello,
     setCategoriaDeteccion,
     setActivarPtz,
+    setAllowedCategories,
     saveZone,
     removeLastDrawingPoint,
   } = useRadarContext();
@@ -216,6 +228,90 @@ export function ZoneDrawingPanel() {
             className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${activarPtz ? "translate-x-4.5" : "translate-x-0.5"}`}
           />
         </button>
+      </div>
+
+      {/* Categorías Activas (Detección y PTZ) */}
+      <div className="bg-bg-100/40 p-2.5 rounded-lg border border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-text-100 font-semibold flex items-center gap-1.5">
+            <span>Categorías Activas (Detección y PTZ)</span>
+            <span className="text-[10px] font-mono text-brand-100 bg-brand-100/10 px-1.5 py-0.5 rounded border border-brand-100/20">
+              {allowedCategories.length}/{TRACK_CATEGORIES_CONFIG.length}
+            </span>
+          </label>
+          <div className="flex gap-1 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setAllowedCategories([...ALL_TRACK_CATEGORIES])}
+              className="text-brand-100 hover:underline cursor-pointer"
+            >
+              Todas
+            </button>
+            <span className="text-text-200/40">|</span>
+            <button
+              type="button"
+              onClick={() => setAllowedCategories([])}
+              className="text-text-200 hover:text-text-100 hover:underline cursor-pointer"
+            >
+              Ninguna
+            </button>
+          </div>
+        </div>
+
+        <p className="text-[9px] text-text-200/70 leading-tight">
+          Las categorías desmarcadas seguirán registrándose en el sistema, pero serán ignoradas para alertas y movimiento automático de PTZ en esta zona.
+        </p>
+
+        {allowedCategories.length === 0 && (
+          <div className="flex items-center gap-1.5 p-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] leading-tight">
+            <IconAlertTriangle size={14} className="shrink-0" />
+            <span>
+              Zona inactiva en la práctica: Al desmarcar todas las categorías, ningún objeto activará alertas ni PTZ en esta zona.
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-1.5 pt-1">
+          {TRACK_CATEGORIES_CONFIG.map((cat) => {
+            const isSelected = allowedCategories.includes(cat.id);
+            const CatIcon = cat.icon;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  if (isSelected) {
+                    setAllowedCategories(allowedCategories.filter((id) => id !== cat.id));
+                  } else {
+                    setAllowedCategories([...allowedCategories, cat.id]);
+                  }
+                }}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded border text-xs font-medium transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-brand-100 bg-brand-100/15 text-text-100 shadow-xs"
+                    : "border-border/60 bg-bg-200/50 text-text-200/50 hover:bg-bg-100 hover:text-text-200"
+                }`}
+              >
+                <div
+                  className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] transition-colors ${
+                    isSelected
+                      ? "bg-brand-100 border-brand-100 text-bg-300 font-bold"
+                      : "border-border bg-bg-100 text-transparent"
+                  }`}
+                >
+                  ✓
+                </div>
+                <CatIcon
+                  size={16}
+                  stroke={1.5}
+                  color={isSelected ? cat.color : undefined}
+                  className="shrink-0"
+                />
+                <span className="truncate">{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex gap-2">

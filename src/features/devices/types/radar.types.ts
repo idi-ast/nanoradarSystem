@@ -51,6 +51,8 @@ export interface TiposAlertas {
   nivelCriticidad: number;
 }
 
+import type { TrackCategory } from "../config/categories";
+
 export interface RadarZone {
   id?: number;
   nombre: string;
@@ -69,6 +71,8 @@ export interface RadarZone {
   categoriaDeteccion?: number;
   /** Activar seguimiento PTZ automático al detectar tracks en esta zona */
   activarPtz?: boolean;
+  /** Categorías de tracks permitidas que activan alertas y seguimiento PTZ */
+  allowed_categories?: TrackCategory[];
 }
 
 export interface CreateZonePayload {
@@ -79,6 +83,7 @@ export interface CreateZonePayload {
   destello?: boolean;
   categoriaDeteccion?: number;
   activarPtz?: boolean;
+  allowed_categories?: TrackCategory[];
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -93,6 +98,7 @@ export interface UpdateZonePayload {
   destello?: boolean;
   categoriaDeteccion?: number;
   activarPtz?: boolean;
+  allowed_categories?: TrackCategory[];
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;

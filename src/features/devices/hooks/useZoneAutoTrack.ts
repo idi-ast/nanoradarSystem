@@ -2,6 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import type { RadarTarget, RadarZone } from "../types";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
 
+import { isTrackCategoryAllowed } from "../config/categories";
+
 export interface ZoneAutoTrack {
   /** Zona con mayor nivel que tiene targets activos y activarPtz=true */
   zone: RadarZone;
@@ -46,6 +48,9 @@ export function useZoneAutoTrack(
 
       let hasActiveTarget = false;
       for (const target of activeTargets) {
+        if (!isTrackCategoryAllowed(target.behaviorClass, zone.allowed_categories)) {
+          continue;
+        }
         if (isPointInPolygon(target.lat, target.lon, rawVertices as [number, number][])) {
           hasActiveTarget = true;
           break;

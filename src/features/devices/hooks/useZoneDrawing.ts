@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import type { CreateZonePayload } from "../types";
+import { ALL_TRACK_CATEGORIES, type TrackCategory } from "../config/categories";
 
 const STOPPED_COLOR = "#ff0000";
 const MOVING_COLOR = "#00bfff";
@@ -18,6 +19,7 @@ export function useZoneDrawing() {
   const [destello, setdestello] = useState<boolean>(true);
   const [categoriaDeteccion, setCategoriaDeteccion] = useState<number>(1);
   const [activarPtz, setActivarPtz] = useState<boolean>(false);
+  const [allowedCategories, setAllowedCategories] = useState<TrackCategory[]>(ALL_TRACK_CATEGORIES);
 
   const startDrawing = useCallback(() => {
     setIsDrawing(true);
@@ -29,6 +31,7 @@ export function useZoneDrawing() {
     setdestello(true);
     setCategoriaDeteccion(1);
     setActivarPtz(false);
+    setAllowedCategories(ALL_TRACK_CATEGORIES);
   }, []);
 
   const cancelDrawing = useCallback(() => {
@@ -57,12 +60,13 @@ export function useZoneDrawing() {
       destello,
       categoriaDeteccion,
       activarPtz,
+      allowed_categories: allowedCategories,
       poligono: {
         color,
         vertices: points,
       },
     };
-}, [name, color, alertLevel, zoneSound, destello, categoriaDeteccion, activarPtz, points]);
+  }, [name, color, alertLevel, zoneSound, destello, categoriaDeteccion, activarPtz, allowedCategories, points]);
 
   return {
     isDrawing,
@@ -74,6 +78,7 @@ export function useZoneDrawing() {
     destello,
     categoriaDeteccion,
     activarPtz,
+    allowedCategories,
     startDrawing,
     cancelDrawing,
     addPoint,
@@ -86,6 +91,7 @@ export function useZoneDrawing() {
     setdestello,
     setCategoriaDeteccion,
     setActivarPtz,
+    setAllowedCategories,
     buildPayload,
     canSave: points.length >= 3,
   };
