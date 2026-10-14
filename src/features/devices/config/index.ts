@@ -3,7 +3,6 @@ import type { ComponentType } from "react";
 import {
   IconUser,
   IconSailboat,
-  IconDog,
   IconDrone,
   IconCar,
   IconSpeedboat,
@@ -12,7 +11,6 @@ import {
   IconRipple,
   IconLifebuoy,
   IconPaw,
-  IconQuestionMark,
 } from "@tabler/icons-react";
 
 // const IconAutoImg: ComponentType<{ size?: number; stroke?: number; className?: string }> =
