@@ -111,14 +111,12 @@ const CameraActivityMarker = memo(function CameraActivityMarker({
 
 export interface CameraActivityOverlayProps {
   mapRef: React.RefObject<MapRef | null>;
-  defaultCenter: { longitude: number; latitude: number };
-  defaultZoom: number;
+  defaultCenter?: { longitude: number; latitude: number };
+  defaultZoom?: number;
 }
 
 export const CameraActivityOverlay = memo(function CameraActivityOverlay({
   mapRef,
-  defaultCenter,
-  defaultZoom,
 }: CameraActivityOverlayProps) {
   const { cameraActivities } = useRadarTargets();
   const { zones, instanceConfig } = useRadarContext();
@@ -189,16 +187,9 @@ export const CameraActivityOverlay = memo(function CameraActivityOverlay({
       return;
     }
 
-    // 3) Sin actividad: volver al centro por defecto
-    if (lastFlownRef.current === "") return;
+    // 3) Sin actividad: permanecer en la última zona o posición con actividad (no volver al centro)
     lastFlownRef.current = "";
-    mapRef.current?.flyTo({
-      center: [defaultCenter.longitude, defaultCenter.latitude],
-      zoom: defaultZoom,
-      duration: 1800,
-      essential: true,
-    });
-  }, [autoZoomEnabled, radarZone, activeActivities, camaras, mapRef, defaultCenter, defaultZoom]);
+  }, [autoZoomEnabled, radarZone, activeActivities, camaras, mapRef]);
 
   return (
     <>
