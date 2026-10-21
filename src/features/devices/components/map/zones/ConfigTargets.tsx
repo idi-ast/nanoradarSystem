@@ -418,7 +418,7 @@ function TargetVisualPanel() {
                 onClick={() => {
                   setTrackStrokeWidth(7);
                   setTrackDurationSec(0);
-                  setInactiveIconTimeoutSec(0);
+                  setInactiveIconTimeoutSec(5);
                 }}
                 className="text-[10px] text-text-200 hover:text-text-200 transition-colors"
               >
