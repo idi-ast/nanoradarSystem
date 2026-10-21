@@ -234,7 +234,6 @@ export const RadarMap = memo(function RadarMap({
   } | null>(null);
   const [isPickingPosition, setIsPickingPosition] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
-  console.log(mapLoaded);
 
   const [mapCenter, setMapCenter] = useState(() => ({
     lat: parseFloat(config?.latitud ?? "0"),
@@ -279,7 +278,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#22c55e",
       });
-      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+      const lat = Number(d.latitud);
+      const lng = Number(d.longitud);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "magosradar") {
       const d = ed.device;
       setLiveEdit({
@@ -288,7 +289,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#f43f5e",
       });
-      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+      const lat = Number(d.latitud);
+      const lng = Number(d.longitud);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "spotter") {
       const d = ed.device;
       setLiveEdit({
@@ -297,7 +300,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#38bdf8",
       });
-      setLiveEditPos({ lat: Number(d.latitude), lng: Number(d.longitude) });
+      const lat = Number(d.latitude);
+      const lng = Number(d.longitude);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "camara") {
       const d = ed.device;
       setLiveEdit({
@@ -306,10 +311,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#f59e0b",
       });
-      setLiveEditPos({
-        lat: Number(d.ubicacion.lat),
-        lng: Number(d.ubicacion.lng),
-      });
+      const lat = Number(d.ubicacion?.lat);
+      const lng = Number(d.ubicacion?.lng);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "ptz") {
       const d = ed.device;
       setLiveEdit({
@@ -318,10 +322,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#8207d5",
       });
-      setLiveEditPos({
-        lat: Number(d.ubicacion.lat),
-        lng: Number(d.ubicacion.lng),
-      });
+      const lat = Number(d.ubicacion?.lat);
+      const lng = Number(d.ubicacion?.lng);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     }
   }
 

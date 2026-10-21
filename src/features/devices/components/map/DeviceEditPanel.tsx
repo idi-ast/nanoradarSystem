@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   ptzGetTiltInclination,
@@ -14,6 +14,7 @@ import {
   IconTrash,
   IconAlertTriangle,
   IconMapPin,
+  IconCrosshair,
   IconSettings,
   IconFilter,
   IconFilterOff,
@@ -194,6 +195,7 @@ interface PositionFieldProps {
   onLatChange: (v: string) => void;
   onLngChange: (v: string) => void;
   liveEditPos?: { lat: number; lng: number } | null;
+  onLiveEditPosChange?: (pos: { lat: number; lng: number }) => void;
   isPickingPosition?: boolean;
   onPickPosition?: () => void;
   onCancelPickPosition?: () => void;
@@ -205,42 +207,152 @@ function PositionField({
   onLatChange,
   onLngChange,
   liveEditPos,
+  onLiveEditPosChange,
+  isPickingPosition,
+  onPickPosition,
+  onCancelPickPosition,
 }: PositionFieldProps) {
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sincroniza cambios externos (por ejemplo, al arrastrar el marker en el mapa o hacer click en él)
+  useEffect(() => {
+    if (!liveEditPos) return;
+    if (isNaN(liveEditPos.lat) || isNaN(liveEditPos.lng)) return;
+
+    // Si el usuario está escribiendo manualmente en los inputs, no pisamos su texto
+    if (isTypingRef.current) return;
+
+    const newLatStr = liveEditPos.lat.toFixed(7);
+    const newLngStr = liveEditPos.lng.toFixed(7);
+
+    if (parseFloat(lat) !== liveEditPos.lat) {
+      onLatChange(newLatStr);
+    }
+    if (parseFloat(lng) !== liveEditPos.lng) {
+      onLngChange(newLngStr);
+    }
+  }, [liveEditPos?.lat, liveEditPos?.lng, lat, lng, onLatChange, onLngChange]);
+
+  const sanitizeCoord = (raw: string): string => {
+    // Reemplaza comas por puntos
+    let s = raw.replace(/,/g, ".");
+    const isNegative = s.startsWith("-");
+    // Conserva únicamente dígitos y punto
+    s = s.replace(/[^0-9.]/g, "");
+    // Permite solo un único punto decimal
+    const dotIndex = s.indexOf(".");
+    if (dotIndex !== -1) {
+      const intPart = s.slice(0, dotIndex);
+      const decPart = s.slice(dotIndex + 1).replace(/\./g, "");
+      s = `${intPart}.${decPart}`;
+    }
+    return isNegative ? `-${s}` : s;
+  };
+
+  const handleLatChange = (rawVal: string) => {
+    const newVal = sanitizeCoord(rawVal);
+    isTypingRef.current = true;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+    }, 1200);
+
+    onLatChange(newVal);
+
+    const parsedLat = parseFloat(newVal);
+    const currentLng = parseFloat(lng);
+    if (!isNaN(parsedLat) && isFinite(parsedLat) && Math.abs(parsedLat) <= 90) {
+      const validLng =
+        !isNaN(currentLng) && isFinite(currentLng)
+          ? currentLng
+          : liveEditPos?.lng ?? 0;
+      onLiveEditPosChange?.({ lat: parsedLat, lng: validLng });
+    }
+  };
+
+  const handleLngChange = (rawVal: string) => {
+    const newVal = sanitizeCoord(rawVal);
+    isTypingRef.current = true;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+    }, 1200);
+
+    onLngChange(newVal);
+
+    const currentLat = parseFloat(lat);
+    const parsedLng = parseFloat(newVal);
+    if (!isNaN(parsedLng) && isFinite(parsedLng) && Math.abs(parsedLng) <= 180) {
+      const validLat =
+        !isNaN(currentLat) && isFinite(currentLat)
+          ? currentLat
+          : liveEditPos?.lat ?? 0;
+      onLiveEditPosChange?.({ lat: validLat, lng: parsedLng });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold text-text-100/50 uppercase tracking-widest">
           Posición
         </span>
-        {liveEditPos && (
-          <span className="text-xs font-mono text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-            live
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {onPickPosition && (
+            <button
+              type="button"
+              onClick={isPickingPosition ? onCancelPickPosition : onPickPosition}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                isPickingPosition
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 animate-pulse font-semibold"
+                  : "bg-bg-200/50 hover:bg-bg-200 text-text-100/60 hover:text-text-100 border border-border/60"
+              }`}
+              title={
+                isPickingPosition
+                  ? "Cancelar selección en el mapa"
+                  : "Haz clic para seleccionar la posición en el mapa"
+              }
+            >
+              <IconCrosshair
+                size={11}
+                className={isPickingPosition ? "text-emerald-400" : "text-text-100/40"}
+              />
+              <span>{isPickingPosition ? "Cancelar" : "Fijar en mapa"}</span>
+            </button>
+          )}
+          {liveEditPos && (
+            <span className="text-[10px] font-mono text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+              live
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Lat / Lng inputs */}
-      <div className="grid grid-cols-3 gap-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="flex items-center gap-1.5 bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 focus-within:border-emerald-500/60">
           <IconMapPin size={10} className="text-text-100/30 shrink-0" />
-          <span className="text-[9px] text-text-100/40 w-7 shrink-0">Lat</span>
+          <span className="text-[9px] text-text-100/40 w-7 shrink-0 font-semibold uppercase">Lat</span>
           <input
-            type="number"
-            step="0.000001"
+            type="text"
+            inputMode="decimal"
             value={lat}
-            onChange={(e) => onLatChange(e.target.value)}
-            className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60 tabular-nums"
+            onChange={(e) => handleLatChange(e.target.value)}
+            placeholder="-33.456789"
+            className="flex-1 min-w-0 text-[10px] bg-transparent text-text-100 font-mono focus:outline-none tabular-nums"
           />
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 focus-within:border-emerald-500/60">
           <IconMapPin size={10} className="text-text-100/30 shrink-0" />
-          <span className="text-[9px] text-text-100/40 w-7 shrink-0">Lng</span>
+          <span className="text-[9px] text-text-100/40 w-7 shrink-0 font-semibold uppercase">Lng</span>
           <input
-            type="number"
-            step="0.000001"
+            type="text"
+            inputMode="decimal"
             value={lng}
-            onChange={(e) => onLngChange(e.target.value)}
-            className="flex-1 text-[10px] bg-bg-200/50 border border-border/60 rounded px-1.5 py-0.5 text-text-100 font-mono focus:outline-none focus:border-emerald-500/60 tabular-nums"
+            onChange={(e) => handleLngChange(e.target.value)}
+            placeholder="-70.123456"
+            className="flex-1 min-w-0 text-[10px] bg-transparent text-text-100 font-mono focus:outline-none tabular-nums"
           />
         </div>
       </div>
@@ -474,25 +586,36 @@ function NanoradarForm({
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
-    latitud: device.latitud,
-    longitud: device.longitud,
+    latitud: String(device.latitud ?? ""),
+    longitud: String(device.longitud ?? ""),
     azimut: device.azimut ?? "0",
   });
-
-  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
-  const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function save() {
+    const latNum = parseFloat(form.latitud);
+    const lngNum = parseFloat(form.longitud);
+    const validLat =
+      !isNaN(latNum) && isFinite(latNum)
+        ? form.latitud
+        : liveEditPos
+          ? liveEditPos.lat.toFixed(7)
+          : String(device.latitud ?? "0");
+    const validLng =
+      !isNaN(lngNum) && isFinite(lngNum)
+        ? form.longitud
+        : liveEditPos
+          ? liveEditPos.lng.toFixed(7)
+          : String(device.longitud ?? "0");
+
     const payload: NanoradarPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitud: effectiveLat,
-      longitud: effectiveLng,
+      latitud: validLat,
+      longitud: validLng,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -556,15 +679,10 @@ function NanoradarForm({
       <PositionField
         lat={form.latitud}
         lng={form.longitud}
-        onLatChange={(v) => {
-          set("latitud", v);
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(form.longitud) });
-        }}
-        onLngChange={(v) => {
-          set("longitud", v);
-          onLiveEditPosChange?.({ lat: Number(form.latitud), lng: Number(v) });
-        }}
+        onLatChange={(v) => set("latitud", v)}
+        onLngChange={(v) => set("longitud", v)}
         liveEditPos={liveEditPos}
+        onLiveEditPosChange={onLiveEditPosChange}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
@@ -611,26 +729,36 @@ function MagosradarForm({
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
-    latitud: device.latitud,
-    longitud: device.longitud,
+    latitud: String(device.latitud ?? ""),
+    longitud: String(device.longitud ?? ""),
     azimut: device.azimut ?? "0",
   });
-
-  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLat = liveEditPos ? liveEditPos.lat.toFixed(7) : form.latitud;
-  const effectiveLng = liveEditPos ? liveEditPos.lng.toFixed(7) : form.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function save() {
-    // Fuente de verdad: form.latitud/form.longitud (sincronizados con el marker vía useEffect)
+    const latNum = parseFloat(form.latitud);
+    const lngNum = parseFloat(form.longitud);
+    const validLat =
+      !isNaN(latNum) && isFinite(latNum)
+        ? form.latitud
+        : liveEditPos
+          ? liveEditPos.lat.toFixed(7)
+          : String(device.latitud ?? "0");
+    const validLng =
+      !isNaN(lngNum) && isFinite(lngNum)
+        ? form.longitud
+        : liveEditPos
+          ? liveEditPos.lng.toFixed(7)
+          : String(device.longitud ?? "0");
+
     const payload: MagosradarPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitud: form.latitud,
-      longitud: form.longitud,
+      latitud: validLat,
+      longitud: validLng,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -692,17 +820,12 @@ function MagosradarForm({
         unit="m"
       />
       <PositionField
-        lat={effectiveLat}
-        lng={effectiveLng}
-        onLatChange={(v) => {
-          set("latitud", v);
-          onLiveEditPosChange?.({ lat: Number(v), lng: Number(effectiveLng) });
-        }}
-        onLngChange={(v) => {
-          set("longitud", v);
-          onLiveEditPosChange?.({ lat: Number(effectiveLat), lng: Number(v) });
-        }}
+        lat={form.latitud}
+        lng={form.longitud}
+        onLatChange={(v) => set("latitud", v)}
+        onLngChange={(v) => set("longitud", v)}
         liveEditPos={liveEditPos}
+        onLiveEditPosChange={onLiveEditPosChange}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
@@ -760,29 +883,36 @@ function SpotterForm({
   const [form, setForm] = useState({
     nombre: device.nombre,
     direccionIp: device.direccionIp,
-    latitude: device.latitude,
-    longitude: device.longitude,
+    latitude: String(device.latitude ?? ""),
+    longitude: String(device.longitude ?? ""),
     azimut: device.azimut ?? "0",
   });
-
-  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatSP = liveEditPos
-    ? liveEditPos.lat.toFixed(7)
-    : form.latitude;
-  const effectiveLngSP = liveEditPos
-    ? liveEditPos.lng.toFixed(7)
-    : form.longitude;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function save() {
+    const latNum = parseFloat(form.latitude);
+    const lngNum = parseFloat(form.longitude);
+    const validLat =
+      !isNaN(latNum) && isFinite(latNum)
+        ? form.latitude
+        : liveEditPos
+          ? liveEditPos.lat.toFixed(7)
+          : String(device.latitude ?? "0");
+    const validLng =
+      !isNaN(lngNum) && isFinite(lngNum)
+        ? form.longitude
+        : liveEditPos
+          ? liveEditPos.lng.toFixed(7)
+          : String(device.longitude ?? "0");
+
     const payload: SpotterPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
-      latitude: effectiveLatSP,
-      longitude: effectiveLngSP,
+      latitude: validLat,
+      longitude: validLng,
       azimut: form.azimut,
       grado: liveEdit.grado,
       radio: liveEdit.radio,
@@ -856,23 +986,12 @@ function SpotterForm({
         unit="m"
       />
       <PositionField
-        lat={effectiveLatSP}
-        lng={effectiveLngSP}
-        onLatChange={(v) => {
-          set("latitude", v);
-          onLiveEditPosChange?.({
-            lat: Number(v),
-            lng: Number(effectiveLngSP),
-          });
-        }}
-        onLngChange={(v) => {
-          set("longitude", v);
-          onLiveEditPosChange?.({
-            lat: Number(effectiveLatSP),
-            lng: Number(v),
-          });
-        }}
+        lat={form.latitude}
+        lng={form.longitude}
+        onLatChange={(v) => set("latitude", v)}
+        onLngChange={(v) => set("longitude", v)}
         liveEditPos={liveEditPos}
+        onLiveEditPosChange={onLiveEditPosChange}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
@@ -928,23 +1047,30 @@ function CamaraForm({
   });
 
   const [posForm, setPosForm] = useState({
-    latitud: String(device.ubicacion.lat),
-    longitud: String(device.ubicacion.lng),
+    latitud: String(device.ubicacion?.lat ?? ""),
+    longitud: String(device.ubicacion?.lng ?? ""),
   });
-
-  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatCF = liveEditPos
-    ? liveEditPos.lat.toFixed(7)
-    : posForm.latitud;
-  const effectiveLngCF = liveEditPos
-    ? liveEditPos.lng.toFixed(7)
-    : posForm.longitud;
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function save() {
+    const latNum = parseFloat(posForm.latitud);
+    const lngNum = parseFloat(posForm.longitud);
+    const validLat =
+      !isNaN(latNum) && isFinite(latNum)
+        ? posForm.latitud
+        : liveEditPos
+          ? liveEditPos.lat.toFixed(7)
+          : String(device.ubicacion?.lat ?? "0");
+    const validLng =
+      !isNaN(lngNum) && isFinite(lngNum)
+        ? posForm.longitud
+        : liveEditPos
+          ? liveEditPos.lng.toFixed(7)
+          : String(device.ubicacion?.lng ?? "0");
+
     const payload: CamaraPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
@@ -960,8 +1086,8 @@ function CamaraForm({
       url_stream: form.url_stream,
       tipo: form.tipo,
       modelo: form.modelo,
-      latitud: effectiveLatCF,
-      longitud: effectiveLngCF,
+      latitud: validLat,
+      longitud: validLng,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -1028,7 +1154,7 @@ function CamaraForm({
         value={form.subtype}
         onChange={(v) => set("subtype", v)}
         min={0}
-        max={10}
+        max={1000}
       />
       <TextField
         label="Modelo / Marca"
@@ -1054,21 +1180,10 @@ function CamaraForm({
       <PositionField
         lat={posForm.latitud}
         lng={posForm.longitud}
-        onLatChange={(v) => {
-          setPosForm((p) => ({ ...p, latitud: v }));
-          onLiveEditPosChange?.({
-            lat: Number(v),
-            lng: Number(posForm.longitud),
-          });
-        }}
-        onLngChange={(v) => {
-          setPosForm((p) => ({ ...p, longitud: v }));
-          onLiveEditPosChange?.({
-            lat: Number(posForm.latitud),
-            lng: Number(v),
-          });
-        }}
+        onLatChange={(v) => setPosForm((p) => ({ ...p, latitud: v }))}
+        onLngChange={(v) => setPosForm((p) => ({ ...p, longitud: v }))}
         liveEditPos={liveEditPos}
+        onLiveEditPosChange={onLiveEditPosChange}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
@@ -1136,10 +1251,6 @@ function PtzForm({
     modelo: device.modelo ?? "",
   });
 
-  const [posForm, setPosForm] = useState({
-    latitud: String(device.ubicacion.lat),
-    longitud: String(device.ubicacion.lng),
-  });
 
   // Al abrir el formulario de la PTZ se pausa el auto-tracking para que no
   // interfiera con el control manual (slider de inclinación, flechas); se
@@ -1170,13 +1281,10 @@ function PtzForm({
     return Number.isFinite(saved) && saved > 0 ? saved : 50;
   });
 
-  // La latitud/longitud se obtiene de liveEditPos (marker en mapa) o del formulario
-  const effectiveLatPTZ = liveEditPos
-    ? liveEditPos.lat.toFixed(7)
-    : posForm.latitud;
-  const effectiveLngPTZ = liveEditPos
-    ? liveEditPos.lng.toFixed(7)
-    : posForm.longitud;
+  const [posForm, setPosForm] = useState({
+    latitud: String(device.ubicacion?.lat ?? ""),
+    longitud: String(device.ubicacion?.lng ?? ""),
+  });
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -1230,6 +1338,21 @@ function PtzForm({
   }, [device.id]);
 
   function save() {
+    const latNum = parseFloat(posForm.latitud);
+    const lngNum = parseFloat(posForm.longitud);
+    const validLat =
+      !isNaN(latNum) && isFinite(latNum)
+        ? posForm.latitud
+        : liveEditPos
+          ? liveEditPos.lat.toFixed(7)
+          : String(device.ubicacion?.lat ?? "0");
+    const validLng =
+      !isNaN(lngNum) && isFinite(lngNum)
+        ? posForm.longitud
+        : liveEditPos
+          ? liveEditPos.lng.toFixed(7)
+          : String(device.ubicacion?.lng ?? "0");
+
     const payload: PtzPayload = {
       nombre: form.nombre,
       direccionIp: form.direccionIp,
@@ -1251,8 +1374,8 @@ function PtzForm({
       url_stream: form.url_stream,
       tipo: form.tipo,
       modelo: form.modelo,
-      latitud: effectiveLatPTZ,
-      longitud: effectiveLngPTZ,
+      latitud: validLat,
+      longitud: validLng,
     };
     mutate({ id: device.id, payload }, { onSuccess: onClose });
   }
@@ -1329,21 +1452,10 @@ function PtzForm({
       <PositionField
         lat={posForm.latitud}
         lng={posForm.longitud}
-        onLatChange={(v) => {
-          setPosForm((p) => ({ ...p, latitud: v }));
-          onLiveEditPosChange?.({
-            lat: Number(v),
-            lng: Number(posForm.longitud),
-          });
-        }}
-        onLngChange={(v) => {
-          setPosForm((p) => ({ ...p, longitud: v }));
-          onLiveEditPosChange?.({
-            lat: Number(posForm.latitud),
-            lng: Number(v),
-          });
-        }}
+        onLatChange={(v) => setPosForm((p) => ({ ...p, latitud: v }))}
+        onLngChange={(v) => setPosForm((p) => ({ ...p, longitud: v }))}
         liveEditPos={liveEditPos}
+        onLiveEditPosChange={onLiveEditPosChange}
         isPickingPosition={isPickingPosition}
         onPickPosition={onPickPosition}
         onCancelPickPosition={onCancelPickPosition}
