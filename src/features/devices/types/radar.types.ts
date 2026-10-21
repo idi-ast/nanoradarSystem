@@ -37,6 +37,12 @@ export interface RadarTarget {
   isStationary?: boolean;
   /** Intensidad del track (0-1) según largo de cola (magosRadar) */
   trackIntensity?: number;
+  /** Categoría de comportamiento asignada por el backend (bolla/persona/lancha/...) */
+  behaviorClass?: string;
+  /** Confianza de la clasificación de comportamiento (0-1) */
+  behaviorConfidence?: number;
+  /** Origen de la clasificación: manual | geo_aprendido | regla_estatica | prototipo | none */
+  behaviorSource?: string;
 }
 
 export interface TiposAlertas {
@@ -44,6 +50,8 @@ export interface TiposAlertas {
   nombre: string;
   nivelCriticidad: number;
 }
+
+import type { TrackCategory } from "../config/categories";
 
 export interface RadarZone {
   id?: number;
@@ -63,6 +71,8 @@ export interface RadarZone {
   categoriaDeteccion?: number;
   /** Activar seguimiento PTZ automático al detectar tracks en esta zona */
   activarPtz?: boolean;
+  /** Categorías de tracks permitidas que activan alertas y seguimiento PTZ */
+  allowed_categories?: TrackCategory[];
 }
 
 export interface CreateZonePayload {
@@ -73,6 +83,7 @@ export interface CreateZonePayload {
   destello?: boolean;
   categoriaDeteccion?: number;
   activarPtz?: boolean;
+  allowed_categories?: TrackCategory[];
   poligono: {
     color: string;
     vertices: [number, number][];
@@ -87,6 +98,7 @@ export interface UpdateZonePayload {
   destello?: boolean;
   categoriaDeteccion?: number;
   activarPtz?: boolean;
+  allowed_categories?: TrackCategory[];
   poligono: {
     color: string;
     vertices: [number, number][] | Record<string, [number, number]>;
@@ -157,6 +169,14 @@ export interface MagosRadarTrack {
   trackId: number;
   /** Color estable asignado por el backend al track */
   trackColor?: string;
+  /** Clasificación de comportamiento (bolla/persona/lancha/...) */
+  behaviorClass?: string;
+  /** Confianza 0-1 de la clasificación de comportamiento */
+  behaviorConfidence?: number;
+  /** Origen: manual | geo_aprendido | regla_estatica | prototipo | none */
+  behaviorSource?: string;
+  /** RCS del track (dBsm) si el backend lo envía */
+  rcs?: number;
   positions: MagosRadarPosition[];
 }
 

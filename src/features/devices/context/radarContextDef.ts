@@ -9,6 +9,7 @@ import type {
   CamaraActividad,
 } from "../types";
 import type { ResolvedRadarConfig } from "../config";
+import type { TrackCategory } from "../config/categories";
 
 /**
  * Datos estáticos / semi-estáticos: configuración, zonas, estado de dibujo.
@@ -36,6 +37,7 @@ export interface RadarContextValue {
   destello: boolean;
   categoriaDeteccion: number;
   activarPtz: boolean;
+  allowedCategories: TrackCategory[];
   canSave: boolean;
   startDrawing: () => void;
   cancelDrawing: () => void;
@@ -48,6 +50,7 @@ export interface RadarContextValue {
   setDestello: (value: boolean) => void;
   setCategoriaDeteccion: (value: number) => void;
   setActivarPtz: (value: boolean) => void;
+  setAllowedCategories: (categories: TrackCategory[]) => void;
   saveZone: () => Promise<void>;
   /** Estable (useCallback sin deps) — vive en contexto estático para no arrastrar re-renders desde WS. */
   clearTargets: () => void;

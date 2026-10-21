@@ -1,4 +1,4 @@
-import { useMemo, memo, useCallback } from "react";
+import { useMemo, memo, useCallback, useEffect, useState } from "react";
 import {
   IconX,
   IconRoute,
@@ -14,6 +14,13 @@ import {
   type HistoryRange,
 } from "../controls/HistoryRangeBar";
 import { useTrackFavorites } from "@/features/history/hooks/useTrackFavorites";
+import { CategorizeMenu } from "./CategorizeMenu";
+import {
+  confidenceColor,
+  confidenceLabel,
+} from "./ClassificationBadge";
+import { fetchTrackBehavior, type TrackBehavior } from "../../services";
+import { formatSpeed } from "@/utils/units";
 import { toast } from "sonner";
 
 interface Props {
@@ -90,6 +97,31 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
 
   const { favorites, hasFavorite, toggle } = useTrackFavorites();
   const isFavorite = hasFavorite(trackSummary);
+
+  // Clasificación de comportamiento: prioriza lo que llega en vivo por WS;
+  // si no, consulta el backend (también sirve para tracks históricos).
+  const [behavior, setBehavior] = useState<TrackBehavior | null>(null);
+
+  const refreshBehavior = useCallback(async () => {
+    if (target.deviceType !== "magosradar") return;
+    try {
+      setBehavior(await fetchTrackBehavior(rawId));
+    } catch {
+      // track aún sin clasificación en el backend
+      setBehavior(null);
+    }
+  }, [rawId, target.deviceType]);
+
+  useEffect(() => {
+    void refreshBehavior();
+  }, [refreshBehavior]);
+
+  const behaviorCategory =
+    target.behaviorClass ?? behavior?.category ?? null;
+  const behaviorConfidence =
+    target.behaviorConfidence ?? behavior?.confidence ?? 0;
+  const behaviorSource =
+    target.behaviorSource ?? behavior?.label_source ?? undefined;
 
   const handleToggleFavorite = useCallback(async () => {
     try {
@@ -217,6 +249,13 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
             Historial del Track
           </h3>
           <div className="flex items-center gap-1">
+            {target.deviceType === "magosradar" && (
+              <CategorizeMenu
+                trackId={rawId}
+                variant="icon"
+                onLabeled={() => void refreshBehavior()}
+              />
+            )}
             <button
               onClick={handleToggleFavorite}
               className={`p-1 rounded hover:bg-bg-300 transition-colors ${
@@ -259,14 +298,31 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
           >
             LVL {target.nivel}
           </span>
+          {behaviorCategory && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white"
+              style={{
+                backgroundColor: confidenceColor(
+                  behaviorConfidence,
+                  behaviorCategory,
+                ),
+              }}
+              title={
+                behaviorSource
+                  ? `Origen: ${behaviorSource}`
+                  : "Categoría de comportamiento"
+              }
+            >
+              {behaviorCategory} ·{" "}
+              {confidenceLabel(behaviorConfidence, behaviorCategory)}
+            </span>
+          )}
         </div>
 
         {target.speed != null && (
           <p className="text-[10px] text-text-200">
             Velocidad actual:{" "}
-            <span className="text-sky-300 font-bold">
-              {target.speed.toFixed(1)} km/h
-            </span>
+            <span className="text-sky-300 font-bold">{formatSpeed(target.speed)}</span>
           </p>
         )}
       </div>
@@ -381,7 +437,7 @@ function PointRow({
         </span>
         {point.speed != null && (
           <span className="text-[10px] text-sky-300">
-            {point.speed.toFixed(1)} km/h
+            {formatSpeed(point.speed)}
           </span>
         )}
         {point.heading != null && (

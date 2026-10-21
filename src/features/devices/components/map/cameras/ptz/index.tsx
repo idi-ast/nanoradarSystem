@@ -52,19 +52,31 @@ const PtzCamera = memo(
       connectionErrorRef.current = connectionError;
     }, [connectionError]);
 
+    // Ocultar texto de gracia inmediatamente si el stream ya está activo y reproduciéndose
     useEffect(() => {
-      if (!visionOn) return;
-      const startTimer = setTimeout(() => setVisionGrace(true), 0);
-      const graceTimer = setTimeout(() => setVisionGrace(false), 12000);
+      if (stream) {
+        setVisionGrace(false);
+      }
+    }, [stream]);
+
+    useEffect(() => {
+      if (!visionOn) {
+        setVisionGrace(false);
+        return;
+      }
+      // Si ya hay stream activo, no activar texto de gracia
+      if (!stream) {
+        setVisionGrace(true);
+      }
+      const graceTimer = setTimeout(() => setVisionGrace(false), 5000);
       const retryTimer = setInterval(() => {
         if (connectionErrorRef.current) retry();
       }, 2500);
       return () => {
-        clearTimeout(startTimer);
         clearTimeout(graceTimer);
         clearInterval(retryTimer);
       };
-    }, [retry, visionOn]);
+    }, [retry, visionOn, stream]);
 
     function toggleMaximize() {
       if (mode === "minimized") {
@@ -83,8 +95,11 @@ const PtzCamera = memo(
     async function handleApplyVisionConfig(
       config: Parameters<typeof applyConfig>[0],
     ) {
+      setVisionGrace(false);
       const applied = await applyConfig(config);
-      if (applied && visionOn) setVisionGrace(true);
+      if (applied) {
+        setTimeout(() => retry(), 400);
+      }
       return applied;
     }
 
@@ -191,7 +206,7 @@ const PtzCamera = memo(
                   ptz_id={camera.id}
                   showControls
                   overlayText={
-                    visionGrace && !connectionError
+                    visionGrace && !stream && !connectionError
                       ? "Iniciando detección IA..."
                       : null
                   }

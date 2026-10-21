@@ -3,6 +3,7 @@ import type { RadarTarget, RawRadarPayload, CamaraActividad, MagosRadarTrack } f
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 import { useTargetVisualStore } from "../stores/targetVisualStore";
+import { toast } from "sonner";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 10_000;
@@ -282,6 +283,10 @@ function processMagosradarMessages(
       snr,
       heading,
       trackIntensity,
+      behaviorClass: track.behaviorClass,
+      behaviorConfidence: track.behaviorConfidence,
+      behaviorSource: track.behaviorSource,
+      rcs: track.rcs,
     });
   }
 }
@@ -389,8 +394,22 @@ export function useRadarWebSocket(
 
       ws.onmessage = (event: MessageEvent) => {
         try {
-          const parsed = JSON.parse(event.data as string) as RawRadarPayload;
-          if (parsed && typeof parsed === "object") {
+          const raw = JSON.parse(event.data as string);
+          if (raw && typeof raw === "object") {
+            // Manejo de alertas del sistema (almacenamiento)
+            if (raw.type === "storage_alert") {
+              const alertMsg = raw.message || "Alerta de almacenamiento del servidor";
+              if (raw.level === "critical") {
+                toast.error(alertMsg, { duration: 12000 });
+              } else if (raw.level === "warning") {
+                toast.warning(alertMsg, { duration: 8000 });
+              } else if (raw.level === "success") {
+                toast.success(alertMsg, { duration: 6000 });
+              }
+              return;
+            }
+
+            const parsed = raw as RawRadarPayload;
             if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
             if (parsed.magosRadar) bufferRef.current.magosRadar = parsed.magosRadar;
             if (parsed.spotter) bufferRef.current.spotter = parsed.spotter;

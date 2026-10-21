@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_SERVER_PORT) || 3001,
       host: env.VITE_SERVER_HOST === "true",
       allowedHosts: [
-        env.VITE_SERVER_ALLOW_CORS || "dominio_produccion.iotlink.cl",
+        env.VITE_SERVER_ALLOW_CORS || "multiradar.wisensor.cl",
       ],
       proxy: {
         // Streams MediaMTX (WebRTC/WHEP)

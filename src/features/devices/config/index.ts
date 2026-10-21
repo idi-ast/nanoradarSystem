@@ -3,9 +3,14 @@ import type { ComponentType } from "react";
 import {
   IconUser,
   IconSailboat,
-  IconDog,
   IconDrone,
   IconCar,
+  IconSpeedboat,
+  IconWalk,
+  IconFeather,
+  IconRipple,
+  IconLifebuoy,
+  IconPaw,
 } from "@tabler/icons-react";
 
 // const IconAutoImg: ComponentType<{ size?: number; stroke?: number; className?: string }> =
@@ -227,6 +232,8 @@ export const ZONE_SOUNDS: { id: number; label: string; file: string }[] = [
   { id: 4, label: "Sonido 4", file: "/mp3/sonido_alerta4.mp3" },
 ];
 
+import { IconTargetNeutral } from "./categories";
+
 /**
  * Categorías de detección disponibles para asignar a una zona.
  * Agrega más entradas aquí para ampliar el selector en el formulario de zonas.
@@ -234,11 +241,63 @@ export const ZONE_SOUNDS: { id: number; label: string; file: string }[] = [
 export const ZONE_DETECTION_CATEGORIES: {
   id: number;
   label: string;
-  icon: ComponentType<{ size?: number; stroke?: number; className?: string }>;
+  icon: ComponentType<{ size?: number; stroke?: number; className?: string; color?: string }>;
 }[] = [
-  { id: 1, label: "Persona",  icon: IconUser },
-  { id: 2, label: "Barco",    icon: IconSailboat },
-  { id: 3, label: "Vehículo", icon: IconCar },
-  { id: 4, label: "Animal",   icon: IconDog },
-  { id: 5, label: "Dron",     icon: IconDrone },
+  { id: 0, label: "Sin clasificar", icon: IconTargetNeutral },
+  { id: 1, label: "Persona",        icon: IconUser },
+  { id: 2, label: "Barco",          icon: IconSailboat },
+  { id: 3, label: "Vehículo",       icon: IconCar },
+  { id: 4, label: "Animal",         icon: IconPaw },
+  { id: 5, label: "Dron",           icon: IconDrone },
 ];
+
+type IconComp = ComponentType<{ size?: number; stroke?: number; className?: string; color?: string }>;
+
+/**
+ * Iconos y colores por categoría de COMPORTAMIENTO (backend track_classifier).
+ * Claves = `behaviorClass` que envía el backend.
+ */
+export const BEHAVIOR_CATEGORIES: Record<
+  string,
+  { label: string; icon: IconComp; color: string }
+> = {
+  sin_clasificar: { label: "Sin clasificar", icon: IconTargetNeutral, color: "#94a3b8" },
+  unclassified:   { label: "Sin clasificar", icon: IconTargetNeutral, color: "#94a3b8" },
+  neutral:        { label: "Neutro",         icon: IconTargetNeutral, color: "#94a3b8" },
+  desconocido:    { label: "Desconocido",    icon: IconTargetNeutral, color: "#94a3b8" },
+  unknown:        { label: "Desconocido",    icon: IconTargetNeutral, color: "#94a3b8" },
+  lancha:         { label: "Lancha",         icon: IconSpeedboat,    color: "#38bdf8" },
+  barco:          { label: "Barco",          icon: IconSailboat,     color: "#0ea5e9" },
+  bolla:          { label: "Boya",           icon: IconLifebuoy,     color: "#f97316" },
+  persona:        { label: "Persona",        icon: IconWalk,         color: "#a78bfa" },
+  pajaro:         { label: "Pájaro",         icon: IconFeather,      color: "#facc15" },
+  ola:            { label: "Ola",            icon: IconRipple,       color: "#5eead4" },
+  animal:         { label: "Animal",         icon: IconPaw,          color: "#a3e635" },
+  dron:           { label: "Dron",           icon: IconDrone,        color: "#f43f5e" },
+  vehiculo:       { label: "Vehículo",       icon: IconCar,          color: "#e879f9" },
+};
+
+/** Confianza mínima para que la categoría de comportamiento cambie el icono */
+export const BEHAVIOR_ICON_MIN_CONFIDENCE = 0.6;
+
+/** Devuelve la categoría visual del comportamiento o la categoría neutra de fallback */
+export function resolveBehaviorCategory(
+  behaviorClass?: string,
+  confidence = 0,
+) {
+  if (!behaviorClass) return BEHAVIOR_CATEGORIES.sin_clasificar;
+  const key = behaviorClass.toLowerCase().trim();
+  if (
+    ["sin_clasificar", "unclassified", "neutral", "unknown", "desconocido", "none", "null", "undefined", ""].includes(key)
+  ) {
+    return BEHAVIOR_CATEGORIES.sin_clasificar;
+  }
+  const lookupKey = key === "boya" ? "bolla" : key;
+  const cat = BEHAVIOR_CATEGORIES[lookupKey];
+  if (!cat) return BEHAVIOR_CATEGORIES.sin_clasificar;
+  if (confidence < BEHAVIOR_ICON_MIN_CONFIDENCE) {
+    // Si la confianza es baja, usar el icono neutro sin clasificar
+    return BEHAVIOR_CATEGORIES.sin_clasificar;
+  }
+  return cat;
+}

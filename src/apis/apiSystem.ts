@@ -100,6 +100,7 @@ class ApiSystem {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token: refreshToken }),
+          credentials: "include",
         });
 
         if (!response.ok) throw new Error("Refresh failed");
@@ -164,7 +165,7 @@ class ApiSystem {
     const config: RequestInit = {
       method,
       headers,
-      credentials: "omit",
+      credentials: "include",
     };
 
     if (data && method !== "GET") {

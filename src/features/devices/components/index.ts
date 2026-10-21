@@ -13,6 +13,7 @@ export { DrawingPreviewLayer } from "./map/DrawingPreviewLayer";
 
 // Componentes del panel lateral
 export { TargetCard } from "./panel/TargetCard";
+export { ClassificationBadge } from "./panel/ClassificationBadge";
 export { ZoneCard } from "./panel/ZoneCard";
 export { ZoneDrawingPanel } from "./panel/ZoneDrawingPanel";
 export { TrackHistoryPanel } from "./panel/TrackHistoryPanel";

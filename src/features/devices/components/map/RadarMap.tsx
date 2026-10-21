@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
-import ReactMapGL, { Source, Layer, Marker } from "react-map-gl";
+import ReactMapGL, { Source, Layer, Marker, ScaleControl } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./radar-effects.css";
@@ -46,8 +46,8 @@ import { RadarKnob } from "./RadarKnob";
 import { ZonesPanel } from "./zones/ZonesPanel";
 import { CameraActivityOverlay } from "./CameraActivityOverlay";
 import { MapPanelProvider } from "./MapPanelContext";
-import { IconCrosshair } from "@tabler/icons-react";
-import { createSectorCoords } from "./utils/geoHelpers";
+import { IconCrosshair, IconArrowsHorizontal } from "@tabler/icons-react";
+import { createSectorCoords, haversineDistanceM } from "./utils/geoHelpers";
 
 import type { DeviceFilter } from "../../types";
 import type { HistoryRange } from "../controls/HistoryRangeBar";
@@ -234,7 +234,6 @@ export const RadarMap = memo(function RadarMap({
   } | null>(null);
   const [isPickingPosition, setIsPickingPosition] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
-  console.log(mapLoaded);
 
   const [mapCenter, setMapCenter] = useState(() => ({
     lat: parseFloat(config?.latitud ?? "0"),
@@ -257,6 +256,47 @@ export const RadarMap = memo(function RadarMap({
     (s) => s.setCurrentViewportZoom,
   );
 
+  const [visibleWidthM, setVisibleWidthM] = useState<number | null>(null);
+
+  const updateVisibleSpan = useCallback(() => {
+    const map = mapRef.current?.getMap?.() ?? mapRef.current;
+    if (!map) return;
+    const canvas = typeof map.getCanvas === "function" ? map.getCanvas() : null;
+    const w = canvas ? canvas.clientWidth || canvas.width : 0;
+    const h = canvas ? canvas.clientHeight || canvas.height : 0;
+    if (w <= 0 || h <= 0) return;
+
+    try {
+      const left = map.unproject([0, h / 2]);
+      const right = map.unproject([w, h / 2]);
+      if (left && right) {
+        const dist = haversineDistanceM(left.lat, left.lng, right.lat, right.lng);
+        if (Number.isFinite(dist) && dist > 0) {
+          setVisibleWidthM(dist);
+        }
+      }
+    } catch {
+      // Ignorar si el mapa aún no inicializó proyección
+    }
+  }, []);
+
+  const formatSpanDistance = (meters: number | null) => {
+    if (meters == null || isNaN(meters)) return "--";
+    if (meters < 1000) {
+      return `~${Math.round(meters)} m`;
+    }
+    if (meters < 10000) {
+      return `~${(meters / 1000).toFixed(1)} km`;
+    }
+    return `~${(meters / 1000).toFixed(0)} km`;
+  };
+
+  useEffect(() => {
+    updateVisibleSpan();
+    window.addEventListener("resize", updateVisibleSpan);
+    return () => window.removeEventListener("resize", updateVisibleSpan);
+  }, [updateVisibleSpan]);
+
   const handleMoveEnd = useCallback(() => {
     const center = mapRef.current?.getCenter();
     const zoom = mapRef.current?.getZoom();
@@ -267,7 +307,8 @@ export const RadarMap = memo(function RadarMap({
     if (zoom !== undefined) {
       setCurrentViewportZoom(zoom);
     }
-  }, [setCurrentViewportCenter, setCurrentViewportZoom]);
+    updateVisibleSpan();
+  }, [setCurrentViewportCenter, setCurrentViewportZoom, updateVisibleSpan]);
 
   function openEdit(ed: EditingDevice) {
     setEditingDevice(ed);
@@ -279,7 +320,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#22c55e",
       });
-      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+      const lat = Number(d.latitud);
+      const lng = Number(d.longitud);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "magosradar") {
       const d = ed.device;
       setLiveEdit({
@@ -288,7 +331,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#f43f5e",
       });
-      setLiveEditPos({ lat: Number(d.latitud), lng: Number(d.longitud) });
+      const lat = Number(d.latitud);
+      const lng = Number(d.longitud);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "spotter") {
       const d = ed.device;
       setLiveEdit({
@@ -297,7 +342,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#38bdf8",
       });
-      setLiveEditPos({ lat: Number(d.latitude), lng: Number(d.longitude) });
+      const lat = Number(d.latitude);
+      const lng = Number(d.longitude);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "camara") {
       const d = ed.device;
       setLiveEdit({
@@ -306,10 +353,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#f59e0b",
       });
-      setLiveEditPos({
-        lat: Number(d.ubicacion.lat),
-        lng: Number(d.ubicacion.lng),
-      });
+      const lat = Number(d.ubicacion?.lat);
+      const lng = Number(d.ubicacion?.lng);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     } else if (ed.kind === "ptz") {
       const d = ed.device;
       setLiveEdit({
@@ -318,10 +364,9 @@ export const RadarMap = memo(function RadarMap({
         radio: d.radio ?? 0,
         color: d.color || "#8207d5",
       });
-      setLiveEditPos({
-        lat: Number(d.ubicacion.lat),
-        lng: Number(d.ubicacion.lng),
-      });
+      const lat = Number(d.ubicacion?.lat);
+      const lng = Number(d.ubicacion?.lng);
+      setLiveEditPos(!isNaN(lat) && !isNaN(lng) ? { lat, lng } : null);
     }
   }
 
@@ -541,8 +586,12 @@ export const RadarMap = memo(function RadarMap({
           reuseMaps
           interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
+          onMove={updateVisibleSpan}
           onMoveEnd={handleMoveEnd}
-          onLoad={() => setMapLoaded(true)}
+          onLoad={() => {
+            setMapLoaded(true);
+            updateVisibleSpan();
+          }}
           cursor={
             isCalibrating
               ? "crosshair"
@@ -693,7 +742,23 @@ export const RadarMap = memo(function RadarMap({
               </div>
             </div>
           )}
+
+          <ScaleControl position="bottom-left" unit="metric" maxWidth={160} />
         </ReactMapGL>
+
+        {visibleWidthM != null && (
+          <div className="absolute bottom-[42px] left-[12px] z-10 pointer-events-none">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#040a14]/90 border border-emerald-500/50 text-[10px] font-mono text-emerald-400 shadow-lg shadow-black/60 backdrop-blur-md">
+              <IconArrowsHorizontal size={13} className="text-emerald-400 shrink-0" />
+              <span className="tracking-wide">
+                Ancho visible:{" "}
+                <strong className="font-semibold text-text-100">
+                  {formatSpanDistance(visibleWidthM)}
+                </strong>
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="radar-scanlines" />
         <div className="radar-vignette" />

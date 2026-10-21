@@ -12,20 +12,31 @@ import { PlaybackControls } from "../components/PlaybackControls";
 import type { TrackSummaryFilters } from "../types";
 import { TRACKS_PAGE_SIZE } from "../types";
 
+function getDefaultFromDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1); // Hace 24 horas
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default function HistoryPage() {
   const [filters, setFilters] = useState<TrackSummaryFilters>({
     minPoints: 2,
+    from: getDefaultFromDate(),
   });
   const [page, setPage] = useState(1);
   const [onlyWithZones, setOnlyWithZones] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { data: zones = [] } = useZones();
-  const hasDateRange = Boolean(filters.from || filters.to);
-  const pageSize = hasDateRange ? 20000 : TRACKS_PAGE_SIZE;
+  const pageSize = TRACKS_PAGE_SIZE;
 
   const summaries = useTrackSummaries(
     filters,
-    hasDateRange ? 1 : page,
+    page,
     pageSize,
     onlyWithZones,
   );
@@ -83,8 +94,8 @@ export default function HistoryPage() {
           tracks={tracks}
           isLoading={summaries.isFetching || (onlyFavorites && favoritesSummaries.isFetching)}
           total={total}
-          page={hasDateRange ? 1 : page}
-          pages={hasDateRange ? 1 : pages}
+          page={page}
+          pages={pages}
           onPageChange={setPage}
           selectedKeys={selectedKeys}
           onToggleTrack={playback.toggleTrack}

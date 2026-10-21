@@ -9,7 +9,8 @@ import {
 } from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
-import { ZONE_DETECTION_CATEGORIES } from "../../config";
+import { ZONE_DETECTION_CATEGORIES, resolveBehaviorCategory } from "../../config";
+import { IconTargetNeutral } from "../../config/categories";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
 import { DEFAULT_CATEGORY_MODELS } from "../../stores/targetVisualStore";
@@ -306,8 +307,13 @@ export function RadarTargetsLayer({
           const catId = categoryMap.get(t.id) ?? defaultCategoria;
           const cat =
             ZONE_DETECTION_CATEGORIES.find((c) => c.id === catId) ??
-            ZONE_DETECTION_CATEGORIES[1];
-          const Icon = cat.icon;
+            ZONE_DETECTION_CATEGORIES[0];
+          const behaviorCat = resolveBehaviorCategory(
+            t.behaviorClass,
+            t.behaviorConfidence ?? 0,
+          );
+          // la clasificacion por comportamiento manda; si no hay, zona/default
+          const Icon = behaviorCat?.icon ?? cat?.icon ?? IconTargetNeutral;
           const isSelected = selectedTargetId === t.id;
           const dimmed = selectedTargetId !== null && !isSelected;
 
@@ -355,9 +361,11 @@ export function RadarTargetsLayer({
                   const baseH = moving
                     ? iconStyle2D.movingSize
                     : iconStyle2D.size;
-                  const borderCol = moving
-                    ? iconStyle2D.movingBorderColor
-                    : iconStyle2D.borderColor;
+                  const borderCol =
+                    behaviorCat?.color ??
+                    (moving
+                      ? iconStyle2D.movingBorderColor
+                      : iconStyle2D.borderColor);
 
                   return (
                     <div
@@ -401,10 +409,13 @@ export function RadarTargetsLayer({
                         ? iconStyle2D.movingShowIcon
                         : iconStyle2D.showIcon) && (
                         <span
+                          title={behaviorCat?.label}
                           style={{
-                            color: moving
-                              ? iconStyle2D.movingIconColor
-                              : iconStyle2D.iconColor,
+                            color:
+                              behaviorCat?.color ??
+                              (moving
+                                ? iconStyle2D.movingIconColor
+                                : iconStyle2D.iconColor),
                           }}
                         >
                           <Icon

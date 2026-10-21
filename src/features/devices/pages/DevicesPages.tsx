@@ -355,11 +355,10 @@ const RadarStatusBar = memo(() => {
           Alertas críticas
         </span>
         <span
-          className={`font-bold text-xl leading-tight ${
-            criticalCount > 0
-              ? "text-red-500 animate-pulse"
-              : "text-text-100/30"
-          }`}
+          className={`font-bold text-xl leading-tight ${criticalCount > 0
+            ? "text-red-500 animate-pulse"
+            : "text-text-100/30"
+            }`}
         >
           {criticalCount}
         </span>
@@ -399,6 +398,9 @@ const RightBarNano = memo(
     );
 
     const { isDesktop } = useBreakpoint();
+    const [editingZoneId, setEditingZoneId] = useState<string | number | null>(
+      null,
+    );
 
     return (
       <div className="col-span-2 h-full flex flex-col bg-bg-100 text-text-100 border-s border-s-border overflow-hidden relative px-1">
@@ -417,25 +419,40 @@ const RightBarNano = memo(
             )}
           </div>
         )}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden mt-3 gap-1 ">
-          <div className="shrink-0 space-y-2">
-            <h4 className="ms-1 text-xs font-bold uppercase tracking-widest text-text-200 border-b border-border-200 pb-1">
+        <div
+          className={`flex-1 min-h-0 flex flex-col mt-3 gap-1 ${
+            editingZoneId ? "overflow-y-auto" : "overflow-hidden"
+          }`}
+        >
+          <div className="shrink-0 flex flex-col space-y-1.5">
+            <h4 className="ms-1 text-xs font-bold uppercase tracking-widest text-text-200 border-b border-border-200 pb-1 shrink-0">
               Zonas Activas ({zones.length > 0 ? zones.length : "0"})
             </h4>
             {zones.length === 0 ? (
-              <p className="text-text-100/40 text-[10px] italic">
+              <p className="text-text-100/40 text-[10px] italic px-1">
                 Sin zonas configuradas
               </p>
             ) : (
-              zones.map((zone) => (
-                <ZoneCard
-                  key={zone.id ?? zone.nombre}
-                  zone={zone}
-                  hasAlert={activeZoneIds.has(
-                    zone.id?.toString() ?? zone.nombre,
-                  )}
-                />
-              ))
+              <div
+                className={`space-y-1.5 pr-1 ${
+                  editingZoneId
+                    ? "max-h-none overflow-visible"
+                    : "overflow-y-auto max-h-48 md:max-h-60"
+                }`}
+              >
+                {zones.map((zone) => (
+                  <ZoneCard
+                    key={zone.id ?? zone.nombre}
+                    zone={zone}
+                    hasAlert={activeZoneIds.has(
+                      zone.id?.toString() ?? zone.nombre,
+                    )}
+                    isEditing={editingZoneId === (zone.id ?? zone.nombre)}
+                    onStartEdit={() => setEditingZoneId(zone.id ?? zone.nombre)}
+                    onEndEdit={() => setEditingZoneId(null)}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
@@ -663,11 +680,10 @@ const TargetsSection = memo(function TargetsSection({
             <button
               key={key}
               onClick={() => onDeviceFilterChange(key)}
-              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${
-                isActive
-                  ? "border-bg-400 text-bg-400"
-                  : "border-transparent text-text-100/40 hover:text-text-100/70"
-              }`}
+              className={`flex-1 py-1 text-[12px] font-semibold uppercase tracking-wider transition-colors border-b-2 ${isActive
+                ? "border-bg-400 text-bg-400"
+                : "border-transparent text-text-100/40 hover:text-text-100/70"
+                }`}
             >
               {label}
               <span
