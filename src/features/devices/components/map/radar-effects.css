@@ -59,3 +59,31 @@
     opacity: 1;
   }
 }
+
+/* Regla métrica táctica en la parte inferior izquierda */
+.mapboxgl-ctrl-bottom-left {
+  z-index: 10 !important;
+  pointer-events: auto !important;
+  bottom: 12px !important;
+  left: 12px !important;
+}
+
+.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-scale {
+  background: rgba(4, 10, 20, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  color: #10b981 !important;
+  border: 1.5px solid #10b981 !important;
+  border-top: none !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 18px !important;
+  padding: 1px 8px !important;
+  letter-spacing: 0.05em !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 10px rgba(16, 185, 129, 0.25) !important;
+  border-radius: 0 0 4px 4px !important;
+  margin: 0 !important;
+  text-align: center !important;
+  user-select: none !important;
+}

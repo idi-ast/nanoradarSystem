@@ -63,7 +63,7 @@ export function PtzToolbar({
             stroke={1.5}
             className={visionStarting ? "animate-pulse" : visionOn ? "text-emerald-400" : ""}
           />
-          <span className="font-semibold">{visionStarting ? "Iniciando..." : "IA YOLO"}</span>
+          <span className="font-semibold">{visionStarting ? "Iniciando..." : "Categorización PTZ"}</span>
           {visionOn && !visionStarting && (
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           )}
