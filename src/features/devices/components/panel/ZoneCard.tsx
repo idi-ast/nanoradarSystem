@@ -484,19 +484,13 @@ export const ZoneCard = memo(function ZoneCard({
         </div>
 
         {/* Guía y estado de vértices interactivos en el mapa */}
-        <div className="bg-bg-100/50 border border-brand-100/30 rounded-lg p-2 flex flex-col gap-1 shadow-xs">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-text-100 flex items-center gap-1.5">
-              <IconMapPin size={13} className="text-brand-100" />
-              Puntos del polígono:
-            </span>
-            <span className="font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-1.5 py-0.5 text-[10px] font-bold">
+        <div className=" p-2 flex flex-col gap-1 shadow-xs">
+          <div className="flex items-center justify-end text-xs">
+            <span className="font-mono text-emerald-400    text-[10px] font-bold">
               {editVerticesCount} vértices
             </span>
           </div>
-          <p className="text-[10px] text-text-200/70 leading-tight">
-            💡 Puedes mover cada punto arrastrándolo directamente en el mapa con el mouse. Usa el botón <span className="text-emerald-400 font-bold">+</span> en los bordes para insertar nuevos vértices.
-          </p>
+
           {editIsDirty && (
             <button
               type="button"
@@ -549,18 +543,17 @@ export const ZoneCard = memo(function ZoneCard({
 
   return (
     <div
-      className={`relative bg-bg-200 overflow-hidden group cursor-pointer rounded-lg border transition-all duration-300 ease-in-out ${
-        isExpanded
-          ? "border-border shadow-md"
-          : "border-border/40 hover:border-border/80"
-      }`}
+      className={`relative bg-bg-200 overflow-hidden group cursor-pointer rounded-lg border transition-all duration-300 ease-in-out ${isExpanded
+        ? "border-border shadow-md"
+        : "border-border/40 hover:border-border/80"
+        }`}
       style={
         hasAlert
           ? ({
-              borderRight: `2px solid ${zone.poligono.color}`,
-              "--zone-glow-color": zone.poligono.color,
-              animation: "zone-alert-glow 1.6s ease-in-out infinite",
-            } as React.CSSProperties)
+            borderRight: `2px solid ${zone.poligono.color}`,
+            "--zone-glow-color": zone.poligono.color,
+            animation: "zone-alert-glow 1.6s ease-in-out infinite",
+          } as React.CSSProperties)
           : undefined
       }
       onMouseEnter={() => setIsHovered(true)}
@@ -588,9 +581,8 @@ export const ZoneCard = memo(function ZoneCard({
         </div>
       )}
       <div
-        className={`absolute blur-xl left-0 top-0 w-full h-full pointer-events-none ${
-          hasAlert ? "animate-pulse opacity-60" : "opacity-25"
-        }`}
+        className={`absolute blur-xl left-0 top-0 w-full h-full pointer-events-none ${hasAlert ? "animate-pulse opacity-60" : "opacity-25"
+          }`}
         style={{ backgroundColor: zone.poligono.color }}
       />
 
@@ -599,9 +591,8 @@ export const ZoneCard = memo(function ZoneCard({
         <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 min-h-[30px]">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div
-              className={`w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 transition-transform duration-200 ${
-                hasAlert ? "animate-ping" : ""
-              }`}
+              className={`w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 transition-transform duration-200 ${hasAlert ? "animate-ping" : ""
+                }`}
               style={{
                 backgroundColor: zone.poligono.color,
                 borderColor: zone.poligono.color,
@@ -697,20 +688,18 @@ export const ZoneCard = memo(function ZoneCard({
             {/* Chevron indicador */}
             <IconChevronDown
               size={14}
-              className={`text-text-200/50 transition-transform duration-300 pointer-events-none ${
-                isExpanded ? "rotate-180 text-text-100" : ""
-              }`}
+              className={`text-text-200/50 transition-transform duration-300 pointer-events-none ${isExpanded ? "rotate-180 text-text-100" : ""
+                }`}
             />
           </div>
         </div>
 
         {/* Contenido expandible animado */}
         <div
-          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-            isExpanded
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0 pointer-events-none"
-          }`}
+          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0 pointer-events-none"
+            }`}
         >
           <div className="overflow-hidden">
             <div
@@ -741,13 +730,12 @@ export const ZoneCard = memo(function ZoneCard({
                 )}
                 {zone.allowed_categories &&
                   zone.allowed_categories.length <
-                    ALL_TRACK_CATEGORIES.length && (
+                  ALL_TRACK_CATEGORIES.length && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                        zone.allowed_categories.length === 0
-                          ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                          : "bg-bg-100 text-text-200 border-border/40"
-                      }`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${zone.allowed_categories.length === 0
+                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                        : "bg-bg-100 text-text-200 border-border/40"
+                        }`}
                       title={
                         zone.allowed_categories.length === 0
                           ? "Zona inactiva (0 categorías permitidas)"
