@@ -9,6 +9,7 @@ import {
   IconChevronDown,
   IconPin,
   IconPinFilled,
+  IconMapPin,
 } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
@@ -24,6 +25,8 @@ import {
   MAX_CUSTOM_SOUNDS,
 } from "../../hooks/useCustomSounds";
 import { useTiposAlertas } from "../../hooks/useTiposAlertas";
+import { useZoneEditStore } from "../../stores/zoneEditStore";
+import { extractZoneVertices } from "../map/utils/geoHelpers";
 
 interface Props {
   zone: RadarZone;
@@ -78,6 +81,14 @@ export const ZoneCard = memo(function ZoneCard({
       : ALL_TRACK_CATEGORIES,
   );
 
+  const isThisZoneEditing = useZoneEditStore(
+    (s) => s.editingZoneId === (zone.id ?? zone.nombre),
+  );
+  const editVerticesCount = useZoneEditStore((s) =>
+    isThisZoneEditing ? s.vertices.length : extractZoneVertices(zone.poligono.vertices).length,
+  );
+  const editIsDirty = useZoneEditStore((s) => (isThisZoneEditing ? s.isDirty : false));
+
   const prevIsEditingRef = useRef(false);
   useEffect(() => {
     if (isEditing && !prevIsEditingRef.current) {
@@ -93,9 +104,22 @@ export const ZoneCard = memo(function ZoneCard({
           ? zone.allowed_categories
           : ALL_TRACK_CATEGORIES,
       );
+      useZoneEditStore.getState().startEditing(zone);
+    } else if (!isEditing && prevIsEditingRef.current) {
+      if (useZoneEditStore.getState().editingZoneId === (zone.id ?? zone.nombre)) {
+        useZoneEditStore.getState().stopEditing();
+      }
     }
     prevIsEditingRef.current = isEditing;
   }, [isEditing, zone]);
+
+  useEffect(() => {
+    return () => {
+      if (useZoneEditStore.getState().editingZoneId === (zone.id ?? zone.nombre)) {
+        useZoneEditStore.getState().stopEditing();
+      }
+    };
+  }, [zone]);
 
   useEffect(() => {
     if (isEditing && editContainerRef.current) {
@@ -120,6 +144,7 @@ export const ZoneCard = memo(function ZoneCard({
         ? zone.allowed_categories
         : ALL_TRACK_CATEGORIES,
     );
+    useZoneEditStore.getState().startEditing(zone);
     if (onStartEdit) {
       onStartEdit();
     } else {
@@ -131,6 +156,11 @@ export const ZoneCard = memo(function ZoneCard({
     if (!zone.id) return;
     setIsSaving(true);
     try {
+      const liveVertices = useZoneEditStore.getState().vertices;
+      const verticesToSave = liveVertices && liveVertices.length >= 3
+        ? liveVertices
+        : zone.poligono.vertices;
+
       await updateZone(zone.id, {
         nombre: editName || zone.nombre,
         descripcion: `Zona con alerta nivel ${editLevel}`,
@@ -140,8 +170,9 @@ export const ZoneCard = memo(function ZoneCard({
         categoriaDeteccion: editCategoria,
         activarPtz: editActivarPtz,
         allowed_categories: editAllowedCategories,
-        poligono: { color: editColor, vertices: zone.poligono.vertices },
+        poligono: { color: editColor, vertices: verticesToSave },
       });
+      useZoneEditStore.getState().stopEditing();
       if (onEndEdit) {
         onEndEdit();
       } else {
@@ -211,7 +242,10 @@ export const ZoneCard = memo(function ZoneCard({
               <input
                 type="color"
                 value={editColor}
-                onChange={(e) => setEditColor(e.target.value)}
+                onChange={(e) => {
+                  setEditColor(e.target.value);
+                  useZoneEditStore.getState().setColor(e.target.value);
+                }}
                 className="min-w-14 min-h-10 bg-transparent cursor-pointer"
               />
             </div>
@@ -449,9 +483,35 @@ export const ZoneCard = memo(function ZoneCard({
           </div>
         </div>
 
+        {/* Guía y estado de vértices interactivos en el mapa */}
+        <div className="bg-bg-100/50 border border-brand-100/30 rounded-lg p-2 flex flex-col gap-1 shadow-xs">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-text-100 flex items-center gap-1.5">
+              <IconMapPin size={13} className="text-brand-100" />
+              Puntos del polígono:
+            </span>
+            <span className="font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-1.5 py-0.5 text-[10px] font-bold">
+              {editVerticesCount} vértices
+            </span>
+          </div>
+          <p className="text-[10px] text-text-200/70 leading-tight">
+            💡 Puedes mover cada punto arrastrándolo directamente en el mapa con el mouse. Usa el botón <span className="text-emerald-400 font-bold">+</span> en los bordes para insertar nuevos vértices.
+          </p>
+          {editIsDirty && (
+            <button
+              type="button"
+              onClick={() => useZoneEditStore.getState().resetVertices()}
+              className="self-start text-[10px] text-amber-400 hover:text-amber-300 underline mt-0.5 cursor-pointer font-medium"
+            >
+              Restaurar puntos originales
+            </button>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button
             onClick={() => {
+              useZoneEditStore.getState().stopEditing();
               if (onEndEdit) {
                 onEndEdit();
               } else {

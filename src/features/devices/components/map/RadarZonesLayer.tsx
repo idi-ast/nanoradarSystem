@@ -4,6 +4,7 @@ import type { RadarZone } from "../../types";
 import { toGeoCoord } from "./utils/geoHelpers";
 import { useRadarContext } from "../../context/useRadarContext";
 import { useZoneStyleStore } from "../../stores/zoneStyleStore";
+import { useZoneEditStore } from "../../stores/zoneEditStore";
 
 interface Props {
   zones: RadarZone[];
@@ -13,10 +14,16 @@ export function RadarZonesLayer({ zones }: Props) {
   const { instanceConfig } = useRadarContext();
   const id = instanceConfig.id;
   const { fillOpacity, lineOpacity, lineWidth, visible } = useZoneStyleStore();
-  const data = useMemo(
-    () => ({
+  const editingZoneId = useZoneEditStore((s) => s.editingZoneId);
+
+  const data = useMemo(() => {
+    const activeDisplayZones = editingZoneId
+      ? zones.filter((z) => (z.id ?? z.nombre) !== editingZoneId)
+      : zones;
+
+    return {
       type: "FeatureCollection" as const,
-      features: zones.map((zone, idx) => {
+      features: activeDisplayZones.map((zone, idx) => {
         const rawVertices = Array.isArray(zone.poligono.vertices)
           ? zone.poligono.vertices
           : Object.values(zone.poligono.vertices);
@@ -30,15 +37,14 @@ export function RadarZonesLayer({ zones }: Props) {
             coordinates: [coords],
           },
           properties: {
-            color: zone.idTipoAlerta === 6  ? "transparent" : zone.poligono.color,
+            color: zone.idTipoAlerta === 6 ? "transparent" : zone.poligono.color,
             name: zone.nombre,
             id: idx,
           },
         };
       }),
-    }),
-    [zones]
-  );
+    };
+  }, [zones, editingZoneId]);
 
   const fillLayer = {
     id: `alert-zones-fill-${id}`,

@@ -30,6 +30,8 @@ const ClearTargetsButton = memo(function ClearTargetsButton() {
   );
 });
 
+import { useZoneEditStore } from "../../../stores/zoneEditStore";
+
 export const ZonesPanel = memo(function ZonesPanel() {
   const { isDrawing, startDrawing, cancelDrawing } = useRadarContext();
   const { activePanel, openPanel, closePanel } = useMapPanel();
@@ -46,6 +48,7 @@ export const ZonesPanel = memo(function ZonesPanel() {
       cancelDrawing();
       closePanel("drawing");
     } else {
+      useZoneEditStore.getState().stopEditing();
       startDrawing();
       openPanel("drawing");
     }

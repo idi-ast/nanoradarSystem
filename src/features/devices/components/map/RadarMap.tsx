@@ -36,6 +36,7 @@ import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
+import { ZoneEditLayer } from "./ZoneEditLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
 import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
@@ -171,6 +172,8 @@ export const RadarMap = memo(function RadarMap({
     drawingPoints,
     zoneColor,
     addDrawingPoint,
+    updateDrawingPoint,
+    removeDrawingPointAtIndex,
     instanceConfig,
     flyToZoneFn,
   } = useRadarContext();
@@ -662,7 +665,13 @@ export const RadarMap = memo(function RadarMap({
           />
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
-          <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
+          <DrawingPreviewLayer
+            points={drawingPoints}
+            color={zoneColor}
+            onUpdatePoint={updateDrawingPoint}
+            onRemovePoint={removeDrawingPointAtIndex}
+          />
+          <ZoneEditLayer />
 
           {RADAR_INSTANCES.slice(1).map((instance) => (
             <RadarProvider key={instance.id} instance={instance}>

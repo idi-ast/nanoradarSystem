@@ -42,6 +42,8 @@ export interface RadarContextValue {
   startDrawing: () => void;
   cancelDrawing: () => void;
   addDrawingPoint: (lat: number, lng: number) => void;
+  updateDrawingPoint: (index: number, lat: number, lng: number) => void;
+  removeDrawingPointAtIndex: (index: number) => void;
   removeLastDrawingPoint: () => void;
   setZoneName: (name: string) => void;
   setZoneColor: (color: string) => void;
