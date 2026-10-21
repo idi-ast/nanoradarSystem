@@ -8,6 +8,45 @@ import {
 } from "../services/visionService";
 
 /**
+ * Claves de almacenamiento local (localStorage).
+ * Por defecto la categorización PTZ debe estar desactivada (false).
+ */
+const STORAGE_PREFIX = "ptz-categorization-enabled";
+
+export function getStoredVisionEnabled(ptzId?: number): boolean {
+  try {
+    if (typeof ptzId === "number") {
+      const perCamera =
+        localStorage.getItem(`${STORAGE_PREFIX}-${ptzId}`) ??
+        localStorage.getItem(`ptz_categorization_enabled_${ptzId}`);
+      if (perCamera !== null) {
+        return perCamera === "true";
+      }
+    }
+    const globalSetting =
+      localStorage.getItem(STORAGE_PREFIX) ??
+      localStorage.getItem("ptz_categorization_enabled");
+    if (globalSetting !== null) {
+      return globalSetting === "true";
+    }
+  } catch {
+    // Si localStorage no está disponible
+  }
+  return false;
+}
+
+export function setStoredVisionEnabled(enabled: boolean, ptzId?: number): void {
+  try {
+    if (typeof ptzId === "number") {
+      localStorage.setItem(`${STORAGE_PREFIX}-${ptzId}`, String(enabled));
+    }
+    localStorage.setItem(STORAGE_PREFIX, String(enabled));
+  } catch {
+    // Si localStorage no está disponible
+  }
+}
+
+/**
  * Configuración optimizada para máxima fluidez en tiempo real:
  * - targetFps: 20 (movimiento continuo y suave, eliminando el tartamudeo de 12 FPS)
  * - imgsz: 480 (tiempo de inferencia rápido ~25-35ms con alta precisión de YOLO11n)
@@ -24,8 +63,10 @@ export const OPTIMIZED_VISION_CONFIG: VisionConfigPayload = {
   classes: null,
 };
 
-export function useVisionDetection(ptzId: number, autoStart = true) {
-  const [visionOn, setVisionOn] = useState(autoStart);
+export function useVisionDetection(ptzId: number, autoStart?: boolean) {
+  const [visionOn, setVisionOn] = useState(() =>
+    autoStart !== undefined ? autoStart : getStoredVisionEnabled(ptzId),
+  );
   const [starting, setStarting] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [connectingMode, setConnectingMode] = useState<"start" | "stop" | null>(
@@ -33,6 +74,24 @@ export function useVisionDetection(ptzId: number, autoStart = true) {
   );
   const [config, setConfig] = useState<VisionConfigPayload>(OPTIMIZED_VISION_CONFIG);
   const initStartedRef = useRef(false);
+
+  // Sincronizar si cambia en otra pestaña o en localStorage
+  useEffect(() => {
+    function handleStorage(e: StorageEvent) {
+      if (
+        e.key === `${STORAGE_PREFIX}-${ptzId}` ||
+        e.key === STORAGE_PREFIX ||
+        e.key === `ptz_categorization_enabled_${ptzId}` ||
+        e.key === "ptz_categorization_enabled"
+      ) {
+        if (e.newValue !== null) {
+          setVisionOn(e.newValue === "true");
+        }
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [ptzId]);
 
   useEffect(() => {
     let active = true;
@@ -55,7 +114,10 @@ export function useVisionDetection(ptzId: number, autoStart = true) {
         // mantener OPTIMIZED_VISION_CONFIG
       }
 
-      if (!autoStart) return;
+      const shouldStart =
+        autoStart !== undefined ? autoStart : getStoredVisionEnabled(ptzId);
+
+      if (!shouldStart) return;
 
       // 1. Verificar si el worker ya está corriendo y online en el backend
       try {
@@ -105,6 +167,7 @@ export function useVisionDetection(ptzId: number, autoStart = true) {
       try {
         await stopVision(ptzId);
         setVisionOn(false);
+        setStoredVisionEnabled(false, ptzId);
         return true;
       } catch (error) {
         console.error("Vision PTZ", error);
@@ -122,6 +185,7 @@ export function useVisionDetection(ptzId: number, autoStart = true) {
     try {
       await startVision(ptzId, config);
       setVisionOn(true);
+      setStoredVisionEnabled(true, ptzId);
       // connecting se mantiene activo hasta que el stream IA confirma "online"
       // (lo cierra VisionLoadingModal vía finishConnecting).
       return true;
