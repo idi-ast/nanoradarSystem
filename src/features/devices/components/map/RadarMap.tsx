@@ -86,7 +86,7 @@ function SecondaryRadarLayers({
       <RadarTargetsLayer
         historyRange={historyRange}
         selectedTargetId={null}
-        onSelectTarget={() => {}}
+        onSelectTarget={() => { }}
         historyTrackPoints={undefined}
         historyTrackRange={{ start: 0, end: 100 }}
       />
@@ -753,7 +753,7 @@ export const RadarMap = memo(function RadarMap({
               <span className="tracking-wide">
                 Ancho visible:{" "}
                 <strong className="font-semibold text-text-100">
-                  {formatSpanDistance(visibleWidthM)}
+                  {formatSpanDistance(visibleWidthM)}1
                 </strong>
               </span>
             </div>
