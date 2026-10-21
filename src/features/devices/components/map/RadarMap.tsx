@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
-import ReactMapGL, { Source, Layer, Marker, ScaleControl } from "react-map-gl";
+import ReactMapGL, { Source, Layer, Marker } from "react-map-gl";
 import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./radar-effects.css";
@@ -257,6 +257,7 @@ export const RadarMap = memo(function RadarMap({
   );
 
   const [visibleWidthM, setVisibleWidthM] = useState<number | null>(null);
+  const [scaleBar, setScaleBar] = useState<{ widthPx: number; label: string } | null>(null);
 
   const updateVisibleSpan = useCallback(() => {
     const map = mapRef.current?.getMap?.() ?? mapRef.current;
@@ -273,6 +274,22 @@ export const RadarMap = memo(function RadarMap({
         const dist = haversineDistanceM(left.lat, left.lng, right.lat, right.lng);
         if (Number.isFinite(dist) && dist > 0) {
           setVisibleWidthM(dist);
+
+          const metersPerPx = dist / w;
+          const maxMeters = 130 * metersPerPx;
+          const candidateSteps = [
+            1, 2, 5, 10, 20, 50, 100, 200, 500,
+            1_000, 2_000, 5_000, 10_000, 20_000, 50_000,
+            100_000, 200_000, 500_000, 1_000_000,
+          ];
+          let chosen = candidateSteps[0];
+          for (const step of candidateSteps) {
+            if (step <= maxMeters) chosen = step;
+            else break;
+          }
+          const widthPx = Math.max(36, Math.round(chosen / metersPerPx));
+          const label = chosen >= 1000 ? `${chosen / 1000} km` : `${chosen} m`;
+          setScaleBar({ widthPx, label });
         }
       }
     } catch {
@@ -293,8 +310,16 @@ export const RadarMap = memo(function RadarMap({
 
   useEffect(() => {
     updateVisibleSpan();
+    const interval = setInterval(() => {
+      if (mapRef.current?.getMap?.() ?? mapRef.current) {
+        updateVisibleSpan();
+      }
+    }, 500);
     window.addEventListener("resize", updateVisibleSpan);
-    return () => window.removeEventListener("resize", updateVisibleSpan);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", updateVisibleSpan);
+    };
   }, [updateVisibleSpan]);
 
   const handleMoveEnd = useCallback(() => {
@@ -743,20 +768,28 @@ export const RadarMap = memo(function RadarMap({
             </div>
           )}
 
-          <ScaleControl position="bottom-left" unit="metric" maxWidth={160} />
         </ReactMapGL>
 
         {visibleWidthM != null && (
-          <div className="absolute bottom-[42px] left-[12px] z-10 pointer-events-none">
+          <div className="absolute bottom-[42px] left-[12px] z-10 pointer-events-none flex flex-col gap-1 items-start">
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#040a14]/90 border border-emerald-500/50 text-[10px] font-mono text-emerald-400 shadow-lg shadow-black/60 backdrop-blur-md">
               <IconArrowsHorizontal size={13} className="text-emerald-400 shrink-0" />
               <span className="tracking-wide">
                 Ancho visible:{" "}
                 <strong className="font-semibold text-text-100">
-                  {formatSpanDistance(visibleWidthM)}1
+                  {formatSpanDistance(visibleWidthM)}
                 </strong>
               </span>
             </div>
+
+            {scaleBar && (
+              <div
+                style={{ width: `${scaleBar.widthPx}px` }}
+                className="h-[18px] border-x-[1.5px] border-b-[1.5px] border-emerald-400 bg-[#040a14]/90 backdrop-blur-md rounded-b-[3px] shadow-lg shadow-black/60 flex items-center justify-center text-[10px] font-mono font-semibold text-emerald-400 tracking-wider select-none leading-none"
+              >
+                {scaleBar.label}
+              </div>
+            )}
           </div>
         )}
 
