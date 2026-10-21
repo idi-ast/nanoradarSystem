@@ -133,13 +133,73 @@ export function VisionConfigPanel({
             </div>
           )}
 
+          <div>
+            <span className="block text-[11px] text-text-100 mb-1.5 font-medium">Preajustes de Rendimiento</span>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetFps(20);
+                  setMaxWidth(1280);
+                  setImgsz(480);
+                  setBitrate(2_500_000);
+                  setConfidence(0.35);
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-[10px] flex flex-col items-center gap-0.5 text-center transition-colors ${
+                  targetFps === 20 && maxWidth === 1280 && imgsz === 480
+                    ? "border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold"
+                    : "border-border bg-bg-200/50 text-text-100/70 hover:bg-bg-200"
+                }`}
+              >
+                <span>Máx. Fluidez</span>
+                <span className="text-[9px] text-text-100/40">20 FPS · 720p</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetFps(25);
+                  setMaxWidth(960);
+                  setImgsz(320);
+                  setBitrate(2_500_000);
+                  setConfidence(0.30);
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-[10px] flex flex-col items-center gap-0.5 text-center transition-colors ${
+                  targetFps === 25 && maxWidth === 960 && imgsz === 320
+                    ? "border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold"
+                    : "border-border bg-bg-200/50 text-text-100/70 hover:bg-bg-200"
+                }`}
+              >
+                <span>Ultra Rápido</span>
+                <span className="text-[9px] text-text-100/40">25 FPS · 960p</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetFps(15);
+                  setMaxWidth(1280);
+                  setImgsz(640);
+                  setBitrate(4_000_000);
+                  setConfidence(0.40);
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-[10px] flex flex-col items-center gap-0.5 text-center transition-colors ${
+                  targetFps === 15 && maxWidth === 1280 && imgsz === 640
+                    ? "border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold"
+                    : "border-border bg-bg-200/50 text-text-100/70 hover:bg-bg-200"
+                }`}
+              >
+                <span>Alta Precisión</span>
+                <span className="text-[9px] text-text-100/40">15 FPS · YOLO 640</span>
+              </button>
+            </div>
+          </div>
+
           <label className="text-[11px] text-text-100">
             <span className="flex justify-between mb-1"><span>Confianza mínima</span><strong>{Math.round(confidence * 100)}%</strong></span>
             <input className="w-full accent-emerald-500" type="range" min="10" max="90" step="5" value={confidence * 100} onChange={(event) => setConfidence(Number(event.target.value) / 100)} />
           </label>
           <label className="text-[11px] text-text-100">
-            <span className="flex justify-between mb-1"><span>FPS objetivo</span><strong>{targetFps}</strong></span>
-            <input className="w-full accent-emerald-500" type="range" min="5" max="20" step="1" value={targetFps} onChange={(event) => setTargetFps(Number(event.target.value))} />
+            <span className="flex justify-between mb-1"><span>FPS objetivo (Fluidez)</span><strong>{targetFps} FPS</strong></span>
+            <input className="w-full accent-emerald-500" type="range" min="5" max="30" step="1" value={targetFps} onChange={(event) => setTargetFps(Number(event.target.value))} />
           </label>
 
           <OptionRow label="Resolución" values={RESOLUTIONS} value={maxWidth} onChange={setMaxWidth} />

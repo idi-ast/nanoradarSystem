@@ -52,6 +52,7 @@ export function useWebRtcPlayer(streamUrl: string) {
         setStream(event.streams[0]);
         if (node.srcObject !== event.streams[0]) {
           node.srcObject = event.streams[0];
+          node.play().catch(() => {});
         }
       };
 

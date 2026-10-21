@@ -48,20 +48,25 @@ export function PtzToolbar({
           onClick={onToggleVision}
           disabled={visionStarting}
           title={
-            visionOn ? "Desactivar detección IA" : "Activar detección IA (YOLO)"
-          }
-          className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors disabled:opacity-60 ${
             visionOn
-              ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-              : "text-text-100/70 hover:text-text-100 hover:bg-bg-300/60"
+              ? "Detección IA (YOLO) activa — clic para desactivar"
+              : "Activar detección IA (YOLO)"
+          }
+          className={`flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded transition-all cursor-pointer disabled:opacity-60 ${
+            visionOn
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
+              : "text-text-100/70 hover:text-text-100 hover:bg-bg-300/60 border border-transparent"
           }`}
         >
           <IconSparkles
             size={14}
             stroke={1.5}
-            className={visionStarting ? "animate-pulse" : ""}
+            className={visionStarting ? "animate-pulse" : visionOn ? "text-emerald-400" : ""}
           />
-          <span>{visionStarting ? "Iniciando..." : "IA"}</span>
+          <span className="font-semibold">{visionStarting ? "Iniciando..." : "IA YOLO"}</span>
+          {visionOn && !visionStarting && (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          )}
         </button>
       )}
 
