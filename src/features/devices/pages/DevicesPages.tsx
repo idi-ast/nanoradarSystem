@@ -62,6 +62,24 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
     start: 0,
     end: 100,
   });
+  const [isFloatingCollapsed, setIsFloatingCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("floating_targets_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const handleToggleFloatingCollapsed = useCallback(() => {
+    setIsFloatingCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("floating_targets_collapsed", String(next));
+      } catch {
+        // ignoreen
+      }
+      return next;
+    });
+  }, []);
   const handleHideCamera = useCallback(
     (id: number) =>
       setDeviceVisibility((prev) => ({
@@ -221,12 +239,18 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
           />
           {!isCompact && !isRightBarOpen && (
             <>
-              <div className="absolute bottom-3 left-3 z-20 flex w-80 max-h-[70%] flex-col overflow-hidden ">
+              <div
+                className={`absolute bottom-3 left-3 z-20 flex max-h-[70%] flex-col overflow-hidden transition-all duration-300 ${
+                  isFloatingCollapsed ? "w-44" : "w-80"
+                }`}
+              >
                 <div className="flex min-h-0 flex-1">
                   <FloatingTargetsPanel
                     deviceFilter={deviceFilter}
                     onDeviceFilterChange={setDeviceFilter}
                     onSelectTrack={handleSelectHistoryTrack}
+                    isCollapsed={isFloatingCollapsed}
+                    onToggleCollapsed={handleToggleFloatingCollapsed}
                   />
                 </div>
               </div>
