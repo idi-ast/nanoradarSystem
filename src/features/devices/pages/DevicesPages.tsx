@@ -15,7 +15,9 @@ import { MapPanelsHost } from "../components/map/MapPanelsHost";
 import { TargetCard } from "../components/panel/TargetCard";
 import { ZoneCard } from "../components/panel/ZoneCard";
 import { TrackHistoryPanel } from "../components/panel/TrackHistoryPanel";
-import { HistoryRangeBar, type HistoryRange } from "../components";
+import { HistoryRangeBar, type HistoryRange, type HistoryTimeRange } from "../components";
+import { useQuery } from "@tanstack/react-query";
+import { fetchTrackSummaries } from "@/features/history/api";
 import { useGeofenceDetection } from "../hooks/useGeofenceDetection";
 import { useZoneAlertSound } from "../hooks/useZoneAlertSound";
 import { useTrackHistory } from "../hooks/useTrackHistory";
@@ -50,7 +52,10 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
   const [historyRange, setHistoryRange] = useState<HistoryRange>({
     start: 0,
     end: 100,
+    isLive: true,
   });
+  const [historyTimeRange, setHistoryTimeRange] =
+    useState<HistoryTimeRange | null>(null);
   const [deviceVisibility, setDeviceVisibility] =
     useState<DeviceVisibility>(ALL_VISIBLE);
   // ─── Historial de track ───
@@ -79,7 +84,12 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
     [],
   );
   const handleRangeChange = useCallback(
-    (range: HistoryRange) => setHistoryRange(range),
+    (range: HistoryRange, timeRange?: HistoryTimeRange) => {
+      setHistoryRange(range);
+      if (timeRange) {
+        setHistoryTimeRange(timeRange);
+      }
+    },
     [],
   );
   const handleHistoryTrackRangeChange = useCallback(
@@ -109,6 +119,10 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
     [targets, selectedHistoryTrackId],
   );
 
+  // Modo búsqueda histórica en BD (cuando se desplaza la barra al pasado)
+  const isHistoricalSearch =
+    historyRange.isLive === false && !!historyTimeRange;
+
   // Obtener historial del backend para el track seleccionado
   const rawTrackId =
     selectedHistoryTrackId?.replace(/^(nanoRadar|magosradar|spotter)_/, "") ??
@@ -123,7 +137,30 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
     trackId: rawTrackId,
     tipoRadar,
     sessionRef: selectedTarget?.lastUpdate ?? null,
+    from: isHistoricalSearch ? historyTimeRange?.fromIso : undefined,
+    to: isHistoricalSearch ? historyTimeRange?.toIso : undefined,
     enabled: !!rawTrackId,
+  });
+
+  // Si estamos en búsqueda histórica (BD) consultamos los tracks activos en esa ventana temporal
+  const { data: pastTracksData, isLoading: isLoadingPastTracks } = useQuery({
+    queryKey: [
+      "historical-tracks-window",
+      historyTimeRange?.fromIso,
+      historyTimeRange?.toIso,
+    ],
+    queryFn: () =>
+      fetchTrackSummaries(
+        {
+          from: historyTimeRange!.fromIso,
+          to: historyTimeRange!.toIso,
+          minPoints: 2,
+        },
+        1,
+        100,
+      ),
+    enabled: isHistoricalSearch,
+    staleTime: 30_000,
   });
 
   // Virtual target para tracks que solo existen en la BD (no están en vivo)
@@ -251,14 +288,33 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
             </div>
           )}
         </div>
-        <BottomBar
-        // title="Línea de tiempo"
-        >
+        <BottomBar>
           <HistoryRangeBar
             onChange={handleRangeChange}
             minTime={mainHistoryBounds?.minTime}
             maxTime={mainHistoryBounds?.maxTime}
+            defaultWindowMs={3_600_000}
+            showPresets={true}
+            initialLive={true}
           />
+          {isHistoricalSearch && (
+            <div className="flex items-center justify-between px-3 py-1  text-[11px] font-mono text-amber-200">
+              <span className="flex items-center gap-1.5">
+                {isLoadingPastTracks
+                  ? "Buscando registros en base de datos..."
+                  : `Historial BD: ${(pastTracksData?.data ?? []).length} tracks registrados en este rango temporal`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setHistoryRange({ start: 0, end: 100, isLive: true });
+                }}
+                className="px-2 py-0.5  hover:bg-emerald-500/30 text-amber-200 hover:text-emerald-200 border border-amber-400/30 transition-colors cursor-pointer text-[10px] font-bold"
+              >
+                Volver a En Vivo ⚡
+              </button>
+            </div>
+          )}
           <RadarStatusBar />
         </BottomBar>
       </div>
@@ -420,9 +476,8 @@ const RightBarNano = memo(
           </div>
         )}
         <div
-          className={`flex-1 min-h-0 flex flex-col mt-3 gap-1 ${
-            editingZoneId ? "overflow-y-auto" : "overflow-hidden"
-          }`}
+          className={`flex-1 min-h-0 flex flex-col mt-3 gap-1 ${editingZoneId ? "overflow-y-auto" : "overflow-hidden"
+            }`}
         >
           <div className="shrink-0 flex flex-col space-y-1.5">
             <h4 className="ms-1 text-xs font-bold uppercase tracking-widest text-text-200 border-b border-border-200 pb-1 shrink-0">
@@ -434,11 +489,10 @@ const RightBarNano = memo(
               </p>
             ) : (
               <div
-                className={`space-y-1.5 pr-1 ${
-                  editingZoneId
-                    ? "max-h-none overflow-visible"
-                    : "overflow-y-auto max-h-48 md:max-h-60"
-                }`}
+                className={`space-y-1.5 pr-1 ${editingZoneId
+                  ? "max-h-none overflow-visible"
+                  : "overflow-y-auto max-h-48 md:max-h-60"
+                  }`}
               >
                 {zones.map((zone) => (
                   <ZoneCard

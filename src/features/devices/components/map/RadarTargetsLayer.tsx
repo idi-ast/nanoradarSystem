@@ -148,8 +148,10 @@ export function RadarTargetsLayer({
         .flatMap((t) => {
           let history = t.history;
 
-          // Filtrar por duración configurable (0 = sin límite)
-          if (trackDurationSec > 0 && history.length > 1) {
+          // Filtrar por duración configurable (0 = sin límite) solo en modo en vivo.
+          // En modo histórico mostramos el segmento seleccionado completo sin acortar.
+          const isLiveMode = (historyRange.end ?? 100) >= 98;
+          if (isLiveMode && trackDurationSec > 0 && history.length > 1) {
             const newestTs = history[history.length - 1][2];
             const cutoff = newestTs - trackDurationSec * 1000;
             history = history.filter((p) => p[2] >= cutoff);

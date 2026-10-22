@@ -138,7 +138,7 @@ interface TargetVisualStore extends TargetVisualState {
 
 const DEFAULTS: TargetVisualState = {
   trackStrokeWidth: 10,
-  trackDurationSec: 120,
+  trackDurationSec: 60,
   inactiveIconTimeoutSec: 5,
   autoZoomEnabled: true,
   defaultCategoriaDeteccion: 0, // 0 = Sin clasificar (icono neutro C2)
