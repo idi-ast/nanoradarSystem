@@ -55,12 +55,12 @@ export function ZoneDrawingPanel() {
         </span>
       </div>
 
-      <p className="text-[9px] text-text-100/40 italic leading-tight">
+      <p className="text-[10px] text-text-200/70 leading-tight">
         {drawingPoints.length === 0
           ? "Haz clic en el mapa para agregar vértices."
           : drawingPoints.length < 3
-            ? `Agrega al menos ${3 - drawingPoints.length} punto${3 - drawingPoints.length > 1 ? "s" : ""} más.`
-            : "Zona lista para guardar. Puedes seguir agregando puntos."}
+            ? `Agrega al menos ${3 - drawingPoints.length} punto${3 - drawingPoints.length > 1 ? "s" : ""} más. Puedes arrastrar cualquier punto en el mapa para corregir su posición.`
+            : "Puedes arrastrar cualquier vértice con el mouse para ajustar su posición, o seguir haciendo clic para agregar más puntos."}
       </p>
 
       <input

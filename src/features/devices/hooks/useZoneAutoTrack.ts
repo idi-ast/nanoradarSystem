@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import type { RadarTarget, RadarZone } from "../types";
 import { isPointInPolygon } from "../components/map/utils/geoHelpers";
-
 import { isTrackCategoryAllowed } from "../config/categories";
+import { getAlertLevelAndType } from "../config/alerts";
 
 export interface ZoneAutoTrack {
   /** Zona con mayor nivel que tiene targets activos y activarPtz=true */
@@ -15,7 +15,8 @@ export interface ZoneAutoTrack {
 
 /**
  * Determina cuál zona con `activarPtz` debe ser seguida por la cámara,
- * priorizando el mayor `idTipoAlerta` entre las que tienen targets activos.
+ * priorizando por nivel de criticidad (Crítico 4 -> Alto 3 -> Medio 2 -> Bajo 1).
+ * Las zonas de ignorar detección nunca mueven la PTZ ni generan alertas.
  *
  * @returns La zona prioritaria a trackear, o null si ninguna zona tiene actividad.
  */
@@ -36,8 +37,27 @@ export function useZoneAutoTrack(
     );
     if (activeTargets.length === 0) return null;
 
-    const ptzZones = zones.filter((z) => z.activarPtz);
+    // Zonas de ignorar detección
+    const ignoreZones = zones.filter((z) => getAlertLevelAndType(z).isIgnore);
+
+    // Solo zonas de alerta con activarPtz (excluye ignorar detección)
+    const ptzZones = zones.filter((z) => {
+      if (!z.activarPtz) return false;
+      const info = getAlertLevelAndType(z);
+      return !info.isIgnore && info.level > 0;
+    });
     if (ptzZones.length === 0) return null;
+
+    // Filtrar targets que no caigan en zonas de ignorar detección
+    const validTargets = activeTargets.filter((t) => {
+      return !ignoreZones.some((iz) => {
+        const rawVertices = Array.isArray(iz.poligono.vertices)
+          ? iz.poligono.vertices
+          : Object.values(iz.poligono.vertices);
+        return isPointInPolygon(t.lat, t.lon, rawVertices as [number, number][]);
+      });
+    });
+    if (validTargets.length === 0) return null;
 
     let best: ZoneAutoTrack | null = null;
 
@@ -47,7 +67,7 @@ export function useZoneAutoTrack(
         : Object.values(zone.poligono.vertices);
 
       let hasActiveTarget = false;
-      for (const target of activeTargets) {
+      for (const target of validTargets) {
         if (!isTrackCategoryAllowed(target.behaviorClass, zone.allowed_categories)) {
           continue;
         }
@@ -59,9 +79,10 @@ export function useZoneAutoTrack(
 
       if (!hasActiveTarget) continue;
 
-      const level = Number(zone.idTipoAlerta ?? 1);
+      const { level } = getAlertLevelAndType(zone);
 
-      // Priorizar mayor nivel; si empatan, quedarse con el primero (ya existente)
+      // Priorizar mayor nivel de criticidad (Crítico 4 -> Alto 3 -> Medio 2 -> Bajo 1);
+      // si empatan en nivel, se queda con el primero encontrado
       if (!best || level > best.level) {
         // Calcular centroide del polígono
         const pts = rawVertices as [number, number][];

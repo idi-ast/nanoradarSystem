@@ -43,6 +43,19 @@ export function useZoneDrawing() {
     setPoints((prev) => [...prev, [lat, lng]]);
   }, []);
 
+  const updatePoint = useCallback((index: number, lat: number, lng: number) => {
+    setPoints((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      const next = [...prev];
+      next[index] = [lat, lng];
+      return next;
+    });
+  }, []);
+
+  const removePointAtIndex = useCallback((index: number) => {
+    setPoints((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const removeLastPoint = useCallback(() => {
     setPoints((prev) => prev.slice(0, -1));
   }, []);
@@ -82,6 +95,8 @@ export function useZoneDrawing() {
     startDrawing,
     cancelDrawing,
     addPoint,
+    updatePoint,
+    removePointAtIndex,
     removeLastPoint,
     setName,
     setColor,

@@ -36,6 +36,7 @@ import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
+import { ZoneEditLayer } from "./ZoneEditLayer";
 import { RadarInfoOverlay } from "./RadarInfoOverlay";
 import { DevicesOverlay } from "./DevicesOverlay";
 import type { DeviceVisibility } from "./DevicesOverlay";
@@ -171,6 +172,8 @@ export const RadarMap = memo(function RadarMap({
     drawingPoints,
     zoneColor,
     addDrawingPoint,
+    updateDrawingPoint,
+    removeDrawingPointAtIndex,
     instanceConfig,
     flyToZoneFn,
   } = useRadarContext();
@@ -233,12 +236,29 @@ export const RadarMap = memo(function RadarMap({
     lng: number;
   } | null>(null);
   const [isPickingPosition, setIsPickingPosition] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const [, setMapLoaded] = useState(false);
 
-  const [mapCenter, setMapCenter] = useState(() => ({
-    lat: parseFloat(config?.latitud ?? "0"),
-    lng: parseFloat(config?.longitud ?? "0"),
-  }));
+  const [mapCenter, setMapCenter] = useState(() => {
+    const saved = useTargetVisualStore.getState().customMapCenter;
+    if (
+      saved &&
+      typeof saved.latitude === "number" &&
+      typeof saved.longitude === "number" &&
+      !isNaN(saved.latitude) &&
+      !isNaN(saved.longitude)
+    ) {
+      return { lat: saved.latitude, lng: saved.longitude };
+    }
+    const lat = parseFloat(config?.latitud ?? "0");
+    const lng = parseFloat(config?.longitud ?? "0");
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      return { lat, lng };
+    }
+    return {
+      lat: instanceConfig.map.fallbackCenter?.latitude ?? -41.46281337025373,
+      lng: instanceConfig.map.fallbackCenter?.longitude ?? -72.9883559747647,
+    };
+  });
 
   // ── Calibración de cámara ──
   const { calibrate, gotoGps } = useCameraCalibration();
@@ -504,14 +524,6 @@ export const RadarMap = memo(function RadarMap({
     setSelectedLayer(layer);
   }, []);
 
-  const initialCenter = useMemo(
-    () => ({
-      longitude: parseFloat(config?.longitud ?? "0"),
-      latitude: parseFloat(config?.latitud ?? "0"),
-    }),
-    [config?.longitud, config?.latitud],
-  );
-
   const handleMapClick = useCallback(
     (e: MapLayerMouseEvent) => {
       // ── Modo calibración: prioridad máxima ──
@@ -575,6 +587,41 @@ export const RadarMap = memo(function RadarMap({
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
   const { isSuperAdmin, isAdmin } = useRole();
 
+  const effectiveInitialCenter = useMemo(() => {
+    if (
+      customMapCenter &&
+      typeof customMapCenter.latitude === "number" &&
+      typeof customMapCenter.longitude === "number" &&
+      !isNaN(customMapCenter.latitude) &&
+      !isNaN(customMapCenter.longitude)
+    ) {
+      return {
+        latitude: customMapCenter.latitude,
+        longitude: customMapCenter.longitude,
+      };
+    }
+    const latCfg = parseFloat(config?.latitud ?? "0");
+    const lonCfg = parseFloat(config?.longitud ?? "0");
+    if (!isNaN(latCfg) && !isNaN(lonCfg) && latCfg !== 0 && lonCfg !== 0) {
+      return { latitude: latCfg, longitude: lonCfg };
+    }
+    return {
+      latitude: defaultCenter?.latitude || -41.46281337025373,
+      longitude: defaultCenter?.longitude || -72.9883559747647,
+    };
+  }, [customMapCenter, config?.latitud, config?.longitud, defaultCenter]);
+
+  const effectiveInitialZoom = useMemo(() => {
+    if (
+      typeof customMapZoom === "number" &&
+      !isNaN(customMapZoom) &&
+      customMapZoom > 0
+    ) {
+      return customMapZoom;
+    }
+    return instanceConfig.map.zoom ?? 15;
+  }, [customMapZoom, instanceConfig.map.zoom]);
+
   // if (!config) {
   //   return (
   //     <div className="grow h-full flex flex-col gap-5 items-center justify-center bg-bg-100 border-r border-emerald-500/20 ">
@@ -593,13 +640,9 @@ export const RadarMap = memo(function RadarMap({
         <ReactMapGL
           ref={mapRef}
           initialViewState={{
-            latitude:
-              customMapCenter?.latitude ??
-              (defaultCenter.latitude || initialCenter.latitude),
-            longitude:
-              customMapCenter?.longitude ??
-              (defaultCenter.longitude || initialCenter.longitude),
-            zoom: customMapZoom ?? instanceConfig.map.zoom,
+            latitude: effectiveInitialCenter.latitude,
+            longitude: effectiveInitialCenter.longitude,
+            zoom: effectiveInitialZoom,
             pitch: instanceConfig.map.pitch,
             bearing: instanceConfig.map.bearing,
           }}
@@ -656,13 +699,19 @@ export const RadarMap = memo(function RadarMap({
             selectedLayer={activeLayer}
             onLayerChange={handleLayerChange}
             mapLayers={mapLayers}
-            initialCenter={initialCenter}
-            initialZoom={15}
+            initialCenter={effectiveInitialCenter}
+            initialZoom={effectiveInitialZoom}
             extraButtons={<ManualPtzButton />}
           />
           <RadarZonesLayer zones={zones} />
           <RadarZonesPulseLayer />
-          <DrawingPreviewLayer points={drawingPoints} color={zoneColor} />
+          <DrawingPreviewLayer
+            points={drawingPoints}
+            color={zoneColor}
+            onUpdatePoint={updateDrawingPoint}
+            onRemovePoint={removeDrawingPointAtIndex}
+          />
+          <ZoneEditLayer />
 
           {RADAR_INSTANCES.slice(1).map((instance) => (
             <RadarProvider key={instance.id} instance={instance}>
@@ -681,10 +730,10 @@ export const RadarMap = memo(function RadarMap({
           <CameraActivityOverlay
             mapRef={mapRef}
             defaultCenter={{
-              longitude: defaultCenter.longitude || initialCenter.longitude,
-              latitude: defaultCenter.latitude || initialCenter.latitude,
+              longitude: effectiveInitialCenter.longitude,
+              latitude: effectiveInitialCenter.latitude,
             }}
-            defaultZoom={instanceConfig.map.zoom}
+            defaultZoom={effectiveInitialZoom}
           />
           {liveEdit && liveEditPos && !isNaN(liveEditPos.lat) && !isNaN(liveEditPos.lng) && (
             <>

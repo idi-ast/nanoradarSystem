@@ -9,6 +9,7 @@ import {
   IconChevronDown,
   IconPin,
   IconPinFilled,
+  IconMapPin,
 } from "@tabler/icons-react";
 import type { RadarZone } from "../../types";
 import { useRadarContext } from "../../context/useRadarContext";
@@ -24,6 +25,8 @@ import {
   MAX_CUSTOM_SOUNDS,
 } from "../../hooks/useCustomSounds";
 import { useTiposAlertas } from "../../hooks/useTiposAlertas";
+import { useZoneEditStore } from "../../stores/zoneEditStore";
+import { extractZoneVertices } from "../map/utils/geoHelpers";
 
 interface Props {
   zone: RadarZone;
@@ -78,6 +81,14 @@ export const ZoneCard = memo(function ZoneCard({
       : ALL_TRACK_CATEGORIES,
   );
 
+  const isThisZoneEditing = useZoneEditStore(
+    (s) => s.editingZoneId === (zone.id ?? zone.nombre),
+  );
+  const editVerticesCount = useZoneEditStore((s) =>
+    isThisZoneEditing ? s.vertices.length : extractZoneVertices(zone.poligono.vertices).length,
+  );
+  const editIsDirty = useZoneEditStore((s) => (isThisZoneEditing ? s.isDirty : false));
+
   const prevIsEditingRef = useRef(false);
   useEffect(() => {
     if (isEditing && !prevIsEditingRef.current) {
@@ -93,9 +104,22 @@ export const ZoneCard = memo(function ZoneCard({
           ? zone.allowed_categories
           : ALL_TRACK_CATEGORIES,
       );
+      useZoneEditStore.getState().startEditing(zone);
+    } else if (!isEditing && prevIsEditingRef.current) {
+      if (useZoneEditStore.getState().editingZoneId === (zone.id ?? zone.nombre)) {
+        useZoneEditStore.getState().stopEditing();
+      }
     }
     prevIsEditingRef.current = isEditing;
   }, [isEditing, zone]);
+
+  useEffect(() => {
+    return () => {
+      if (useZoneEditStore.getState().editingZoneId === (zone.id ?? zone.nombre)) {
+        useZoneEditStore.getState().stopEditing();
+      }
+    };
+  }, [zone]);
 
   useEffect(() => {
     if (isEditing && editContainerRef.current) {
@@ -120,6 +144,7 @@ export const ZoneCard = memo(function ZoneCard({
         ? zone.allowed_categories
         : ALL_TRACK_CATEGORIES,
     );
+    useZoneEditStore.getState().startEditing(zone);
     if (onStartEdit) {
       onStartEdit();
     } else {
@@ -131,6 +156,11 @@ export const ZoneCard = memo(function ZoneCard({
     if (!zone.id) return;
     setIsSaving(true);
     try {
+      const liveVertices = useZoneEditStore.getState().vertices;
+      const verticesToSave = liveVertices && liveVertices.length >= 3
+        ? liveVertices
+        : zone.poligono.vertices;
+
       await updateZone(zone.id, {
         nombre: editName || zone.nombre,
         descripcion: `Zona con alerta nivel ${editLevel}`,
@@ -140,8 +170,9 @@ export const ZoneCard = memo(function ZoneCard({
         categoriaDeteccion: editCategoria,
         activarPtz: editActivarPtz,
         allowed_categories: editAllowedCategories,
-        poligono: { color: editColor, vertices: zone.poligono.vertices },
+        poligono: { color: editColor, vertices: verticesToSave },
       });
+      useZoneEditStore.getState().stopEditing();
       if (onEndEdit) {
         onEndEdit();
       } else {
@@ -211,7 +242,10 @@ export const ZoneCard = memo(function ZoneCard({
               <input
                 type="color"
                 value={editColor}
-                onChange={(e) => setEditColor(e.target.value)}
+                onChange={(e) => {
+                  setEditColor(e.target.value);
+                  useZoneEditStore.getState().setColor(e.target.value);
+                }}
                 className="min-w-14 min-h-10 bg-transparent cursor-pointer"
               />
             </div>
@@ -449,9 +483,29 @@ export const ZoneCard = memo(function ZoneCard({
           </div>
         </div>
 
+        {/* Guía y estado de vértices interactivos en el mapa */}
+        <div className=" p-2 flex flex-col gap-1 shadow-xs">
+          <div className="flex items-center justify-end text-xs">
+            <span className="font-mono text-emerald-400    text-[10px] font-bold">
+              {editVerticesCount} vértices
+            </span>
+          </div>
+
+          {editIsDirty && (
+            <button
+              type="button"
+              onClick={() => useZoneEditStore.getState().resetVertices()}
+              className="self-start text-[10px] text-amber-400 hover:text-amber-300 underline mt-0.5 cursor-pointer font-medium"
+            >
+              Restaurar puntos originales
+            </button>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button
             onClick={() => {
+              useZoneEditStore.getState().stopEditing();
               if (onEndEdit) {
                 onEndEdit();
               } else {
@@ -489,18 +543,17 @@ export const ZoneCard = memo(function ZoneCard({
 
   return (
     <div
-      className={`relative bg-bg-200 overflow-hidden group cursor-pointer rounded-lg border transition-all duration-300 ease-in-out ${
-        isExpanded
-          ? "border-border shadow-md"
-          : "border-border/40 hover:border-border/80"
-      }`}
+      className={`relative bg-bg-200 overflow-hidden group cursor-pointer rounded-lg border transition-all duration-300 ease-in-out ${isExpanded
+        ? "border-border shadow-md"
+        : "border-border/40 hover:border-border/80"
+        }`}
       style={
         hasAlert
           ? ({
-              borderRight: `2px solid ${zone.poligono.color}`,
-              "--zone-glow-color": zone.poligono.color,
-              animation: "zone-alert-glow 1.6s ease-in-out infinite",
-            } as React.CSSProperties)
+            borderRight: `2px solid ${zone.poligono.color}`,
+            "--zone-glow-color": zone.poligono.color,
+            animation: "zone-alert-glow 1.6s ease-in-out infinite",
+          } as React.CSSProperties)
           : undefined
       }
       onMouseEnter={() => setIsHovered(true)}
@@ -528,9 +581,8 @@ export const ZoneCard = memo(function ZoneCard({
         </div>
       )}
       <div
-        className={`absolute blur-xl left-0 top-0 w-full h-full pointer-events-none ${
-          hasAlert ? "animate-pulse opacity-60" : "opacity-25"
-        }`}
+        className={`absolute blur-xl left-0 top-0 w-full h-full pointer-events-none ${hasAlert ? "animate-pulse opacity-60" : "opacity-25"
+          }`}
         style={{ backgroundColor: zone.poligono.color }}
       />
 
@@ -539,9 +591,8 @@ export const ZoneCard = memo(function ZoneCard({
         <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 min-h-[30px]">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div
-              className={`w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 transition-transform duration-200 ${
-                hasAlert ? "animate-ping" : ""
-              }`}
+              className={`w-2.5 h-2.5 rounded-full shrink-0 border border-white/20 transition-transform duration-200 ${hasAlert ? "animate-ping" : ""
+                }`}
               style={{
                 backgroundColor: zone.poligono.color,
                 borderColor: zone.poligono.color,
@@ -637,20 +688,18 @@ export const ZoneCard = memo(function ZoneCard({
             {/* Chevron indicador */}
             <IconChevronDown
               size={14}
-              className={`text-text-200/50 transition-transform duration-300 pointer-events-none ${
-                isExpanded ? "rotate-180 text-text-100" : ""
-              }`}
+              className={`text-text-200/50 transition-transform duration-300 pointer-events-none ${isExpanded ? "rotate-180 text-text-100" : ""
+                }`}
             />
           </div>
         </div>
 
         {/* Contenido expandible animado */}
         <div
-          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-            isExpanded
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0 pointer-events-none"
-          }`}
+          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0 pointer-events-none"
+            }`}
         >
           <div className="overflow-hidden">
             <div
@@ -681,13 +730,12 @@ export const ZoneCard = memo(function ZoneCard({
                 )}
                 {zone.allowed_categories &&
                   zone.allowed_categories.length <
-                    ALL_TRACK_CATEGORIES.length && (
+                  ALL_TRACK_CATEGORIES.length && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${
-                        zone.allowed_categories.length === 0
-                          ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                          : "bg-bg-100 text-text-200 border-border/40"
-                      }`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${zone.allowed_categories.length === 0
+                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                        : "bg-bg-100 text-text-200 border-border/40"
+                        }`}
                       title={
                         zone.allowed_categories.length === 0
                           ? "Zona inactiva (0 categorías permitidas)"

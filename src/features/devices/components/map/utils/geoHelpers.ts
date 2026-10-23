@@ -141,3 +141,60 @@ export function haversineDistanceM(
   return R * c;
 }
 
+/**
+ * Normaliza y extrae los vértices de una zona en formato array [[lat, lon], ...],
+ * soportando arrays indexados, arrays de objetos {lat, lng} y objetos con claves numéricas.
+ */
+export function extractZoneVertices(
+  verticesRaw: unknown,
+): [number, number][] {
+  if (!verticesRaw) return [];
+  if (Array.isArray(verticesRaw)) {
+    return verticesRaw
+      .map((p) => {
+        if (Array.isArray(p) && p.length >= 2) {
+          const lat = Number(p[0]);
+          const lon = Number(p[1]);
+          return !isNaN(lat) && !isNaN(lon) ? ([lat, lon] as [number, number]) : null;
+        }
+        if (p && typeof p === "object") {
+          const obj = p as Record<string, unknown>;
+          const lat = Number(obj.lat ?? obj.latitude ?? obj[0]);
+          const lon = Number(obj.lng ?? obj.lon ?? obj.longitude ?? obj[1]);
+          return !isNaN(lat) && !isNaN(lon) ? ([lat, lon] as [number, number]) : null;
+        }
+        return null;
+      })
+      .filter((p): p is [number, number] => p !== null);
+  }
+
+  if (typeof verticesRaw === "object") {
+    const rawObj = verticesRaw as Record<string, unknown>;
+    const keys = Object.keys(rawObj).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ""), 10) || 0;
+      return numA - numB;
+    });
+
+    return keys
+      .map((k) => {
+        const p = rawObj[k];
+        if (Array.isArray(p) && p.length >= 2) {
+          const lat = Number(p[0]);
+          const lon = Number(p[1]);
+          return !isNaN(lat) && !isNaN(lon) ? ([lat, lon] as [number, number]) : null;
+        }
+        if (p && typeof p === "object") {
+          const obj = p as Record<string, unknown>;
+          const lat = Number(obj.lat ?? obj.latitude ?? obj[0]);
+          const lon = Number(obj.lng ?? obj.lon ?? obj.longitude ?? obj[1]);
+          return !isNaN(lat) && !isNaN(lon) ? ([lat, lon] as [number, number]) : null;
+        }
+        return null;
+      })
+      .filter((p): p is [number, number] => p !== null);
+  }
+
+  return [];
+}
+
