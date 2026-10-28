@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { apiSystem } from "@/apis/apiSystem";
+import { useCameraActivityStore } from "./cameraActivityStore";
 
 /** Resultado de una calibración */
 export interface CalibrationResult {
@@ -113,6 +114,9 @@ export const useCameraCalibrationStore = create<CameraCalibrationState>()(
         apiSystem
           .post(`/ptz/${cameraId}/pause-tracking`)
           .catch(() => {});
+        // Suspender el activity tracking de TODAS las cámaras: otras sesiones
+        // activas (fly-to/zoom por actividad) peleaban contra la calibración.
+        useCameraActivityStore.getState().setSuspended(true);
         // Cargar estado de cobertura actual.
         get().refreshCalibrationStatus(cameraId);
       }
@@ -134,6 +138,13 @@ export const useCameraCalibrationStore = create<CameraCalibrationState>()(
         apiSystem
           .post(`/ptz/${calibratingCameraId}/resume-tracking`)
           .catch(() => {});
+        // Reactivar el activity tracking global.
+        useCameraActivityStore.getState().setSuspended(false);
+      }
+      // Si se entra a calibrar una cámara FIJA desde una PTZ previa,
+      // restaurar también la suspensión.
+      if (!calibratingIsPtz && useCameraActivityStore.getState().suspended) {
+        useCameraActivityStore.getState().setSuspended(false);
       }
       set({
         calibratingCameraId: null,

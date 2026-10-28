@@ -65,11 +65,26 @@ function useWebRtcPlayer(streamUrl: string) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Expone una función para forzar reconexión desde la UI
   const retry = useCallback(() => {
     setConnectionError(null);
     setRetryCount((n) => n + 1);
   }, []);
+
+  // ── Reconexión automática ──
+  // Ante "Conexión perdida" o error de negociación, reintenta solo con
+  // retroceso progresivo (2.5s → 10s) mientras el error persista.
+  const errorRef = useRef<string | null>(null);
+  errorRef.current = connectionError;
+
+  useEffect(() => {
+    if (!connectionError) return; // recuperado: no hay nada que reintentar
+    const attempts = Math.max(1, retryCount);
+    const delay = Math.min(10_000, 2500 * attempts);
+    const t = setTimeout(() => {
+      if (errorRef.current) retry();
+    }, delay);
+    return () => clearTimeout(t);
+  }, [connectionError, retryCount, retry]);
 
   const videoRef = useCallback(
     (node: HTMLVideoElement | null) => {
@@ -148,7 +163,8 @@ function useWebRtcPlayer(streamUrl: string) {
         streamRef.current = null;
       };
     },
-    // retryCount hace que el callback-ref se recree al presionar Reintentar
+    // retryCount hace que el callback-ref se recree al reconectar
+    // (automático o manual)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [streamUrl, retryCount],
   );
@@ -250,17 +266,16 @@ function CameraVideo({
         }}
       />
       {connectionError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2">
-          <p className="text-red-400 text-[11px] font-medium text-center px-3 leading-tight">
-            {connectionError}
-          </p>
+        <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/80 border border-red-500/40 rounded-md px-2 py-1 z-20">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-red-300 text-[10px] leading-none">Sin señal</span>
           {onRetry && (
             <button
               onClick={onRetry}
-              className="flex items-center gap-1 text-[11px] text-white bg-bg-300/60 hover:bg-bg-300 px-2 py-1 rounded transition-colors"
+              title="Reconectar ahora"
+              className="text-text-100/70 hover:text-text-100 transition-colors"
             >
               <IconRefresh size={13} stroke={1.5} />
-              Reintentar
             </button>
           )}
         </div>
