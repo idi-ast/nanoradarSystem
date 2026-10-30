@@ -11,6 +11,20 @@ interface ApiSystemConfig {
 
 type SessionExpiredCallback = (options: { stay: () => void; logout: () => void }) => void;
 
+/**
+ * Control de expiración de sesión (definido en .env del frontend):
+ * - VITE_SESSION_EXPIRATION=false → la sesión NUNCA expira: no hay modal
+ *   "Sesión por expirar" ni cierre por inactividad. El token se renueva
+ *   silenciosamente siempre que sea necesario.
+ * - VITE_SESSION_EXPIRATION=true  → la sesión expira tras
+ *   VITE_SESSION_MAX_HOURS horas de inactividad y muestra el modal.
+ */
+const SESSION_EXPIRATION_ENABLED =
+  (import.meta.env.VITE_SESSION_EXPIRATION ?? "false").toString().trim().toLowerCase() ===
+  "true";
+const SESSION_MAX_HOURS = Number(import.meta.env.VITE_SESSION_MAX_HOURS ?? 8);
+const SESSION_MAX_MS = SESSION_MAX_HOURS * 60 * 60 * 1000;
+
 class ApiSystem {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
@@ -18,7 +32,10 @@ class ApiSystem {
   private refreshPromise: Promise<string | null> | null = null;
   private sessionExpiredCallback: SessionExpiredCallback | null = null;
   private activityTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly ACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+  /** Timeout de inactividad (0 = expiración desactivada) */
+  private readonly ACTIVITY_TIMEOUT_MS = SESSION_EXPIRATION_ENABLED
+    ? SESSION_MAX_MS
+    : 0;
 
   constructor(config: ApiSystemConfig) {
     this.baseURL = config.baseURL;
@@ -31,6 +48,9 @@ class ApiSystem {
 
   private startActivityMonitor() {
     if (typeof window === "undefined") return;
+    // Con expiración desactivada (VITE_SESSION_EXPIRATION=false) no se
+    // registra ningún temporizador: la sesión nunca expira por inactividad.
+    if (!this.ACTIVITY_TIMEOUT_MS || this.ACTIVITY_TIMEOUT_MS <= 0) return;
     const resetTimer = () => {
       if (this.activityTimer) clearTimeout(this.activityTimer);
       this.activityTimer = setTimeout(() => {

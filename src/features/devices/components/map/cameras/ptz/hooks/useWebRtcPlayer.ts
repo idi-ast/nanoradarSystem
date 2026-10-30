@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const RECONNECT_BASE_MS = 2500;
+const RECONNECT_MAX_MS = 10_000;
+
 export function getWhepBaseUrl(urlStream: string): string {
   const base = import.meta.env.VITE_MEDIAMTX_BASE_URL || "";
 
@@ -32,6 +35,22 @@ export function useWebRtcPlayer(streamUrl: string) {
     setConnectionError(null);
     setRetryCount((n) => n + 1);
   }, []);
+
+  // ── Reconexión automática ──
+  // Ante "Conexión perdida" o error de negociación, reintenta solo con
+  // retroceso progresivo (2.5s → 10s) mientras el error persista.
+  const errorRef = useRef<string | null>(null);
+  errorRef.current = connectionError;
+
+  useEffect(() => {
+    if (!connectionError) return; // recuperado: no hay nada que reintentar
+    const attempts = Math.max(1, retryCount);
+    const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * attempts);
+    const t = setTimeout(() => {
+      if (errorRef.current) retry();
+    }, delay);
+    return () => clearTimeout(t);
+  }, [connectionError, retryCount, retry]);
 
   const videoRef = useCallback(
     (node: HTMLVideoElement | null) => {
@@ -108,6 +127,8 @@ export function useWebRtcPlayer(streamUrl: string) {
         setStream(null);
       };
     },
+    // retryCount hace que el callback-ref se recree al reconectar
+    // (automático o manual)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [streamUrl, retryCount],
   );

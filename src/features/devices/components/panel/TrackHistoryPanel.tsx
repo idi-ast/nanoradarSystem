@@ -5,10 +5,13 @@ import {
   IconClock,
   IconSpeedboat,
   IconStar,
+  IconPin,
+  IconPinFilled,
 } from "@tabler/icons-react";
 import type { RadarTarget, TrackHistoryPoint } from "../../types";
 import { DEVICE_LABEL, DEVICE_COLOR } from "../map/devicesConfig";
 import { useTrackHistory } from "../../hooks/useTrackHistory";
+import { usePinnedTargetStore } from "../../stores/pinnedTargetStore";
 import {
   HistoryRangeBar,
   type HistoryRange,
@@ -256,6 +259,9 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
                 onLabeled={() => void refreshBehavior()}
               />
             )}
+            {target.deviceType === "magosradar" && rawId.startsWith("T") && (
+              <PinButton trackId={rawId} />
+            )}
             <button
               onClick={handleToggleFavorite}
               className={`p-1 rounded hover:bg-bg-300 transition-colors ${
@@ -452,5 +458,56 @@ function PointRow({
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Botón fijar/quitar fijado del track como objetivo exclusivo de la PTZ.
+ * Solo puede haber UN track fijado a la vez; fijar otro reemplaza al anterior.
+ */
+function PinButton({ trackId }: { trackId: string }) {
+  const pinnedTrackId = usePinnedTargetStore((s) => s.pinnedTrackId);
+  const pinTarget = usePinnedTargetStore((s) => s.pinTarget);
+  const unpinTarget = usePinnedTargetStore((s) => s.unpinTarget);
+
+  const isPinned = pinnedTrackId === trackId;
+  const isPinnedOther = pinnedTrackId !== null && !isPinned;
+
+  const handleClick = useCallback(() => {
+    if (isPinned) {
+      void unpinTarget();
+      toast.info("Objetivo liberado — la PTZ vuelve al seguimiento automático");
+    } else {
+      void pinTarget(trackId);
+      toast.success(
+        `Objetivo ${trackId} fijado — la PTZ lo seguirá exclusivamente`,
+      );
+    }
+  }, [isPinned, pinTarget, unpinTarget, trackId]);
+
+  return (
+    <button
+      onClick={handleClick}
+      title={
+        isPinned
+          ? "Quitar fijado: la PTZ vuelve al seguimiento automático"
+          : isPinnedOther
+            ? `Fijar este objetivo (reemplaza al fijado ${pinnedTrackId})`
+            : "Fijar: la PTZ seguirá SOLO este track"
+      }
+      className={`p-1 rounded transition-colors ${
+        isPinned
+          ? "text-amber-400 bg-amber-400/10"
+          : isPinnedOther
+            ? "text-text-200 hover:text-amber-400 hover:bg-bg-300"
+            : "text-text-200 hover:text-amber-400 hover:bg-bg-300"
+      }`}
+    >
+      <IconPin
+        size={18}
+        stroke={1.5}
+        fill={isPinned ? "currentColor" : "none"}
+      />
+    </button>
   );
 }
