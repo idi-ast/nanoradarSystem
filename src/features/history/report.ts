@@ -49,7 +49,6 @@ type CanvasPrimitive =
 const BRAND = "#0f172a";
 const ACCENT = "#65a30d";
 const MUTED = "#64748b";
-const BORDER = "#e2e8f0";
 const CRITICAL = "#dc2626";
 
 export interface ReportRange {
@@ -103,18 +102,6 @@ function fmtDateTime(d?: Date | string | null): string {
   });
 }
 
-function fmtTime(d?: string | null): string {
-  if (!d) return "--";
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleTimeString("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-}
-
 function fmtDuration(sec?: number | null): string {
   if (sec == null || !Number.isFinite(sec) || sec < 0) return "--";
   const total = Math.round(sec);
@@ -135,15 +122,6 @@ function fmtDistance(m?: number | null): string {
 function fmtSpeed(ms?: number | null): string {
   if (ms == null || !Number.isFinite(ms)) return "--";
   return `${(ms * MS_TO_KMH).toFixed(1)} km/h`;
-}
-
-function fmtCategory(t: TrackSummary): string {
-  if (!t.behavior_class) return "Sin clasificar";
-  const label = t.behavior_class.replace(/_/g, " ");
-  if (t.behavior_confidence != null) {
-    return `${label} (${Math.round(t.behavior_confidence * 100)}%)`;
-  }
-  return label;
 }
 
 function humanHours(hours: number): string {
@@ -364,13 +342,6 @@ function buildDocDefinition(opts: TrackReportOptions): {
   const stats = computeStats(tracks);
   const generatedAt = new Date();
 
-  // Orden cronológico: más recientes primero
-  const ordered = [...tracks].sort((a, b) => {
-    const ta = a.first_seen ? new Date(a.first_seen).getTime() : 0;
-    const tb = b.first_seen ? new Date(b.first_seen).getTime() : 0;
-    return tb - ta;
-  });
-
   const topTracks = [...tracks]
     .sort((a, b) => (b.distance_m ?? 0) - (a.distance_m ?? 0))
     .slice(0, 5);
@@ -406,35 +377,25 @@ function buildDocDefinition(opts: TrackReportOptions): {
   // Series del gráfico de actividad: se usa el inicio de cada track.
   const { buckets: hourly, stepHours } = buildHourlyBuckets(tracks, range);
 
-  const detailRows: Content[][] = ordered.map((t, idx) => [
-    { text: t.track_id, fontSize: 7.5, bold: true, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: t.tipo_radar || "--", fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: fmtTime(t.first_seen), fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: fmtTime(t.last_seen), fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: fmtDuration(t.duration_seconds), fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: fmtDistance(t.distance_m), fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: fmtCategory(t), fontSize: 7, fillColor: idx % 2 ? "#f8fafc" : undefined },
-    { text: t.nivel_max != null ? String(t.nivel_max) : "--", fontSize: 7.5, fillColor: idx % 2 ? "#f8fafc" : undefined },
-  ]);
-
-  const activityStack: Content[] = ordered.slice(0, 12).map(
-    (t): Content => ({
-      columns: [
-        { width: 42, text: fmtTime(t.first_seen), fontSize: 8, bold: true, color: ACCENT },
-        { width: 56, text: t.track_id, fontSize: 8, bold: true },
-        {
-          width: "*",
-          fontSize: 8,
-          color: "#1e293b",
-          text:
-            `${fmtDuration(t.duration_seconds)} · ${fmtDistance(t.distance_m)} · ` +
-            `${fmtCategory(t)} · ${fmtSpeed(t.avg_speed)}` +
-            (t.zones?.length ? ` · zonas: ${t.zones.join(", ")}` : ""),
-        },
-      ],
-      margin: [0, 1.5, 0, 1.5],
-    }),
+  const peakBucket = hourly.reduce<HourBucket | null>(
+    (acc, b) => (acc == null || b.count > acc.count ? b : acc),
+    null,
   );
+  const topCategory = stats.byCategory[0];
+  const topZone = topZones[0];
+  const nightCount = nightBuckets.reduce((sum, b) => sum + b.count, 0);
+  const nightPct = stats.trackCount > 0 ? Math.round((nightCount / stats.trackCount) * 100) : 0;
+  const insights: Content[] = [];
+  if (stats.trackCount > 0) {
+    const topCategoryLabel = topCategory?.label ?? "Sin clasificar";
+    const topCategoryShare = topCategory ? Math.round((topCategory.count / stats.trackCount) * 100) : 0;
+    insights.push(
+      { text: `Hora pico de actividad: ${peakBucket?.label ?? "--"} con ${peakBucket?.count ?? 0} tracks`, fontSize: 8, color: "#1e293b" },
+      { text: `Categoría principal: ${topCategoryLabel} (${topCategory?.count ?? 0} tracks · ${topCategoryShare}% del período)`, fontSize: 8, color: "#1e293b" },
+      { text: `Zona con mayor actividad: ${topZone?.zone ?? "--"} (${topZone?.count ?? 0} tracks · pico a las ${topZone?.peakHour != null ? String(topZone.peakHour).padStart(2, "0") : "--"}:00)`, fontSize: 8, color: "#1e293b" },
+      { text: `Actividad nocturna (21:00 - 07:00): ${nightCount} tracks (${nightPct}% del período)`, fontSize: 8, color: "#1e293b" },
+    );
+  }
 
   const docDefinition: TDocumentDefinitions = {
     pageSize: "A4",
@@ -586,11 +547,13 @@ function buildDocDefinition(opts: TrackReportOptions): {
               } as Content,
             ]),
 
-      sectionTitle("Actividades destacadas (últimas detecciones)"),
-      ...(activityStack.length === 0
-        ? [{ text: "No se registraron tracks en el período seleccionado.", fontSize: 8.5, italics: true, color: MUTED }]
-        : activityStack),
+      // Analíticas del período
+      sectionTitle("Analíticas del período"),
+      ...(stats.trackCount > 0 && insights.length > 0
+        ? insights
+        : [{ text: "Sin datos analíticos para el período seleccionado.", fontSize: 8, color: MUTED } as Content]),
 
+      // Tracks con mayor recorrido
       ...(topTracks.length > 0
         ? [
           sectionTitle("Tracks con mayor recorrido"),
@@ -609,44 +572,6 @@ function buildDocDefinition(opts: TrackReportOptions): {
         ]
         : []),
 
-      // Detalle
-      { text: "Detalle de tracks", fontSize: 10, bold: true, color: BRAND, margin: [0, 14, 0, 4] },
-      {
-        text: `${stats.trackCount} tracks · ordenados por primera detección (más recientes primero)`,
-        fontSize: 7.5,
-        color: MUTED,
-        margin: [0, 0, 0, 6],
-      },
-      ordered.length === 0
-        ? { text: "--", fontSize: 8, color: MUTED }
-        : {
-          table: {
-            headerRows: 1,
-            widths: ["auto", "auto", "auto", "auto", "auto", "auto", "*", "auto"],
-            body: [
-              [
-                { text: "Track", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Radar", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Inicio", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Fin", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Duración", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Distancia", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Categoría (conf.)", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-                { text: "Nivel", bold: true, fontSize: 7.5, color: "#ffffff", fillColor: BRAND },
-              ],
-              ...detailRows,
-            ],
-          },
-          layout: {
-            hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length ? 0.6 : 0),
-            vLineWidth: () => 0,
-            hLineColor: () => BORDER,
-            paddingLeft: () => 4,
-            paddingRight: () => 4,
-            paddingTop: () => 2.5,
-            paddingBottom: () => 2.5,
-          },
-        },
     ],
     footer: (currentPage, pageCount) => ({
       columns: [
