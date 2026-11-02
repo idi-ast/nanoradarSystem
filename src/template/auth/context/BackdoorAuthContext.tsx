@@ -6,7 +6,6 @@
 import {
   useState,
   useCallback,
-  useEffect,
   type ReactNode,
 } from "react";
 import { AuthContext } from "@/libs/better-auth/context";
@@ -21,8 +20,6 @@ import { authService } from "../services/authService";
 import { useRole } from "@/context/role";
 import type { RoleId } from "@/context/role";
 import { queryClient } from "@/libs/tanstack-query";
-import { apiSystem } from "@/apis";
-import { SessionExpiredModal } from "@/components/ui/SessionExpiredModal";
 
 const USER_STORAGE_KEY = "auth_user";
 
@@ -43,8 +40,6 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSessionExpired, setShowSessionExpired] = useState(false);
-  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
 
   // Reconstruir sesión desde localStorage si hay token y usuario guardados
   const storedToken = localStorage.getItem("access_token");
@@ -69,31 +64,7 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     updatedAt: new Date(),
   });
 
-  useEffect(() => {
-    apiSystem.setSessionExpiredHandler(({ stay, logout }) => {
-      setShowSessionExpired(true);
-      const originalStay = stay;
-      const originalLogout = logout;
 
-      const handleStay = () => {
-        setIsRefreshingToken(true);
-        originalStay();
-        setTimeout(() => setIsRefreshingToken(false), 3000);
-      };
-
-      const handleLogout = () => {
-        setShowSessionExpired(false);
-        originalLogout();
-      };
-
-      const modalCallbacks = { stay: handleStay, logout: handleLogout };
-      return modalCallbacks;
-    });
-
-    return () => {
-      apiSystem.setSessionExpiredHandler(null);
-    };
-  }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -160,7 +131,6 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     setRoleId(null);
     setRoleEmpresa(null);
     setEmpresaEsPrincipal(false);
-    setShowSessionExpired(false);
     queryClient.clear();
   }, [setRoleId, setRoleEmpresa, setEmpresaEsPrincipal]);
 
@@ -184,16 +154,6 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <SessionExpiredModal
-        isOpen={showSessionExpired}
-        onStay={() => {
-          setShowSessionExpired(false);
-        }}
-        onLogout={() => {
-          signOut();
-        }}
-        isRefreshing={isRefreshingToken}
-      />
     </AuthContext.Provider>
   );
 }
