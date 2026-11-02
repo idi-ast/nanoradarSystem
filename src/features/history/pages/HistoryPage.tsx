@@ -12,7 +12,9 @@ import { PlaybackControls } from "../components/PlaybackControls";
 import type { TrackSummaryFilters } from "../types";
 import { TRACKS_PAGE_SIZE } from "../types";
 import { fetchAllTrackSummaries } from "../api";
+import { fetchAnalysisPoints, type AnalysisFetchResult, type AnalysisZone } from "../analysis";
 import { downloadTrackActivityReport } from "../report";
+import { extractZoneVertices } from "@/features/devices/components/map/utils/geoHelpers";
 import { toast } from "sonner";
 
 function getDefaultFromDate(): string {
@@ -103,6 +105,26 @@ export default function HistoryPage() {
         return;
       }
 
+      const analysisZones: AnalysisZone[] = zones
+        .map((z) => ({
+          nombre: z.nombre,
+          vertices: extractZoneVertices(z.poligono?.vertices),
+          color: z.poligono?.color,
+        }))
+        .filter((z) => z.vertices.length >= 3);
+
+      let analysis: AnalysisFetchResult = {
+        points: [],
+        tracksAnalyzed: 0,
+        tracksTotal: reportTracks.length,
+        pointsLimited: false,
+      };
+      try {
+        analysis = await fetchAnalysisPoints(reportTracks);
+      } catch (error) {
+        console.error("No se pudieron cargar las posiciones para el informe", error);
+      }
+
       const range = downloadTrackActivityReport({
         tracks: reportTracks,
         total,
@@ -110,10 +132,17 @@ export default function HistoryPage() {
         onlyWithZones,
         onlyFavorites,
         limited: false,
+        points: analysis.points,
+        zones: analysisZones,
+        tracksAnalyzed: analysis.tracksAnalyzed,
+        pointsLimited: analysis.pointsLimited,
       });
 
+      const pointsNote = analysis.points.length > 0
+        ? ` · ${analysis.points.length.toLocaleString("es-CL")} posiciones analizadas`
+        : "";
       toast.success(
-        `Informe generado con ${reportTracks.length} tracks (${range.from.toLocaleDateString("es-CL")} – ${range.to.toLocaleDateString("es-CL")}).`,
+        `Informe generado con ${reportTracks.length} tracks${pointsNote} (${range.from.toLocaleDateString("es-CL")} – ${range.to.toLocaleDateString("es-CL")}).`,
       );
     } catch (error) {
       console.error("Error al generar el informe PDF", error);
@@ -127,6 +156,7 @@ export default function HistoryPage() {
     onlyFavorites,
     favoritesSummaries.data,
     total,
+    zones,
     isGeneratingReport,
   ]);
 
