@@ -50,6 +50,7 @@ const BRAND = "#0f172a";
 const ACCENT = "#65a30d";
 const MUTED = "#64748b";
 const BORDER = "#e2e8f0";
+const CRITICAL = "#dc2626";
 
 export interface ReportRange {
   from: Date;
@@ -284,23 +285,66 @@ function buildFilterLine(
   return parts.join("  ·  ");
 }
 
-function distributionBlock(title: string, rows: CountItem[]): Content {
-  return {
-    stack: [
-      { text: title, fontSize: 8, bold: true, color: BRAND, margin: [0, 0, 0, 3] },
-      ...(rows.length === 0
-        ? [{ text: "Sin datos", fontSize: 7.5, color: MUTED }]
-        : rows.map(
-          (r): Content => ({
-            columns: [
-              { width: "*", text: r.label, fontSize: 7.5, color: "#1e293b" },
-              { width: 26, text: String(r.count), fontSize: 7.5, bold: true, alignment: "right" },
-            ],
-            margin: [0, 0.8, 0, 0.8],
-          }),
-        )),
-    ],
-  };
+function shortLabel(label: string): string {
+  return label.length > 10 ? `${label.slice(0, 9)}...` : label;
+}
+
+const NIGHT_SEQUENCE = [21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
+
+interface ZoneActivity {
+  zone: string;
+  count: number;
+  peakHour: number | null;
+}
+
+function buildTopZones(tracks: TrackSummary[], limit = 8): ZoneActivity[] {
+  const map = new Map<string, { count: number; hourCounts: Map<number, number> }>();
+  for (const t of tracks) {
+    for (const z of t.zones ?? []) {
+      const entry = map.get(z) ?? { count: 0, hourCounts: new Map<number, number>() };
+      entry.count += 1;
+      if (t.first_seen) {
+        const hour = new Date(t.first_seen).getHours();
+        entry.hourCounts.set(hour, (entry.hourCounts.get(hour) ?? 0) + 1);
+      }
+      map.set(z, entry);
+    }
+  }
+  const zones = Array.from(map.entries())
+    .map(([zone, e]) => {
+      let peakHour: number | null = null;
+      let peakCount = 0;
+      for (const [hour, count] of e.hourCounts) {
+        if (count > peakCount) {
+          peakCount = count;
+          peakHour = hour;
+        }
+      }
+      return { zone, count: e.count, peakHour };
+    })
+    .sort((a, b) => b.count - a.count);
+  return zones.slice(0, limit);
+}
+
+function buildNightBuckets(tracks: TrackSummary[], range: ReportRange): HourBucket[] {
+  const buckets: HourBucket[] = NIGHT_SEQUENCE.map((hour, idx) => ({
+    hour: idx,
+    count: 0,
+    label: `${String(hour).padStart(2, "0")}:00`,
+    tickLabel: `${String(hour).padStart(2, "0")}h`,
+  }));
+  const start = new Date(range.from).getTime();
+  const end = new Date(range.to).getTime();
+  for (const t of tracks) {
+    if (!t.first_seen) continue;
+    const ts = new Date(t.first_seen).getTime();
+    if (ts < start || ts > end) continue;
+    const hour = new Date(ts).getHours();
+    if (hour >= 21 || hour < 7) {
+      buckets[hour >= 21 ? hour - 21 : hour + 3].count += 1;
+    }
+  }
+  return buckets;
 }
 
 function buildDocDefinition(opts: TrackReportOptions): {
@@ -330,6 +374,30 @@ function buildDocDefinition(opts: TrackReportOptions): {
   const topTracks = [...tracks]
     .sort((a, b) => (b.distance_m ?? 0) - (a.distance_m ?? 0))
     .slice(0, 5);
+
+  const nightBuckets = buildNightBuckets(tracks, range);
+  const nightActive = nightBuckets.some((b) => b.count > 0);
+  const topZones = buildTopZones(tracks, 8);
+  const categoryBuckets: HourBucket[] = stats.byCategory.slice(0, 8).map((c, i) => ({
+    hour: i,
+    count: c.count,
+    label: c.label,
+    tickLabel: shortLabel(c.label),
+  }));
+  const zoneBuckets: HourBucket[] = topZones.map((z, i) => ({
+    hour: i,
+    count: z.count,
+    label: z.zone,
+    tickLabel: shortLabel(z.zone),
+  }));
+  const topZoneLines: Content[] = topZones.slice(0, 3).map(
+    (z): Content => ({
+      text: `Zona ${z.zone}: ${z.count} tracks · pico a las ${z.peakHour != null ? String(z.peakHour).padStart(2, "0") : "--"}:00`,
+      fontSize: 7,
+      color: "#1e293b",
+      margin: [0, 1, 0, 1],
+    }),
+  );
 
   const rangeLabel = range.filtered
     ? "Rango según filtro de fechas"
@@ -452,49 +520,71 @@ function buildDocDefinition(opts: TrackReportOptions): {
         : { text: "" },
 
       // Actividad
-      sectionTitle("Actividad en el período (por hora)"),
+      sectionTitle("Actividad por hora"),
       ...(hourly.length === 0
         ? [{ text: "Sin actividad registrada.", fontSize: 8, color: MUTED }]
         : [barChart(hourly, stats.trackCount, range, stepHours)]),
 
-      sectionTitle("Distribución de actividades"),
-      ...(stats.trackCount === 0 || stats.byRadar.length <= 1
+      // Actividad crítica durante la noche (21:00 - 07:00)
+      sectionTitle("Actividad crítica nocturna (21:00 - 07:00)"),
+      ...(nightActive
         ? [
-          {
-            columns: [
-              distributionBlock("Por radar", stats.byRadar),
-              distributionBlock("Por categoría", stats.byCategory),
-              distributionBlock("Por zona", stats.byZone),
-            ],
-          } as Content,
-        ]
+            barChart(
+              nightBuckets,
+              stats.trackCount,
+              range,
+              1,
+              "Actividad crítica nocturna (21:00 - 07:00)",
+              CRITICAL,
+            ),
+          ]
         : [
-          {
-            columns: [
-              barChart(
-                stats.byRadar.map((r, i) => ({
-                  hour: i,
-                  count: r.count,
-                  label: r.label,
-                  tickLabel: r.label,
-                })),
-                stats.trackCount,
-                range,
-                1,
-                "Tracks por radar",
-              ),
-              { width: 16, text: "" } as Content,
+            { text: "Sin actividad crítica registrada entre las 21:00 y las 07:00.", fontSize: 8, color: MUTED } as Content,
+          ]),
+
+      sectionTitle("Distribución de actividades"),
+      ...(stats.trackCount === 0
+        ? [
+            { text: "Sin actividad registrada.", fontSize: 8, color: MUTED } as Content,
+          ]
+        : stats.byRadar.length > 1
+          ? [
               {
-                width: 230,
-                stack: [
-                  distributionBlock("Por categoría", stats.byCategory),
-                  { text: "", margin: [0, 8, 0, 0] } as Content,
-                  distributionBlock("Por zona", stats.byZone),
+                columns: [
+                  barChart(
+                    stats.byRadar.map((r, i) => ({
+                      hour: i,
+                      count: r.count,
+                      label: r.label,
+                      tickLabel: r.label,
+                    })),
+                    stats.trackCount,
+                    range,
+                    1,
+                    "Tracks por radar",
+                  ),
+                  { width: 16, text: "" } as Content,
+                  {
+                    width: 230,
+                    stack: [
+                      barChart(categoryBuckets, stats.trackCount, range, 1, "Tracks por categoría", ACCENT),
+                      { text: "", margin: [0, 8, 0, 0] } as Content,
+                      barChart(zoneBuckets, stats.trackCount, range, 1, "Tracks por zona", ACCENT),
+                      ...topZoneLines,
+                    ],
+                  } as Content,
                 ],
               } as Content,
-            ],
-          } as Content,
-        ]),
+            ]
+          : [
+              {
+                columns: [
+                  barChart(categoryBuckets, stats.trackCount, range, 1, "Tracks por categoría", ACCENT),
+                  { width: 16, text: "" } as Content,
+                  barChart(zoneBuckets, stats.trackCount, range, 1, "Tracks por zona", ACCENT),
+                ],
+              } as Content,
+            ]),
 
       sectionTitle("Actividades destacadas (últimas detecciones)"),
       ...(activityStack.length === 0
@@ -580,6 +670,8 @@ interface HourBucket {
   label?: string;
   /** Etiqueta corta bajo la barra (hora de inicio del tramo). */
   tickLabel?: string;
+  /** Color explícito de la barra; si no se define, se resuelve por posición. */
+  color?: string;
 }
 
 const CHART_WIDTH = 523;
@@ -632,6 +724,7 @@ function barChart(
   range: ReportRange,
   stepHours: number,
   title = "Tracks por hora (según primera detección)",
+  barColor?: string,
 ): Content {
   const max = Math.max(1, ...buckets.map((b) => b.count));
   const plotW = CHART_WIDTH - AXIS_W;
@@ -677,7 +770,7 @@ function barChart(
         y: baseY - h,
         w: barW,
         h,
-        color: i === buckets.length - 1 && !range.filtered ? "#84cc16" : ACCENT,
+        color: barColor ?? (i === buckets.length - 1 && !range.filtered ? "#84cc16" : ACCENT),
       });
       canvas.push({
         type: "text",
