@@ -1,5 +1,9 @@
 import { apiSystem } from "@/apis/apiSystem";
-import type { TrackListResponse, TrackSummaryFilters } from "./types";
+import type {
+  TrackListResponse,
+  TrackSummary,
+  TrackSummaryFilters,
+} from "./types";
 
 export interface TrackFavorite {
   track_id: string;
@@ -32,6 +36,29 @@ export async function fetchTrackSummaries(
     track_ids: filters.trackIds?.join(","),
   });
   return res.data;
+}
+
+/**
+ * Descarga TODOS los tracks que cumplen los filtros (recorre las páginas),
+ * para armar el informe del período completo en vez de solo la página actual.
+ */
+export async function fetchAllTrackSummaries(
+  filters: TrackSummaryFilters,
+  onlyWithZones = false,
+  pageSize = 500,
+): Promise<TrackSummary[]> {
+  const first = await fetchTrackSummaries(filters, 1, pageSize, onlyWithZones);
+  const totalPages = first.pages ?? 1;
+  const all = [...(first.data ?? [])];
+
+  // Tope de seguridad para no bloquear la UI con rangos gigantes.
+  const MAX_PAGES = 20;
+  const pages = Math.min(totalPages, MAX_PAGES);
+  for (let page = 2; page <= pages; page += 1) {
+    const res = await fetchTrackSummaries(filters, page, pageSize, onlyWithZones);
+    all.push(...(res.data ?? []));
+  }
+  return all;
 }
 
 export async function fetchTrackFavorites(): Promise<TrackFavoriteListResponse> {

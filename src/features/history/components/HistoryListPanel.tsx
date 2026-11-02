@@ -8,6 +8,7 @@ import {
   IconClock,
   IconCopy,
   IconDownload,
+  IconFileText,
   IconPlaylist,
   IconRoute,
   IconSearch,
@@ -48,6 +49,9 @@ interface Props {
   onOnlyWithZonesChange: (v: boolean) => void;
   onlyFavorites: boolean;
   onOnlyFavoritesChange: (v: boolean) => void;
+  /** Genera el informe PDF del período completo (opcional). */
+  onGenerateReport?: () => void;
+  isGeneratingReport?: boolean;
 }
 
 type Tab = "tracks" | "zones";
@@ -237,6 +241,8 @@ export function HistoryListPanel({
   onOnlyWithZonesChange,
   onlyFavorites,
   onOnlyFavoritesChange,
+  onGenerateReport,
+  isGeneratingReport = false,
 }: Props) {
   const [tab, setTab] = useState<Tab>("tracks");
   const [sort, setSort] = useState<TrackSort>({ by: "last_seen", dir: "desc" });
@@ -526,6 +532,20 @@ export function HistoryListPanel({
                 <IconArrowNarrowUp size={15} />
               )}
             </button>
+            {onGenerateReport && (
+              <button
+                onClick={onGenerateReport}
+                disabled={isGeneratingReport}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  isGeneratingReport
+                    ? "Generando informe..."
+                    : "Generar informe PDF del período"
+                }
+              >
+                <IconFileText size={15} className={isGeneratingReport ? "animate-pulse" : ""} />
+              </button>
+            )}
             <button
               onClick={() => exportCsv(displayedTracks)}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors"

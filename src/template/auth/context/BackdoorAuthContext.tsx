@@ -134,7 +134,12 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     queryClient.clear();
   }, [setRoleId, setRoleEmpresa, setEmpresaEsPrincipal]);
 
-  const refreshSession = useCallback(async () => {}, []);
+  const refreshSession = useCallback(async () => {
+    const result = await authService.verifySession();
+    if (!result.success) {
+      throw new Error(result.message || "Tu sesión ha expirado.");
+    }
+  }, []);
 
   const value: AuthContextType = {
     session,

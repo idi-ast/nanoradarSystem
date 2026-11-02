@@ -11,6 +11,9 @@ import { TrackPlaybackMap } from "../components/TrackPlaybackMap";
 import { PlaybackControls } from "../components/PlaybackControls";
 import type { TrackSummaryFilters } from "../types";
 import { TRACKS_PAGE_SIZE } from "../types";
+import { fetchAllTrackSummaries } from "../api";
+import { downloadTrackActivityReport } from "../report";
+import { toast } from "sonner";
 
 function getDefaultFromDate(): string {
   const d = new Date();
@@ -31,6 +34,7 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [onlyWithZones, setOnlyWithZones] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const { data: zones = [] } = useZones();
   const pageSize = TRACKS_PAGE_SIZE;
 
@@ -85,6 +89,47 @@ export default function HistoryPage() {
     setPage(1);
   }, []);
 
+  // Informe PDF del período completo (no solo la página visible).
+  const handleGenerateReport = useCallback(async () => {
+    if (isGeneratingReport) return;
+    setIsGeneratingReport(true);
+    try {
+      const reportTracks = onlyFavorites
+        ? (favoritesSummaries.data ?? [])
+        : await fetchAllTrackSummaries(filters, onlyWithZones);
+
+      if (reportTracks.length === 0) {
+        toast.warning("No hay tracks para el período y filtros seleccionados.");
+        return;
+      }
+
+      const range = downloadTrackActivityReport({
+        tracks: reportTracks,
+        total,
+        filters,
+        onlyWithZones,
+        onlyFavorites,
+        limited: false,
+      });
+
+      toast.success(
+        `Informe generado con ${reportTracks.length} tracks (${range.from.toLocaleDateString("es-CL")} – ${range.to.toLocaleDateString("es-CL")}).`,
+      );
+    } catch (error) {
+      console.error("Error al generar el informe PDF", error);
+      toast.error("No se pudo generar el informe PDF.");
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }, [
+    filters,
+    onlyWithZones,
+    onlyFavorites,
+    favoritesSummaries.data,
+    total,
+    isGeneratingReport,
+  ]);
+
   return (
     <div className="w-full h-full grid grid-cols-12 overflow-hidden bg-bg-300 text-text-100">
       <aside className="col-span-3 xl:col-span-2 h-full border-r border-border overflow-hidden">
@@ -105,6 +150,8 @@ export default function HistoryPage() {
           onOnlyWithZonesChange={handleOnlyWithZonesChange}
           onlyFavorites={onlyFavorites}
           onOnlyFavoritesChange={handleOnlyFavoritesChange}
+          onGenerateReport={handleGenerateReport}
+          isGeneratingReport={isGeneratingReport}
         />
       </aside>
       <div className="col-span-9 xl:col-span-10 h-full relative overflow-hidden">
