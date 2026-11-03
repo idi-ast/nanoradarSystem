@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { preferenceStorage } from "../utils/preferenceStorage";
 import type { Boat3DConfig } from "../components/map/boatSingleRenderer";
 import { DEFAULT_BOAT3D_CONFIG } from "../components/map/boatSingleRenderer";
 
@@ -179,15 +180,17 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
     }),
     {
       name: "target-visual-prefs",
+      storage: preferenceStorage,
       version: 1,
-      migrate: (persistedState: any, version: number) => {
-        if (version === 0 || !persistedState?.inactiveIconTimeoutSec) {
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Partial<TargetVisualState> | undefined;
+        if (version === 0 || !state?.inactiveIconTimeoutSec) {
           return {
-            ...persistedState,
+            ...state,
             inactiveIconTimeoutSec: 5,
           };
         }
-        return persistedState;
+        return state;
       },
       partialize: (state) => ({
         trackStrokeWidth: state.trackStrokeWidth,

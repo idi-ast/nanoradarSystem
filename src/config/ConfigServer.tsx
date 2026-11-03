@@ -16,7 +16,7 @@ import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
 import NanoPages from "@/features/devices/pages/DevicesPages";
-import { HistoryPage } from "@/features/history";
+import HistoryPage from "@/features/history/pages/HistoryPage";
 import { DispositivosPage } from "@/features/config-devices/dispositivos";
 
 const name = import.meta.env.VITE_COMPANY_NAME;

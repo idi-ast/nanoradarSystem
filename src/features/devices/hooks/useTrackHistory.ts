@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchTrackHistory } from "../services/radarService";
 
+// El refresco sigue siendo de 30 s; no crear una caché por cada barrido WS.
+const REFRESH_MS = 30_000;
+
 interface UseTrackHistoryOptions {
   trackId: string | null;
   tipoRadar?: string;
@@ -17,7 +20,10 @@ export function useTrackHistory({
   enabled = true,
 }: UseTrackHistoryOptions) {
   return useQuery({
-    queryKey: ["track-history", trackId, tipoRadar, sessionRef],
+    queryKey: [
+      "track-history", trackId, tipoRadar,
+      sessionRef == null ? sessionRef : Math.floor(sessionRef / REFRESH_MS),
+    ],
     queryFn: () =>
       fetchTrackHistory(trackId!, {
         tipo_radar: tipoRadar,
@@ -26,7 +32,9 @@ export function useTrackHistory({
           : undefined,
       }),
     enabled: enabled && !!trackId,
-    refetchInterval: 30_000,
+    refetchInterval: REFRESH_MS,
+    // Solo consultas inactivas: el historial seleccionado sigue disponible.
+    gcTime: 60_000,
     staleTime: 15_000,
   });
 }

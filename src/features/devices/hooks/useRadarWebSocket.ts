@@ -4,6 +4,7 @@ import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 import { useTargetVisualStore } from "../stores/targetVisualStore";
 import { toast } from "sonner";
+import { appendBoundedHistory } from "../utils/boundedHistory";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 10_000;
@@ -53,10 +54,6 @@ interface TrackKinematicState {
   clampCount: number;
 }
 
-/** Mapa global de estado cinemático por trackId. Persiste entre barridos. */
-const trackKinematics = new Map<string, TrackKinematicState>();
-let lastCleanupTime = Date.now();
-
 /** Distancia aproximada en metros entre dos puntos (fórmula plana, suficiente para tracks cercanos) */
 function distMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const dLat = (lat2 - lat1) * METERS_PER_DEG_LAT;
@@ -75,7 +72,7 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 /** Limpia tracks inactivos del mapa de estado cinemático */
-function cleanupTrackStates(now: number): void {
+function cleanupTrackStates(trackKinematics: Map<string, TrackKinematicState>, now: number): void {
   for (const [tid, state] of trackKinematics) {
     if (now - state.lastUpdateMs > TRACK_STATE_TTL_MS) {
       trackKinematics.delete(tid);
@@ -95,9 +92,7 @@ function processDeviceMessages(
     const currentPos: [number, number, number] = [raw.lat, raw.lon, now];
     const existing = next.get(id);
 
-    const history: [number, number, number][] = existing
-      ? [...existing.history, currentPos].slice(-historyMaxPoints)
-      : [currentPos];
+    const history = appendBoundedHistory(existing?.history ?? [], [currentPos], historyMaxPoints);
 
     next.set(id, {
       id,
@@ -133,13 +128,8 @@ function processMagosradarMessages(
   now: number,
   historyMaxPoints: number,
   trackColor: string,
+  trackKinematics: Map<string, TrackKinematicState>,
 ) {
-  // Limpieza periódica de estados inactivos
-  if (now - lastCleanupTime > TRACK_STATE_CLEANUP_INTERVAL) {
-    cleanupTrackStates(now);
-    lastCleanupTime = now;
-  }
-
   for (const track of tracks) {
     const { trackId, positions } = track;
     if (!positions || positions.length === 0) continue;
@@ -236,16 +226,14 @@ function processMagosradarMessages(
     const newPoints: [number, number, number][] = effectivePoints.map((p) => [p.lat, p.lon, p.ts * 1000]);
 
     const existing = next.get(targetId);
-    const history: [number, number, number][] = existing
-      ? [...existing.history, ...newPoints].slice(-historyMaxPoints)
-      : newPoints;
+    const history = appendBoundedHistory(existing?.history ?? [], newPoints, historyMaxPoints);
 
     // Posición principal: última posición suavizada del track
     const mainLat = kin.smoothedLat;
     const mainLon = kin.smoothedLon;
 
     // Máximo nivel entre todas las posiciones del track
-    const maxNivel = Math.max(...sorted.map((p) => p.nivel));
+    const maxNivel = sorted.reduce((max, p) => Math.max(max, p.nivel), -Infinity);
 
     // Última posición del track (mayor ts)
     const lastPos = sorted[sorted.length - 1];
@@ -298,6 +286,7 @@ export function useRadarWebSocket(
   timing: TargetTimingConfig = TARGET_TIMING,
   trackColor = "#f43f5e",
 ) {
+  const kinematicsRef = useRef(new Map<string, TrackKinematicState>());
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(new Map());
   const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
@@ -321,12 +310,14 @@ export function useRadarWebSocket(
 
   const clearTargets = useCallback(() => {
     setTargetsMap(new Map());
+    kinematicsRef.current.clear();
     bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
   }, []);
 
   useEffect(() => {
     if (!url || !url.startsWith("ws")) return;
 
+    const trackKinematics = kinematicsRef.current;
     let destroyed = false;
     let retryCount = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -338,13 +329,15 @@ export function useRadarWebSocket(
 
       if (nanoRadar.length === 0 && magosRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
 
-      setTargetsMap((prev) => {
-        const next = new Map(prev);
-        processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
-        processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS, trackColor);
-        processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
-        return next;
-      });
+      if (nanoRadar.length > 0 || magosRadar.length > 0 || spotter.length > 0) {
+        setTargetsMap((prev) => {
+          const next = new Map(prev);
+          processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
+          processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS, trackColor, trackKinematics);
+          processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
+          return next;
+        });
+      }
 
       if (camaras.length > 0) {
         setCameraActivities(camaras.map((a) => ({ ...a, timestamp: now })));
@@ -353,19 +346,23 @@ export function useRadarWebSocket(
       bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
     }, SET_TIME_INTERVAL_MS);
 
+    // La limpieza cinemática sigue funcionando aunque ya no lleguen mensajes.
+    const kinematicsInterval = setInterval(() => {
+      cleanupTrackStates(trackKinematics, Date.now());
+    }, TRACK_STATE_CLEANUP_INTERVAL);
+
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
 
       setTargetsMap((prev) => {
-        const next = new Map(prev);
-        let changed = false;
-        for (const [id, target] of next.entries()) {
+        let next: Map<string, RadarTarget> | undefined;
+        for (const [id, target] of prev.entries()) {
           if (now - target.lastUpdate > effectiveTargetTimeoutMs) {
+            next ??= new Map(prev);
             next.delete(id);
-            changed = true;
           }
         }
-        return changed ? next : prev;
+        return next ?? prev;
       });
 
       setCameraActivities((prev) => {
@@ -446,7 +443,16 @@ export function useRadarWebSocket(
     return () => {
       destroyed = true;
       if (retryTimer !== null) clearTimeout(retryTimer);
-      ws?.close();
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+      }
+      trackKinematics.clear();
+      bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
+      clearInterval(kinematicsInterval);
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };

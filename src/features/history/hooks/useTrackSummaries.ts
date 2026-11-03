@@ -30,6 +30,7 @@ export function useTrackSummaries(
       pages: res.pages ?? 1,
       page: res.page ?? page,
     }),
+    gcTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -88,6 +89,7 @@ export function useFavoriteTrackSummaries(enabled = true) {
     },
     enabled: enabled && favoriteTrackIds.length > 0,
     staleTime: 60_000,
+    gcTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }

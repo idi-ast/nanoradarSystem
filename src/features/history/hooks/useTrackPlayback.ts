@@ -68,7 +68,7 @@ function getPoints(qc: QueryClient, track: TrackSummary) {
     queryKey: ["history-trajectory", trackKey(track), track.last_seen ?? ""],
     queryFn: () => loadPoints(track),
     staleTime: TRAJECTORY_STALE_MS,
-    gcTime: TRAJECTORY_STALE_MS,
+    gcTime: 60_000,
   });
 }
 
@@ -109,6 +109,11 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
   // invalida cargas en curso cuando cambia la seleccion (playAll/clearAll)
   const generationRef = useRef(0);
 
+  useEffect(() => () => {
+    // Evitar que un lote siga descargando tracks después de salir de la página.
+    generationRef.current++;
+  }, []);
+
   const tracksRef = useRef<TrackPlaybackItem[]>([]);
   useEffect(() => {
     tracksRef.current = tracks;
@@ -136,11 +141,14 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
         ...prev,
         { summary: track, points: [], loading: true, error: null },
       ]);
+      const gen = generationRef.current;
       try {
         const points = await getPoints(qc, track);
+        if (gen !== generationRef.current) return;
         // si se deselecciono mientras cargaba, patchTrack no encuentra nada
         patchTrack(key, { points, loading: false, error: null });
       } catch (e) {
+        if (gen !== generationRef.current) return;
         patchTrack(key, { loading: false, error: errMsg(e) });
       }
     },

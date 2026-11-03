@@ -26,6 +26,7 @@ import {
 import { MAPBOX_TOKEN, THEME_MAP_LAYER } from "@/components/baseMap/libs";
 import type { MapLayer, MapLayerConfig } from "@/components/baseMap/types";
 import { useTheme } from "@/context/ThemeContext";
+import { MapHealth } from "@/components/baseMap/components/MapHealth";
 import MapControls from "@/components/baseMap/components/MapControls";
 import ManualPtzButton from "./cameras/ptz/components/ManualPtzButton";
 import { RADAR_INSTANCES } from "../../config";
@@ -178,6 +179,28 @@ export const RadarMap = memo(function RadarMap({
     flyToZoneFn,
   } = useRadarContext();
   const mapRef = useRef<MapRef>(null);
+  const [mapGeneration, setMapGeneration] = useState(0);
+  const [retryView, setRetryView] = useState<{
+    latitude: number;
+    longitude: number;
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  } | null>(null);
+  const restartMap = useCallback(() => {
+    const map = mapRef.current;
+    if (map) {
+      const center = map.getCenter();
+      setRetryView({
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
+    }
+    setMapGeneration((value) => value + 1);
+  }, []);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -309,7 +332,11 @@ export const RadarMap = memo(function RadarMap({
           }
           const widthPx = Math.max(36, Math.round(chosen / metersPerPx));
           const label = chosen >= 1000 ? `${chosen / 1000} km` : `${chosen} m`;
-          setScaleBar({ widthPx, label });
+          setScaleBar((previous) =>
+            previous?.widthPx === widthPx && previous.label === label
+              ? previous
+              : { widthPx, label },
+          );
         }
       }
     } catch {
@@ -638,6 +665,7 @@ export const RadarMap = memo(function RadarMap({
       <div className="relative flex-1 h-full">
         {/* {!mapLoaded && <PageLoader />} */}
         <ReactMapGL
+          key={mapGeneration}
           ref={mapRef}
           initialViewState={{
             latitude: effectiveInitialCenter.latitude,
@@ -645,13 +673,13 @@ export const RadarMap = memo(function RadarMap({
             zoom: effectiveInitialZoom,
             pitch: instanceConfig.map.pitch,
             bearing: instanceConfig.map.bearing,
+            ...retryView,
           }}
           //  -41.46239837025373, -72.9882059747647
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mapLayers[activeLayer].style}
           style={{ width: "100%", height: "100%" }}
           attributionControl={false}
-          reuseMaps
           interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
           onMove={updateVisibleSpan}
@@ -678,6 +706,7 @@ export const RadarMap = memo(function RadarMap({
           doubleClickZoom={!editingDevice && !isPickingPosition}
           keyboard={!editingDevice && !isPickingPosition}
         >
+          <MapHealth onRetry={restartMap} />
           <Source
             id="device-layers-upper-bound-src"
             type="geojson"

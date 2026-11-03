@@ -13,7 +13,6 @@ import type { TrackSummaryFilters } from "../types";
 import { TRACKS_PAGE_SIZE } from "../types";
 import { fetchAllTrackSummaries } from "../api";
 import { fetchAnalysisPoints, type AnalysisFetchResult, type AnalysisZone } from "../analysis";
-import { downloadTrackActivityReport } from "../report";
 import { extractZoneVertices } from "@/features/devices/components/map/utils/geoHelpers";
 import { toast } from "sonner";
 
@@ -125,6 +124,8 @@ export default function HistoryPage() {
         console.error("No se pudieron cargar las posiciones para el informe", error);
       }
 
+      // PDF y fuentes se cargan solo al generar un informe.
+      const { downloadTrackActivityReport } = await import("../report");
       const range = downloadTrackActivityReport({
         tracks: reportTracks,
         total,

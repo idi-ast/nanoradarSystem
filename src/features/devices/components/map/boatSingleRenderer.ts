@@ -61,12 +61,13 @@ let _dirLight: THREE.DirectionalLight | null = null;
 let _movingRing: THREE.Mesh | null = null;
 let _selectedRing: THREE.Mesh | null = null;
 const _timer = new THREE.Timer();
-let _config: Boat3DConfig = { ...DEFAULT_BOAT3D_CONFIG };
+const _config: Boat3DConfig = { ...DEFAULT_BOAT3D_CONFIG };
 const _entries = new Map<string, BoatEntry>();
 /** Cache de modelos cargados: path → objeto Three.js listo para usar */
 const _modelCache = new Map<string, CachedModel>();
 /** Rutas en carga actualmente (para no lanzar peticiones duplicadas) */
 const _loadingPaths = new Set<string>();
+let _generation = 0;
 
 /** Tamaño base del modelo en metros reales con scale=1 */
 const SCALE_TO_METERS = 20;
@@ -74,17 +75,25 @@ const SCALE_TO_METERS = 20;
 // ── Carga de modelo ────────────────────────────────────────────────────────
 
 function disposeObj(obj: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
   obj.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (mesh.isMesh) {
-      mesh.geometry?.dispose();
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach((m) => m.dispose());
-      } else {
-        (mesh.material as THREE.Material)?.dispose();
+    if (!mesh.isMesh) return;
+    if (mesh.geometry) geometries.add(mesh.geometry);
+    const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of meshMaterials) {
+      if (!material) continue;
+      materials.add(material);
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value);
       }
     }
   });
+  textures.forEach((texture) => texture.dispose());
+  materials.forEach((material) => material.dispose());
+  geometries.forEach((geometry) => geometry.dispose());
 }
 
 /**
@@ -95,12 +104,17 @@ function ensureModel(path: string) {
   if (!_scene || _modelCache.has(path) || _loadingPaths.has(path)) return;
 
   _loadingPaths.add(path);
+  const generation = _generation;
   const loader = new GLTFLoader();
   loader.load(
     path,
     (gltf) => {
+      // Una carga de un estilo anterior no debe poblar la nueva escena.
+      if (generation !== _generation || !_scene) {
+        disposeObj(gltf.scene);
+        return;
+      }
       _loadingPaths.delete(path);
-      if (!_scene) return;
 
       const obj = gltf.scene;
       // Centrar en XZ, base en Y=0
@@ -124,6 +138,7 @@ function ensureModel(path: string) {
     },
     undefined,
     (err) => {
+      if (generation !== _generation) return;
       _loadingPaths.delete(path);
       console.error("[BoatLayer] Error loading GLB:", path, err);
     },
@@ -146,7 +161,8 @@ const _layer: CustomLayerInterface = {
       antialias: true,
     });
     _renderer.autoClear = false;
-    _renderer.setPixelRatio(window.devicePixelRatio);
+    // Mapbox es dueño del canvas: setPixelRatio/setSize borran su drawing buffer.
+    // Three solo debe actualizar el viewport, sin redimensionar el canvas.
 
     _scene = new THREE.Scene();
     _camera = new THREE.Camera();
@@ -202,13 +218,18 @@ const _layer: CustomLayerInterface = {
   },
 
   onRemove() {
+    _generation++;
     // Limpiar todos los modelos en caché
     for (const [, cached] of _modelCache) {
+      cached.mixer?.stopAllAction();
+      cached.mixer?.uncacheRoot(cached.obj);
       disposeObj(cached.obj);
     }
     _modelCache.clear();
     _loadingPaths.clear();
     _activeModelObj = null;
+    if (_movingRing) disposeObj(_movingRing);
+    if (_selectedRing) disposeObj(_selectedRing);
     _renderer?.dispose();
     _renderer = null;
     _scene = null;
@@ -225,6 +246,7 @@ const _layer: CustomLayerInterface = {
     if (!_renderer || !_scene || !_camera || !_modelGroup || _entries.size === 0)
       return;
 
+    _timer.update();
     const delta = _timer.getDelta();
 
     // Actualizar animaciones de todos los modelos cargados
@@ -236,8 +258,8 @@ const _layer: CustomLayerInterface = {
     if (_dirLight) _dirLight.intensity = _config.dirInt;
 
     const canvas = _renderer.domElement;
-    const dpr = _renderer.getPixelRatio();
-    _renderer.setSize(canvas.width / dpr, canvas.height / dpr, false);
+    _renderer.resetState();
+    _renderer.setViewport(0, 0, canvas.width, canvas.height);
 
     const mapMatrix = new THREE.Matrix4().fromArray(matrix);
 
@@ -285,11 +307,13 @@ const _layer: CustomLayerInterface = {
       _modelGroup.traverse((child) => {
         const mesh = child as THREE.Mesh;
         if (mesh.isMesh && mesh.material) {
-          const m = mesh.material as THREE.MeshStandardMaterial;
-          if (m.transparent !== undefined) {
-            m.transparent = true;
-            m.opacity = targetOpacity;
-            m.needsUpdate = true;
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const material of materials) {
+            if (!material.transparent) {
+              material.transparent = true;
+              material.needsUpdate = true;
+            }
+            material.opacity = targetOpacity;
           }
         }
       });
@@ -308,8 +332,7 @@ const _layer: CustomLayerInterface = {
       _renderer.render(_scene!, _camera);
     }
 
-    if ([...
-_modelCache.values()].some((c) => c.mixer)) _map?.triggerRepaint();
+    if ([..._modelCache.values()].some((c) => c.mixer)) _map?.triggerRepaint();
   },
 };
 
@@ -349,4 +372,5 @@ export function updateBoat(id: string, data: Partial<BoatEntry>) {
 
 export function unregisterBoat(id: string) {
   _entries.delete(id);
+  _map?.triggerRepaint();
 }
