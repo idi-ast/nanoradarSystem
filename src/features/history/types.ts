@@ -54,3 +54,7 @@ export interface TrackListResponse {
 }
 
 export const TRACKS_PAGE_SIZE = 100;
+/** Identidad del track agregado que devuelve el historial, sin inferir identidad física. */
+export function analysisTrackKey(track: TrackSummary): string {
+  return JSON.stringify([track.tipo_radar, track.track_id, track.first_seen, track.last_seen]);
+}

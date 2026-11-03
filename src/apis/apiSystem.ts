@@ -75,7 +75,8 @@ class ApiSystem {
     endpoint: string,
     data?: unknown,
     params?: Record<string, unknown>,
-    isRetry = false
+    isRetry = false,
+    signal?: AbortSignal,
   ): Promise<ApiResponse<T>> {
     let url = `${this.baseURL}${endpoint}`;
 
@@ -107,6 +108,7 @@ class ApiSystem {
       method,
       headers,
       credentials: "include",
+      signal,
     };
 
     if (data && method !== "GET") {
@@ -150,9 +152,10 @@ class ApiSystem {
 
   async get<T>(
     endpoint: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: { signal?: AbortSignal },
   ): Promise<ApiResponse<T>> {
-    return this.request<T>("GET", endpoint, undefined, params);
+    return this.request<T>("GET", endpoint, undefined, params, false, options?.signal);
   }
 
   async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   useTrackSummaries,
   useFavoriteTrackSummaries,
@@ -9,12 +9,14 @@ import { trackKey } from "../hooks/useTrackPlayback";
 import { HistoryListPanel } from "../components/HistoryListPanel";
 import { TrackPlaybackMap } from "../components/TrackPlaybackMap";
 import { PlaybackControls } from "../components/PlaybackControls";
-import type { TrackSummaryFilters } from "../types";
+import type { TrackSummaryFilters, TrackSummary } from "../types";
 import { TRACKS_PAGE_SIZE } from "../types";
-import { fetchAllTrackSummaries } from "../api";
+import { fetchReportTrackSummaries } from "../api";
 import { fetchAnalysisPoints, type AnalysisFetchResult, type AnalysisZone } from "../analysis";
 import { extractZoneVertices } from "@/features/devices/components/map/utils/geoHelpers";
 import { toast } from "sonner";
+import { DEFAULT_REPORT_SETTINGS, isValidAnalysisZone, normalizeZone, type ReportSettings } from "../reportAnalytics";
+import { ReportSettingsDialog } from "../components/ReportSettingsDialog";
 
 function getDefaultFromDate(): string {
   const d = new Date();
@@ -37,6 +39,18 @@ export default function HistoryPage() {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const { data: zones = [] } = useZones();
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportSettings, setReportSettings] = useState<ReportSettings>(DEFAULT_REPORT_SETTINGS);
+  const [reportProgress, setReportProgress] = useState("");
+  const reportController = useRef<AbortController | null>(null);
+  useEffect(() => () => reportController.current?.abort(), []);
+  const analysisZones = useMemo<AnalysisZone[]>(() => zones.map(z => ({
+    nombre: z.nombre, vertices: extractZoneVertices(z.poligono?.vertices), color: z.poligono?.color,
+  })).filter(isValidAnalysisZone), [zones]);
+  const openReportSettings = useCallback(() => {
+    setReportSettings(current => ({ ...current, criticalZones: analysisZones.filter(z => normalizeZone(z.nombre) === 'modulo').map(z => z.nombre) }));
+    setReportDialogOpen(true);
+  }, [analysisZones]);
   const pageSize = TRACKS_PAGE_SIZE;
 
   const summaries = useTrackSummaries(
@@ -93,24 +107,46 @@ export default function HistoryPage() {
   // Informe PDF del período completo (no solo la página visible).
   const handleGenerateReport = useCallback(async () => {
     if (isGeneratingReport) return;
+    const controller = new AbortController();
+    reportController.current = controller;
     setIsGeneratingReport(true);
+    setReportDialogOpen(false);
+    setReportProgress("Preparando período del informe...");
     try {
-      const reportTracks = onlyFavorites
-        ? (favoritesSummaries.data ?? [])
-        : await fetchAllTrackSummaries(filters, onlyWithZones);
+      const { resolveReportRange, downloadTrackActivityReport } = await import("../report");
+      controller.signal.throwIfAborted();
+      const effectiveRange = resolveReportRange(filters);
+      const reportFilters = { ...filters, from: effectiveRange.from.toISOString(), to: effectiveRange.to.toISOString() };
+      let listing: { tracks: TrackSummary[]; total: number; limited: boolean };
+      if (onlyFavorites) {
+        // Reconsultar los favoritos con el rango exacto: sus resúmenes de la
+        // pantalla pueden abarcar fechas distintas y tener métricas globales.
+        const byRadar = new Map<string, string[]>();
+        for (const track of favoritesSummaries.data ?? []) {
+          if (reportFilters.tipoRadar && reportFilters.tipoRadar !== track.tipo_radar) continue;
+          const ids = byRadar.get(track.tipo_radar) ?? [];
+          ids.push(track.track_id);
+          byRadar.set(track.tipo_radar, ids);
+        }
+        listing = { tracks: [], total: 0, limited: false };
+        for (const [radar, trackIds] of byRadar) {
+          controller.signal.throwIfAborted();
+          const result = await fetchReportTrackSummaries({ ...reportFilters, tipoRadar: radar, trackIds }, onlyWithZones,
+            (page, count) => setReportProgress(`Cargando favoritos (${radar}): página ${page} de ${count}`), controller.signal);
+          listing.tracks.push(...result.tracks);
+          listing.total += result.total;
+          listing.limited ||= result.limited;
+        }
+      } else {
+        listing = await fetchReportTrackSummaries(reportFilters, onlyWithZones,
+          (page, count) => setReportProgress(`Cargando resúmenes: página ${page} de ${count}`), controller.signal);
+      }
+      const reportTracks = listing.tracks;
 
       if (reportTracks.length === 0) {
         toast.warning("No hay tracks para el período y filtros seleccionados.");
         return;
       }
-
-      const analysisZones: AnalysisZone[] = zones
-        .map((z) => ({
-          nombre: z.nombre,
-          vertices: extractZoneVertices(z.poligono?.vertices),
-          color: z.poligono?.color,
-        }))
-        .filter((z) => z.vertices.length >= 3);
 
       let analysis: AnalysisFetchResult = {
         points: [],
@@ -119,20 +155,26 @@ export default function HistoryPage() {
         pointsLimited: false,
       };
       try {
-        analysis = await fetchAnalysisPoints(reportTracks);
+        analysis = await fetchAnalysisPoints(reportTracks, {
+          from: reportFilters.from, to: reportFilters.to, signal: controller.signal,
+          onProgress: (done, count) => setReportProgress(`Analizando trayectorias: ${done} de ${count}`),
+        });
       } catch (error) {
+        if (controller.signal.aborted) throw error;
         console.error("No se pudieron cargar las posiciones para el informe", error);
       }
 
-      // PDF y fuentes se cargan solo al generar un informe.
-      const { downloadTrackActivityReport } = await import("../report");
+      controller.signal.throwIfAborted();
+      setReportProgress("Construyendo gráficos y PDF...");
       const range = downloadTrackActivityReport({
         tracks: reportTracks,
-        total,
-        filters,
+        total: listing.total,
+        filters: reportFilters,
         onlyWithZones,
         onlyFavorites,
-        limited: false,
+        limited: listing.limited,
+        settings: reportSettings,
+        quality: analysis,
         points: analysis.points,
         zones: analysisZones,
         tracksAnalyzed: analysis.tracksAnalyzed,
@@ -146,23 +188,28 @@ export default function HistoryPage() {
         `Informe generado con ${reportTracks.length} tracks${pointsNote} (${range.from.toLocaleDateString("es-CL")} – ${range.to.toLocaleDateString("es-CL")}).`,
       );
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error("Error al generar el informe PDF", error);
       toast.error("No se pudo generar el informe PDF.");
     } finally {
       setIsGeneratingReport(false);
+      setReportProgress("");
+      reportController.current = null;
     }
   }, [
     filters,
     onlyWithZones,
     onlyFavorites,
     favoritesSummaries.data,
-    total,
-    zones,
+    analysisZones,
+    reportSettings,
     isGeneratingReport,
   ]);
 
   return (
     <div className="w-full h-full grid grid-cols-12 overflow-hidden bg-bg-300 text-text-100">
+      {reportDialogOpen && <ReportSettingsDialog settings={reportSettings} zones={analysisZones} onChange={setReportSettings} onClose={() => setReportDialogOpen(false)} onGenerate={handleGenerateReport} />}
+      {isGeneratingReport && <div role="status" aria-live="polite" className="fixed bottom-5 right-5 z-99999 rounded-lg border border-border bg-bg-100 px-5 py-3 text-sm text-text-100 shadow-xl">{reportProgress}<button type="button" className="ml-4 underline" onClick={() => { reportController.current?.abort(); setReportProgress("Cancelando..."); }}>Cancelar</button></div>}
       <aside className="col-span-3 xl:col-span-2 h-full border-r border-border overflow-hidden">
         <HistoryListPanel
           filters={filters}
@@ -181,7 +228,7 @@ export default function HistoryPage() {
           onOnlyWithZonesChange={handleOnlyWithZonesChange}
           onlyFavorites={onlyFavorites}
           onOnlyFavoritesChange={handleOnlyFavoritesChange}
-          onGenerateReport={handleGenerateReport}
+          onGenerateReport={openReportSettings}
           isGeneratingReport={isGeneratingReport}
         />
       </aside>

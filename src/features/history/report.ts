@@ -1,1392 +1,197 @@
-import type { TDocumentDefinitions, Content } from "pdfmake/interfaces";
+import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
-import type { AnalysisPoint, AnalysisZone } from "./analysis";
-import { isPointInPolygon } from "@/features/devices/components/map/utils/geoHelpers";
-import { MS_TO_KMH } from "@/utils/units";
+import type { AnalysisPoint, AnalysisZone, AnalysisFetchResult } from "./analysis";
+import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, isBoat, isValidAnalysisZone, normalizeZone, type ReportSettings, type Approach } from "./reportAnalytics";
+import { hourlyChart, activityMatrix, spatialChart, weekdayChart } from "./reportCharts";
 
-/**
- * Informe PDF analítico de las actividades registradas en el Historial de Tracks.
- *
- * - Si `filters.from` / `filters.to` están definidos, el informe cubre ese rango.
- * - Si no hay filtro, se usa por defecto un rango de las últimas `defaultHours`
- *   horas (12 h).
- * - Se respetan los filtros de la barra superior (radar, zona, búsqueda,
- *   mín. puntos, solo zonas, solo favoritos) para acotar los tracks.
- * - Si se reciben `points`, se dibuja un mapa de calor geográfico y las series
- *   temporales se calculan sobre posiciones reales; si no, se usan los inicios
- *   de track como aproximación.
- */
-
-const FALLBACK_VFS: Record<string, string> = {
-  "Roboto-Regular.ttf": "",
-  "Roboto-Medium.ttf": "",
-  "Roboto-Italic.ttf": "",
-  "Roboto-MediumItalic.ttf": "",
-};
-
-let vfsReady = false;
-function ensureVfs() {
-  if (vfsReady) return;
-  const fonts = pdfFonts as unknown as {
-    pdfMake?: { vfs?: Record<string, string> };
-    default?: { pdfMake?: { vfs?: Record<string, string> } };
-  };
-  const vfs = fonts.pdfMake?.vfs ?? fonts.default?.pdfMake?.vfs ?? FALLBACK_VFS;
-  (pdfMake as unknown as { vfs: Record<string, string> }).vfs = vfs;
-  vfsReady = true;
-}
-
-type CanvasPrimitive =
-  | {
-    type: "line";
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-    lineWidth: number;
-    lineColor: string;
-  }
-  | { type: "rect"; x: number; y: number; w: number; h: number; color: string }
-  | {
-    type: "text";
-    text: string;
-    x: number;
-    y: number;
-    fontSize: number;
-    color: string;
-    bold?: boolean;
-  };
-
-const BRAND = "#0f172a";
-const ACCENT = "#65a30d";
-const MUTED = "#64748b";
-const CRITICAL = "#dc2626";
-const GRID = "#e2e8f0";
-
-export interface ReportRange {
-  from: Date;
-  to: Date;
-  /** true si el rango proviene de los filtros (fecha de arriba). */
-  filtered: boolean;
-}
-
+export interface ReportRange { from: Date; to: Date; filtered: boolean }
 export interface TrackReportOptions {
-  tracks: TrackSummary[];
-  total: number;
-  filters: TrackSummaryFilters;
-  onlyWithZones?: boolean;
-  onlyFavorites?: boolean;
-  /** Horas por defecto cuando no hay filtro de fechas. */
-  defaultHours?: number;
-  /** true si el listado es parcial respecto del total del período. */
-  limited?: boolean;
-  /** Posiciones geográficas muestreadas para heatmap y series. */
-  points?: AnalysisPoint[];
-  /** Zonas configuradas, para delimitar el heatmap y analizar tráfico por zona. */
-  zones?: AnalysisZone[];
-  /** Cantidad de tracks de los que se obtuvieron posiciones. */
-  tracksAnalyzed?: number;
-  /** true si la muestra de posiciones fue recortada. */
-  pointsLimited?: boolean;
+  tracks: TrackSummary[]; total: number; filters: TrackSummaryFilters;
+  onlyWithZones?: boolean; onlyFavorites?: boolean; defaultHours?: number; limited?: boolean;
+  points?: AnalysisPoint[]; zones?: AnalysisZone[]; tracksAnalyzed?: number; pointsLimited?: boolean;
+  settings?: Partial<ReportSettings>; quality?: Partial<AnalysisFetchResult>;
+  demonstration?: boolean;
 }
-
-/** Calcula el rango efectivo del informe: filtro de fechas o últimas N horas. */
-export function resolveReportRange(
-  filters: TrackSummaryFilters,
-  defaultHours = 12,
-): ReportRange {
-  const now = new Date();
-  if (filters.from || filters.to) {
-    const from = filters.from ? new Date(filters.from) : new Date(0);
-    const to = filters.to ? new Date(filters.to) : now;
-    return { from, to, filtered: true };
-  }
-  const from = new Date(now.getTime() - defaultHours * 60 * 60 * 1000);
-  return { from, to: now, filtered: false };
+export function resolveReportRange(filters: TrackSummaryFilters, defaultHours = 12): ReportRange {
+  const to = filters.to ? new Date(filters.to) : new Date();
+  const from = filters.from ? new Date(filters.from) : new Date(to.getTime() - defaultHours * 3600000);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from > to) throw new Error("Selecciona un período de fechas válido");
+  return { from, to, filtered: Boolean(filters.from || filters.to) };
 }
-
-// ---------------------------------------------------------------------------
-// Formateadores
-// ---------------------------------------------------------------------------
-function fmtDateTime(d?: Date | string | null): string {
-  if (!d) return "--";
-  const date = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+export function initializeReportFonts() {
+  const fonts = pdfFonts as unknown as Record<string, unknown> & { pdfMake?: { vfs?: Record<string, string> } };
+  const vfs = fonts.pdfMake?.vfs ?? fonts;
+  if (typeof vfs["Roboto-Regular.ttf"] !== "string") throw new Error("No se pudieron cargar las fuentes del informe");
+  pdfMake.addVirtualFileSystem(vfs as Record<string, string>);
 }
-
-function fmtDay(d: Date): string {
-  return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" });
+const C = { ink: '#0f172a', muted: '#64748b', blue: '#0369a1', teal: '#0f766e', amber: '#b45309', red: '#be123c', pale: '#f1f5f9' };
+const num = (n: number) => n.toLocaleString('es-CL', { maximumFractionDigits: 1 });
+const pct = (a: number, b: number) => b ? `${(100 * a / b).toFixed(1)}%` : 'N/D';
+const meters = (n: number | null | undefined) => n == null || !Number.isFinite(n) ? 'N/D' : n >= 1000 ? `${(n / 1000).toFixed(2)} km` : `${n.toFixed(1)} m`;
+const minutes = (n: number) => `${(n / 60).toFixed(1)} min`;
+const shortTime = (value: string | null, timeZone: string) => value ? new Intl.DateTimeFormat('es-CL', { timeZone, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : 'N/D';
+const hour = (n: number) => `${String(n).padStart(2, '0')}:00`;
+const dateTime = (value: string | Date | null, timeZone: string) => {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return 'N/D';
+  return new Intl.DateTimeFormat('es-CL', { timeZone, dateStyle: 'short', timeStyle: 'medium', hourCycle: 'h23' }).format(new Date(value));
+};
+function title(kicker: string, heading: string, description: string, pageBreak = false): Content[] {
+  return [{ text: kicker.toUpperCase(), color: C.teal, bold: true, fontSize: 8, characterSpacing: 1, ...(pageBreak ? { pageBreak: 'before' as const } : {}) }, { text: heading, fontSize: 23, bold: true, color: C.ink, margin: [0, 5, 0, 7] }, { text: description, fontSize: 9, color: C.muted, margin: [0, 0, 0, 15] }];
 }
-
-function fmtDuration(sec?: number | null): string {
-  if (sec == null || !Number.isFinite(sec) || sec < 0) return "--";
-  const total = Math.round(sec);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+const heading = (text: string): Content => ({ text, bold: true, fontSize: 12, color: C.ink, margin: [0, 12, 0, 6] });
+const note = (text: string): Content => ({ text, color: C.muted, fontSize: 8, margin: [0, 5, 0, 7], lineHeight: 1.25 });
+function table(headers: string[], rows: (string | number)[][], widths?: (number | string)[], small = false): Content {
+  return { table: { headerRows: 1, widths: widths ?? headers.map(() => '*'), dontBreakRows: true, body: [headers.map(text => ({ text, bold: true, color: '#ffffff', fillColor: C.ink, fontSize: small ? 7 : 8 })), ...(rows.length ? rows : [headers.map((_, i) => i ? '' : 'Sin registros disponibles')]).map((row, i) => row.map(value => ({ text: String(value), fillColor: i % 2 ? '#ffffff' : '#f1f5f9', fontSize: small ? 7 : 8 })))] }, layout: { hLineWidth: () => .3, vLineWidth: () => 0, hLineColor: () => '#e2e8f0', paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => small ? 3 : 5, paddingBottom: () => small ? 3 : 5 }, margin: [0, 3, 0, 8] };
 }
-
-function fmtDistance(m?: number | null): string {
-  if (m == null || !Number.isFinite(m)) return "--";
-  if (m >= 1000) return `${(m / 1000).toFixed(2)} km`;
-  return `${Math.round(m)} m`;
+function cards(items: [string, string][]): Content {
+  return { columns: items.map(([value, label]) => ({ width: '*', stack: [{ text: value, bold: true, color: C.blue, fontSize: 24, margin: [0, 0, 0, 5] }, { text: label, color: C.muted, fontSize: 8 }], margin: [0, 0, 8, 8] })), columnGap: 8, margin: [0, 8, 0, 10] };
 }
-
-function fmtSpeed(ms?: number | null): string {
-  if (ms == null || !Number.isFinite(ms)) return "--";
-  return `${(ms * MS_TO_KMH).toFixed(1)} km/h`;
-}
-
-function humanHours(hours: number): string {
-  if (hours === 1) return "1 hora";
-  return `${hours} horas`;
-}
-
-function padHour(hour: number): string {
-  return String(hour).padStart(2, "0");
-}
-
-// ---------------------------------------------------------------------------
-// Cálculos sobre resúmenes de tracks
-// ---------------------------------------------------------------------------
-interface ReportStats {
-  trackCount: number;
-  totalPoints: number;
-  totalDistance: number;
-  totalDuration: number;
-  avgSpeed: number | null;
-  maxSpeed: number | null;
-  withZones: number;
-  classified: number;
-  byRadar: CountItem[];
-  byCategory: CountItem[];
-}
-
-interface CountItem {
-  label: string;
-  count: number;
-}
-
-function computeStats(tracks: TrackSummary[]): ReportStats {
-  let totalPoints = 0;
-  let totalDistance = 0;
-  let totalDuration = 0;
-  let speedSum = 0;
-  let speedCount = 0;
-  let maxSpeed: number | null = null;
-  let withZones = 0;
-  let classified = 0;
-  const radarMap = new Map<string, number>();
-  const catMap = new Map<string, number>();
-
-  for (const t of tracks) {
-    totalPoints += t.point_count ?? 0;
-    totalDistance += t.distance_m ?? 0;
-    totalDuration += t.duration_seconds ?? 0;
-    if (t.avg_speed != null && Number.isFinite(t.avg_speed)) {
-      speedSum += t.avg_speed;
-      speedCount += 1;
-    }
-    if (t.max_speed != null && Number.isFinite(t.max_speed)) {
-      maxSpeed = maxSpeed == null ? t.max_speed : Math.max(maxSpeed, t.max_speed);
-    }
-    if (t.zones?.length) withZones += 1;
-    if (t.behavior_class && t.behavior_class !== "sin_clasificar") classified += 1;
-
-    const radar = t.tipo_radar || "sin radar";
-    radarMap.set(radar, (radarMap.get(radar) ?? 0) + 1);
-
-    const cat = t.behavior_class ? t.behavior_class.replace(/_/g, " ") : "sin clasificar";
-    catMap.set(cat, (catMap.get(cat) ?? 0) + 1);
-  }
-
-  const toSorted = (map: Map<string, number>): CountItem[] =>
-    Array.from(map.entries())
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => b.count - a.count);
-
-  return {
-    trackCount: tracks.length,
-    totalPoints,
-    totalDistance,
-    totalDuration,
-    avgSpeed: speedCount > 0 ? speedSum / speedCount : null,
-    maxSpeed,
-    withZones,
-    classified,
-    byRadar: toSorted(radarMap),
-    byCategory: toSorted(catMap),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Series temporales
-// ---------------------------------------------------------------------------
-interface SeriesPoint {
-  label: string;
-  count: number;
-}
-
-function trackHour(track: TrackSummary): number | null {
-  if (!track.first_seen) return null;
-  const hour = new Date(track.first_seen).getHours();
-  return Number.isFinite(hour) ? hour : null;
-}
-
-function buildHourOfDaySeries(
-  points: AnalysisPoint[],
-  tracks: TrackSummary[],
-): SeriesPoint[] {
-  const counts = Array.from({ length: 24 }, () => 0);
-  if (points.length > 0) {
-    for (const p of points) {
-      if (!p.fecha) continue;
-      const hour = new Date(p.fecha).getHours();
-      if (Number.isFinite(hour)) counts[hour] += 1;
-    }
-  } else {
-    for (const t of tracks) {
-      const hour = trackHour(t);
-      if (hour != null) counts[hour] += 1;
-    }
-  }
-  return counts.map((count, hour) => ({
-    label: `${padHour(hour)}:00`,
-    count,
-  }));
-}
-
-function buildDailySeries(
-  points: AnalysisPoint[],
-  tracks: TrackSummary[],
-  range: ReportRange,
-): SeriesPoint[] {
-  const start = new Date(range.from);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(range.to);
-  end.setHours(0, 0, 0, 0);
-  const dayMs = 86_400_000;
-  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / dayMs) + 1);
-  const capped = Math.min(days, 45);
-  const buckets: SeriesPoint[] = Array.from({ length: capped }, (_, i) => ({
-    label: fmtDay(new Date(start.getTime() + i * dayMs)),
-    count: 0,
-  }));
-  const dayIndex = (value: Date): number =>
-    Math.floor((value.getTime() - start.getTime()) / dayMs);
-
-  if (points.length > 0) {
-    for (const p of points) {
-      if (!p.fecha) continue;
-      const idx = dayIndex(new Date(p.fecha));
-      if (idx >= 0 && idx < buckets.length) buckets[idx].count += 1;
-    }
-  } else {
-    for (const t of tracks) {
-      if (!t.first_seen) continue;
-      const idx = dayIndex(new Date(t.first_seen));
-      if (idx >= 0 && idx < buckets.length) buckets[idx].count += 1;
-    }
-  }
-  return buckets;
-}
-
-const NIGHT_SEQUENCE = [21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
-
-interface HourBucket {
-  hour: number;
-  count: number;
-  label?: string;
-  tickLabel?: string;
-  color?: string;
-}
-
-function nightBucketsFrom(series: SeriesPoint[]): HourBucket[] {
-  return NIGHT_SEQUENCE.map((hour, idx) => ({
-    hour: idx,
-    count: series[hour]?.count ?? 0,
-    label: `${padHour(hour)}:00`,
-    tickLabel: `${padHour(hour)}h`,
-  }));
-}
-
-function peakOf(series: SeriesPoint[]): SeriesPoint | null {
-  let best: SeriesPoint | null = null;
-  for (const item of series) {
-    if (best == null || item.count > best.count) best = item;
-  }
-  return best;
-}
-
-// ---------------------------------------------------------------------------
-// Tráfico por zona
-// ---------------------------------------------------------------------------
-interface ZoneTrafficRow {
-  name: string;
-  positions: number;
-  share: number;
-  peakHour: number | null;
-  tracks: number;
-}
-
-interface ZoneTrafficResult {
-  rows: ZoneTrafficRow[];
-  outside: number;
-  total: number;
-  basedOnPoints: boolean;
-}
-
-function resolveZoneName(
-  point: AnalysisPoint,
-  zones: AnalysisZone[],
-  known: Set<string>,
-): string | null {
-  if (point.zona && known.has(point.zona)) return point.zona;
-  for (const zone of zones) {
-    if (zone.vertices.length >= 3 && isPointInPolygon(point.lat, point.lon, zone.vertices)) {
-      return zone.nombre;
-    }
-  }
-  return null;
-}
-
-function computeZoneTraffic(
-  points: AnalysisPoint[],
-  zones: AnalysisZone[],
-  tracks: TrackSummary[],
-): ZoneTrafficResult {
-  const known = new Set(zones.map((z) => z.nombre));
-  const entries = new Map<string, { positions: number; hours: Map<number, number> }>();
-  for (const zone of zones) {
-    entries.set(zone.nombre, { positions: 0, hours: new Map() });
-  }
-
-  const basedOnPoints = points.length > 0;
-  let outside = 0;
-
-  if (basedOnPoints) {
-    for (const point of points) {
-      const name = resolveZoneName(point, zones, known);
-      const entry = name ? entries.get(name) : undefined;
-      if (!name || !entry) {
-        outside += 1;
-        continue;
-      }
-      entry.positions += 1;
-      if (point.fecha) {
-        const hour = new Date(point.fecha).getHours();
-        if (Number.isFinite(hour)) {
-          entry.hours.set(hour, (entry.hours.get(hour) ?? 0) + 1);
-        }
-      }
-    }
-  } else {
-    for (const track of tracks) {
-      for (const name of track.zones ?? []) {
-        const entry = entries.get(name);
-        if (!entry) continue;
-        entry.positions += 1;
-        const hour = trackHour(track);
-        if (hour != null) {
-          entry.hours.set(hour, (entry.hours.get(hour) ?? 0) + 1);
-        }
-      }
-    }
-  }
-
-  const trackCounts = new Map<string, number>();
-  for (const track of tracks) {
-    for (const name of track.zones ?? []) {
-      trackCounts.set(name, (trackCounts.get(name) ?? 0) + 1);
-    }
-  }
-
-  const total = basedOnPoints
-    ? points.length
-    : Array.from(entries.values()).reduce((sum, e) => sum + e.positions, 0);
-
-  const rows: ZoneTrafficRow[] = Array.from(entries.entries())
-    .map(([name, entry]) => {
-      let peakHour: number | null = null;
-      let best = 0;
-      for (const [hour, count] of entry.hours) {
-        if (count > best) {
-          best = count;
-          peakHour = hour;
-        }
-      }
-      return {
-        name,
-        positions: entry.positions,
-        share: total > 0 ? (entry.positions / total) * 100 : 0,
-        peakHour,
-        tracks: trackCounts.get(name) ?? 0,
-      };
-    })
-    .filter((row) => row.positions > 0)
-    .sort((a, b) => b.positions - a.positions);
-
-  return { rows, outside, total, basedOnPoints };
-}
-
-// ---------------------------------------------------------------------------
-// Construcción del documento
-// ---------------------------------------------------------------------------
-function statRow(items: { label: string; value: string }[]): Content {
-  return {
-    table: {
-      widths: items.map(() => "*"),
-      body: [
-        items.map((it) => ({
-          stack: [
-            { text: it.label.toUpperCase(), fontSize: 7, color: MUTED, characterSpacing: 0.5 } as Content,
-            { text: it.value, fontSize: 12, bold: true, color: BRAND, margin: [0, 2, 0, 0] } as Content,
-          ],
-          fillColor: "#f8fafc",
-        })),
-      ],
-    },
-    fillColor: undefined,
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 0,
-      paddingRight: () => 0,
-    },
-    margin: [0, 6, 0, 6],
-  };
-}
-
-function sectionTitle(text: string): Content {
-  return {
-    text,
-    fontSize: 10,
-    bold: true,
-    color: BRAND,
-    margin: [0, 12, 0, 4],
-  };
-}
-
-function buildFilterLine(
-  filters: TrackSummaryFilters,
-  onlyWithZones: boolean,
-  onlyFavorites: boolean,
-): string {
-  const parts: string[] = [];
-  parts.push(`Radar: ${filters.tipoRadar || "todos"}`);
-  parts.push(`Zona: ${filters.zone || "todas"}`);
-  parts.push(`Mín. puntos: ${filters.minPoints ?? 1}`);
-  if (filters.search) parts.push(`Búsqueda: "${filters.search}"`);
-  if (onlyWithZones) parts.push("Solo tracks que entraron a zonas");
-  if (onlyFavorites) parts.push("Solo favoritos");
-  return parts.join("  ·  ");
-}
-
-function shortLabel(label: string): string {
-  return label.length > 10 ? `${label.slice(0, 9)}...` : label;
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-// ---------------------------------------------------------------------------
-// Gráficos vectoriales (sin imágenes externas)
-// ---------------------------------------------------------------------------
-const CHART_WIDTH = 523;
-const AXIS_W = 20;
-const AXIS_TOP = 16;
-const CHART_HEIGHT = 92;
-
-interface ChartOptions {
-  title: string;
-  subtitle?: string;
-  xLabel: string;
-  yLabel: string;
-  color?: string;
-}
-
-function barChart(buckets: HourBucket[], options: ChartOptions): Content {
-  const { title, subtitle, xLabel, yLabel, color } = options;
-  const max = Math.max(1, ...buckets.map((b) => b.count));
-  const plotW = CHART_WIDTH - AXIS_W;
-  const plotH = CHART_HEIGHT;
-  const baseY = AXIS_TOP + plotH;
-  const slot = plotW / Math.max(1, buckets.length);
-  const barW = Math.max(3, slot * 0.62);
-  const ticks = max <= 4 ? max : 4;
-  const canvas: CanvasPrimitive[] = [];
-
-  canvas.push({ type: "text", text: yLabel, x: 0, y: 0, fontSize: 5.5, color: MUTED });
-
-  for (let i = 0; i <= ticks; i += 1) {
-    const value = Math.round((max / ticks) * i);
-    const y = baseY - (plotH / ticks) * i;
-    canvas.push({
-      type: "line",
-      x1: AXIS_W,
-      y1: y,
-      x2: CHART_WIDTH,
-      y2: y,
-      lineWidth: 0.4,
-      lineColor: i === 0 ? "#94a3b8" : GRID,
-    });
-    canvas.push({ type: "text", text: String(value), x: 0, y: y - 3, fontSize: 6, color: MUTED });
-  }
-
-  buckets.forEach((bucket, i) => {
-    const h = Math.max(bucket.count > 0 ? 1.5 : 0, Math.round((bucket.count / max) * plotH));
-    const x = AXIS_W + i * slot + (slot - barW) / 2;
-    if (h > 0) {
-      canvas.push({
-        type: "rect",
-        x,
-        y: baseY - h,
-        w: barW,
-        h,
-        color: bucket.color ?? color ?? ACCENT,
-      });
-      canvas.push({
-        type: "text",
-        text: String(bucket.count),
-        x: x + barW / 2 - 2,
-        y: baseY - h - 7,
-        fontSize: 5.5,
-        color: BRAND,
-      });
-    }
-    const every = buckets.length > 16 ? 3 : buckets.length > 10 ? 2 : 1;
-    if (i % every === 0 && bucket.tickLabel) {
-      canvas.push({
-        type: "text",
-        text: bucket.tickLabel,
-        x: x + barW / 2 - 5,
-        y: baseY + 3,
-        fontSize: 5.5,
-        color: MUTED,
-      });
-    }
-  });
-
-  canvas.push({
-    type: "text",
-    text: xLabel,
-    x: CHART_WIDTH / 2 - xLabel.length * 1.5,
-    y: baseY + 13,
-    fontSize: 6,
-    color: MUTED,
-  });
-
-  return {
-    stack: [
-      { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-      ...(subtitle
-        ? [{ text: subtitle, fontSize: 6.5, color: MUTED, margin: [0, 0, 0, 3] } as Content]
-        : []),
-      { canvas, margin: [0, 0, 0, 10] } as Content,
-    ],
-  };
-}
-
-function lineChart(series: SeriesPoint[], options: ChartOptions): Content {
-  const { title, subtitle, xLabel, yLabel, color = ACCENT } = options;
-  const max = Math.max(1, ...series.map((p) => p.count));
-  const plotW = CHART_WIDTH - AXIS_W;
-  const plotH = CHART_HEIGHT;
-  const baseY = AXIS_TOP + plotH;
-  const n = series.length;
-  const stepX = n > 1 ? plotW / (n - 1) : 0;
-  const xAt = (i: number): number => AXIS_W + (n > 1 ? i * stepX : plotW / 2);
-  const yAt = (value: number): number => baseY - (value / max) * plotH;
-  const ticks = max <= 4 ? max : 4;
-  const canvas: CanvasPrimitive[] = [];
-
-  canvas.push({ type: "text", text: yLabel, x: 0, y: 0, fontSize: 5.5, color: MUTED });
-
-  for (let i = 0; i <= ticks; i += 1) {
-    const value = Math.round((max / ticks) * i);
-    const y = baseY - (plotH / ticks) * i;
-    canvas.push({
-      type: "line",
-      x1: AXIS_W,
-      y1: y,
-      x2: CHART_WIDTH,
-      y2: y,
-      lineWidth: 0.4,
-      lineColor: i === 0 ? "#94a3b8" : GRID,
-    });
-    canvas.push({ type: "text", text: String(value), x: 0, y: y - 3, fontSize: 6, color: MUTED });
-  }
-
-  for (let i = 1; i < n; i += 1) {
-    canvas.push({
-      type: "line",
-      x1: xAt(i - 1),
-      y1: yAt(series[i - 1].count),
-      x2: xAt(i),
-      y2: yAt(series[i].count),
-      lineWidth: 1.1,
-      lineColor: color,
-    });
-  }
-
-  series.forEach((point, i) => {
-    const x = xAt(i);
-    const y = yAt(point.count);
-    canvas.push({ type: "rect", x: x - 1.3, y: y - 1.3, w: 2.6, h: 2.6, color });
-    if (n <= 26 && point.count > 0) {
-      canvas.push({
-        type: "text",
-        text: String(point.count),
-        x: x - 2,
-        y: y - 7,
-        fontSize: 5.5,
-        color: BRAND,
-      });
-    }
-    const every = Math.max(1, Math.ceil(n / 12));
-    if ((i % every === 0 || i === n - 1) && point.label) {
-      canvas.push({
-        type: "text",
-        text: point.label,
-        x: x - point.label.length * 1.4,
-        y: baseY + 3,
-        fontSize: 5.5,
-        color: MUTED,
-      });
-    }
-  });
-
-  canvas.push({
-    type: "text",
-    text: xLabel,
-    x: CHART_WIDTH / 2 - xLabel.length * 1.5,
-    y: baseY + 13,
-    fontSize: 6,
-    color: MUTED,
-  });
-
-  return {
-    stack: [
-      { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-      ...(subtitle
-        ? [{ text: subtitle, fontSize: 6.5, color: MUTED, margin: [0, 0, 0, 3] } as Content]
-        : []),
-      { canvas, margin: [0, 0, 0, 10] } as Content,
-    ],
-  };
-}
-
-const HEAT_RAMP = [
-  "#f1f5f9",
-  "#ecfccb",
-  "#d9f99d",
-  "#bef264",
-  "#fde047",
-  "#fb923c",
-  "#ef4444",
-  "#b91c1c",
-];
-
-function heatColor(ratio: number): string {
-  const idx = Math.min(
-    HEAT_RAMP.length - 1,
-    Math.max(0, Math.round(ratio * (HEAT_RAMP.length - 1))),
-  );
-  return HEAT_RAMP[idx];
-}
-
-interface GeoBounds {
-  minLat: number;
-  maxLat: number;
-  minLon: number;
-  maxLon: number;
-}
-
-function computeGeoBounds(
-  points: AnalysisPoint[],
-  zones: AnalysisZone[],
-): GeoBounds | null {
-  let minLat = Infinity;
-  let maxLat = -Infinity;
-  let minLon = Infinity;
-  let maxLon = -Infinity;
-  let found = false;
-
-  const include = (lat: number, lon: number) => {
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    found = true;
-    minLat = Math.min(minLat, lat);
-    maxLat = Math.max(maxLat, lat);
-    minLon = Math.min(minLon, lon);
-    maxLon = Math.max(maxLon, lon);
-  };
-
-  for (const point of points) include(point.lat, point.lon);
-  if (!found) {
-    for (const zone of zones) {
-      for (const [lat, lon] of zone.vertices) include(lat, lon);
-    }
-  }
-
-  if (!found) return null;
-
-  const padLat = Math.max((maxLat - minLat) * 0.06, 0.0004);
-  const padLon = Math.max((maxLon - minLon) * 0.06, 0.0004);
-  return {
-    minLat: minLat - padLat,
-    maxLat: maxLat + padLat,
-    minLon: minLon - padLon,
-    maxLon: maxLon + padLon,
-  };
-}
-
-const MAP_X = 38;
-const MAP_Y = 14;
-const MAP_W = CHART_WIDTH - MAP_X - 8;
-const MAP_H = 208;
-const MAP_COLS = 52;
-const MAP_ROWS = 26;
-
-function heatmapChart(
-  points: AnalysisPoint[],
-  zones: AnalysisZone[],
-  subtitle: string,
-): Content {
-  const title = "Mapa de calor de tráfico (posiciones registradas)";
-  const bounds = points.length > 0 ? computeGeoBounds(points, zones) : null;
-
-  if (!bounds || points.length === 0) {
-    return {
-      stack: [
-        { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-        {
-          text: "Sin posiciones geográficas para el período. El heatmap requiere historiales de puntos disponibles.",
-          fontSize: 8,
-          color: MUTED,
-          margin: [0, 3, 0, 0],
-        } as Content,
-      ],
-    };
-  }
-
-  const spanLat = bounds.maxLat - bounds.minLat;
-  const spanLon = bounds.maxLon - bounds.minLon;
-  const xOf = (lon: number): number => MAP_X + ((lon - bounds.minLon) / spanLon) * MAP_W;
-  const yOf = (lat: number): number => MAP_Y + ((bounds.maxLat - lat) / spanLat) * MAP_H;
-  const cellW = MAP_W / MAP_COLS;
-  const cellH = MAP_H / MAP_ROWS;
-  const cells = new Uint32Array(MAP_COLS * MAP_ROWS);
-
-  for (const point of points) {
-    const col = Math.min(
-      MAP_COLS - 1,
-      Math.max(0, Math.floor(((point.lon - bounds.minLon) / spanLon) * MAP_COLS)),
-    );
-    const row = Math.min(
-      MAP_ROWS - 1,
-      Math.max(0, Math.floor(((bounds.maxLat - point.lat) / spanLat) * MAP_ROWS)),
-    );
-    cells[row * MAP_COLS + col] += 1;
-  }
-
-  let maxCell = 0;
-  for (const count of cells) {
-    if (count > maxCell) maxCell = count;
-  }
-
-  const canvas: CanvasPrimitive[] = [
-    { type: "rect", x: MAP_X, y: MAP_Y, w: MAP_W, h: MAP_H, color: "#f8fafc" },
+const reason = (a: Approach) => a.reasons.length ? a.reasons.join('; ') : 'Acercamiento diurno; revisar contexto operativo';
+
+export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinition: TDocumentDefinitions; range: ReportRange } {
+  const range = resolveReportRange(opts.filters, opts.defaultHours);
+  const settings = { ...DEFAULT_REPORT_SETTINGS, ...opts.settings };
+  const zones = (opts.zones ?? []).filter(isValidAnalysisZone);
+  const analysis = computeOperationalAnalysis({ tracks: opts.tracks, points: opts.points ?? [], zones, from: range.from, to: range.to, settings });
+  const { tracks, hourly, days, approaches, points } = analysis;
+  const quality = opts.quality ?? {};
+  const analyzed = opts.tracksAnalyzed ?? quality.tracksAnalyzed ?? new Set(points.map(p => p.trackKey)).size;
+  const closest = approaches.filter(a => a.nearPoints > 0);
+  const priorityOrder = { Alta: 0, Media: 1, Observación: 2 };
+  const priorities = [...closest].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority] || b.nightSeconds - a.nightSeconds || a.minDistanceM - b.minDistanceM);
+  const boatPeak = [...hourly].filter(h => h.boatStarts > 0).sort((a, b) => b.boatStarts - a.boatStarts)[0];
+  const peak = analysis.peakHour;
+  const nightLabel = `${hour(settings.nightStart)} - ${hour(settings.nightEnd)}`;
+  const criticalZones = zones.filter(z => settings.criticalZones.map(normalizeZone).includes(normalizeZone(z.nombre)));
+  const closestBoat = approaches.find(a => isBoat(a.track));
+  const classCounts = new Map<string, number>(), radarCounts = new Map<string, number>();
+  for (const t of tracks) { const name = t.behavior_class || 'sin clasificar'; classCounts.set(name, (classCounts.get(name) ?? 0) + 1); radarCounts.set(t.tipo_radar || 'sin radar', (radarCounts.get(t.tipo_radar || 'sin radar') ?? 0) + 1); }
+  const complete = !opts.limited && !opts.pointsLimited && !quality.failedTracks && analyzed === tracks.length;
+  const coverageLabel = `${num(analyzed)} / ${num(tracks.length)} tracks con historial solicitado correctamente`;
+  const content: Content[] = [
+    ...title('WISENSOR / RADAR AST', 'Actividad y vigilancia\noperativa del centro', 'Informe de historial | Tráfico, actividad nocturna y proximidad a zonas críticas'),
+    ...(opts.demonstration ? [{ text: 'DEMOSTRACIÓN - DATOS SINTÉTICOS. NO CORRESPONDE A UN CENTRO REAL.', color: C.red, bold: true, fontSize: 10, margin: [0, 0, 0, 12] } as Content] : []),
+    { text: `${dateTime(range.from, settings.timeZone)}  a  ${dateTime(range.to, settings.timeZone)}`, bold: true, fontSize: 11 },
+    note(`Zona horaria: ${settings.timeZone}. Noche operativa: ${nightLabel}. Zonas críticas: ${criticalZones.map(z => z.nombre).join(', ') || 'ninguna seleccionada/disponible'}. Umbral de proximidad: ${settings.proximityM} m al perímetro.`),
+    cards([[num(tracks.length), 'Tracks del período'], [num(analysis.boats.length), 'Clasificados como embarcación'], [num(analysis.nightTracks), 'Tracks observados de noche*'], [num(analysis.nearNightTracks), 'Próximos a zona crítica de noche*']]),
+    heading('Lectura ejecutiva'),
+    { ul: [
+      peak ? `Mayor cantidad de inicios: ${hour(peak.hour)} - ${hour((peak.hour + 1) % 24)}, con ${num(peak.starts)} tracks (${peak.startsPerHour == null ? 'sin exposición calculable' : `${peak.startsPerHour.toFixed(2)} inicios/hora de calendario cubierta`}).` : 'No hay horas de inicio válidas dentro del período.',
+      boatPeak ? `Mayor inicio de tracks clasificados como embarcación: ${hour(boatPeak.hour)}, ${num(boatPeak.boatStarts)} tracks.` : 'No se dispone de tracks clasificados como embarcación para identificar su hora pico.',
+      analysis.peakNightHour ? `Franja nocturna con más proximidad observada: ${hour(analysis.peakNightHour.hour)}, ${analysis.peakNightHour.near} tracks distintos cerca de zonas críticas.` : 'No se observaron puntos nocturnos próximos a las zonas críticas en los historiales analizados.',
+      closestBoat ? `Embarcación clasificada con menor distancia observada: ${closestBoat.track.track_id} (${closestBoat.track.tipo_radar}), ${meters(closestBoat.minDistanceM)} respecto de ${closestBoat.zone}, ${dateTime(closestBoat.closestAt, settings.timeZone)}.` : 'No hay posiciones de embarcaciones clasificadas que permitan calcular una distancia a la zona crítica.',
+      `${priorities.filter(a => a.priority === 'Alta').length} combinaciones track-zona de prioridad Alta para revisión. Es una regla operativa explicable, no una conclusión de robo.`,
+    ], fontSize: 9, lineHeight: 1.35, margin: [0, 0, 0, 8] },
+    heading('Cobertura y alcance'),
+    note(`${coverageLabel}. ${num(points.length)} posiciones válidas analizadas. ${complete ? 'Sin recorte declarado.' : 'Análisis espacial parcial o muestreado: los mínimos observados pueden ser mayores que los acercamientos reales y los tiempos no representan permanencia total.'} *Indicadores basados en posiciones analizadas, no en toda la flota.`),
+    note('Un track es un identificador de seguimiento del radar en el período devuelto por el sistema. Puede reiniciarse, fragmentarse o reutilizarse; no equivale a una lancha física identificada, matrícula o propietario. Actividad nocturna y proximidad requieren corroboración con cámaras, autorizaciones y bitácora.'),
+    heading('Prioridades inmediatas de revisión'),
+    table(['Track / radar', 'Zona', 'Prioridad', 'Distancia mín.*', 'Motivo'], priorities.slice(0, 5).map(a => [`${a.track.track_id}\n${a.track.tipo_radar}`, a.zone, a.priority, meters(a.minDistanceM), reason(a)]), [70, 62, 47, 65, '*'], true),
+    ...title('01 / Patrones de tránsito', '¿A qué hora aumenta la actividad?', 'Comparación entre todos los tracks y los clasificados como embarcación. Los inicios usan todos los resúmenes descargados; no cuentan cada pulso del radar como una embarcación nueva.', true),
+    { svg: hourlyChart(hourly, settings), width: 515, margin: [0, 0, 0, 10] },
+    table(['Hora', 'Inicios', 'Embarc.', 'Inicios/h*', 'Presencia**', 'Cerca módulo**'], hourly.map(h => [hour(h.hour), h.starts, h.boatStarts, h.startsPerHour == null ? 'N/D' : h.startsPerHour.toFixed(2), h.present, h.near]), [44, 53, 55, 65, 70, '*'], true),
+    note('*Por hora de calendario efectivamente incluida en el filtro, no por hora de disponibilidad del sensor. **Tracks distintos con posiciones en esa hora, sobre los historiales analizados. Un track puede aparecer en varias horas; no sumar estas columnas como embarcaciones únicas.'),
+    ...title('02 / Vigilancia nocturna', 'Actividad durante la noche', `Franja ${nightLabel}. Los contadores nocturnos usan marcas de tiempo de posiciones reales, convertidas a ${settings.timeZone}.`, true),
+    cards([[num(analysis.nightTracks), 'Tracks con posiciones nocturnas'], [num(analysis.nightBoats), 'Embarcaciones clasificadas de noche'], [num(analysis.nearNightTracks), 'Tracks próximos de noche'], [pct(analysis.nearNightTracks, analysis.nightTracks), 'Proporción nocturna próxima*']]),
+    { svg: hourlyChart(hourly, settings, 'near'), width: 515 },
+    note(`*Denominador: ${analysis.nightTracks} tracks de la muestra con posiciones nocturnas. Proximidad: distancia al perímetro menor o igual a ${settings.proximityM} m. Si el denominador es cero, se informa N/D.`),
+    heading('Noches y fechas que requieren atención'),
+    table(['Fecha local', 'Inicios totales', 'Embarcaciones', 'Tracks nocturnos*', 'Cerca de noche*'], [...days].sort((a, b) => b.nearNight - a.nearNight || b.nightPresent - a.nightPresent).slice(0, 15).map(d => [d.day, d.starts, d.boatStarts, d.nightPresent, d.nearNight]), [72, 80, 85, 92, '*'], true),
+    note('Las fechas son días civiles: los registros entre 00:00 y 07:00 se asignan al día de la marca de tiempo. Esta tabla no agrupa por turno iniciado la noche anterior.'),
   ];
-
-  for (let row = 0; row < MAP_ROWS; row += 1) {
-    for (let col = 0; col < MAP_COLS; col += 1) {
-      const count = cells[row * MAP_COLS + col];
-      if (count === 0) continue;
-      const ratio = Math.log1p(count) / Math.log1p(Math.max(1, maxCell));
-      canvas.push({
-        type: "rect",
-        x: MAP_X + col * cellW,
-        y: MAP_Y + row * cellH,
-        w: cellW + 0.4,
-        h: cellH + 0.8,
-        color: heatColor(ratio),
-      });
-    }
+  for (let i = 0; i < Math.max(1, days.length); i += 28) {
+    content.push(...title('03 / Distribución temporal', 'Calendario de actividad observada', `Lectura por fecha y hora. Cada celda muestra tracks distintos con posiciones, evitando que un emisor de mayor frecuencia domine el conteo. Fechas ${i + 1}-${Math.min(days.length, i + 28)} de ${days.length}.`, true));
+    content.push({ svg: activityMatrix(days.slice(i, i + 28), settings), width: 515 });
+    content.push(note('Una celda intensa refleja presencia observada, no intención ni autorización. El muestreo puede omitir actividad breve. Los colores resaltados en las cabeceras indican la franja nocturna.'));
+    if (i === 0 && days.length <= 14) content.push(heading('Patrón semanal del período'), { svg: weekdayChart(days), width: 515 }, note('El número de fechas incluidas evita comparar un lunes observado una vez con varios martes como si tuvieran la misma exposición. “Embarc.” corresponde a la clasificación del sistema.'));
   }
-
-  for (const zone of zones) {
-    if (zone.vertices.length < 3) continue;
-    const stroke = /^#[0-9a-f]{3,8}$/i.test(zone.color ?? "") ? zone.color! : BRAND;
-    for (let i = 0; i < zone.vertices.length; i += 1) {
-      const [lat1, lon1] = zone.vertices[i];
-      const [lat2, lon2] = zone.vertices[(i + 1) % zone.vertices.length];
-      canvas.push({
-        type: "line",
-        x1: xOf(lon1),
-        y1: yOf(lat1),
-        x2: xOf(lon2),
-        y2: yOf(lat2),
-        lineWidth: 0.8,
-        lineColor: stroke,
-      });
-    }
-    let cLat = 0;
-    let cLon = 0;
-    for (const [lat, lon] of zone.vertices) {
-      cLat += lat;
-      cLon += lon;
-    }
-    cLat /= zone.vertices.length;
-    cLon /= zone.vertices.length;
-    let label = truncate(zone.nombre, 16);
-    if (label.length > 14) label = `${label.slice(0, 13)}…`;
-    canvas.push({
-      type: "text",
-      text: label,
-      x: xOf(cLon) - label.length * 1.4,
-      y: yOf(cLat) - 2,
-      fontSize: 5.5,
-      color: BRAND,
-      bold: true,
-    });
-  }
-
-  canvas.push({ type: "line", x1: MAP_X, y1: MAP_Y + MAP_H, x2: MAP_X + MAP_W, y2: MAP_Y + MAP_H, lineWidth: 0.6, lineColor: "#94a3b8" });
-  canvas.push({ type: "line", x1: MAP_X, y1: MAP_Y, x2: MAP_X, y2: MAP_Y + MAP_H, lineWidth: 0.6, lineColor: "#94a3b8" });
-
-  for (let i = 0; i < 3; i += 1) {
-    const fraction = i / 2;
-    const lon = bounds.minLon + spanLon * fraction;
-    const lat = bounds.minLat + spanLat * fraction;
-    const tx = MAP_X + MAP_W * fraction;
-    const ty = MAP_Y + MAP_H - MAP_H * fraction;
-    canvas.push({
-      type: "text",
-      text: lon.toFixed(4),
-      x: tx - 12,
-      y: MAP_Y + MAP_H + 3,
-      fontSize: 5.5,
-      color: MUTED,
-    });
-    canvas.push({
-      type: "text",
-      text: lat.toFixed(4),
-      x: 0,
-      y: ty - 3,
-      fontSize: 5.5,
-      color: MUTED,
-    });
-  }
-
-  canvas.push({ type: "text", text: "Latitud", x: 0, y: 0, fontSize: 6, color: MUTED, bold: true });
-  canvas.push({
-    type: "text",
-    text: "Longitud",
-    x: MAP_X + MAP_W / 2 - 13,
-    y: MAP_Y + MAP_H + 13,
-    fontSize: 6,
-    color: MUTED,
-    bold: true,
-  });
-
-  const legendX = MAP_X + MAP_W - HEAT_RAMP.length * 12;
-  const legendY = MAP_Y + MAP_H + 25;
-  HEAT_RAMP.forEach((color, i) => {
-    canvas.push({
-      type: "rect",
-      x: legendX + i * 12,
-      y: legendY,
-      w: 12,
-      h: 5,
-      color,
-    });
-  });
-  canvas.push({ type: "text", text: "0", x: legendX - 7, y: legendY, fontSize: 5.5, color: MUTED });
-  canvas.push({
-    type: "text",
-    text: String(maxCell),
-    x: legendX + HEAT_RAMP.length * 12 + 2,
-    y: legendY,
-    fontSize: 5.5,
-    color: MUTED,
-  });
-  canvas.push({
-    type: "text",
-    text: "posiciones por celda",
-    x: legendX + 20,
-    y: legendY - 8,
-    fontSize: 5.5,
-    color: MUTED,
-  });
-
-  return {
-    stack: [
-      { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-      { text: subtitle, fontSize: 6.5, color: MUTED, margin: [0, 0, 0, 3] } as Content,
-      { canvas, margin: [0, 0, 0, 10] } as Content,
-    ],
-  };
-}
-
-function zoneTrafficChart(result: ZoneTrafficResult): Content {
-  const title = "Tráfico por zona";
-  const unit = result.basedOnPoints ? "posiciones" : "tracks";
-  const rows = result.rows.slice(0, 9);
-  const hasOutside = result.basedOnPoints && result.outside > 0;
-
-  if (rows.length === 0 && !hasOutside) {
-    return {
-      stack: [
-        { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-        {
-          text: "Sin actividad dentro de las zonas configuradas para el período.",
-          fontSize: 8,
-          color: MUTED,
-          margin: [0, 3, 0, 0],
-        } as Content,
-      ],
-    };
-  }
-
-  const rowH = 15;
-  const barX = 112;
-  const barMax = 250;
-  const valueX = 372;
-  const maxValue = Math.max(
-    ...rows.map((row) => row.positions),
-    hasOutside ? result.outside : 0,
-    1,
+  content.push(
+    ...title('04 / Distribución geográfica', 'Dónde se concentran las detecciones', 'Mapa esquemático con proporción métrica local, polígonos de zonas, orientación, coordenadas y escala. Los colores representan posiciones por celda; no miden probabilidad de robo.', true),
+    { svg: spatialChart(points, zones, settings), width: 515 },
+    heading('Detalle del entorno de las zonas críticas'),
+    { svg: spatialChart(points, zones, settings, true), width: 515 },
+    note(`Leyenda de polígonos del mapa general: ${zones.map((z, i) => `${i + 1}: ${z.nombre}`).join(' | ') || 'No hay zonas disponibles'}. En el detalle, la numeración comienza nuevamente con las zonas críticas. Contorno rojo: zona crítica seleccionada.`),
+    ...title('05 / Acercamientos', 'Qué tracks se acercaron más a “modulo”', `Orden por menor distancia observada a los polígonos críticos. Cero significa posición dentro del polígono o en su borde. Un mínimo muestreado no prueba que el track nunca se acercó más.`, true),
+    ...(!criticalZones.length ? [note('No se encontró un polígono válido para la zona crítica seleccionada. No es posible calcular acercamientos; configura o selecciona la zona antes de interpretar este apartado.')] : []),
+    note(`Se muestran las ${approaches.length} combinaciones track-zona analizadas, ordenadas por distancia, incluidas las que permanecen fuera del umbral de ${settings.proximityM} m. “Noct. cerca” cuenta posiciones de la muestra, no visitas.`),
+    heading('Reglas de prioridad para revisar registros'),
+    note('Alta: proximidad nocturna y al menos una posición interior nocturna, dos episodios observados o cinco minutos de presencia enlazable. Media: proximidad nocturna o posición interior. Observación: otros acercamientos. Estas reglas ordenan la revisión y no constituyen detección automática de delito.'),
+    table(['Track / radar', 'Clase', 'Zona', 'Mínimo*', 'Fecha del mínimo', 'Noct. cerca', 'Prioridad'], approaches.map(a => [`${a.track.track_id} / ${a.track.tipo_radar}`, a.track.behavior_class ?? 'sin clasificar', a.zone, meters(a.minDistanceM), dateTime(a.closestAt, settings.timeZone), a.nightPoints, a.priority]), [66, 62, 55, 47, 100, 48, '*'], true),
+    ...title('06 / Presencia y episodios', 'Detalle de actividad próxima a zonas críticas', 'Tiempos observados entre posiciones consecutivas próximas. No se interpolan huecos largos ni se confunden puntos repetidos con visitas independientes.', true),
+    note(`Solo se suma un intervalo si ambos extremos están a ≤${settings.proximityM} m y separados por ≤${settings.maxGapSeconds} s. Un nuevo episodio comienza al volver a observar proximidad después de una posición lejana o de un hueco superior al umbral. Son episodios del mismo identificador, no retornos confirmados de una misma lancha.`),
+    table(['Track / radar', 'Zona', 'Primera / última proximidad', 'Tiempo obs.', 'De noche', 'Episodios', 'Interior'], priorities.map(a => [`${a.track.track_id} / ${a.track.tipo_radar}`, a.zone, `${shortTime(a.firstNear, settings.timeZone)} / ${shortTime(a.lastNear, settings.timeZone)}`, minutes(a.observedSeconds), minutes(a.nightSeconds), a.episodes, a.insidePoints]), [68, 60, 143, 56, 49, 46, '*'], true),
+    heading('Tráfico interior por zona'),
+    table(['Zona', 'Tracks observados', 'Embarc. clasificadas', 'Tracks de noche', 'Posiciones interiores'], analysis.zones.map(z => [z.name, z.tracks, z.boats, z.nightTracks, z.insidePoints]), [130, '*', '*', '*', '*'], true),
+    note('Las zonas se evalúan geométricamente con sus polígonos actuales. Si se superponen, un track puede contarse en más de una. El informe no reconstruye versiones históricas de polígonos.'),
+    ...title('07 / Casos para revisión', 'Registros prioritarios y evidencia', 'Extracto de hasta 12 combinaciones track-zona próximas. Identificadores, fechas y coordenadas permiten contrastar los registros con cámaras y bitácora.', true),
   );
-  const canvas: CanvasPrimitive[] = [];
-
-  canvas.push({
-    type: "text",
-    text: `Zona (eje Y) · cantidad de ${unit} (eje X)`,
-    x: 0,
-    y: 0,
-    fontSize: 5.8,
-    color: MUTED,
-  });
-
-  const drawRow = (
-    index: number,
-    name: string,
-    value: number,
-    share: number,
-    peakHour: number | null,
-    color: string,
-  ) => {
-    const y = 11 + index * rowH;
-    canvas.push({
-      type: "text",
-      text: truncate(name, 18),
-      x: 0,
-      y: y + 1,
-      fontSize: 6.5,
-      color: "#1e293b",
-    });
-    canvas.push({ type: "rect", x: barX, y: y + 2, w: barMax, h: 7, color: "#e2e8f0" });
-    canvas.push({
-      type: "rect",
-      x: barX,
-      y: y + 2,
-      w: Math.max(1, Math.round((value / maxValue) * barMax)),
-      h: 7,
-      color,
-    });
-    const peak = peakHour != null ? ` · pico ${padHour(peakHour)}h` : "";
-    canvas.push({
-      type: "text",
-      text: `${value.toLocaleString("es-CL")} · ${share.toFixed(1)}%${peak}`,
-      x: valueX,
-      y: y + 1,
-      fontSize: 6.3,
-      color: BRAND,
-    });
-  };
-
-  rows.forEach((row, i) => {
-    drawRow(i, row.name, row.positions, row.share, row.peakHour, ACCENT);
-  });
-
-  if (hasOutside) {
-    drawRow(
-      rows.length,
-      "Fuera de zonas",
-      result.outside,
-      result.total > 0 ? (result.outside / result.total) * 100 : 0,
-      null,
-      CRITICAL,
-    );
+  if (!priorities.length) content.push(note('No se observaron posiciones próximas a las zonas críticas en la muestra. Esto no acredita ausencia de actividad fuera de la cobertura analizada.'));
+  for (const [i, a] of priorities.slice(0, 12).entries()) {
+    content.push({ unbreakable: true, stack: [
+      { text: `${String(i + 1).padStart(2, '0')} | ${a.track.track_id} / ${a.track.tipo_radar} | ${a.priority}`, bold: true, fontSize: 11, margin: [0, 8, 0, 5] },
+      { columns: [
+        { width: 128, text: `Zona: ${a.zone}\nClase: ${a.track.behavior_class ?? 'sin clasificar'}\nMínimo observado: ${meters(a.minDistanceM)}`, fontSize: 8, lineHeight: 1.2 },
+        { width: 180, text: `${dateTime(a.closestAt, settings.timeZone)}\n${a.closest.lat.toFixed(6)}, ${a.closest.lon.toFixed(6)}\n${minutes(a.observedSeconds)} enlazables; ${a.episodes} episodios`, fontSize: 8, lineHeight: 1.2 },
+        { width: '*', text: `${a.nearPoints} posiciones próximas\n${a.nightPoints} nocturnas\n${a.insidePoints} interiores`, fontSize: 8, lineHeight: 1.2 },
+      ], columnGap: 10 },
+      { text: reason(a), fontSize: 8, color: C.muted, margin: [0, 5, 0, 8] },
+    ] } as Content);
   }
-
-  const subtitle = result.basedOnPoints
-    ? `${result.total.toLocaleString("es-CL")} posiciones · ${(
-      result.total > 0 ? ((result.total - result.outside) / result.total) * 100 : 0
-    ).toFixed(1)}% dentro de zonas`
-    : "Conteo de tracks por zona (sin posiciones disponibles)";
-
-  return {
-    stack: [
-      { text: title, fontSize: 7.5, bold: true, color: BRAND } as Content,
-      { text: subtitle, fontSize: 6.5, color: MUTED, margin: [0, 0, 0, 3] } as Content,
-      {
-        canvas,
-        margin: [0, 0, 0, 14],
-      } as Content,
-    ],
-  };
+  content.push(
+    ...title('08 / Caracterización del período', 'Composición y calidad de los datos', 'Información para interpretar los indicadores y diferenciar volumen de registros, objetivos seguidos y embarcaciones clasificadas.', true),
+    table(['Clasificación del sistema', 'Tracks', 'Proporción'], [...classCounts].sort((a, b) => b[1] - a[1]).map(([name, count]) => [name.replace(/_/g, ' '), count, pct(count, tracks.length)]), [290, '*', '*']),
+    table(['Fuente radar', 'Tracks'], [...radarCounts].map(([name, count]) => [name, count]), [350, '*']),
+    table(['Indicador de cobertura', 'Resultado'], [
+      ['Resúmenes incluidos / total informado por servidor', `${tracks.length} / ${opts.total}`],
+      ['Listado recortado', opts.limited ? 'Sí; interpretar como período parcial' : 'No declarado'],
+      ['Historiales correctos / solicitados', `${analyzed} / ${quality.tracksRequested ?? analyzed}`],
+      ['Historiales fallidos', String(quality.failedTracks ?? 0)],
+      ['Posiciones válidas analizadas', num(points.length)],
+      ['Posiciones descartadas por fecha/coordenadas', num((quality.invalidPoints ?? 0) + analysis.rejectedPoints)],
+      ['Muestra acotada', opts.pointsLimited ? 'Sí' : 'No declarada'],
+      ['Muestreo uniforme del intervalo soportado por servidor', quality.uniformSampling === true ? 'Sí' : 'No confirmado; puede haber sesgo temporal'],
+      ['Tracks sin clasificación reconocida', num(analysis.missingClassification)],
+      ['Tracks sin fecha de inicio válida', num(analysis.missingDates)],
+    ], [350, '*']),
+    heading('Velocidades y continuidad del seguimiento'),
+    table(['Variable', 'Valor', 'Base de cálculo'], [
+      ['Velocidad media entre tracks con dato', (() => { const values = tracks.map(t => t.avg_speed).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0); return values.length ? `${(values.reduce((a, b) => a + b, 0) / values.length * 3.6).toFixed(1)} km/h` : 'N/D'; })(), 'Media de medias por track; no ponderada por duración'],
+      ['Mayor velocidad reportada', (() => { const values = tracks.map(t => t.max_speed).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0); return values.length ? `${(Math.max(...values) * 3.6).toFixed(1)} km/h` : 'N/D'; })(), 'Máximo de los resúmenes, sujeto a ruido del sensor'],
+      ['Duración mediana de los resúmenes', (() => { const values = tracks.map(t => t.duration_seconds).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0).sort((a, b) => a - b); return values.length ? minutes((values[Math.floor((values.length - 1) / 2)] + values[Math.ceil((values.length - 1) / 2)]) / 2) : 'N/D'; })(), 'Intervalo entre primera y última detección, no permanencia continua'],
+      ['Distancia acumulada disponible', (() => { const values = tracks.map(t => t.distance_m).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0); return values.length ? meters(values.reduce((a, b) => a + b, 0)) : 'N/D'; })(), 'Solo métricas suministradas por el servidor; no se reconstruye a través de huecos'],
+    ], [165, 80, '*'], true),
+    note(`Filtros: radar ${opts.filters.tipoRadar || 'todos'}; zona ${opts.filters.zone || 'todas'}; mínimo ${opts.filters.minPoints} puntos; búsqueda ${opts.filters.search || 'ninguna'}; solo favoritos ${opts.onlyFavorites ? 'sí' : 'no'}; solo con zonas ${opts.onlyWithZones ? 'sí' : 'no'}.`),
+    ...title('09 / Criterio operativo', 'Interpretación y acciones sugeridas', 'Plan de revisión basado en los indicadores del período; sin atribuir autorización, intención o identidad física a un track.', true),
+    { ol: [
+      analysis.nearNightTracks ? `Priorizar la revisión de cámaras y bitácora para los ${analysis.nearNightTracks} tracks observados próximos de noche. Empezar por la tabla de prioridad Alta y las fechas de acercamiento mínimo.` : 'Mantener vigilancia nocturna. La muestra no aporta proximidades nocturnas a la zona crítica; verificar primero cobertura, disponibilidad del radar y calidad de polígonos.',
+      boatPeak ? `Usar ${hour(boatPeak.hour)} como franja de referencia para contrastar tránsito habitual de embarcaciones clasificadas y los registros autorizados del centro.` : 'Mejorar la clasificación de los tracks antes de inferir patrones específicos de lanchas.',
+      'Contrastar cada episodio próximo con horarios de servicio, cosecha, abastecimiento, turnos y rutas autorizadas. Una operación legítima puede cumplir las mismas reglas de proximidad.',
+      'Para investigación de un caso concreto, consultar la trayectoria completa del track y preservar el video original. El mínimo del informe es el mínimo observado en una muestra, no una distancia mínima garantizada.',
+      'Repetir el informe para períodos comparables y con los mismos umbrales. Las tasas se normalizan por horas de calendario cubiertas; no se dispone aquí de telemetría de disponibilidad del radar para corregir caídas.',
+    ], fontSize: 10, lineHeight: 1.4 },
+    heading('Método y límites de interpretación'),
+    note('Fuentes: endpoint de resúmenes del historial, endpoint de posiciones por track y polígonos configurados. Los inicios se cuentan por la primera detección del resumen dentro del filtro; la presencia horaria y la proximidad usan posiciones con identificador de track. Las categorías son las entregadas por el sistema y no verificadas visualmente.'),
+    note('Los historiales se seleccionan de forma repartida por el período cuando se alcanza el presupuesto. En el servidor actualizado se muestrean uniformemente los índices de la trayectoria, conservando primer y último registro; no es un muestreo estadístico de flota ni permite intervalos de confianza. La densidad espacial sigue siendo sensible a la frecuencia de registro.'),
+    note('Distancia: proyección plana local al segmento más próximo de cada polígono (metros aproximados); interior y borde se expresan como cero. Solo se evalúan posiciones registradas; no se infieren cruces entre dos puntos exteriores ni rutas durante huecos.'),
+    note(`Tiempo: ${settings.timeZone}, con sus cambios de horario. Los episodios usan un máximo de ${settings.maxGapSeconds} s entre registros. Los tiempos nocturnos se suman solo si ambos extremos son nocturnos; los intervalos que cruzan un borde de noche quedan fuera de ese subtotal.`),
+    note('Marco de interpretación: Cope et al., “Coastal radar as a tool for continuous and fine-scale monitoring of vessel activities...” (2022), distingue métricas de tracks y esfuerzo de observación. https://repository.library.noaa.gov/view/noaa/50713/noaa_50713_DS1.pdf'),
+    note('Identificación: US Coast Guard, “AIS Frequently Asked Questions”. La identidad de una embarcación requiere datos de identificación adicionales; este informe no incorpora AIS/MMSI. https://www.navcen.uscg.gov/ais-frequently-asked-questions'),
+  );
+  return { range, docDefinition: {
+    pageSize: 'A4', pageMargins: [40, 48, 40, 44],
+    info: { title: 'Informe operativo de actividad y proximidad a módulos', author: 'WISENSOR / AST', subject: 'Tráfico observado, vigilancia nocturna y zonas críticas' },
+    defaultStyle: { font: 'Roboto', fontSize: 9, color: C.ink },
+    header: page => ({ text: opts.demonstration ? 'DEMOSTRACIÓN / DATOS SINTÉTICOS' : 'WISENSOR / AST     |     INFORME OPERATIVO DE HISTORIAL', color: C.muted, fontSize: 7, margin: [40, 22, 40, 0], ...(page === 1 ? { color: C.teal } : {}) }),
+    footer: (page, totalPages) => ({ columns: [{ text: `${settings.timeZone} | Generado ${dateTime(new Date(), settings.timeZone)}`, fontSize: 7, color: C.muted }, { text: `${page} / ${totalPages}`, alignment: 'right', fontSize: 8, color: C.muted }], margin: [40, 15, 40, 0] }),
+    content,
+  } };
 }
-
-function buildDocDefinition(opts: TrackReportOptions): {
-  docDefinition: TDocumentDefinitions;
-  range: ReportRange;
-} {
-  const {
-    tracks,
-    total,
-    filters,
-    onlyWithZones = false,
-    onlyFavorites = false,
-    defaultHours = 12,
-    limited = false,
-    points = [],
-    zones = [],
-    tracksAnalyzed = tracks.length,
-    pointsLimited = false,
-  } = opts;
-  const range = resolveReportRange(filters, defaultHours);
-  const stats = computeStats(tracks);
-  const generatedAt = new Date();
-  const hasPoints = points.length > 0;
-  const unit = hasPoints ? "posiciones" : "tracks";
-
-  const topTracks = [...tracks]
-    .sort((a, b) => (b.distance_m ?? 0) - (a.distance_m ?? 0))
-    .slice(0, 5);
-
-  const hourSeries = buildHourOfDaySeries(points, tracks);
-  const dailySeries = buildDailySeries(points, tracks, range);
-  const nightBuckets = nightBucketsFrom(hourSeries);
-  const nightCount = nightBuckets.reduce((sum, bucket) => sum + bucket.count, 0);
-  const nightActive = nightCount > 0;
-  const zoneTraffic = computeZoneTraffic(points, zones, tracks);
-  const topZone = zoneTraffic.rows[0];
-
-  const categoryBuckets: HourBucket[] = stats.byCategory.slice(0, 8).map((item, i) => ({
-    hour: i,
-    count: item.count,
-    label: item.label,
-    tickLabel: shortLabel(item.label),
-  }));
-  const radarBuckets: HourBucket[] = stats.byRadar.map((item, i) => ({
-    hour: i,
-    count: item.count,
-    label: item.label,
-    tickLabel: shortLabel(item.label),
-  }));
-
-  const rangeLabel = range.filtered
-    ? "Rango según filtro de fechas"
-    : `Últimas ${humanHours(defaultHours)} (por defecto)`;
-
-  const peakHour = peakOf(hourSeries);
-  const peakDay = peakOf(dailySeries);
-  const topCategory = stats.byCategory[0];
-  const nightBase = hasPoints ? points.length : stats.trackCount;
-  const nightPct = nightBase > 0 ? Math.round((nightCount / nightBase) * 100) : 0;
-  const insideZonesPct = zoneTraffic.total > 0
-    ? ((zoneTraffic.total - zoneTraffic.outside) / zoneTraffic.total) * 100
-    : 0;
-
-  const insights: Content[] = [];
-  if (stats.trackCount > 0) {
-    if (peakHour && peakHour.count > 0) {
-      insights.push({
-        text: `Hora pico de tráfico: ${peakHour.label} con ${peakHour.count.toLocaleString("es-CL")} ${unit}`,
-        fontSize: 8,
-        color: "#1e293b",
-      });
-    }
-    if (dailySeries.length > 1 && peakDay && peakDay.count > 0) {
-      insights.push({
-        text: `Día de mayor tráfico: ${peakDay.label} con ${peakDay.count.toLocaleString("es-CL")} ${unit}`,
-        fontSize: 8,
-        color: "#1e293b",
-      });
-    }
-    if (topZone) {
-      const peak = topZone.peakHour != null ? ` · pico ${padHour(topZone.peakHour)}h` : "";
-      insights.push({
-        text: `Zona con mayor tráfico: ${topZone.name} (${topZone.positions.toLocaleString("es-CL")} ${unit} · ${topZone.share.toFixed(1)}%${peak})`,
-        fontSize: 8,
-        color: "#1e293b",
-      });
-    }
-    if (hasPoints && zoneTraffic.total > 0) {
-      insights.push({
-        text: `Cobertura de zonas: ${insideZonesPct.toFixed(1)}% de las posiciones dentro de zonas · ${(
-          (zoneTraffic.outside / zoneTraffic.total) * 100
-        ).toFixed(1)}% fuera`,
-        fontSize: 8,
-        color: "#1e293b",
-      });
-    }
-    if (topCategory) {
-      const share = Math.round((topCategory.count / stats.trackCount) * 100);
-      insights.push({
-        text: `Categoría principal: ${topCategory.label} (${topCategory.count} tracks · ${share}% del período)`,
-        fontSize: 8,
-        color: "#1e293b",
-      });
-    }
-    insights.push({
-      text: `Actividad nocturna (21:00 - 07:00): ${nightCount.toLocaleString("es-CL")} ${unit} (${nightPct}% del período)`,
-      fontSize: 8,
-      color: "#1e293b",
-    });
-  }
-
-  const samplingNote = hasPoints
-    ? `Mapa de calor y series temporales basados en ${points.length.toLocaleString("es-CL")} posiciones de ${tracksAnalyzed} tracks${pointsLimited ? " (muestra acotada)" : ""}.`
-    : "Las series temporales usan la primera detección de cada track (sin posiciones geográficas disponibles).";
-
-  const heatmapSubtitle = hasPoints
-    ? `${points.length.toLocaleString("es-CL")} posiciones · ${tracksAnalyzed}/${tracks.length} tracks analizados${pointsLimited ? " · muestra acotada" : ""}`
-    : "Sin posiciones";
-
-  const hourSubtitle = hasPoints
-    ? `${points.length.toLocaleString("es-CL")} posiciones agrupadas por hora`
-    : `${stats.trackCount} tracks agrupados por hora de inicio`;
-  const dailySubtitle = hasPoints
-    ? `${points.length.toLocaleString("es-CL")} posiciones agrupadas por día`
-    : `${stats.trackCount} tracks agrupados por día de inicio`;
-
-  const docDefinition: TDocumentDefinitions = {
-    pageSize: "A4",
-    pageMargins: [36, 44, 36, 46],
-    info: {
-      title: "Informe de actividades - Historial de Tracks",
-      author: "RadarED",
-      subject: "Actividades registradas",
-    },
-    defaultStyle: { font: "Roboto", fontSize: 9, color: "#1e293b" },
-    header: (currentPage) =>
-      currentPage === 1
-        ? { text: "" }
-        : {
-          columns: [
-            { text: "INFORME ANALÍTICO DE ACTIVIDADES · HISTORIAL DE TRACKS", fontSize: 7, bold: true, color: MUTED },
-            { text: "RadarED", fontSize: 7, color: MUTED, alignment: "right" },
-          ],
-          margin: [36, 16, 36, 0],
-        },
-    content: [
-      // Cabecera
-      {
-        columns: [
-          {
-            width: "*",
-            stack: [
-              { text: "INFORME ANALÍTICO DE ACTIVIDADES", fontSize: 16, bold: true, color: BRAND },
-              { text: "Historial de Tracks · RadarED", fontSize: 9, color: MUTED, margin: [0, 2, 0, 0] },
-            ],
-          },
-          {
-            width: "auto",
-            alignment: "right",
-            stack: [
-              { text: "PERÍODO", fontSize: 7, color: MUTED, characterSpacing: 0.5 },
-              {
-                text: `${fmtDateTime(range.from)} — ${fmtDateTime(range.to)}`,
-                fontSize: 8.5,
-                bold: true,
-                color: BRAND,
-                alignment: "right",
-              },
-              { text: rangeLabel, fontSize: 7, color: MUTED, italics: true, alignment: "right", margin: [0, 1, 0, 0] },
-            ],
-          },
-        ],
-      },
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 1.2, lineColor: ACCENT }], margin: [0, 8, 0, 6] },
-
-      // Resumen
-      sectionTitle("Resumen del período"),
-      statRow([
-        { label: "Tracks", value: String(stats.trackCount) },
-        { label: "Puntos", value: stats.totalPoints.toLocaleString("es-CL") },
-        { label: "Distancia total", value: fmtDistance(stats.totalDistance) },
-        { label: "Tiempo acumulado", value: fmtDuration(stats.totalDuration) },
-      ]),
-      statRow([
-        { label: "Vel. media", value: fmtSpeed(stats.avgSpeed) },
-        { label: "Vel. máx.", value: fmtSpeed(stats.maxSpeed) },
-        { label: "Entraron a zonas", value: String(stats.withZones) },
-        { label: "Clasificados", value: String(stats.classified) },
-      ]),
-      {
-        text: `Filtros aplicados: ${buildFilterLine(filters, onlyWithZones, onlyFavorites)}`,
-        fontSize: 7.5,
-        color: MUTED,
-      },
-      {
-        text: `Informe generado: ${fmtDateTime(generatedAt)}`,
-        fontSize: 7,
-        color: MUTED,
-        margin: [0, 1, 0, 0],
-      },
-      {
-        text: samplingNote,
-        fontSize: 7.5,
-        color: "#1e293b",
-        margin: [0, 4, 0, 0],
-      },
-      limited
-        ? {
-          text: `Nota: el informe incluye ${stats.trackCount} de ${total} tracks del período (por paginación).`,
-          fontSize: 7.5,
-          color: "#b45309",
-          margin: [0, 2, 0, 0],
-        }
-        : { text: "" },
-
-      // Heatmap
-      sectionTitle("Distribución geográfica del tráfico"),
-      heatmapChart(points, zones, heatmapSubtitle),
-
-      // Zonas
-      zoneTrafficChart(zoneTraffic),
-
-      // Series temporales
-      sectionTitle("Evolución temporal del tráfico"),
-      lineChart(hourSeries, {
-        title: "Tráfico por hora del día",
-        subtitle: hourSubtitle,
-        xLabel: "Hora del día",
-        yLabel: "Cantidad de tráfico",
-      }),
-      ...(dailySeries.length > 1
-        ? [
-          lineChart(dailySeries, {
-            title: "Tráfico por día",
-            subtitle: dailySubtitle,
-            xLabel: "Fecha",
-            yLabel: "Cantidad de tráfico",
-          }),
-        ]
-        : []),
-
-      // Actividad crítica durante la noche (21:00 - 07:00)
-      sectionTitle("Actividad crítica nocturna (21:00 - 07:00)"),
-      ...(nightActive
-        ? [
-          barChart(nightBuckets, {
-            title: "Actividad crítica nocturna (21:00 - 07:00)",
-            subtitle: `${nightCount.toLocaleString("es-CL")} ${unit} en la franja nocturna`,
-            xLabel: "Hora (21:00 - 07:00)",
-            yLabel: "Cantidad de tráfico",
-            color: CRITICAL,
-          }),
-        ]
-        : [
-          { text: "Sin actividad crítica registrada entre las 21:00 y las 07:00.", fontSize: 8, color: MUTED } as Content,
-        ]),
-
-      // Distribución de actividades
-      sectionTitle("Distribución de actividades"),
-      ...(stats.trackCount === 0
-        ? [
-          { text: "Sin actividad registrada.", fontSize: 8, color: MUTED } as Content,
-        ]
-        : stats.byRadar.length > 1
-          ? [
-            {
-              columns: [
-                barChart(radarBuckets, {
-                  title: "Tracks por radar",
-                  xLabel: "Radar",
-                  yLabel: "Tracks",
-                }),
-                { width: 16, text: "" } as Content,
-                barChart(categoryBuckets, {
-                  title: "Tracks por categoría",
-                  xLabel: "Categoría",
-                  yLabel: "Tracks",
-                  color: ACCENT,
-                }),
-              ],
-            } as Content,
-          ]
-          : [
-            barChart(categoryBuckets, {
-              title: "Tracks por categoría",
-              xLabel: "Categoría",
-              yLabel: "Tracks",
-              color: ACCENT,
-            }),
-          ]),
-
-      // Analíticas del período
-      sectionTitle("Analíticas del período"),
-      ...(stats.trackCount > 0 && insights.length > 0
-        ? insights
-        : [{ text: "Sin datos analíticos para el período seleccionado.", fontSize: 8, color: MUTED } as Content]),
-
-      // Tracks con mayor recorrido
-      ...(topTracks.length > 0
-        ? [
-          sectionTitle("Tracks con mayor recorrido"),
-          {
-            ul: topTracks.map(
-              (t): Content => ({
-                text:
-                  `${t.track_id} (${t.tipo_radar || "--"}): ${fmtDistance(t.distance_m)} · ` +
-                  `${fmtDuration(t.duration_seconds)} · vel. media ${fmtSpeed(t.avg_speed)}`,
-                fontSize: 8,
-                margin: [0, 1, 0, 1],
-              }),
-            ),
-            markerColor: ACCENT,
-          } as Content,
-        ]
-        : []),
-
-    ],
-    footer: (currentPage, pageCount) => ({
-      columns: [
-        { text: "RadarED · Informe generado automáticamente · módulo Historial", fontSize: 7, color: MUTED },
-        { text: `Página ${currentPage} de ${pageCount}`, fontSize: 7, color: MUTED, alignment: "right" },
-      ],
-      margin: [36, 8, 36, 0],
-    }),
-  };
-
-  return { docDefinition, range };
-}
-
-/**
- * Genera y descarga el informe PDF analítico de actividades.
- * Devuelve el rango aplicado para que la UI pueda informarlo.
- */
 export function downloadTrackActivityReport(opts: TrackReportOptions): ReportRange {
-  ensureVfs();
-  const { docDefinition, range } = buildDocDefinition(opts);
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-  pdfMake.createPdf(docDefinition).download(`informe-actividades-tracks-${stamp}.pdf`);
+  initializeReportFonts();
+  const { docDefinition, range } = buildTrackActivityReport(opts);
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  pdfMake.createPdf(docDefinition).download(`informe-operativo-${stamp}.pdf`);
   return range;
 }

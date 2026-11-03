@@ -38,27 +38,33 @@ export async function fetchTrackSummaries(
   return res.data;
 }
 
-/**
- * Descarga TODOS los tracks que cumplen los filtros (recorre las páginas),
- * para armar el informe del período completo en vez de solo la página actual.
- */
-export async function fetchAllTrackSummaries(
+/** Listado para informes con cobertura explícita y páginas enriquecidas completas. */
+export async function fetchReportTrackSummaries(
   filters: TrackSummaryFilters,
   onlyWithZones = false,
-  pageSize = 500,
-): Promise<TrackSummary[]> {
+  onProgress?: (page: number, pages: number) => void,
+  signal?: AbortSignal,
+): Promise<{ tracks: TrackSummary[]; total: number; limited: boolean }> {
+  // Mantener pequeñas las consultas de agregados por página.
+  const pageSize = 200;
+  signal?.throwIfAborted();
   const first = await fetchTrackSummaries(filters, 1, pageSize, onlyWithZones);
-  const totalPages = first.pages ?? 1;
-  const all = [...(first.data ?? [])];
-
-  // Tope de seguridad para no bloquear la UI con rangos gigantes.
-  const MAX_PAGES = 20;
-  const pages = Math.min(totalPages, MAX_PAGES);
-  for (let page = 2; page <= pages; page += 1) {
-    const res = await fetchTrackSummaries(filters, page, pageSize, onlyWithZones);
-    all.push(...(res.data ?? []));
+  signal?.throwIfAborted();
+  const pages = Math.max(1, first.pages ?? 1);
+  const maxPages = Math.min(pages, 50);
+  const tracks = [...(first.data ?? [])];
+  onProgress?.(1, maxPages);
+  for (let page = 2; page <= maxPages; page++) {
+    signal?.throwIfAborted();
+    const result = await fetchTrackSummaries(filters, page, pageSize, onlyWithZones);
+    tracks.push(...(result.data ?? []));
+    onProgress?.(page, maxPages);
   }
-  return all;
+  return { tracks, total: first.total ?? tracks.length, limited: pages > maxPages || tracks.length < (first.total ?? tracks.length) };
+}
+
+export async function fetchAllTrackSummaries(filters: TrackSummaryFilters, onlyWithZones = false): Promise<TrackSummary[]> {
+  return (await fetchReportTrackSummaries(filters, onlyWithZones)).tracks;
 }
 
 export async function fetchTrackFavorites(): Promise<TrackFavoriteListResponse> {

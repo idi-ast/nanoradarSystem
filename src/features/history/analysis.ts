@@ -1,151 +1,91 @@
 import { fetchTrackHistory } from "@/features/devices/services/radarService";
-import type { TrackHistoryPoint } from "@/features/devices/types";
-import type { TrackSummary } from "./types";
-
-/**
- * Carga acotada de posiciones geográficas para el informe analítico.
- *
- * El listado del historial solo entrega resúmenes (sin lat/lon), por lo que el
- * mapa de calor necesita pedir el historial de puntos de una muestra de tracks.
- * Para no saturar el backend se limita la cantidad de tracks y de puntos por
- * track, repartiendo un presupuesto total de posiciones.
- */
+import { analysisTrackKey, type TrackSummary } from "./types";
+export { analysisTrackKey } from "./types";
 
 export interface AnalysisPoint {
   lat: number;
   lon: number;
   fecha: string | null;
   zona: string | null;
+  trackKey?: string;
+  trackId?: string;
+  radar?: string;
+  speed?: number | null;
+  confidence?: number | null;
 }
-
 export interface AnalysisZone {
   nombre: string;
   vertices: [number, number][];
   color?: string;
 }
-
 export interface AnalysisFetchResult {
   points: AnalysisPoint[];
   tracksAnalyzed: number;
   tracksTotal: number;
-  /** true si se recortó la muestra (tracks o puntos por track). */
   pointsLimited: boolean;
+  tracksRequested?: number;
+  failedTracks?: number;
+  invalidPoints?: number;
+  availablePoints?: number;
+  uniformSampling?: boolean;
 }
-
 export interface AnalysisOptions {
-  /** Tracks como máximo a consultar (los de más puntos primero). */
   maxTracks?: number;
-  /** Presupuesto total aproximado de posiciones a recolectar. */
   targetPoints?: number;
   maxPointsPerTrack?: number;
   minPointsPerTrack?: number;
-  /** Peticiones simultáneas al endpoint de historial. */
   concurrency?: number;
+  from?: string;
+  to?: string;
+  onProgress?: (done: number, total: number) => void;
+  signal?: AbortSignal;
 }
 
-const DEFAULTS: Required<AnalysisOptions> = {
-  maxTracks: 80,
-  targetPoints: 30_000,
-  maxPointsPerTrack: 2_000,
-  minPointsPerTrack: 150,
-  concurrency: 6,
-};
-
-/** Prioriza tracks con zonas y luego los de mayor cantidad de puntos. */
-function pickTracks(tracks: TrackSummary[], maxTracks: number): TrackSummary[] {
-  return [...tracks]
-    .filter((t) => Boolean(t.track_id))
-    .sort((a, b) => {
-      const zoneA = a.zones?.length ? 1 : 0;
-      const zoneB = b.zones?.length ? 1 : 0;
-      if (zoneA !== zoneB) return zoneB - zoneA;
-      return (b.point_count ?? 0) - (a.point_count ?? 0);
-    })
-    .slice(0, Math.max(0, maxTracks));
-}
-
-function toAnalysisPoints(raw: TrackHistoryPoint[]): AnalysisPoint[] {
-  const out: AnalysisPoint[] = [];
-  for (const p of raw) {
-    if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
-    // (0, 0) suele ser un punto sin fix de GPS.
-    if (p.lat === 0 && p.lon === 0) continue;
-    out.push({
-      lat: p.lat,
-      lon: p.lon,
-      fecha: p.fecha ?? null,
-      zona: p.zona ?? null,
-    });
-  }
-  return out;
-}
-
-export async function fetchAnalysisPoints(
-  tracks: TrackSummary[],
-  options: AnalysisOptions = {},
-): Promise<AnalysisFetchResult> {
-  const cfg: Required<AnalysisOptions> = { ...DEFAULTS, ...options };
-  const selected = pickTracks(tracks, cfg.maxTracks);
-
-  if (selected.length === 0) {
-    return {
-      points: [],
-      tracksAnalyzed: 0,
-      tracksTotal: tracks.length,
-      pointsLimited: false,
-    };
-  }
-
-  const perTrack = Math.min(
-    cfg.maxPointsPerTrack,
-    Math.max(
-      cfg.minPointsPerTrack,
-      Math.floor(cfg.targetPoints / selected.length),
-    ),
-  );
-
-  const collected: AnalysisPoint[] = [];
-  let limited = selected.length < tracks.length;
-  let cursor = 0;
-
+/** Selección repartida por todo el período, sin favorecer los tracks más largos. */
+export async function fetchAnalysisPoints(tracks: TrackSummary[], options: AnalysisOptions = {}): Promise<AnalysisFetchResult> {
+  const maxTracks = Math.max(1, options.maxTracks ?? 160);
+  const candidates = [...tracks].sort((a, b) => (a.first_seen ?? "").localeCompare(b.first_seen ?? ""));
+  const selected = candidates.length <= maxTracks ? candidates : Array.from({ length: maxTracks }, (_, i) => candidates[Math.round(i * (candidates.length - 1) / Math.max(1, maxTracks - 1))]);
+  const budget = options.targetPoints ?? 60000;
+  const perTrack = Math.max(2, Math.min(options.maxPointsPerTrack ?? 2000, Math.floor(budget / Math.max(1, selected.length))));
+  const points: AnalysisPoint[] = [];
+  let cursor = 0, done = 0, successful = 0, failed = 0, invalid = 0, available = 0;
+  let limited = selected.length < tracks.length, uniform = true;
   const worker = async () => {
     while (cursor < selected.length) {
-      const track = selected[cursor];
-      cursor += 1;
+      options.signal?.throwIfAborted();
+      const track = selected[cursor++];
       try {
+        const from = Math.max(options.from ? new Date(options.from).getTime() : -Infinity, track.first_seen ? new Date(track.first_seen).getTime() : -Infinity);
+        const to = Math.min(options.to ? new Date(options.to).getTime() : Infinity, track.last_seen ? new Date(track.last_seen).getTime() : Infinity);
         const res = await fetchTrackHistory(track.track_id, {
           tipo_radar: track.tipo_radar,
-          from: track.first_seen
-            ? new Date(track.first_seen).toISOString()
-            : undefined,
-          to: track.last_seen
-            ? new Date(track.last_seen).toISOString()
-            : undefined,
-          session_ref: track.last_seen
-            ? new Date(track.last_seen).toISOString()
-            : undefined,
-          limit: perTrack,
+          from: Number.isFinite(from) ? new Date(from).toISOString() : undefined,
+          to: Number.isFinite(to) ? new Date(to).toISOString() : undefined,
+          limit: perTrack, sample: true,
         });
-        const raw = res.points ?? [];
-        if (raw.length >= perTrack) limited = true;
-        collected.push(...toAnalysisPoints(raw));
-      } catch {
-        // Un track sin historial disponible no invalida el análisis global.
+        options.signal?.throwIfAborted();
+        successful++;
+        available += res.total_points ?? res.points.length;
+        if (res.sampled || res.points.length >= perTrack) limited = true;
+        if (res.total_points == null) { uniform = false; limited = true; }
+        const seen = new Set<string>();
+        for (const p of res.points ?? []) {
+          const time = p.fecha ? new Date(p.fecha).getTime() : NaN;
+          if (!Number.isFinite(p.lat) || Math.abs(p.lat) > 90 || !Number.isFinite(p.lon) || Math.abs(p.lon) > 180 || (p.lat === 0 && p.lon === 0) || !Number.isFinite(time) || time < from || time > to) { invalid++; continue; }
+          const key = `${time}:${p.lat}:${p.lon}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          points.push({ lat: p.lat, lon: p.lon, fecha: p.fecha, zona: p.zona, trackKey: analysisTrackKey(track), trackId: track.track_id, radar: track.tipo_radar, speed: p.speed, confidence: p.confidence });
+        }
+      } catch (error) {
+        if (options.signal?.aborted) throw error;
+        failed++; limited = true;
       }
+      finally { done++; options.onProgress?.(done, selected.length); }
     }
   };
-
-  await Promise.all(
-    Array.from(
-      { length: Math.min(cfg.concurrency, selected.length) },
-      () => worker(),
-    ),
-  );
-
-  return {
-    points: collected,
-    tracksAnalyzed: selected.length,
-    tracksTotal: tracks.length,
-    pointsLimited: limited,
-  };
+  await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 4, selected.length) }, worker));
+  points.sort((a, b) => (a.fecha ?? "").localeCompare(b.fecha ?? "") || (a.trackKey ?? "").localeCompare(b.trackKey ?? ""));
+  return { points, tracksAnalyzed: successful, tracksTotal: tracks.length, pointsLimited: limited, tracksRequested: selected.length, failedTracks: failed, invalidPoints: invalid, availablePoints: available, uniformSampling: uniform };
 }

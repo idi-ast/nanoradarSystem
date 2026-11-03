@@ -186,6 +186,8 @@ export interface ActividadPayload {
 
 /** Punto individual del historial de un track (desde la BD) */
 export interface TrackHistoryPoint {
+  behavior_class?: string | null;
+  behavior_confidence?: number | null;
   fecha: string;
   lat: number;
   lon: number;
@@ -203,6 +205,8 @@ export interface TrackHistoryResponse {
   track_id: string;
   tipo_radar: string;
   points: TrackHistoryPoint[];
+  total_points?: number | null;
+  sampled?: boolean;
 }
 
 export interface RawRadarPayload {

@@ -26,3 +26,9 @@ dist-ssr
 
 
 # libs/better-auth
+
+# Rendered PDF review intermediates
+/tmp/pdfs/
+
+# Isolated analytics rendering tests
+/tmp/analysis/
