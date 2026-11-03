@@ -57,6 +57,8 @@ import { useTargetVisualStore } from "../../stores/targetVisualStore";
 import { useCameraCalibrationStore } from "../../stores/cameraCalibrationStore";
 import { useCameraCalibration } from "../../hooks/useCameraCalibration";
 import { useRole } from "@/context/role";
+import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
+import { resolveInitialMapView } from "../../utils/initialMapView";
 
 interface RadarMapProps {
   historyRange?: HistoryRange;
@@ -168,6 +170,7 @@ export const RadarMap = memo(function RadarMap({
 }: RadarMapProps) {
   const {
     config,
+    isLoading: configLoading,
     zones,
     isDrawing,
     drawingPoints,
@@ -199,6 +202,7 @@ export const RadarMap = memo(function RadarMap({
         bearing: map.getBearing(),
       });
     }
+    setMapLoaded(false);
     setMapGeneration((value) => value + 1);
   }, []);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -259,7 +263,8 @@ export const RadarMap = memo(function RadarMap({
     lng: number;
   } | null>(null);
   const [isPickingPosition, setIsPickingPosition] = useState(false);
-  const [, setMapLoaded] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const initializedGeneration = useRef<number | null>(null);
 
   const [mapCenter, setMapCenter] = useState(() => {
     const saved = useTargetVisualStore.getState().customMapCenter;
@@ -292,12 +297,7 @@ export const RadarMap = memo(function RadarMap({
   const calibrationMode = useCameraCalibrationStore((s) => s.mode);
   const isCalibrating = calibratingCameraId !== null;
 
-  const setCurrentViewportCenter = useTargetVisualStore(
-    (s) => s.setCurrentViewportCenter,
-  );
-  const setCurrentViewportZoom = useTargetVisualStore(
-    (s) => s.setCurrentViewportZoom,
-  );
+  const setCurrentViewport = useTargetVisualStore((s) => s.setCurrentViewport);
 
   const [visibleWidthM, setVisibleWidthM] = useState<number | null>(null);
   const [scaleBar, setScaleBar] = useState<{ widthPx: number; label: string } | null>(null);
@@ -370,17 +370,20 @@ export const RadarMap = memo(function RadarMap({
   }, [updateVisibleSpan]);
 
   const handleMoveEnd = useCallback(() => {
-    const center = mapRef.current?.getCenter();
-    const zoom = mapRef.current?.getZoom();
-    if (center) {
+    const map = mapRef.current;
+    if (map) {
+      const center = map.getCenter();
       setMapCenter({ lat: center.lat, lng: center.lng });
-      setCurrentViewportCenter({ latitude: center.lat, longitude: center.lng });
-    }
-    if (zoom !== undefined) {
-      setCurrentViewportZoom(zoom);
+      setCurrentViewport({
+        latitude: center.lat,
+        longitude: center.lng,
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
     }
     updateVisibleSpan();
-  }, [setCurrentViewportCenter, setCurrentViewportZoom, updateVisibleSpan]);
+  }, [setCurrentViewport, updateVisibleSpan]);
 
   function openEdit(ed: EditingDevice) {
     setEditingDevice(ed);
@@ -610,44 +613,43 @@ export const RadarMap = memo(function RadarMap({
   );
 
   const defaultCenter = instanceConfig.map.fallbackCenter;
+  const { data: devices, isPending: devicesLoading } = useConfigDevices();
   const customMapCenter = useTargetVisualStore((s) => s.customMapCenter);
   const customMapZoom = useTargetVisualStore((s) => s.customMapZoom);
+  const customMapPitch = useTargetVisualStore((s) => s.customMapPitch);
+  const customMapBearing = useTargetVisualStore((s) => s.customMapBearing);
   const { isSuperAdmin, isAdmin } = useRole();
 
-  const effectiveInitialCenter = useMemo(() => {
-    if (
-      customMapCenter &&
-      typeof customMapCenter.latitude === "number" &&
-      typeof customMapCenter.longitude === "number" &&
-      !isNaN(customMapCenter.latitude) &&
-      !isNaN(customMapCenter.longitude)
-    ) {
-      return {
-        latitude: customMapCenter.latitude,
-        longitude: customMapCenter.longitude,
-      };
-    }
-    const latCfg = parseFloat(config?.latitud ?? "0");
-    const lonCfg = parseFloat(config?.longitud ?? "0");
-    if (!isNaN(latCfg) && !isNaN(lonCfg) && latCfg !== 0 && lonCfg !== 0) {
-      return { latitude: latCfg, longitude: lonCfg };
-    }
-    return {
-      latitude: defaultCenter?.latitude || -41.46281337025373,
-      longitude: defaultCenter?.longitude || -72.9883559747647,
-    };
-  }, [customMapCenter, config?.latitud, config?.longitud, defaultCenter]);
+  const initialView = useMemo(() => resolveInitialMapView({
+    savedCenter: customMapCenter,
+    savedZoom: customMapZoom,
+    savedPitch: customMapPitch,
+    savedBearing: customMapBearing,
+    devices: devices?.data,
+    config,
+    fallback: {
+      latitude: defaultCenter?.latitude ?? -41.46281337025373,
+      longitude: defaultCenter?.longitude ?? -72.9883559747647,
+      zoom: instanceConfig.map.zoom ?? 15,
+      pitch: instanceConfig.map.pitch,
+      bearing: instanceConfig.map.bearing,
+    },
+  }), [customMapCenter, customMapZoom, customMapPitch, customMapBearing,
+    devices?.data, config, defaultCenter, instanceConfig.map]);
+  const effectiveInitialCenter = initialView;
+  const effectiveInitialZoom = initialView.zoom;
 
-  const effectiveInitialZoom = useMemo(() => {
-    if (
-      typeof customMapZoom === "number" &&
-      !isNaN(customMapZoom) &&
-      customMapZoom > 0
-    ) {
-      return customMapZoom;
-    }
-    return instanceConfig.map.zoom ?? 15;
-  }, [customMapZoom, instanceConfig.map.zoom]);
+  useEffect(() => {
+    // initialViewState solo se lee al crear el mapa. Los radares llegan por HTTP
+    // después, así que aplicamos la vista una vez al terminar la carga inicial.
+    if (!mapLoaded || configLoading || devicesLoading || initializedGeneration.current === mapGeneration) return;
+    const map = mapRef.current;
+    if (!map) return;
+    initializedGeneration.current = mapGeneration;
+    const view = retryView ?? initialView;
+    map.jumpTo({ center: [view.longitude, view.latitude], zoom: view.zoom, pitch: view.pitch, bearing: view.bearing });
+    handleMoveEnd();
+  }, [mapLoaded, configLoading, devicesLoading, mapGeneration, retryView, initialView, handleMoveEnd]);
 
   // if (!config) {
   //   return (
@@ -668,11 +670,7 @@ export const RadarMap = memo(function RadarMap({
           key={mapGeneration}
           ref={mapRef}
           initialViewState={{
-            latitude: effectiveInitialCenter.latitude,
-            longitude: effectiveInitialCenter.longitude,
-            zoom: effectiveInitialZoom,
-            pitch: instanceConfig.map.pitch,
-            bearing: instanceConfig.map.bearing,
+            ...initialView,
             ...retryView,
           }}
           //  -41.46239837025373, -72.9882059747647
@@ -683,10 +681,14 @@ export const RadarMap = memo(function RadarMap({
           interactiveLayerIds={editingDevice ? [] : ALL_TARGET_LAYER_IDS}
           onClick={handleMapClick}
           onMove={updateVisibleSpan}
+          onMoveStart={(event) => {
+            // Una interacción manual durante la carga también tiene prioridad.
+            if (event.originalEvent) initializedGeneration.current = mapGeneration;
+          }}
           onMoveEnd={handleMoveEnd}
           onLoad={() => {
             setMapLoaded(true);
-            updateVisibleSpan();
+            handleMoveEnd();
           }}
           cursor={
             isCalibrating
@@ -730,6 +732,8 @@ export const RadarMap = memo(function RadarMap({
             mapLayers={mapLayers}
             initialCenter={effectiveInitialCenter}
             initialZoom={effectiveInitialZoom}
+            initialPitch={initialView.pitch}
+            initialBearing={initialView.bearing}
             extraButtons={<ManualPtzButton />}
           />
           <RadarZonesLayer zones={zones} />

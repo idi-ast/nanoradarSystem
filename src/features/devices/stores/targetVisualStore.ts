@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { MapView } from "../utils/initialMapView";
 import { preferenceStorage } from "../utils/preferenceStorage";
 import type { Boat3DConfig } from "../components/map/boatSingleRenderer";
 import { DEFAULT_BOAT3D_CONFIG } from "../components/map/boatSingleRenderer";
@@ -114,10 +115,14 @@ interface TargetVisualState {
   customMapCenter: MapCenter | null;
   /** Zoom guardado por el usuario. null = usar zoom por defecto del config. */
   customMapZoom: number | null;
+  customMapPitch: number | null;
+  customMapBearing: number | null;
   /** Centro del viewport actual (runtime, no persistido). */
   currentViewportCenter: MapCenter | null;
   /** Zoom del viewport actual (runtime, no persistido). */
   currentViewportZoom: number | null;
+  currentViewportPitch: number | null;
+  currentViewportBearing: number | null;
 }
 
 interface TargetVisualStore extends TargetVisualState {
@@ -134,6 +139,9 @@ interface TargetVisualStore extends TargetVisualState {
   setCustomMapZoom: (zoom: number | null) => void;
   setCurrentViewportCenter: (center: MapCenter | null) => void;
   setCurrentViewportZoom: (zoom: number | null) => void;
+  setCurrentViewport: (view: MapView) => void;
+  saveCurrentMapView: () => void;
+  clearCustomMapView: () => void;
   reset: () => void;
 }
 
@@ -149,13 +157,17 @@ const DEFAULTS: TargetVisualState = {
   iconStyle2D: { ...DEFAULT_ICON_STYLE_2D },
   customMapCenter: null,
   customMapZoom: null,
+  customMapPitch: null,
+  customMapBearing: null,
   currentViewportCenter: null,
   currentViewportZoom: null,
+  currentViewportPitch: null,
+  currentViewportBearing: null,
 };
 
 export const useTargetVisualStore = create<TargetVisualStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...DEFAULTS,
       setTrackStrokeWidth: (v) => set({ trackStrokeWidth: v }),
       setTrackDurationSec: (v) => set({ trackDurationSec: v }),
@@ -176,6 +188,26 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
       setCurrentViewportCenter: (center) =>
         set({ currentViewportCenter: center }),
       setCurrentViewportZoom: (zoom) => set({ currentViewportZoom: zoom }),
+      setCurrentViewport: (view) => set({
+        currentViewportCenter: { latitude: view.latitude, longitude: view.longitude },
+        currentViewportZoom: view.zoom,
+        currentViewportPitch: view.pitch,
+        currentViewportBearing: view.bearing,
+      }),
+      saveCurrentMapView: () => {
+        const state = get();
+        if (!state.currentViewportCenter) return;
+        set({
+          customMapCenter: { ...state.currentViewportCenter },
+          customMapZoom: state.currentViewportZoom,
+          customMapPitch: state.currentViewportPitch,
+          customMapBearing: state.currentViewportBearing,
+        });
+      },
+      clearCustomMapView: () => set({
+        customMapCenter: null, customMapZoom: null,
+        customMapPitch: null, customMapBearing: null,
+      }),
       reset: () => set(DEFAULTS),
     }),
     {
@@ -204,6 +236,8 @@ export const useTargetVisualStore = create<TargetVisualStore>()(
         iconStyle2D: state.iconStyle2D,
         customMapCenter: state.customMapCenter,
         customMapZoom: state.customMapZoom,
+        customMapPitch: state.customMapPitch,
+        customMapBearing: state.customMapBearing,
       }),
     },
   ),

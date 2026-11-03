@@ -264,10 +264,12 @@ function TargetVisualPanel() {
     setAutoZoomEnabled,
     customMapCenter,
     customMapZoom,
+    customMapPitch,
+    customMapBearing,
     currentViewportCenter,
-    currentViewportZoom,
     setCustomMapCenter,
-    setCustomMapZoom,
+    saveCurrentMapView,
+    clearCustomMapView,
     reset,
   } = useTargetVisualStore();
 
@@ -324,12 +326,17 @@ function TargetVisualPanel() {
                       <small className="opacity-50">predeterminado</small>
                     </p>
                   )}
+                  {customMapBearing !== null && (
+                    <p className="tabular-nums">Rotación: {customMapBearing.toFixed(1)}°</p>
+                  )}
+                  {customMapPitch !== null && (
+                    <p className="tabular-nums">Inclinación: {customMapPitch.toFixed(1)}°</p>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    setCustomMapCenter(null);
-                    setCustomMapZoom(null);
+                    clearCustomMapView();
                   }}
                   className="text-[10px] text-text-200/50 hover:text-red-400 transition-colors shrink-0"
                   title="Eliminar posición guardada"
@@ -339,8 +346,8 @@ function TargetVisualPanel() {
               </div>
             ) : (
               <p className="text-[10px] text-text-200/50 leading-tight">
-                Sin posición guardada. Se usará la posición por defecto del
-                sistema.
+                Sin posición guardada. Se usará la ubicación del radar si existe;
+                de lo contrario, la posición por defecto del sistema.
               </p>
             )}
             <button
@@ -348,8 +355,7 @@ function TargetVisualPanel() {
               disabled={!currentViewportCenter}
               onClick={() => {
                 if (currentViewportCenter) {
-                  setCustomMapCenter(currentViewportCenter);
-                  setCustomMapZoom(currentViewportZoom);
+                  saveCurrentMapView();
                   setManualLatitude(String(currentViewportCenter.latitude));
                   setManualLongitude(String(currentViewportCenter.longitude));
                 }
@@ -359,6 +365,9 @@ function TargetVisualPanel() {
               <IconMapPin size={12} stroke={2} />
               Usar posición actual del mapa
             </button>
+            <p className="text-[10px] text-text-200/50 leading-tight">
+              Guarda centro, zoom, rotación e inclinación. Esta vista tiene prioridad al iniciar.
+            </p>
             <form
               className="space-y-1.5 border-t border-border/40 pt-1.5"
               onSubmit={(event) => {
