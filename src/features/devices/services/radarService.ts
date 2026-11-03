@@ -52,7 +52,7 @@ export async function deleteRadarZone(id: number): Promise<void> {
 // Historial de tracks
 export async function fetchTrackHistory(
   trackId: string,
-  params?: { tipo_radar?: string; from?: string; to?: string; limit?: number; session_ref?: string; sample?: boolean },
+  params?: { tipo_radar?: string; from?: string; to?: string; limit?: number; session_ref?: string; sample?: boolean; include_metrics?: boolean; max_gap_seconds?: number },
 ): Promise<TrackHistoryResponse> {
   const res = await apiSystem.get<TrackHistoryResponse>(
     `/tracks/${trackId}/history`,

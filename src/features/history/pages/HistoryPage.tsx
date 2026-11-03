@@ -15,7 +15,7 @@ import { fetchReportTrackSummaries } from "../api";
 import { fetchAnalysisPoints, type AnalysisFetchResult, type AnalysisZone } from "../analysis";
 import { extractZoneVertices } from "@/features/devices/components/map/utils/geoHelpers";
 import { toast } from "sonner";
-import { DEFAULT_REPORT_SETTINGS, isValidAnalysisZone, normalizeZone, type ReportSettings } from "../reportAnalytics";
+import { DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, normalizeZone, type ReportSettings } from "../reportAnalytics";
 import { ReportSettingsDialog } from "../components/ReportSettingsDialog";
 
 function getDefaultFromDate(): string {
@@ -141,10 +141,12 @@ export default function HistoryPage() {
         listing = await fetchReportTrackSummaries(reportFilters, onlyWithZones,
           (page, count) => setReportProgress(`Cargando resúmenes: página ${page} de ${count}`), controller.signal);
       }
-      const reportTracks = listing.tracks;
+      const reportTracks = filterReportTracks(listing.tracks, reportSettings.category);
 
       if (reportTracks.length === 0) {
-        toast.warning("No hay tracks para el período y filtros seleccionados.");
+        toast.warning(listing.limited && reportSettings.category
+          ? "No hay tracks de esa categoría entre los resúmenes cargados. El listado está recortado; prueba un período más corto."
+          : "No hay tracks para la categoría, el período y los filtros seleccionados.");
         return;
       }
 
@@ -157,6 +159,7 @@ export default function HistoryPage() {
       try {
         analysis = await fetchAnalysisPoints(reportTracks, {
           from: reportFilters.from, to: reportFilters.to, signal: controller.signal,
+          includeMovement: true, maxGapSeconds: reportSettings.maxGapSeconds,
           onProgress: (done, count) => setReportProgress(`Analizando trayectorias: ${done} de ${count}`),
         });
       } catch (error) {
@@ -167,7 +170,7 @@ export default function HistoryPage() {
       controller.signal.throwIfAborted();
       setReportProgress("Construyendo gráficos y PDF...");
       const range = downloadTrackActivityReport({
-        tracks: reportTracks,
+        tracks: listing.tracks,
         total: listing.total,
         filters: reportFilters,
         onlyWithZones,
@@ -208,7 +211,7 @@ export default function HistoryPage() {
 
   return (
     <div className="w-full h-full grid grid-cols-12 overflow-hidden bg-bg-300 text-text-100">
-      {reportDialogOpen && <ReportSettingsDialog settings={reportSettings} zones={analysisZones} onChange={setReportSettings} onClose={() => setReportDialogOpen(false)} onGenerate={handleGenerateReport} />}
+      {reportDialogOpen && <ReportSettingsDialog settings={reportSettings} zones={analysisZones} categories={mergedTracks.map(t => t.behavior_class ?? 'sin_clasificar')} onChange={setReportSettings} onClose={() => setReportDialogOpen(false)} onGenerate={handleGenerateReport} />}
       {isGeneratingReport && <div role="status" aria-live="polite" className="fixed bottom-5 right-5 z-99999 rounded-lg border border-border bg-bg-100 px-5 py-3 text-sm text-text-100 shadow-xl">{reportProgress}<button type="button" className="ml-4 underline" onClick={() => { reportController.current?.abort(); setReportProgress("Cancelando..."); }}>Cancelar</button></div>}
       <aside className="col-span-3 xl:col-span-2 h-full border-r border-border overflow-hidden">
         <HistoryListPanel

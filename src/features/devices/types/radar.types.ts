@@ -207,6 +207,7 @@ export interface TrackHistoryResponse {
   points: TrackHistoryPoint[];
   total_points?: number | null;
   sampled?: boolean;
+  movement?: { distance_m: number | null; tracked_seconds: number; segment_count: number; gap_count: number; max_gap_seconds: number } | null;
 }
 
 export interface RawRadarPayload {

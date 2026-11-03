@@ -1,5 +1,6 @@
 import { analysisTrackKey, type TrackSummary } from "./types";
 import type { AnalysisPoint, AnalysisZone } from "./analysis";
+import type { MovementSort } from './reportMovement';
 
 export interface ReportSettings {
   timeZone: string;
@@ -8,12 +9,35 @@ export interface ReportSettings {
   criticalZones: string[];
   proximityM: number;
   maxGapSeconds: number;
+  /** Minimum recorded points for PDF approach rankings, not general analytics. */
+  minApproachPoints: number;
+  /** Empty string includes all behavior categories in the PDF. */
+  category: string;
+  format: 'detailed' | 'summary';
+  movementSort: MovementSort;
 }
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   timeZone: "America/Santiago", nightStart: 21, nightEnd: 7,
-  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120,
+  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, category: "",
+  format: 'detailed', movementSort: 'distance',
 };
 export const normalizeZone = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+export const normalizeReportCategory = (value?: string | null) => {
+  const category = normalizeZone(value ?? '').replace(/[\s-]+/g, '_') || 'sin_clasificar';
+  return category === 'unclassified' ? 'sin_clasificar' : category === 'unknown' ? 'desconocido' : category;
+};
+export const reportCategoryLabel = (value?: string) => {
+  if (!value) return 'Todas las categorías';
+  const category = normalizeReportCategory(value);
+  const labels: Record<string, string> = { bolla: 'Boya', pajaro: 'Pájaro', vehiculo: 'Vehículo' };
+  const label = labels[category] ?? category.replace(/_/g, ' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+export function filterReportTracks(tracks: TrackSummary[], category = '') {
+  if (!category) return tracks;
+  const selected = normalizeReportCategory(category);
+  return tracks.filter(t => normalizeReportCategory(t.behavior_class) === selected);
+}
 export function isBoat(track: TrackSummary) {
   return /^(lancha|barco|embarcacion|bote|boat|vessel)$/.test(normalizeZone(track.behavior_class ?? ""));
 }
@@ -57,6 +81,10 @@ export interface Approach {
   firstNear: string | null; lastNear: string | null;
   priority: "Alta" | "Media" | "Observación";
   reasons: string[];
+}
+export function filterReportApproaches(approaches: Approach[], minPoints = DEFAULT_REPORT_SETTINGS.minApproachPoints) {
+  if (!Number.isSafeInteger(minPoints) || minPoints < 1) throw new Error("El mínimo de puntos para acercamientos debe ser un entero mayor o igual a 1");
+  return approaches.filter(a => Number.isFinite(a.track.point_count) && a.track.point_count >= minPoints);
 }
 export interface HourStats {
   hour: number; starts: number; boatStarts: number; present: number; near: number;

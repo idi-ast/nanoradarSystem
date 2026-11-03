@@ -28,6 +28,11 @@ export interface AnalysisFetchResult {
   invalidPoints?: number;
   availablePoints?: number;
   uniformSampling?: boolean;
+  movements?: MovementObservation[];
+}
+export interface MovementObservation {
+  trackKey: string; distanceM: number | null; trackedSeconds: number;
+  segmentCount: number; gapCount: number; maxGapSeconds: number;
 }
 export interface AnalysisOptions {
   maxTracks?: number;
@@ -39,6 +44,8 @@ export interface AnalysisOptions {
   to?: string;
   onProgress?: (done: number, total: number) => void;
   signal?: AbortSignal;
+  includeMovement?: boolean;
+  maxGapSeconds?: number;
 }
 
 /** Selección repartida por todo el período, sin favorecer los tracks más largos. */
@@ -49,6 +56,7 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
   const budget = options.targetPoints ?? 60000;
   const perTrack = Math.max(2, Math.min(options.maxPointsPerTrack ?? 2000, Math.floor(budget / Math.max(1, selected.length))));
   const points: AnalysisPoint[] = [];
+  const movements: MovementObservation[] = [];
   let cursor = 0, done = 0, successful = 0, failed = 0, invalid = 0, available = 0;
   let limited = selected.length < tracks.length, uniform = true;
   const worker = async () => {
@@ -63,9 +71,14 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
           from: Number.isFinite(from) ? new Date(from).toISOString() : undefined,
           to: Number.isFinite(to) ? new Date(to).toISOString() : undefined,
           limit: perTrack, sample: true,
+          include_metrics: options.includeMovement || undefined,
+          max_gap_seconds: options.includeMovement ? options.maxGapSeconds ?? 120 : undefined,
         });
         options.signal?.throwIfAborted();
         successful++;
+        if (res.movement) movements.push({ trackKey: analysisTrackKey(track), distanceM: res.movement.distance_m,
+          trackedSeconds: res.movement.tracked_seconds, segmentCount: res.movement.segment_count,
+          gapCount: res.movement.gap_count, maxGapSeconds: res.movement.max_gap_seconds });
         available += res.total_points ?? res.points.length;
         if (res.sampled || res.points.length >= perTrack) limited = true;
         if (res.total_points == null) { uniform = false; limited = true; }
@@ -87,5 +100,5 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
   };
   await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 4, selected.length) }, worker));
   points.sort((a, b) => (a.fecha ?? "").localeCompare(b.fecha ?? "") || (a.trackKey ?? "").localeCompare(b.trackKey ?? ""));
-  return { points, tracksAnalyzed: successful, tracksTotal: tracks.length, pointsLimited: limited, tracksRequested: selected.length, failedTracks: failed, invalidPoints: invalid, availablePoints: available, uniformSampling: uniform };
+  return { points, movements, tracksAnalyzed: successful, tracksTotal: tracks.length, pointsLimited: limited, tracksRequested: selected.length, failedTracks: failed, invalidPoints: invalid, availablePoints: available, uniformSampling: uniform };
 }
