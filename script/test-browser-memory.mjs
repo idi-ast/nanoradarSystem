@@ -123,6 +123,7 @@ const timing = { HISTORY_MAX_POINTS: 1500, TARGET_TIMEOUT_MS: 600000 };
 const wsModule = load('src/features/devices/hooks/useRadarWebSocket.ts', {
   react: wsHost.react, '../config': { TARGET_TIMING: timing },
   '../stores/targetVisualStore': { useTargetVisualStore: selector => selector({ inactiveIconTimeoutSec: 0 }) },
+  '../stores/radarConnectionStore': load('src/features/devices/stores/radarConnectionStore.ts'),
   sonner: { toast: {} }, '../utils/boundedHistory': { appendBoundedHistory },
 }, { localStorage, WebSocket: Socket, Date: Clock,
   setInterval(fn, delay) { const id = ++nextInterval; intervals.set(id, { fn, delay }); return id; },

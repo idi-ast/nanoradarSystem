@@ -158,8 +158,8 @@ class ApiSystem {
     return this.request<T>("GET", endpoint, undefined, params, false, options?.signal);
   }
 
-  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>("POST", endpoint, data);
+  async post<T>(endpoint: string, data?: unknown, options?: { signal?: AbortSignal }): Promise<ApiResponse<T>> {
+    return this.request<T>("POST", endpoint, data, undefined, false, options?.signal);
   }
 
   async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {

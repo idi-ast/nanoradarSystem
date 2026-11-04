@@ -3,6 +3,7 @@ import type { RadarTarget, RawRadarPayload, CamaraActividad, MagosRadarTrack } f
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 import { useTargetVisualStore } from "../stores/targetVisualStore";
+import { useRadarConnectionStore, type RadarConnectionStatus } from "../stores/radarConnectionStore";
 import { toast } from "sonner";
 import { appendBoundedHistory } from "../utils/boundedHistory";
 
@@ -279,7 +280,7 @@ function processMagosradarMessages(
   }
 }
 
-export type WsStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+export type WsStatus = RadarConnectionStatus;
 
 export function useRadarWebSocket(
   url: string,
@@ -318,7 +319,14 @@ export function useRadarWebSocket(
     if (!url || !url.startsWith("ws")) return;
 
     const trackKinematics = kinematicsRef.current;
+    const owner = Symbol('radar-websocket');
+    const updateStatus = (status: WsStatus) => {
+      if (destroyed) return;
+      setWsStatus(status);
+      useRadarConnectionStore.getState().setStatus(owner,status);
+    };
     let destroyed = false;
+    let lastReceivedAt = Date.now();
     let retryCount = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let ws: WebSocket | null = null;
@@ -375,23 +383,26 @@ export function useRadarWebSocket(
 
     function connect() {
       if (destroyed) return;
-      setWsStatus(retryCount === 0 ? "connecting" : "reconnecting");
+      updateStatus(retryCount === 0 ? "connecting" : "reconnecting");
 
       // Obtener token del localStorage y agregarlo como query param
       const token = localStorage.getItem("access_token");
-      const wsUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+      const wsUrl = token ? `${url}${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : url;
 
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         if (destroyed) { ws?.close(); return; }
         retryCount = 0;
-        setWsStatus("connected");
+        lastReceivedAt = Date.now();
+        updateStatus("connected");
       };
 
       ws.onmessage = (event: MessageEvent) => {
+        lastReceivedAt = Date.now();
         try {
           const raw = JSON.parse(event.data as string);
+          if (raw?.type === "pong") return;
           if (raw && typeof raw === "object") {
             // Manejo de alertas del sistema (almacenamiento)
             if (raw.type === "storage_alert") {
@@ -420,15 +431,17 @@ export function useRadarWebSocket(
       };
 
       ws.onerror = () => {
+        updateStatus("disconnected");
         // El error ya dispara onclose; solo logueamos en desarrollo
         if (import.meta.env.DEV) {
           console.warn("[useRadarWebSocket] Error de conexión con", url);
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
         if (destroyed) return;
-        setWsStatus("disconnected");
+        updateStatus("disconnected");
+        if (event.code === 4001) return;
         const delay = RECONNECT_DELAYS_MS[Math.min(retryCount, RECONNECT_DELAYS_MS.length - 1)];
         retryCount += 1;
         if (import.meta.env.DEV) {
@@ -438,10 +451,35 @@ export function useRadarWebSocket(
       };
     }
 
+    const heartbeatInterval = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (Date.now() - lastReceivedAt > 30000) {
+        updateStatus('disconnected'); ws.close(); return;
+      }
+      try { ws.send(JSON.stringify({type:'ping'})); }
+      catch { updateStatus('disconnected'); ws.close(); }
+    }, 10000);
+    const offline = () => { updateStatus('disconnected'); ws?.close(); };
+    const authChanged = () => {
+      if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null; }
+      updateStatus('reconnecting');
+      if (ws && ws.readyState < WebSocket.CLOSING) ws.close();
+      else connect();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('offline',offline);
+      window.addEventListener('radar-auth-token-changed',authChanged);
+    }
     connect();
 
     return () => {
       destroyed = true;
+      useRadarConnectionStore.getState().remove(owner);
+      clearInterval(heartbeatInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('offline',offline);
+        window.removeEventListener('radar-auth-token-changed',authChanged);
+      }
       if (retryTimer !== null) clearTimeout(retryTimer);
       if (ws) {
         ws.onopen = null;

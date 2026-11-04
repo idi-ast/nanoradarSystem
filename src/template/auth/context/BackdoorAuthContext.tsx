@@ -5,6 +5,7 @@
 
 import {
   useState,
+  useEffect,
   useCallback,
   type ReactNode,
 } from "react";
@@ -26,6 +27,10 @@ const USER_STORAGE_KEY = "auth_user";
 interface BackdoorAuthProviderProps {
   children: ReactNode;
 }
+
+const buildSession = (userId: string, token: string): Session => ({
+  id: token, userId, token, expiresAt: null, createdAt: new Date(), updatedAt: new Date(),
+});
 
 export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   const { setRoleId, setRoleEmpresa, setEmpresaEsPrincipal } = useRole();
@@ -49,22 +54,11 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
       id: storedToken,
       userId: user?.id ?? "",
       token: storedToken,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      expiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
   });
-
-  const buildSession = (userId: string, token: string): Session => ({
-    id: token,
-    userId,
-    token,
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -110,14 +104,16 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setRoleId,setRoleEmpresa,setEmpresaEsPrincipal]);
 
   const signInWithSocial = useCallback(async (_provider: AuthProviderType) => {
+    void _provider;
     setError("Login social no disponible en este sistema.");
     throw new Error("Login social no disponible en este sistema.");
   }, []);
 
   const signUp = useCallback(async (_credentials: SignUpCredentials) => {
+    void _credentials;
     setError("Registro no disponible en este sistema.");
     throw new Error("Registro no disponible en este sistema.");
   }, []);
@@ -133,6 +129,26 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     setEmpresaEsPrincipal(false);
     queryClient.clear();
   }, [setRoleId, setRoleEmpresa, setEmpresaEsPrincipal]);
+
+  useEffect(() => {
+    if (!user?.id || !localStorage.getItem('access_token')) return;
+    let disposed = false;
+    void authService.verifySession().then(result => {
+      const token = localStorage.getItem('access_token');
+      if (!disposed && result.success && token) setSession(buildSession(user.id,token));
+    });
+    return () => { disposed = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key === 'access_token' && !event.newValue) {
+        setUser(null); setSession(null); setRoleId(null); setRoleEmpresa(null); setEmpresaEsPrincipal(false); queryClient.clear();
+      }
+    };
+    window.addEventListener('storage',storageChanged);
+    return () => window.removeEventListener('storage',storageChanged);
+  }, [setRoleId,setRoleEmpresa,setEmpresaEsPrincipal]);
 
   const refreshSession = useCallback(async () => {
     const result = await authService.verifySession();

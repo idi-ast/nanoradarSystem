@@ -1,3 +1,4 @@
+import { RadarConnectionIndicator } from "./RadarConnectionIndicator";
 import ThemeToggleButton from "../modeColor/ThemeToggleButton";
 import type { AppConfig } from "@/config/ConfigServer";
 // import { NotificationDropdown } from "@/template/notifications";
@@ -46,6 +47,7 @@ function Header({
               </button>
             )}
             <ThemeToggleButton />
+            <RadarConnectionIndicator />
             {/* <NotificationDropdown /> */}
           </div>
           <div className="border-s border-border/50 py-0.5 px-0.5 relative">
