@@ -1,3 +1,5 @@
+import { isBehaviorVisible, targetBehaviorKey, behaviorCriticality } from "../../config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "../../stores/behaviorVisibilityStore";
 import { memo, useMemo, useState } from "react";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import type { DeviceFilter, RadarTarget } from "../../types";
@@ -11,14 +13,8 @@ import { isPointInPolygon } from "./utils/geoHelpers";
 import { TargetCard } from "../panel/TargetCard";
 import {
   resolveBehaviorCategory,
-  BEHAVIOR_CATEGORIES,
-  ZONE_DETECTION_CATEGORIES,
 } from "../../config";
-import {
-  normalizeTrackCategory,
-  TRACK_CATEGORIES_CONFIG,
-  IconTargetNeutral,
-} from "../../config/categories";
+
 
 type TabFilter = DeviceFilter;
 
@@ -30,53 +26,9 @@ interface Props {
   onToggleCollapsed?: () => void;
 }
 
-function getTargetCategoryInfo(target: RadarTarget, zones: any[]) {
-  if (target.behaviorClass) {
-    const bCat = resolveBehaviorCategory(
-      target.behaviorClass,
-      target.behaviorConfidence ?? 1,
-    );
-    if (bCat && bCat !== BEHAVIOR_CATEGORIES.sin_clasificar) {
-      return bCat;
-    }
-    const norm = normalizeTrackCategory(target.behaviorClass);
-    const item = TRACK_CATEGORIES_CONFIG.find((c) => c.id === norm);
-    if (item && item.id !== "UNKNOWN") {
-      return item;
-    }
-  }
-
-  if (zones && zones.length > 0) {
-    for (const zone of zones) {
-      const rawVertices = Array.isArray(zone.poligono.vertices)
-        ? zone.poligono.vertices
-        : Object.values(zone.poligono.vertices);
-      if (
-        isPointInPolygon(
-          target.lat,
-          target.lon,
-          rawVertices as [number, number][],
-        )
-      ) {
-        const zCat = ZONE_DETECTION_CATEGORIES.find(
-          (c) => c.id === zone.categoriaDeteccion,
-        );
-        if (zCat && zCat.id !== 0) {
-          return {
-            label: zCat.label,
-            icon: zCat.icon,
-            color: zone.poligono?.color || "#38bdf8",
-          };
-        }
-      }
-    }
-  }
-
-  return {
-    label: "Sin clasificar",
-    icon: IconTargetNeutral,
-    color: "#94a3b8",
-  };
+function getTargetCategoryInfo(target: RadarTarget) {
+  // A zone's configured icon is not evidence of the object's classification.
+  return resolveBehaviorCategory(target.behaviorClass, target.behaviorConfidence ?? 0);
 }
 
 export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
@@ -86,6 +38,7 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
   isCollapsed: controlledCollapsed,
   onToggleCollapsed,
 }: Props) {
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
   const { stableTargets } = useRadarStableTargets();
   const { zones } = useRadarContext();
   const { data: configData } = useConfigDevices();
@@ -96,10 +49,11 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
   const handleToggle = onToggleCollapsed ?? (() => setInternalCollapsed((prev) => !prev));
 
   const filteredTargets = useMemo(() => {
-    if (!searchTrackId) return stableTargets;
+    const visible = stableTargets.filter(t => isBehaviorVisible(targetBehaviorKey(t), visibility));
+    if (!searchTrackId) return visible;
     const lower = searchTrackId.toLowerCase();
-    return stableTargets.filter((t) => t.id.toLowerCase().includes(lower));
-  }, [stableTargets, searchTrackId]);
+    return visible.filter((t) => t.id.toLowerCase().includes(lower));
+  }, [stableTargets, searchTrackId, visibility]);
 
   const activeTypes = useMemo(
     () => getActiveDeviceTypes(configData?.data),
@@ -158,7 +112,7 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
       const bInZone = targetZoneColorMap?.has(b.id) ?? false;
       if (aInZone && !bInZone) return -1;
       if (!aInZone && bInZone) return 1;
-      return 0;
+      return Number(behaviorCriticality(b.behaviorClass) === "Alta") - Number(behaviorCriticality(a.behaviorClass) === "Alta");
     });
     return { counts: nextCounts, sorted: nextSorted };
   }, [
@@ -201,7 +155,7 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
             </p>
           ) : (
             sorted.map((t) => {
-              const cat = getTargetCategoryInfo(t, zones);
+              const cat = getTargetCategoryInfo(t);
               const Icon = cat.icon;
               const isCritical = t.nivel === 4;
               const inZone = targetZoneColorMap?.has(t.id);

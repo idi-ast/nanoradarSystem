@@ -4,6 +4,10 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
+import {build} from 'esbuild';
+const categoryBuild=await build({entryPoints:['src/features/devices/config/behaviorCategories.ts'],bundle:true,platform:'node',format:'cjs',write:false});
+const categoryModule={exports:{}};
+new Function('module','exports',categoryBuild.outputFiles[0].text)(categoryModule,categoryModule.exports);
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 function load(file,mocks) {
@@ -115,7 +119,7 @@ assert.equal(nodes.find(n=>n.type===Popup).props.latitude,point(2,3).lat);
 const oneNodes=[];walk(TrackPlaybackMap({...mapProps,tracks:[{summary:single,points:[point(0)],loading:false,error:null}],activeTrackKey:'magos:ONE'}),n=>oneNodes.push(n));
 assert.ok(oneNodes.some(n=>n.type==='button'&&n.props['aria-label']==='Seleccionar track ONE / magos'),'A one-point track must remain clickable');
 
-const {PlaybackControls}=load('src/features/history/components/PlaybackControls.tsx',{'../hooks/useTrackPlayback':playbackModule});
+const {PlaybackControls}=load('src/features/history/components/PlaybackControls.tsx',{'../hooks/useTrackPlayback':playbackModule,'@/features/devices/config/behaviorCategories':categoryModule.exports});
 const controlsProps={tracks:[items[0]],totalTracks:2,index:1,isPlaying:false,speed:1,onTogglePlay(){},onSpeedChange(){},onSeek(){},onClose(){},onShowAll(){}};
 const html=renderToStaticMarkup(React.createElement(PlaybackControls,controlsProps));
 for(const text of ['Track ID:','SAME','Radar:','magos','Reproducir todos (2)','2 / 3','7,2 km/h'])assert.ok(html.includes(text),text);

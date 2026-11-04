@@ -1,3 +1,4 @@
+import { behaviorKey } from "./behaviorCategories";
 // import { createElement } from "react";
 import type { ComponentType } from "react";
 import {
@@ -245,7 +246,7 @@ export const ZONE_DETECTION_CATEGORIES: {
 }[] = [
   { id: 0, label: "Sin clasificar", icon: IconTargetNeutral },
   { id: 1, label: "Persona",        icon: IconUser },
-  { id: 2, label: "Barco",          icon: IconSailboat },
+  { id: 2, label: "Embarcación",          icon: IconSailboat },
   { id: 3, label: "Vehículo",       icon: IconCar },
   { id: 4, label: "Animal",         icon: IconPaw },
   { id: 5, label: "Dron",           icon: IconDrone },
@@ -266,11 +267,11 @@ export const BEHAVIOR_CATEGORIES: Record<
   neutral:        { label: "Neutro",         icon: IconTargetNeutral, color: "#94a3b8" },
   desconocido:    { label: "Desconocido",    icon: IconTargetNeutral, color: "#94a3b8" },
   unknown:        { label: "Desconocido",    icon: IconTargetNeutral, color: "#94a3b8" },
-  lancha:         { label: "Lancha",         icon: IconSpeedboat,    color: "#38bdf8" },
-  barco:          { label: "Barco",          icon: IconSailboat,     color: "#0ea5e9" },
+  lancha:         { label: "Embarcación",         icon: IconSpeedboat,    color: "#38bdf8" },
+  barco:          { label: "Embarcación",          icon: IconSailboat,     color: "#0ea5e9" },
   bolla:          { label: "Boya",           icon: IconLifebuoy,     color: "#f97316" },
   persona:        { label: "Persona",        icon: IconWalk,         color: "#a78bfa" },
-  pajaro:         { label: "Pájaro",         icon: IconFeather,      color: "#facc15" },
+  pajaro:         { label: "Aves",         icon: IconFeather,      color: "#facc15" },
   ola:            { label: "Ola",            icon: IconRipple,       color: "#5eead4" },
   animal:         { label: "Animal",         icon: IconPaw,          color: "#a3e635" },
   dron:           { label: "Dron",           icon: IconDrone,        color: "#f43f5e" },
@@ -286,7 +287,7 @@ export function resolveBehaviorCategory(
   confidence = 0,
 ) {
   if (!behaviorClass) return BEHAVIOR_CATEGORIES.sin_clasificar;
-  const key = behaviorClass.toLowerCase().trim();
+  const key = behaviorKey(behaviorClass);
   if (
     ["sin_clasificar", "unclassified", "neutral", "unknown", "desconocido", "none", "null", "undefined", ""].includes(key)
   ) {

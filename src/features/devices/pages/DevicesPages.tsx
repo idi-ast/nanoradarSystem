@@ -1,4 +1,6 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { isBehaviorVisible, targetBehaviorKey } from "../config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "../stores/behaviorVisibilityStore";
+import { useState, useCallback, useEffect, useMemo, memo } from "react";
 import {
   IconAdjustmentsHorizontal,
   IconArrowNarrowLeft,
@@ -107,6 +109,11 @@ function NanoPagesContent({ isCompact }: { isCompact: boolean }) {
 
   // Encontrar el target seleccionado
   const { targets } = useRadarTargets();
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  useEffect(() => {
+    const selected = targets.find(t => t.id === selectedHistoryTrackId);
+    if (selected && !isBehaviorVisible(targetBehaviorKey(selected), visibility)) setSelectedHistoryTrackId(null);
+  }, [targets, visibility, selectedHistoryTrackId]);
 
   // Límites temporales del historial de los targets (para mostrar fechas en la barra)
   const mainHistoryBounds = useMemo(() => {
@@ -525,7 +532,9 @@ const TargetsDynamicPanel = memo(function TargetsDynamicPanel({
   onDeviceFilterChange: (f: DeviceFilter) => void;
   onSelectTrack?: (id: string | null) => void;
 }) {
-  const { stableTargets } = useRadarStableTargets();
+  const { stableTargets: allStableTargets } = useRadarStableTargets();
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  const stableTargets = useMemo(() => allStableTargets.filter(t => isBehaviorVisible(targetBehaviorKey(t), visibility)), [allStableTargets, visibility]);
   const [searchTrackId, setSearchTrackId] = useState<string>("");
   const filteredTargets = useMemo(() => {
     if (!searchTrackId) return stableTargets;

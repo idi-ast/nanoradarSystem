@@ -1,3 +1,5 @@
+import { isBehaviorVisible, orderedBehaviorKeys } from "@/features/devices/config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "@/features/devices/stores/behaviorVisibilityStore";
 import type { AnalysisZone } from "../analysis";
 import { normalizeReportCategory, reportCategoryLabel, type ReportSettings } from "../reportAnalytics";
 import { useQuery } from '@tanstack/react-query';
@@ -13,8 +15,9 @@ interface Props {
   onGenerate: () => void;
 }
 export function ReportSettingsDialog({ settings, zones, categories = [], onChange, onClose, onGenerate }: Props) {
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
   const categoryQuery = useQuery({ queryKey: ['report-behavior-categories'], queryFn: fetchBehaviorCategories, staleTime: 300000, gcTime: 60000, retry: false, refetchOnWindowFocus: false });
-  const categoryOptions = [...new Set([...Object.keys(BEHAVIOR_CATEGORIES), ...(categoryQuery.data ?? []), ...categories, 'sin_clasificar', ...(settings.category ? [settings.category] : [])].map(normalizeReportCategory))].sort((a, b) => a.localeCompare(b, 'es'));
+  const categoryOptions = orderedBehaviorKeys([...Object.keys(BEHAVIOR_CATEGORIES), ...(categoryQuery.data ?? []), ...categories, 'sin_clasificar', ...(settings.category ? [settings.category] : [])]).filter(c => isBehaviorVisible(c, visibility) || c === normalizeReportCategory(settings.category));
   const valid = settings.nightStart !== settings.nightEnd && Number.isFinite(settings.proximityM) && settings.proximityM >= 1 && settings.proximityM <= 5000 && Number.isInteger(settings.maxGapSeconds) && settings.maxGapSeconds >= 1 && settings.maxGapSeconds <= 3600 && Number.isSafeInteger(settings.minApproachPoints) && settings.minApproachPoints >= 1;
   return <div className="fixed inset-0 z-99999 flex items-center mx-auto justify-center bg-black/70 p-4">
     <div role="dialog" aria-modal="true" aria-labelledby="report-settings-title" className="relative w-full max-w-7xl max-h-[90vh] overflow-y-auto mx-auto rounded-xl border border-border bg-bg-100 p-6 text-text-100 shadow-xl">

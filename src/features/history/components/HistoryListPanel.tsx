@@ -1,3 +1,4 @@
+import { behaviorLabel } from "@/features/devices/config/behaviorCategories";
 import { useMemo, useState } from "react";
 import {
   IconArrowNarrowDown,
@@ -203,7 +204,7 @@ function exportCsv(tracks: TrackSummary[]): void {
     t.max_snr ?? "",
     t.avg_snr ?? "",
     t.max_confidence ?? "",
-    t.behavior_class ?? "",
+    behaviorLabel(t.behavior_class),
     t.behavior_confidence != null
       ? Math.round(t.behavior_confidence * 100)
       : "",
@@ -751,7 +752,7 @@ function TrackCard({
                 }}
                 title="Categoría de comportamiento asignada por el clasificador"
               >
-                {track.behavior_class}
+                {behaviorLabel(track.behavior_class)}
                 {track.behavior_confidence != null &&
                   ` · ${confidenceLabel(track.behavior_confidence, track.behavior_class)}`}
               </span>
@@ -839,7 +840,7 @@ function TrackCard({
             label="Categoría"
             value={
               track.behavior_class
-                ? `${track.behavior_class}${
+                ? `${behaviorLabel(track.behavior_class)}${
                     track.behavior_confidence != null
                       ? ` · ${confidenceLabel(
                           track.behavior_confidence,

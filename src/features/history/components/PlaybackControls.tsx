@@ -1,3 +1,4 @@
+import { behaviorLabel } from "@/features/devices/config/behaviorCategories";
 import { useMemo } from "react";
 import { IconPlayerPlay, IconPlayerPause, IconX } from "@tabler/icons-react";
 import { PLAYBACK_SPEEDS, pathDistanceM } from "../hooks/useTrackPlayback";
@@ -53,7 +54,7 @@ export function PlaybackControls({ tracks, totalTracks, index, isPlaying, speed,
 
   return <div className="absolute inset-x-0 bottom-0 z-10 overflow-hidden rounded-t-xl border-t border-border bg-bg-100/95 backdrop-blur" aria-label="Reproductor de tracks">
     <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 text-xs">
-      <div className="min-w-0" aria-live="polite">{single ? <><strong className="text-sm text-text-100">Track ID: {single.summary.track_id}</strong><span className="ml-2 text-text-200">Radar: {single.summary.tipo_radar}</span>{category && <span className="ml-2 capitalize text-text-200">{category.replace(/_/g, ' ')}</span>}</> : <strong>{tracks.length} tracks · Reproducción conjunta</strong>}</div>
+      <div className="min-w-0" aria-live="polite">{single ? <><strong className="text-sm text-text-100">Track ID: {single.summary.track_id}</strong><span className="ml-2 text-text-200">Radar: {single.summary.tipo_radar}</span>{category && <span className="ml-2 capitalize text-text-200">{behaviorLabel(category)}</span>}</> : <strong>{tracks.length} tracks · Reproducción conjunta</strong>}</div>
       <div className="flex items-center gap-2">{single && totalTracks > 1 && <button type="button" onClick={onShowAll} className="rounded-md border border-border px-2 py-1 text-sky-400">Reproducir todos ({totalTracks})</button>}<button type="button" onClick={onClose} aria-label="Cerrar todos los tracks" title="Cerrar todos los tracks" className="rounded-md p-1.5 text-text-200 hover:bg-bg-200"><IconX size={16} /></button></div>
     </div>
     <input type="range" min={0} max={Math.max(stats.length - 1, 1)} step={1} value={clamped} disabled={!stats.length} onChange={e => onSeek(Number(e.target.value))} aria-label="Progreso de la reproducción" aria-valuetext={single ? `${single.summary.track_id}: posición ${stats.length ? clamped + 1 : 0} de ${stats.length}` : `Posición ${stats.length ? clamped + 1 : 0} de ${stats.length}`} className="relative mt-2 block w-full cursor-pointer bg-transparent disabled:opacity-40" style={{ accentColor: '#bbff00', height: 10 }} />

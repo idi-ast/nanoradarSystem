@@ -1,3 +1,4 @@
+import { behaviorKey, behaviorCriticality } from "../../config/behaviorCategories";
 import { memo } from "react";
 import { CategorizeMenu } from "./CategorizeMenu";
 import { BEHAVIOR_CATEGORIES } from "../../config";
@@ -47,9 +48,10 @@ export const ClassificationBadge = memo(function ClassificationBadge({
 }: Props) {
   const color = confidenceColor(behaviorConfidence, behaviorClass);
   const cat = behaviorClass
-    ? (BEHAVIOR_CATEGORIES[behaviorClass] ?? BEHAVIOR_CATEGORIES.sin_clasificar)
+    ? (BEHAVIOR_CATEGORIES[behaviorKey(behaviorClass)] ?? BEHAVIOR_CATEGORIES.sin_clasificar)
     : BEHAVIOR_CATEGORIES.sin_clasificar;
   const Icon = cat?.icon;
+  const criticality = behaviorCriticality(behaviorClass);
 
   return (
     <div
@@ -69,6 +71,7 @@ export const ClassificationBadge = memo(function ClassificationBadge({
           {cat?.label ?? behaviorClass ?? "sin_clasificar"} ·{" "}
           {confidenceLabel(behaviorConfidence, behaviorClass)}
         </span>
+        {criticality && <span className={`text-[10px] ${criticality === "Alta" ? "text-rose-400" : "text-text-300"}`}>{criticality === "Alta" ? "Alta criticidad" : "Menor criticidad"}</span>}
         <CategorizeMenu
           trackId={trackId}
           variant="text"

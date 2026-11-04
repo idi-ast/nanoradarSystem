@@ -1,3 +1,4 @@
+import { BehaviorVisibilityControls } from "./BehaviorVisibilityControls";
 import { RadarConnectionIndicator } from "./RadarConnectionIndicator";
 import ThemeToggleButton from "../modeColor/ThemeToggleButton";
 import type { AppConfig } from "@/config/ConfigServer";
@@ -46,6 +47,7 @@ function Header({
                 <IconCategory2 size={20} />
               </button>
             )}
+            <BehaviorVisibilityControls />
             <ThemeToggleButton />
             <RadarConnectionIndicator />
             {/* <NotificationDropdown /> */}

@@ -1,3 +1,5 @@
+import { behaviorLabel, orderedBehaviorKeys, isBehaviorVisible } from "../../config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "../../stores/behaviorVisibilityStore";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { IconTag } from "@tabler/icons-react";
@@ -28,6 +30,7 @@ export const CategorizeMenu = memo(function CategorizeMenu({
   onLabeled,
   className = "",
 }: Props) {
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<string[] | null>(null);
@@ -65,7 +68,7 @@ export const CategorizeMenu = memo(function CategorizeMenu({
       setSaving(true);
       try {
         await labelTrack(trackId, category);
-        toast.success(`Track ${trackId} etiquetado como "${category}"`);
+        toast.success(`Track ${trackId} etiquetado como "${behaviorLabel(category)}"`);
         onLabeled?.(category);
       } catch (err) {
         console.error("[CategorizeMenu] labelTrack:", err);
@@ -104,7 +107,7 @@ export const CategorizeMenu = memo(function CategorizeMenu({
           role="menu"
           className="absolute right-0 top-full z-50 mt-1 w-40 rounded-md border border-border bg-bg-100 p-1 shadow-xl"
         >
-          {(categories ?? FALLBACK_CATEGORIES).map((c) => (
+          {orderedBehaviorKeys([...(categories ?? FALLBACK_CATEGORIES), "sin_clasificar"]).filter(c => isBehaviorVisible(c, visibility)).map((c) => (
             <button
               key={c}
               role="menuitem"
@@ -112,7 +115,7 @@ export const CategorizeMenu = memo(function CategorizeMenu({
               disabled={saving}
               className="block w-full rounded px-2 py-1 text-left text-[11px] text-text-100 hover:bg-bg-200 disabled:opacity-50"
             >
-              {c}
+              {behaviorLabel(c)}
             </button>
           ))}
         </div>

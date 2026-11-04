@@ -1,3 +1,4 @@
+import { behaviorKey, behaviorLabel } from "../devices/config/behaviorCategories";
 import { analysisTrackKey, type TrackSummary } from "./types";
 import type { AnalysisPoint, AnalysisZone } from "./analysis";
 import type { MovementSort } from './reportMovement';
@@ -24,17 +25,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   format: 'detailed', movementSort: 'distance', showHeatmap: false,
 };
 export const normalizeZone = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-export const normalizeReportCategory = (value?: string | null) => {
-  const category = normalizeZone(value ?? '').replace(/[\s-]+/g, '_') || 'sin_clasificar';
-  return category === 'unclassified' ? 'sin_clasificar' : category === 'unknown' ? 'desconocido' : category;
-};
-export const reportCategoryLabel = (value?: string) => {
-  if (!value) return 'Todas las categorías';
-  const category = normalizeReportCategory(value);
-  const labels: Record<string, string> = { bolla: 'Boya', pajaro: 'Pájaro', vehiculo: 'Vehículo' };
-  const label = labels[category] ?? category.replace(/_/g, ' ');
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
+export const normalizeReportCategory = behaviorKey;
+export const reportCategoryLabel = (value?: string) => value ? behaviorLabel(value) : 'Todas las categorías';
 export function filterReportTracks(tracks: TrackSummary[], category = '') {
   if (!category) return tracks;
   const selected = normalizeReportCategory(category);

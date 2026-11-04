@@ -1,3 +1,5 @@
+import { isBehaviorVisible } from "@/features/devices/config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "@/features/devices/stores/behaviorVisibilityStore";
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   useTrackSummaries,
@@ -65,6 +67,12 @@ export default function HistoryPage() {
   const favoritesSummaries = useFavoriteTrackSummaries(onlyFavorites);
 
   const playback = useTrackPlayback();
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  const visiblePlaybackTracks = useMemo(() => playback.tracks.filter(t => isBehaviorVisible(t.summary.behavior_class, visibility)), [playback.tracks, visibility]);
+  const { activeTrackKey, selectTrack } = playback;
+  useEffect(() => {
+    if (activeTrackKey && !visiblePlaybackTracks.some(t => trackKey(t.summary) === activeTrackKey)) selectTrack(null);
+  }, [activeTrackKey, selectTrack, visiblePlaybackTracks]);
 
   const mergedTracks = useMemo(
     () => {
@@ -77,11 +85,11 @@ export default function HistoryPage() {
 
   const { tracks, total, pages } = useMemo(
     () => ({
-      tracks: mergedTracks,
+      tracks: mergedTracks.filter(t => isBehaviorVisible(t.behavior_class, visibility)),
       total: summaries.data?.total ?? 0,
       pages: summaries.data?.pages ?? 1,
     }),
-    [summaries.data, mergedTracks],
+    [summaries.data, mergedTracks, visibility],
   );
 
   const selectedKeys = useMemo(
@@ -141,7 +149,7 @@ export default function HistoryPage() {
         listing = await fetchReportTrackSummaries(reportFilters, onlyWithZones,
           (page, count) => setReportProgress(`Cargando resúmenes: página ${page} de ${count}`), controller.signal);
       }
-      const reportTracks = filterReportTracks(listing.tracks, reportSettings.category);
+      const reportTracks = filterReportTracks(listing.tracks.filter(t => isBehaviorVisible(t.behavior_class, visibility)), reportSettings.category);
 
       if (reportTracks.length === 0) {
         toast.warning(listing.limited && reportSettings.category
@@ -200,6 +208,7 @@ export default function HistoryPage() {
       reportController.current = null;
     }
   }, [
+    visibility,
     filters,
     onlyWithZones,
     onlyFavorites,
@@ -237,7 +246,7 @@ export default function HistoryPage() {
       </aside>
       <div className="col-span-9 xl:col-span-10 h-full relative overflow-hidden">
         <TrackPlaybackMap
-          tracks={playback.tracks}
+          tracks={visiblePlaybackTracks}
           playbackIndex={playback.index}
           activeTrackKey={playback.activeTrackKey}
           trackIndices={playback.trackIndices}
@@ -246,8 +255,8 @@ export default function HistoryPage() {
           loading={playback.loading}
         />
         <PlaybackControls
-          tracks={playback.playbackTracks}
-          totalTracks={playback.tracks.length}
+          tracks={playback.playbackTracks.filter(t => isBehaviorVisible(t.summary.behavior_class, visibility))}
+          totalTracks={visiblePlaybackTracks.length}
           onShowAll={() => playback.selectTrack(null)}
           index={playback.index}
           isPlaying={playback.isPlaying}
