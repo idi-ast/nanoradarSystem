@@ -1,0 +1,118 @@
+{
+    "exterior": {
+        "type": "alert",
+        "ui": {
+            "fill": {
+                "color": "#fbff1f",
+                "custom": true,
+                "hide": false,
+                "opacity": 50
+            },
+            "name": {
+                "custom": false,
+                "hide": false,
+                "opacity": 50,
+                "size": 14
+            }
+        },
+        "enabled": true,
+        "actions": {
+            "08d46e96-27b5-4ed1-7a4d-b1e5cfdc1216": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            },
+            "556201f4-b4de-4571-6a53-a6b898fd6143": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            },
+            "9a6692b6-f7df-4ad3-6159-82f0c3a38a49": {
+                "filterMacros": {
+                    "46a3baae-c6b0-4372-9be6-f0b2318a81eb": 1,
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": false
+            },
+            "b4a30af9-4740-46e5-6d87-aee6403f6a0f": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            }
+        },
+        "active": false
+    },
+    "interior": {
+        "type": "alert",
+        "ui": {
+            "fill": {
+                "color": "#000000",
+                "custom": false,
+                "hide": false,
+                "opacity": 50
+            },
+            "name": {
+                "custom": false,
+                "hide": false,
+                "opacity": 50,
+                "size": 14
+            }
+        },
+        "enabled": true,
+        "actions": {
+            "08d46e96-27b5-4ed1-7a4d-b1e5cfdc1216": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            },
+            "556201f4-b4de-4571-6a53-a6b898fd6143": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            },
+            "9a6692b6-f7df-4ad3-6159-82f0c3a38a49": {
+                "filterMacros": {
+                    "46a3baae-c6b0-4372-9be6-f0b2318a81eb": 1,
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": false
+            },
+            "b4a30af9-4740-46e5-6d87-aee6403f6a0f": {
+                "filterMacros": {
+                    "boats": 1
+                },
+                "default": {
+                    "filters": []
+                },
+                "matchAny": true
+            }
+        },
+        "active": false
+    }
+}

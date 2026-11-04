@@ -33,8 +33,8 @@ export async function fetchRadarZones(): Promise<RadarZone[]> {
 export async function createRadarZone(
   payload: CreateZonePayload,
 ): Promise<RadarZone> {
-  const res = await apiSystem.post<RadarZone>("/zonas", payload);
-  return res.data;
+  const res = await apiSystem.post<{ data: RadarZone }>("/zonas", payload);
+  return res.data.data;
 }
 
 export async function updateRadarZone(
