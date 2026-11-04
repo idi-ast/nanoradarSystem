@@ -75,23 +75,26 @@ const report = load('src/features/history/report.ts', {
 });
 const options = { tracks: rankingTracks, points: rankingPoints, zones: [zone], total: 3, filters: { minPoints: 2, from: from.toISOString(), to: to.toISOString() } };
 const document = report.buildTrackActivityReport(options).docDefinition;
-const documentText = JSON.stringify(document.content);
+const movementText = doc => JSON.stringify(doc.content.find(item => item.table?.body?.[0]?.[0]?.text === 'Horario'));
+const documentText = movementText(document);
 assert.ok(!documentText.includes('REPORT-99'), 'Excluded track must not leak into PDF rankings, executive highlights or review cases');
 assert.ok(documentText.includes('REPORT-100'));
 assert.ok(documentText.includes('REPORT-200'));
 assert.ok(documentText.includes('Puntos'));
 const trackCard = document.content.find(item => item.columns?.[0]?.stack?.[1]?.text === 'Tracks del período');
 assert.equal(trackCard.columns[0].stack[0].text, '3', 'The approach threshold must not remove tracks from general indicators');
-const customText = JSON.stringify(report.buildTrackActivityReport({ ...options, settings: { minApproachPoints: 200 } }).docDefinition.content);
+const customText = movementText(report.buildTrackActivityReport({ ...options, settings: { minApproachPoints: 200 } }).docDefinition);
 assert.ok(!customText.includes('REPORT-100'));
 assert.ok(customText.includes('REPORT-200'));
-const emptyText = JSON.stringify(report.buildTrackActivityReport({ ...options, settings: { minApproachPoints: 201 } }).docDefinition.content);
-assert.ok(emptyText.includes('No hay acercamientos con posiciones analizadas'));
+const emptyText = movementText(report.buildTrackActivityReport({ ...options, settings: { minApproachPoints: 201 } }).docDefinition);
+assert.ok(emptyText.includes('Sin registros disponibles'));
 assert.ok(!emptyText.includes('REPORT-200'));
 
 // Category selection applies before computing all metrics and maps; missing
 // classifications are selectable, and aliases shown by the app stay together.
-assert.equal(DEFAULT_REPORT_SETTINGS.category, '');
+assert.equal(DEFAULT_REPORT_SETTINGS.category, 'lancha');
+assert.equal(DEFAULT_REPORT_SETTINGS.showHeatmap, false);
+assert.equal(DEFAULT_REPORT_SETTINGS.movementSort, 'distance');
 const categoryTracks = [
  { ...track, track_id: 'ONLY-LANCHA', behavior_class: ' LANCHA ' },
  { ...track, track_id: 'ONLY-PERSONA', behavior_class: 'persona' },
@@ -107,7 +110,7 @@ assert.equal(filterReportTracks(categoryTracks, 'pajaro').length, 1);
 assert.equal(filterReportTracks(categoryTracks, 'custom_without_tracks').length, 0);
 assert.equal(normalizeReportCategory('UNKNOWN'), 'desconocido');
 const categoryOptions = { ...options, tracks: categoryTracks, points: categoryPoints, total: 5 };
-const allCategories = report.buildTrackActivityReport(categoryOptions).docDefinition;
+const allCategories = report.buildTrackActivityReport({...categoryOptions, settings: {category: ''}}).docDefinition;
 assert.equal(allCategories.content.find(item => item.columns?.[0]?.stack?.[1]?.text === 'Tracks del período').columns[0].stack[0].text, '5');
 const chartInputs = {};
 const scopedReport = load('src/features/history/report.ts', {
@@ -128,7 +131,7 @@ assert.equal(chartInputs.hourly[21].starts, 1);
 assert.equal(chartInputs.hourly[21].present, 1);
 assert.equal(chartInputs.points.length, points.length);
 assert.ok(chartInputs.points.every(p => p.trackKey === types.analysisTrackKey(categoryTracks[0])));
-const combined = JSON.stringify(report.buildTrackActivityReport({ ...categoryOptions, settings: { category: 'lancha', minApproachPoints: 101 } }).docDefinition.content);
+const combined = movementText(report.buildTrackActivityReport({ ...categoryOptions, settings: { category: 'lancha', minApproachPoints: 101 } }).docDefinition);
 assert.ok(!combined.includes('ONLY-LANCHA'), 'Category and minimum recorded point filters must both apply to ranking rows');
 
 const { computeTrackMovements, rankTrackMovements } = movementModule;
@@ -156,11 +159,45 @@ assert.ok(JSON.stringify(detailedMovement.content).includes('Distancia recorrida
 assert.ok(JSON.stringify(detailedMovement.content).includes('Historial completo'));
 const summaryMovement = report.buildTrackActivityReport({...movementOptions,settings:{...movementOptions.settings,format:'summary'}}).docDefinition;
 const summaryText = JSON.stringify(summaryMovement.content);
-assert.ok(summaryText.includes('Resumen visual'));
+assert.ok(summaryText.includes('Actividad durante la noche'));
 assert.ok(summaryText.includes('LOOP'));
-assert.ok(!summaryText.includes('Lectura ejecutiva'));
+assert.ok(summaryText.includes('Lectura ejecutiva'));
 assert.ok(!summaryText.includes('Registros prioritarios y evidencia'));
-assert.equal(summaryMovement.content.filter(item=>item.pageBreak==='before').length,2);
+assert.ok(summaryMovement.content.filter(item=>item.pageBreak==='before').length >= 3);
+
+// Report structure, optional density maps and observed time across midnight.
+const reportHeadings = document.content.filter(item => item.fontSize === 23).map(item => item.text);
+assert.equal(reportHeadings[0], 'Actividad durante la noche');
+assert.ok(reportHeadings.indexOf('Distancia recorrida y tiempo de trackeo') < reportHeadings.indexOf('Calendario de actividad observada'));
+assert.ok(!reportHeadings.includes('Dónde se concentran las detecciones'));
+for (const removed of ['¿A qué hora aumenta la actividad?', 'Registros prioritarios y evidencia', 'Composición y calidad de los datos', 'Detalle de actividad próxima a zonas críticas']) assert.ok(!JSON.stringify(document.content).includes(removed));
+const withHeatmap = report.buildTrackActivityReport({...options, settings: {showHeatmap: true}}).docDefinition;
+assert.equal(withHeatmap.content.filter(item => item.fontSize === 23).at(-1).text, 'Dónde se concentran las detecciones');
+const boundaryTrack = {...track, first_seen: '2026-11-02T23:59:30-03:00', last_seen: '2026-11-03T00:00:30-03:00'};
+const boundaryPoints = [boundaryTrack.first_seen, boundaryTrack.last_seen].map(fecha => ({trackKey: types.analysisTrackKey(boundaryTrack), fecha, lat: 1, lon: 1, zona: null}));
+const boundary = computeOperationalAnalysis({tracks:[boundaryTrack],points:boundaryPoints,zones:[],from,to:new Date('2026-11-03T01:00:00-03:00')});
+assert.equal(boundary.days[0].trackingSeconds[23], 30);
+assert.equal(boundary.days[1].trackingSeconds[0], 30);
+assert.equal(analysis.days[0].trackingSeconds[21], 120, 'Deduplicate points and never bridge long gaps');
+const noInterval = computeOperationalAnalysis({tracks:[track],points:[points[0]],zones:[],from,to});
+assert.equal(noInterval.days[0].trackingSeconds[21], 0, 'An isolated point has no observed duration');
+const missingMovement = report.buildTrackActivityReport({...options, points:[]}).docDefinition;
+assert.ok(movementText(missingMovement).includes('N/D'), 'Keep eligible tracks with no trajectory');
+assert.ok(reportCharts.activityMatrix(boundary.days, DEFAULT_REPORT_SETTINGS).includes('min/celda'));
+const noGapLine = reportCharts.spatialChart([points[0],points.at(-1)], [], DEFAULT_REPORT_SETTINGS, false, true);
+assert.ok(!noGapLine.includes('stroke-width="1.3"'), 'Do not connect trajectories across long gaps');
+
+// Repeated/skipped Chilean clock hours preserve elapsed tracking time.
+for (const [start, end, expected] of [
+ ['2026-04-05T02:59:30Z', '2026-04-05T03:00:30Z', [['2026-04-04', 23, 60]]],
+ ['2026-09-06T03:59:30Z', '2026-09-06T04:00:30Z', [['2026-09-05', 23, 30], ['2026-09-06', 1, 30]]],
+]) {
+ const t = {...track, first_seen:start, last_seen:end};
+ const positions = [start, end].map(fecha => ({trackKey:types.analysisTrackKey(t), fecha, lat:1, lon:1, zona:null}));
+ const result = computeOperationalAnalysis({tracks:[t],points:positions,zones:[],from:new Date(start),to:new Date(end)});
+ for (const [day, hour, seconds] of expected) assert.equal(result.days.find(d => d.day === day).trackingSeconds[hour], seconds);
+}
+for (const invalid of [0, -1, NaN, 1.5]) assert.throws(() => report.buildTrackActivityReport({...options, settings:{minApproachPoints:invalid}}));
 
 // Test fetching: full-interval query, identity propagation, invalid records and failures.
 const requests = [];

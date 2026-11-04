@@ -35,7 +35,7 @@ export interface AnalysisFilters {
 }
 export function defaultAnalysisFilters(hours = 24): AnalysisFilters {
   const now = new Date();
-  return { from: dateTimeInput(new Date(now.getTime() - hours * 3600000)), to: dateTimeInput(now), radar: '', minPoints: 2, proximityM: 100 };
+  return { from: dateTimeInput(new Date(now.getTime() - hours * 3600000)), to: dateTimeInput(now), radar: '', minPoints: 100, proximityM: 100 };
 }
 export function validateAnalysisFilters(filters: AnalysisFilters) {
   const from = parseChileDateTime(filters.from), to = parseChileDateTime(filters.to, 'end');

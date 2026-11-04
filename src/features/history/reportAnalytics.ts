@@ -9,17 +9,19 @@ export interface ReportSettings {
   criticalZones: string[];
   proximityM: number;
   maxGapSeconds: number;
-  /** Minimum recorded points for PDF approach rankings, not general analytics. */
+  /** Minimum recorded points for the PDF movement table, not general analytics. */
   minApproachPoints: number;
   /** Empty string includes all behavior categories in the PDF. */
   category: string;
+  /** Legacy callers are accepted; both values use the operational report. */
   format: 'detailed' | 'summary';
   movementSort: MovementSort;
+  showHeatmap: boolean;
 }
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   timeZone: "America/Santiago", nightStart: 21, nightEnd: 7,
-  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, category: "",
-  format: 'detailed', movementSort: 'distance',
+  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, category: "lancha",
+  format: 'detailed', movementSort: 'distance', showHeatmap: false,
 };
 export const normalizeZone = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 export const normalizeReportCategory = (value?: string | null) => {
@@ -90,7 +92,7 @@ export interface HourStats {
   hour: number; starts: number; boatStarts: number; present: number; near: number;
   exposureHours: number; startsPerHour: number | null;
 }
-export interface DayStats { day: string; starts: number; boatStarts: number; nightPresent: number; nearNight: number; hours: number[] }
+export interface DayStats { day: string; starts: number; boatStarts: number; nightPresent: number; nearNight: number; hours: number[]; trackingSeconds: number[] }
 export interface OperationalAnalysis {
   tracks: TrackSummary[]; points: AnalysisPoint[]; boats: TrackSummary[];
   hourly: HourStats[]; days: DayStats[]; approaches: Approach[];
@@ -125,7 +127,7 @@ export function computeOperationalAnalysis(input: {
   }
   const days = new Map<string, DayStats>();
   const dayOf = (day: string) => {
-    if (!days.has(day)) days.set(day, { day, starts: 0, boatStarts: 0, nightPresent: 0, nearNight: 0, hours: Array(24).fill(0) });
+    if (!days.has(day)) days.set(day, { day, starts: 0, boatStarts: 0, nightPresent: 0, nearNight: 0, hours: Array(24).fill(0), trackingSeconds: Array(24).fill(0) });
     return days.get(day)!;
   };
   for (let cursor = from; cursor < to; cursor += 3600000) dayOf(localParts(cursor, settings.timeZone)!.day);
@@ -167,6 +169,20 @@ export function computeOperationalAnalysis(input: {
     }
   }
   for (const series of grouped.values()) series.sort((a, b) => pointMeta.get(a)!.time - pointMeta.get(b)!.time);
+  // Sum observed intervals per track, splitting on UTC hour boundaries. Local
+  // conversion assigns both occurrences of a repeated DST hour to its cell.
+  for (const series of grouped.values()) {
+    for (let i = 1; i < series.length; i++) {
+      const start = pointMeta.get(series[i - 1])!.time, end = pointMeta.get(series[i])!.time;
+      if (end <= start || end - start > settings.maxGapSeconds * 1000) continue;
+      for (let cursor = start; cursor < end;) {
+        const boundary = Math.min(end, (Math.floor(cursor / 3600000) + 1) * 3600000);
+        const parts = localParts(cursor, settings.timeZone)!;
+        dayOf(parts.day).trackingSeconds[parts.hour] += (boundary - cursor) / 1000;
+        cursor = boundary;
+      }
+    }
+  }
   const critical = new Set(settings.criticalZones.map(normalizeZone));
   const approaches: Approach[] = [];
   const zoneStats: OperationalAnalysis["zones"] = [];

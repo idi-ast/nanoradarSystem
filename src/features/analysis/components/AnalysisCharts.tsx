@@ -33,15 +33,15 @@ export function DailyActivityChart({ analysis }: { analysis: OperationalAnalysis
   </div>;
 }
 export function ActivityCalendar({ analysis }: { analysis: OperationalAnalysis }) {
-  const max = Math.max(1, ...analysis.days.flatMap(d => d.hours));
+  const max = Math.max(1, ...analysis.days.flatMap(d => d.trackingSeconds.map(s => s / 60)));
   return <div>
     <div className="max-h-96 overflow-auto rounded-lg border border-border">
       <table className="w-full min-w-175 border-separate border-spacing-1 text-[10px]">
-        <caption className="sr-only">Tracks distintos observados por día y hora local. Cero corresponde a ausencia de registros en la muestra.</caption>
+        <caption className="sr-only">Minutos acumulados de trackeo observado por día y hora local. Cero corresponde a ausencia de registros en la muestra.</caption>
         <thead className="sticky top-0 z-10 bg-bg-100"><tr><th className="px-2 py-2 text-left text-text-200">Fecha</th>{analysis.hourly.map(h => <th key={h.hour} className={isNight(h.hour, analysis.settings) ? 'text-amber-400' : 'text-text-200'}>{String(h.hour).padStart(2, '0')}</th>)}</tr></thead>
-        <tbody>{analysis.days.map(day => <tr key={day.day}><th className="whitespace-nowrap px-2 py-1 text-left font-normal text-text-200">{day.day}</th>{day.hours.map((count, hour) => <td key={hour} title={`${day.day}, ${String(hour).padStart(2, '0')}:00: ${count} tracks distintos observados`} className="h-7 min-w-5 rounded-sm text-center tabular-nums" style={{ backgroundColor: count ? `rgba(14,165,233,${.2 + .8 * count / max})` : 'var(--color-bg-200)', color: count ? '#ffffff' : 'var(--color-text-300)' }}>{count || '·'}</td>)}</tr>)}</tbody>
+        <tbody>{analysis.days.map(day => <tr key={day.day}><th className="whitespace-nowrap px-2 py-1 text-left font-normal text-text-200">{day.day}</th>{day.trackingSeconds.map((seconds, hour) => { const count = seconds / 60; const ratio = count / max; return <td key={hour} title={`${day.day}, ${String(hour).padStart(2, '0')}:00: ${count.toLocaleString('es-CL', { maximumFractionDigits: 1 })} minutos acumulados de trackeo`} className="h-7 min-w-5 rounded-sm text-center tabular-nums" style={{ backgroundColor: count ? `hsl(${120 * (1 - ratio)}, 68%, 40%)` : 'var(--color-bg-200)', color: count ? '#ffffff' : 'var(--color-text-300)' }}>{count ? count < .1 ? '<0,1' : count.toLocaleString('es-CL', { maximumFractionDigits: 1 }) : '·'}</td>; })}</tr>)}</tbody>
       </table>
     </div>
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-text-200"><span>Cabeceras ámbar: noche 21:00–07:00.</span><span className="flex items-center gap-2">0 <span className="h-2 w-24 rounded bg-linear-to-r from-sky-950 to-sky-400" /> {max} tracks/celda</span></div>
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-text-200"><span>Cabeceras ámbar: noche 21:00–07:00.</span><span className="flex items-center gap-2">0 <span className="h-2 w-24 rounded bg-linear-to-r from-green-600 via-yellow-500 to-red-600" /> {max.toLocaleString('es-CL', { maximumFractionDigits: 1 })} min/celda</span></div>
   </div>;
 }

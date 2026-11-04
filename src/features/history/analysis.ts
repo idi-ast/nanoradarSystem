@@ -73,7 +73,7 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
           limit: perTrack, sample: true,
           include_metrics: options.includeMovement || undefined,
           max_gap_seconds: options.includeMovement ? options.maxGapSeconds ?? 120 : undefined,
-        });
+        }, options.signal);
         options.signal?.throwIfAborted();
         successful++;
         if (res.movement) movements.push({ trackKey: analysisTrackKey(track), distanceM: res.movement.distance_m,

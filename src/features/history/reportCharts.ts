@@ -35,24 +35,25 @@ export function hourlyChart(hours: HourStats[], settings: ReportSettings, mode: 
 
 export function activityMatrix(days: DayStats[], settings: ReportSettings) {
   const W = 515, x0 = 67, y0 = 28, cw = 18, rh = 16, H = y0 + days.length * rh + 44;
-  const max = Math.max(1, ...days.flatMap(d => d.hours));
-  let body = text(0, 10, 'Tracks distintos con posiciones observadas por día y hora (muestra)', 9, '#0f172a');
+  const max = Math.max(1, ...days.flatMap(d => d.trackingSeconds.map(s => s / 60)));
+  let body = text(0, 10, 'Tiempo de trackeo observado por día y hora (minutos, muestra)', 9, '#0f172a');
   for (let h = 0; h < 24; h++) body += text(x0 + h * cw + cw / 2, 23, String(h).padStart(2, '0'), 7, isNight(h, settings) ? '#b45309' : '#64748b', 'middle');
   days.forEach((day, i) => {
     body += text(0, y0 + i * rh + 11, day.day, 7.5);
-    day.hours.forEach((count, h) => {
-      const alpha = count ? .2 + .8 * count / max : 0;
-      const color = count ? `rgb(${Math.round(238 - 220 * alpha)},${Math.round(248 - 110 * alpha)},${Math.round(255 - 100 * alpha)})` : '#f1f5f9';
+    day.trackingSeconds.forEach((seconds, h) => {
+      const count = seconds / 60;
+      const ratio = count / max;
+      const color = !count ? '#f1f5f9' : ratio <= .5 ? `rgb(${Math.round(34 + 440 * ratio)},${Math.round(197 + 4 * ratio)},${Math.round(94 - 146 * ratio)})` : `rgb(${Math.round(254 - 68 * (ratio - .5))},${Math.round(199 - 322 * (ratio - .5))},${Math.round(21 + 34 * (ratio - .5))})`;
       body += rect(x0 + h * cw, y0 + i * rh, cw - 1, rh - 1, color);
-      if (count) body += text(x0 + h * cw + (cw - 1) / 2, y0 + i * rh + 10.5, count, 6.5, count / max > .6 ? '#ffffff' : '#0f172a', 'middle');
+      if (count) body += text(x0 + h * cw + (cw - 1) / 2, y0 + i * rh + 10.5, count < .1 ? '<0,1' : count.toLocaleString('es-CL', { maximumFractionDigits: 1 }), 6, count / max > .6 ? '#ffffff' : '#0f172a', 'middle');
     });
   });
-  body += text(0, H - 17, `Escala: 0 a ${max} tracks/celda. Las filas son fechas civiles; la noche cruza medianoche.`, 7);
+  body += text(0, H - 17, `Escala: 0 a ${max.toLocaleString('es-CL', { maximumFractionDigits: 1 })} min/celda. Verde: menor tiempo; rojo: mayor tiempo.`, 7);
   body += text(0, H - 5, 'Cero indica ausencia de posiciones en la muestra; no acredita disponibilidad continua del radar.', 7);
   return svg(W, H, body);
 }
 
-export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], settings: ReportSettings, focus = false) {
+export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], settings: ReportSettings, focus = false, trajectories = false) {
   const W = 515, H = 264, x0 = 42, y0 = 17, pw = 459, ph = 200;
   const critical = zones.filter(z => settings.criticalZones.map(normalizeZone).includes(normalizeZone(z.nombre)));
   const displayedZones = focus ? critical : zones;
@@ -81,26 +82,53 @@ export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], set
   }
   const max = Math.max(1, ...cells);
   let body = rect(x0, y0, pw, ph, '#f8fafc');
-  cells.forEach((n, i) => {
+  if (!trajectories) cells.forEach((n, i) => {
     if (!n) return;
     const r = Math.log1p(n) / Math.log1p(max);
     body += rect(x0 + i % cols * pw / cols, y0 + Math.floor(i / cols) * ph / rows, pw / cols, ph / rows, r > .75 ? '#dc2626' : r > .5 ? '#f97316' : r > .25 ? '#facc15' : '#bae6fd');
   });
+  let trajectoryLabels = '';
+  let trajectoryTrackCount = 0;
+  if (trajectories) {
+    const tracks = new Map<string, AnalysisPoint[]>();
+    for (const p of samples) {
+      if (!p.trackKey) continue;
+      if (!tracks.has(p.trackKey)) tracks.set(p.trackKey, []);
+      tracks.get(p.trackKey)!.push(p);
+    }
+    trajectoryTrackCount = tracks.size;
+    const colors = ['#0369a1', '#be123c', '#15803d', '#7e22ce', '#c2410c', '#0f766e', '#a16207', '#475569'];
+    [...tracks.values()].forEach((series, i) => {
+      series.sort((a, b) => Date.parse(a.fecha!) - Date.parse(b.fecha!));
+      const color = colors[i % colors.length];
+      for (let n = 0; n < series.length; n++) {
+        const p = series[n], prev = series[n - 1];
+        if (prev && Date.parse(p.fecha!) - Date.parse(prev.fecha!) <= settings.maxGapSeconds * 1000) body += `<line x1="${x(prev.lon)}" y1="${y(prev.lat)}" x2="${x(p.lon)}" y2="${y(p.lat)}" stroke="${color}" stroke-width="1.3"/>`;
+        body += `<circle cx="${x(p.lon)}" cy="${y(p.lat)}" r="1.3" fill="${color}"/>`;
+      }
+      const end = series[series.length - 1];
+      if (i >= 8) return;
+      const labelX = x0 + pw - 95, labelY = y0 + 16 + i * 20;
+      trajectoryLabels += `<line x1="${x(end.lon)}" y1="${y(end.lat)}" x2="${labelX - 5}" y2="${labelY - 3}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2 2"/>`;
+      trajectoryLabels += rect(labelX - 3, labelY - 11, 95, 15, '#ffffff') + text(labelX, labelY, end.trackId ?? end.trackKey, 7, color);
+    });
+  }
   displayedZones.forEach((z, i) => {
     const isCritical = critical.includes(z), color = isCritical ? '#be123c' : '#334155';
     body += `<polygon points="${z.vertices.map(([lat, lon]) => `${x(lon)},${y(lat)}`).join(' ')}" fill="none" stroke="white" stroke-width="3.5"/><polygon points="${z.vertices.map(([lat, lon]) => `${x(lon)},${y(lat)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${isCritical ? 1.8 : 1}"/>`;
     const lat = z.vertices.reduce((a, v) => a + v[0], 0) / z.vertices.length, lon = z.vertices.reduce((a, v) => a + v[1], 0) / z.vertices.length;
     body += rect(x(lon) - 7, y(lat) - 15, 14, 14, '#ffffff') + text(x(lon), y(lat) - 4, `${i + 1}`, 9, color, 'middle');
   });
+  body += trajectoryLabels;
   body += `<path d="M 488 42 L 488 24 L 484 31 M 488 24 L 492 31" stroke="#0f172a" fill="none"/>` + text(488, 19, 'N', 8, '#0f172a', 'middle');
   const barM = Math.max(10, Math.pow(10, Math.floor(Math.log10(80 / scale))));
   body += rect(x0 + 9, y0 + ph - 12, barM * scale, 2, '#0f172a') + text(x0 + 9, y0 + ph - 16, `${barM} m`, 7, '#0f172a');
   body += text(0, 12, 'Latitud', 7) + text(0, y0 + 8, (cy + ph / 2 / scale / 111320).toFixed(4), 6.5) + text(0, y0 + ph, (cy - ph / 2 / scale / 111320).toFixed(4), 6.5);
   body += text(x0, 229, (cx - pw / 2 / scale / 111320 / cos).toFixed(4), 7) + text(x0 + pw, 229, (cx + pw / 2 / scale / 111320 / cos).toFixed(4), 7, '#475569', 'end');
   body += text(x0 + pw / 2, 229, 'Longitud', 7, '#475569', 'middle');
-  ['#bae6fd', '#facc15', '#f97316', '#dc2626'].forEach((c, i) => { body += rect(x0 + i * 14, 241, 14, 7, c); });
-  body += text(106, 247, `1 - ${max} posiciones/celda · escala logarítmica`, 7);
-  body += text(x0, 260, 'Esquema geográfico sin imagen satelital. Densidad de posiciones, no de embarcaciones únicas.', 7);
+  if (!trajectories) ['#bae6fd', '#facc15', '#f97316', '#dc2626'].forEach((c, i) => { body += rect(x0 + i * 14, 241, 14, 7, c); });
+  body += text(trajectories ? x0 : 106, 247, trajectories ? trajectoryTrackCount > 8 ? 'Hasta 8 etiquetas visibles. Selecciona un track en la tabla para aislarlo.' : 'Trazados por track · Etiquetas unidas al último punto observado' : `1 - ${max} posiciones/celda · escala logarítmica`, 7);
+  body += text(x0, 260, trajectories ? 'Esquema geográfico. Los trazados respetan el hueco máximo configurado.' : 'Esquema geográfico sin imagen satelital. Densidad de posiciones, no de embarcaciones únicas.', 7);
   return svg(W, H, body);
 }
 

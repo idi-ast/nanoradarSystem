@@ -25,14 +25,14 @@ for (let i = 0; i < 28; i++) {
   }
 }
 initializeReportFonts();
-const category = process.argv[3] ?? '';
+const category = process.argv[3] || 'lancha';
 const selectedCount = filterReportTracks(tracks, category).length;
 const output = process.argv[2] ?? 'output/pdf/informe-operativo-demostracion.pdf';
 const movements = computeTrackMovements(tracks, fullPoints, new Date(start), new Date('2026-11-03T00:00:00-03:00'), 120).map(m => ({trackKey:m.key,distanceM:m.distanceM,trackedSeconds:m.trackedSeconds ?? 0,segmentCount:240,gapCount:0,maxGapSeconds:120}));
 async function generate() {
-  for (const format of ['detailed', 'summary'] as const) {
-    const { docDefinition } = buildTrackActivityReport({ tracks, points, zones, settings: { category, format }, filters: { minPoints: 2, from: '2026-11-01T00:00:00-03:00', to: '2026-11-03T00:00:00-03:00' }, total: tracks.length, tracksAnalyzed: selectedCount, pointsLimited: true, quality: { movements, tracksRequested: selectedCount, failedTracks: 0, uniformSampling: true }, demonstration: true });
-    const path = format === 'summary' ? output.replace('.pdf', '-resumido.pdf') : output;
+  for (const format of ['detailed'] as const) {
+    const { docDefinition } = buildTrackActivityReport({ tracks, points, zones, settings: { category, format, showHeatmap: true }, filters: { minPoints: 2, from: '2026-11-01T00:00:00-03:00', to: '2026-11-03T00:00:00-03:00' }, total: tracks.length, tracksAnalyzed: selectedCount, pointsLimited: true, quality: { movements, tracksRequested: selectedCount, failedTracks: 0, uniformSampling: true }, demonstration: true });
+    const path = output;
     await new Promise<void>(resolve => pdfMake.createPdf(docDefinition).getBuffer(buffer => { fs.writeFileSync(path, buffer); console.log(path); resolve(); }));
   }
 }

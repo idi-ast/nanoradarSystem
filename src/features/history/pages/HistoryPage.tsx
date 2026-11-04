@@ -239,11 +239,16 @@ export default function HistoryPage() {
         <TrackPlaybackMap
           tracks={playback.tracks}
           playbackIndex={playback.index}
+          activeTrackKey={playback.activeTrackKey}
+          trackIndices={playback.trackIndices}
+          onSelectTrack={playback.selectTrack}
           zones={zones}
           loading={playback.loading}
         />
         <PlaybackControls
-          tracks={playback.tracks}
+          tracks={playback.playbackTracks}
+          totalTracks={playback.tracks.length}
+          onShowAll={() => playback.selectTrack(null)}
           index={playback.index}
           isPlaying={playback.isPlaying}
           speed={playback.speed}
