@@ -1,4 +1,7 @@
-import { behaviorLabel } from "@/features/devices/config/behaviorCategories";
+import { useQuery } from "@tanstack/react-query";
+import { fetchBehaviorCategories } from "@/features/devices/services";
+import { useBehaviorVisibilityStore } from "@/features/devices/stores/behaviorVisibilityStore";
+import { BEHAVIOR_ORDER, behaviorLabel, isBehaviorVisible, orderedBehaviorKeys } from "@/features/devices/config/behaviorCategories";
 import { useMemo, useState } from "react";
 import {
   IconArrowNarrowDown,
@@ -245,6 +248,9 @@ export function HistoryListPanel({
   onGenerateReport,
   isGeneratingReport = false,
 }: Props) {
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  const categoryQuery = useQuery({ queryKey: ['report-behavior-categories'], queryFn: fetchBehaviorCategories, staleTime: 300000, retry: false, refetchOnWindowFocus: false });
+  const categoryOptions = orderedBehaviorKeys([...BEHAVIOR_ORDER, ...(categoryQuery.data ?? []), ...(filters.behaviorClass ? [filters.behaviorClass] : [])]).filter(c => isBehaviorVisible(c, visibility) || c === filters.behaviorClass);
   const [tab, setTab] = useState<Tab>("tracks");
   const [sort, setSort] = useState<TrackSort>({ by: "last_seen", dir: "desc" });
   const { favorites, hasFavorite, toggleAsync } = useTrackFavorites();
@@ -434,6 +440,18 @@ export function HistoryListPanel({
             </select>
           </label>
         </div>
+
+        <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
+          Clasificación
+          <select
+            className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none"
+            value={filters.behaviorClass ?? ""}
+            onChange={e => set({ behaviorClass: e.target.value || undefined })}
+          >
+            <option value="">Todas las clasificaciones</option>
+            {categoryOptions.map(category => <option key={category} value={category}>{behaviorLabel(category)}</option>)}
+          </select>
+        </label>
 
         <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
           Zona

@@ -30,6 +30,7 @@ export async function fetchTrackSummaries(
     search: filters.search || undefined,
     min_points: filters.minPoints,
     zone: filters.zone || undefined,
+    behavior_class: filters.behaviorClass || undefined,
     only_with_zones: onlyWithZones,
     page,
     limit: pageSize,

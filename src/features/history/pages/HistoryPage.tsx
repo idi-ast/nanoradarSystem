@@ -78,18 +78,18 @@ export default function HistoryPage() {
     () => {
       const main = summaries.data?.tracks ?? [];
       const favs = favoritesSummaries.data ?? [];
-      return onlyFavorites ? favs : main;
+      return onlyFavorites ? filterReportTracks(favs, filters.behaviorClass) : main;
     },
-    [summaries.data, favoritesSummaries.data, onlyFavorites],
+    [summaries.data, favoritesSummaries.data, onlyFavorites, filters.behaviorClass],
   );
 
   const { tracks, total, pages } = useMemo(
     () => ({
       tracks: mergedTracks.filter(t => isBehaviorVisible(t.behavior_class, visibility)),
-      total: summaries.data?.total ?? 0,
-      pages: summaries.data?.pages ?? 1,
+      total: onlyFavorites ? mergedTracks.length : summaries.data?.total ?? 0,
+      pages: onlyFavorites ? 1 : summaries.data?.pages ?? 1,
     }),
-    [summaries.data, mergedTracks, visibility],
+    [summaries.data, mergedTracks, visibility, onlyFavorites],
   );
 
   const selectedKeys = useMemo(

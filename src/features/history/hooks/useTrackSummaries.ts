@@ -19,6 +19,7 @@ export function useTrackSummaries(
       filters.search ?? "",
       filters.minPoints,
       filters.zone ?? "",
+      filters.behaviorClass ?? "",
       onlyWithZones,
       page,
       pageSize,
