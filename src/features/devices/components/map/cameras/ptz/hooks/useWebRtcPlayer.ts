@@ -59,6 +59,7 @@ export function useWebRtcPlayer(streamUrl: string) {
       cleanupRef.current?.();
 
       let destroyed = false;
+      const controller = new AbortController();
       setConnectionError(null);
 
       const pc = new RTCPeerConnection({
@@ -67,6 +68,7 @@ export function useWebRtcPlayer(streamUrl: string) {
       pcRef.current = pc;
 
       pc.ontrack = (event) => {
+        if (destroyed) return;
         streamRef.current = event.streams[0];
         setStream(event.streams[0]);
         if (node.srcObject !== event.streams[0]) {
@@ -90,11 +92,13 @@ export function useWebRtcPlayer(streamUrl: string) {
 
       async function negotiate() {
         const offer = await pc.createOffer();
+        if (destroyed) return;
         await pc.setLocalDescription(offer);
         if (destroyed) return;
 
         const resp = await fetch(`${streamUrl}/whep`, {
           method: "POST",
+          signal: controller.signal,
           headers: { "Content-Type": "application/sdp" },
           body: offer.sdp,
         });
@@ -105,6 +109,7 @@ export function useWebRtcPlayer(streamUrl: string) {
         if (destroyed) return;
 
         const answerSdp = await resp.text();
+        if (destroyed) return;
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
       }
 
@@ -120,11 +125,19 @@ export function useWebRtcPlayer(streamUrl: string) {
       });
 
       cleanupRef.current = () => {
+        if (destroyed) return;
         destroyed = true;
+        controller.abort();
+        pc.ontrack = null;
+        pc.onconnectionstatechange = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        node.pause();
+        node.srcObject = null;
         pc.close();
         pcRef.current = null;
         streamRef.current = null;
         setStream(null);
+        cleanupRef.current = null;
       };
     },
     // retryCount hace que el callback-ref se recree al reconectar

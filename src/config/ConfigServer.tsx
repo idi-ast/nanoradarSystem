@@ -6,6 +6,8 @@ import {
   IconLayoutDashboard,
   IconRadar2,
   IconDevices,
+  IconChartBar,
+  IconMapPin,
 } from "@tabler/icons-react";
 import React from "react";
 
@@ -16,7 +18,9 @@ import { CompaniesPage } from "@/template/companies";
 import { ServicesPanelPage } from "@/template/services-panel";
 import { NotificationsPage } from "@/template/notifications";
 import NanoPages from "@/features/devices/pages/DevicesPages";
-import { HistoryPage } from "@/features/history";
+import HistoryPage from "@/features/history/pages/HistoryPage";
+import ActivityAnalysisRoute from "@/features/analysis/ActivityAnalysisRoute";
+import ZonesRoute from "@/features/zones/ZonesRoute";
 import { DispositivosPage } from "@/features/config-devices/dispositivos";
 
 const name = import.meta.env.VITE_COMPANY_NAME;
@@ -119,6 +123,24 @@ export const configServer = () => {
       link: "/historial",
       icon: IconHistory,
       component: HistoryPage,
+      target: false,
+      state: true,
+    },
+    {
+      id: 5,
+      name: "Análisis",
+      link: "/analisi",
+      icon: IconChartBar,
+      component: ActivityAnalysisRoute,
+      target: false,
+      state: true,
+    },
+    {
+      id: 6,
+      name: "Zonas",
+      link: "/zonas",
+      icon: IconMapPin,
+      component: ZonesRoute,
       target: false,
       state: true,
     },

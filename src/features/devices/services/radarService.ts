@@ -33,8 +33,8 @@ export async function fetchRadarZones(): Promise<RadarZone[]> {
 export async function createRadarZone(
   payload: CreateZonePayload,
 ): Promise<RadarZone> {
-  const res = await apiSystem.post<RadarZone>("/zonas", payload);
-  return res.data;
+  const res = await apiSystem.post<{ data: RadarZone }>("/zonas", payload);
+  return res.data.data;
 }
 
 export async function updateRadarZone(
@@ -52,11 +52,13 @@ export async function deleteRadarZone(id: number): Promise<void> {
 // Historial de tracks
 export async function fetchTrackHistory(
   trackId: string,
-  params?: { tipo_radar?: string; from?: string; to?: string; limit?: number; session_ref?: string },
+  params?: { tipo_radar?: string; from?: string; to?: string; limit?: number; session_ref?: string; sample?: boolean; include_metrics?: boolean; max_gap_seconds?: number },
+  signal?: AbortSignal,
 ): Promise<TrackHistoryResponse> {
   const res = await apiSystem.get<TrackHistoryResponse>(
     `/tracks/${trackId}/history`,
     params,
+    { signal },
   );
   return res.data;
 }

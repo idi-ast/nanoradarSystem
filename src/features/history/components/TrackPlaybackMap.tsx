@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useRef } from "react";
-import ReactMapGL, { Marker, Source, Layer } from "react-map-gl";
-import type { MapRef } from "react-map-gl";
+import { Fragment, useCallback, useEffect, useMemo, useRef } from "react";
+import ReactMapGL, { Marker, Source, Layer, Popup } from "react-map-gl";
+import type { MapLayerMouseEvent, MapRef } from "react-map-gl";
 import {
   MAPBOX_TOKEN,
   MAP_STYLES,
@@ -15,6 +15,9 @@ import { trackKey } from "../hooks/useTrackPlayback";
 interface Props {
   tracks: TrackPlaybackItem[];
   playbackIndex: number;
+  activeTrackKey: string | null;
+  trackIndices: Record<string, number>;
+  onSelectTrack: (key: string | null) => void;
   zones: RadarZone[];
   loading: boolean;
 }
@@ -43,6 +46,9 @@ function pointAt(
 export function TrackPlaybackMap({
   tracks,
   playbackIndex,
+  activeTrackKey,
+  trackIndices,
+  onSelectTrack,
   zones,
   loading,
 }: Props) {
@@ -71,7 +77,7 @@ export function TrackPlaybackMap({
       if (p.lon > maxLon) maxLon = p.lon;
     }
     if (!Number.isFinite(minLat)) return;
-    const pad = 80;
+    const pad = { top: 80, left: 80, right: 80, bottom: 170 };
     mapRef.current.fitBounds(
       [
         [minLon, minLat],
@@ -126,6 +132,31 @@ export function TrackPlaybackMap({
     [tracks],
   );
 
+  const trackGeometry = useMemo(() => tracks.map((t, i) => ({
+    item: t, key: trackKey(t.summary), id: `history-track-${i}`,
+    color: TRACK_COLORS[i % TRACK_COLORS.length],
+    coords: t.points.map(p => [p.lon, p.lat] as [number, number]),
+  })), [tracks]);
+  const drawOrder = useMemo(() => [...trackGeometry].sort((a, b) =>
+    Number(a.key === activeTrackKey) - Number(b.key === activeTrackKey)), [trackGeometry, activeTrackKey]);
+  const interactiveLayerIds = useMemo(() => trackGeometry.filter(t => t.coords.length >= 2).map(t => `${t.id}-hit`), [trackGeometry]);
+  const raiseActiveTrack = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    const selected = trackGeometry.find(t => t.key === activeTrackKey);
+    if (!map || !selected) return;
+    for (const kind of ['full', 'remaining', 'played', 'hit']) {
+      const id = `${selected.id}-${kind}`;
+      if (map.getLayer(id)) map.moveLayer(id);
+    }
+  }, [activeTrackKey, trackGeometry]);
+  useEffect(() => { raiseActiveTrack(); }, [raiseActiveTrack]);
+  const active = tracks.find(t => trackKey(t.summary) === activeTrackKey);
+  const activePoint = active ? pointAt(active.points, trackIndices[activeTrackKey!] ?? playbackIndex) : null;
+  const selectPath = (event: MapLayerMouseEvent) => {
+    const key = event.features?.find(f => typeof f.properties?.trackKey === 'string')?.properties?.trackKey;
+    if (typeof key === 'string') onSelectTrack(key);
+  };
+
   return (
     <div className="relative w-full h-full">
       <ReactMapGL
@@ -142,6 +173,10 @@ export function TrackPlaybackMap({
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         reuseMaps
+        interactiveLayerIds={interactiveLayerIds}
+        onClick={selectPath}
+        onLoad={raiseActiveTrack}
+        cursor="pointer"
       >
         {zonesGeo && (
           <Source id="history-zones" type="geojson" data={zonesGeo}>
@@ -179,109 +214,51 @@ export function TrackPlaybackMap({
           </Source>
         )}
 
-        {tracks.map((t, i) => {
-          const color = TRACK_COLORS[i % TRACK_COLORS.length];
-          const id = `track-${i}-${trackKey(t.summary)}`;
-          const coords = t.points.map(
-            (p) => [p.lon, p.lat] as [number, number],
-          );
+        {drawOrder.map(({ item: t, key, id, color, coords }) => {
           if (coords.length < 2) return null;
-          const clamp = Math.max(0, Math.min(playbackIndex, coords.length - 1));
-          const played = coords.slice(0, clamp + 1);
-          const remaining = coords.slice(clamp);
+          const selected = key === activeTrackKey;
+          const dimmed = Boolean(activeTrackKey && !selected);
+          const clamp = Math.max(0, Math.min(trackIndices[key] ?? playbackIndex, coords.length - 1));
+          const segments = [
+            { kind: 'full', coordinates: coords },
+            { kind: 'played', coordinates: coords.slice(0, clamp + 1) },
+            { kind: 'remaining', coordinates: coords.slice(clamp) },
+          ].filter(segment => segment.coordinates.length >= 2);
           const geo = {
-            type: "FeatureCollection" as const,
-            features: [
-              {
-                type: "Feature" as const,
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: coords,
-                },
-                properties: { kind: "full" },
-              },
-              {
-                type: "Feature" as const,
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: played,
-                },
-                properties: { kind: "played" },
-              },
-              {
-                type: "Feature" as const,
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: remaining,
-                },
-                properties: { kind: "remaining" },
-              },
-            ],
+            type: 'FeatureCollection' as const,
+            features: segments.map(segment => ({
+              type: 'Feature' as const,
+              geometry: { type: 'LineString' as const, coordinates: segment.coordinates },
+              properties: { kind: segment.kind, trackKey: key, trackId: t.summary.track_id, radar: t.summary.tipo_radar },
+            })),
           };
-          return (
-            <Source key={`src-${id}`} id={`src-${id}`} type="geojson" data={geo}>
-              <Layer
-                id={`${id}-full`}
-                type="line"
-                paint={{
-                  "line-color": color,
-                  "line-width": 20,
-                  "line-opacity": 0.22,
-                  "line-blur": 52,
-                }}
-              />
-              <Layer
-                id={`${id}-remaining`}
-                type="line"
-                paint={{
-                  "line-color": color,
-                  "line-width": 5,
-                  "line-opacity": 0.4,
-                  "line-dasharray": [2, 1.2] as unknown as number[],
-                }}
-              />
-              <Layer
-                id={`${id}-played`}
-                type="line"
-                paint={{
-                  "line-color": color,
-                  "line-width": 3,
-                  "line-opacity": 0.95,
-                }}
-              />
-            </Source>
-          );
+          return <Source key={id} id={`src-${id}`} type="geojson" data={geo}>
+            <Layer id={`${id}-full`} type="line" filter={['==', ['get', 'kind'], 'full']} paint={{ 'line-color': color, 'line-width': 14, 'line-opacity': dimmed ? .04 : .15, 'line-blur': 12 }} />
+            <Layer id={`${id}-remaining`} type="line" filter={['==', ['get', 'kind'], 'remaining']} paint={{ 'line-color': color, 'line-width': selected ? 5 : 3, 'line-opacity': dimmed ? .18 : selected ? .8 : .5, 'line-dasharray': [2, 1.2] }} />
+            <Layer id={`${id}-played`} type="line" filter={['==', ['get', 'kind'], 'played']} paint={{ 'line-color': color, 'line-width': selected ? 5 : 3, 'line-opacity': dimmed ? .22 : 1 }} />
+            <Layer id={`${id}-hit`} type="line" filter={['==', ['get', 'kind'], 'full']} paint={{ 'line-width': 18, 'line-opacity': 0 }} />
+          </Source>;
         })}
 
-        {tracks.map((t, i) => {
-          const color = TRACK_COLORS[i % TRACK_COLORS.length];
+        {drawOrder.map(({ item: t, key, color }) => {
           const first = t.points[0] ?? null;
-          const cur = pointAt(t.points, playbackIndex);
-          const key = `${trackKey(t.summary)}`;
-          return (
-            <Fragment key={`markers-${key}`}>
-              {first && (
-                <Marker longitude={first.lon} latitude={first.lat} anchor="center">
-                  <div
-                    className="h-3 w-3 rounded-full border-2 border-white"
-                    style={{ background: color }}
-                  />
-                </Marker>
-              )}
-              {cur && (
-                <Marker longitude={cur.lon} latitude={cur.lat} anchor="center">
-                  <div
-                    className="h-3 w-3 rounded-full ring-4"
-                    style={{
-                      background: "#ffffff",
-                      boxShadow: `0 0 12px ${color}`,
-                    }}
-                  />
-                </Marker>
-              )}
-            </Fragment>
-          );
+          const cur = pointAt(t.points, trackIndices[key] ?? playbackIndex);
+          const selected = key === activeTrackKey;
+          const opacity = activeTrackKey && !selected ? .3 : 1;
+          const select = () => onSelectTrack(key);
+          return <Fragment key={`markers-${key}`}>
+            {first && <Marker longitude={first.lon} latitude={first.lat} anchor="center" style={{ zIndex: selected ? 2 : 1 }}>
+              <button type="button" aria-label={`Seleccionar inicio del track ${t.summary.track_id} / ${t.summary.tipo_radar}`} title={`${t.summary.track_id} / ${t.summary.tipo_radar}`} onClick={event => { event.stopPropagation(); select(); }} className="block h-3 w-3 cursor-pointer rounded-full border-2 border-white focus-visible:outline-2 focus-visible:outline-white" style={{ background: color, opacity }} />
+            </Marker>}
+            {cur && <Marker longitude={cur.lon} latitude={cur.lat} anchor="center" style={{ zIndex: selected ? 2 : 1 }}>
+              <button type="button" aria-label={`Seleccionar track ${t.summary.track_id} / ${t.summary.tipo_radar}`} title={`${t.summary.track_id} / ${t.summary.tipo_radar}`} onClick={event => { event.stopPropagation(); select(); }} className={`block cursor-pointer rounded-full ring-4 focus-visible:outline-2 focus-visible:outline-white ${selected ? 'h-4 w-4' : 'h-3 w-3'}`} style={{ background: '#ffffff', boxShadow: `0 0 12px ${color}`, opacity }} />
+            </Marker>}
+          </Fragment>;
         })}
+        {active && activePoint && <Popup longitude={activePoint.lon} latitude={activePoint.lat} anchor="bottom" offset={16} closeOnClick={false} onClose={() => onSelectTrack(null)}>
+          <div className="text-xs text-text-100 p-2 bg-bg-100 rounded-xl"><strong>Track ID: {active.summary.track_id}</strong><p>Radar: {active.summary.tipo_radar}</p><p>Reproducción individual</p></div>
+        </Popup>}
+
       </ReactMapGL>
 
       {loading && (
@@ -307,14 +284,11 @@ export function TrackPlaybackMap({
       )}
 
       <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2">
-        {tracks.slice(0, 12).map((t, i) => (
-          <LegendChip
-            key={trackKey(t.summary)}
-            color={TRACK_COLORS[i % TRACK_COLORS.length]}
-            label={`${t.summary.track_id}${t.loading ? "…" : ""}`}
-            solid
-          />
-        ))}
+        {tracks.slice(0, 12).map((t, i) => {
+          const key = trackKey(t.summary);
+          return <button key={key} type="button" aria-pressed={key === activeTrackKey} onClick={() => onSelectTrack(key)} className={`rounded-md ${activeTrackKey && key !== activeTrackKey ? 'opacity-40' : ''} ${key === activeTrackKey ? 'ring-2 ring-white' : ''}`}><LegendChip color={TRACK_COLORS[i % TRACK_COLORS.length]} label={`${t.summary.track_id} / ${t.summary.tipo_radar}${t.loading ? '…' : ''}`} solid /></button>;
+        })}
+        {activeTrackKey && tracks.length > 1 && <button type="button" onClick={() => onSelectTrack(null)} className="rounded-md border border-border bg-bg-100/90 px-2 py-1 text-xs">Reproducir todos ({tracks.length})</button>}
         <LegendChip color="#ffffff" label="Zonas" />
       </div>
     </div>

@@ -20,6 +20,8 @@ interface MapControlsProps {
   mapLayers: Record<MapLayer, MapLayerConfig>;
   initialCenter: MapCenter;
   initialZoom: number;
+  initialPitch?: number;
+  initialBearing?: number;
   extraButtons?: React.ReactNode;
 }
 
@@ -51,6 +53,8 @@ const MapControls = memo(function MapControls({
   mapLayers,
   initialCenter,
   initialZoom,
+  initialPitch = 0,
+  initialBearing = 0,
   extraButtons,
 }: MapControlsProps) {
   const [showLayers, setShowLayers] = useState(false);
@@ -72,11 +76,11 @@ const MapControls = memo(function MapControls({
       mapRef.current?.flyTo({
         center: [initialCenter.longitude, initialCenter.latitude],
         zoom: initialZoom,
-        pitch: 0,
-        bearing: 0,
+        pitch: initialPitch,
+        bearing: initialBearing,
         duration: 1500,
       }),
-    [mapRef, initialCenter, initialZoom],
+    [mapRef, initialCenter, initialZoom, initialPitch, initialBearing],
   );
   const zoomIn = useCallback(() => mapRef.current?.zoomIn(), [mapRef]);
   const zoomOut = useCallback(() => mapRef.current?.zoomOut(), [mapRef]);

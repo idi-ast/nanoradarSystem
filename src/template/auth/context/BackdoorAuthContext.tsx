@@ -5,8 +5,8 @@
 
 import {
   useState,
-  useCallback,
   useEffect,
+  useCallback,
   type ReactNode,
 } from "react";
 import { AuthContext } from "@/libs/better-auth/context";
@@ -21,14 +21,16 @@ import { authService } from "../services/authService";
 import { useRole } from "@/context/role";
 import type { RoleId } from "@/context/role";
 import { queryClient } from "@/libs/tanstack-query";
-import { apiSystem } from "@/apis";
-import { SessionExpiredModal } from "@/components/ui/SessionExpiredModal";
 
 const USER_STORAGE_KEY = "auth_user";
 
 interface BackdoorAuthProviderProps {
   children: ReactNode;
 }
+
+const buildSession = (userId: string, token: string): Session => ({
+  id: token, userId, token, expiresAt: null, createdAt: new Date(), updatedAt: new Date(),
+});
 
 export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   const { setRoleId, setRoleEmpresa, setEmpresaEsPrincipal } = useRole();
@@ -43,8 +45,6 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSessionExpired, setShowSessionExpired] = useState(false);
-  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
 
   // Reconstruir sesión desde localStorage si hay token y usuario guardados
   const storedToken = localStorage.getItem("access_token");
@@ -54,46 +54,11 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
       id: storedToken,
       userId: user?.id ?? "",
       token: storedToken,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      expiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
   });
-
-  const buildSession = (userId: string, token: string): Session => ({
-    id: token,
-    userId,
-    token,
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  useEffect(() => {
-    apiSystem.setSessionExpiredHandler(({ stay, logout }) => {
-      setShowSessionExpired(true);
-      const originalStay = stay;
-      const originalLogout = logout;
-
-      const handleStay = () => {
-        setIsRefreshingToken(true);
-        originalStay();
-        setTimeout(() => setIsRefreshingToken(false), 3000);
-      };
-
-      const handleLogout = () => {
-        setShowSessionExpired(false);
-        originalLogout();
-      };
-
-      const modalCallbacks = { stay: handleStay, logout: handleLogout };
-      return modalCallbacks;
-    });
-
-    return () => {
-      apiSystem.setSessionExpiredHandler(null);
-    };
-  }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -139,14 +104,16 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setRoleId,setRoleEmpresa,setEmpresaEsPrincipal]);
 
   const signInWithSocial = useCallback(async (_provider: AuthProviderType) => {
+    void _provider;
     setError("Login social no disponible en este sistema.");
     throw new Error("Login social no disponible en este sistema.");
   }, []);
 
   const signUp = useCallback(async (_credentials: SignUpCredentials) => {
+    void _credentials;
     setError("Registro no disponible en este sistema.");
     throw new Error("Registro no disponible en este sistema.");
   }, []);
@@ -160,11 +127,35 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
     setRoleId(null);
     setRoleEmpresa(null);
     setEmpresaEsPrincipal(false);
-    setShowSessionExpired(false);
     queryClient.clear();
   }, [setRoleId, setRoleEmpresa, setEmpresaEsPrincipal]);
 
-  const refreshSession = useCallback(async () => {}, []);
+  useEffect(() => {
+    if (!user?.id || !localStorage.getItem('access_token')) return;
+    let disposed = false;
+    void authService.verifySession().then(result => {
+      const token = localStorage.getItem('access_token');
+      if (!disposed && result.success && token) setSession(buildSession(user.id,token));
+    });
+    return () => { disposed = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key === 'access_token' && !event.newValue) {
+        setUser(null); setSession(null); setRoleId(null); setRoleEmpresa(null); setEmpresaEsPrincipal(false); queryClient.clear();
+      }
+    };
+    window.addEventListener('storage',storageChanged);
+    return () => window.removeEventListener('storage',storageChanged);
+  }, [setRoleId,setRoleEmpresa,setEmpresaEsPrincipal]);
+
+  const refreshSession = useCallback(async () => {
+    const result = await authService.verifySession();
+    if (!result.success) {
+      throw new Error(result.message || "Tu sesión ha expirado.");
+    }
+  }, []);
 
   const value: AuthContextType = {
     session,
@@ -184,16 +175,6 @@ export function BackdoorAuthProvider({ children }: BackdoorAuthProviderProps) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <SessionExpiredModal
-        isOpen={showSessionExpired}
-        onStay={() => {
-          setShowSessionExpired(false);
-        }}
-        onLogout={() => {
-          signOut();
-        }}
-        isRefreshing={isRefreshingToken}
-      />
     </AuthContext.Provider>
   );
 }

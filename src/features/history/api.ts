@@ -1,5 +1,9 @@
 import { apiSystem } from "@/apis/apiSystem";
-import type { TrackListResponse, TrackSummaryFilters } from "./types";
+import type {
+  TrackListResponse,
+  TrackSummary,
+  TrackSummaryFilters,
+} from "./types";
 
 export interface TrackFavorite {
   track_id: string;
@@ -26,12 +30,42 @@ export async function fetchTrackSummaries(
     search: filters.search || undefined,
     min_points: filters.minPoints,
     zone: filters.zone || undefined,
+    behavior_class: filters.behaviorClass || undefined,
     only_with_zones: onlyWithZones,
     page,
     limit: pageSize,
     track_ids: filters.trackIds?.join(","),
   });
   return res.data;
+}
+
+/** Listado para informes con cobertura explícita y páginas enriquecidas completas. */
+export async function fetchReportTrackSummaries(
+  filters: TrackSummaryFilters,
+  onlyWithZones = false,
+  onProgress?: (page: number, pages: number) => void,
+  signal?: AbortSignal,
+): Promise<{ tracks: TrackSummary[]; total: number; limited: boolean }> {
+  // Mantener pequeñas las consultas de agregados por página.
+  const pageSize = 200;
+  signal?.throwIfAborted();
+  const first = await fetchTrackSummaries(filters, 1, pageSize, onlyWithZones);
+  signal?.throwIfAborted();
+  const pages = Math.max(1, first.pages ?? 1);
+  const maxPages = Math.min(pages, 50);
+  const tracks = [...(first.data ?? [])];
+  onProgress?.(1, maxPages);
+  for (let page = 2; page <= maxPages; page++) {
+    signal?.throwIfAborted();
+    const result = await fetchTrackSummaries(filters, page, pageSize, onlyWithZones);
+    tracks.push(...(result.data ?? []));
+    onProgress?.(page, maxPages);
+  }
+  return { tracks, total: first.total ?? tracks.length, limited: pages > maxPages || tracks.length < (first.total ?? tracks.length) };
+}
+
+export async function fetchAllTrackSummaries(filters: TrackSummaryFilters, onlyWithZones = false): Promise<TrackSummary[]> {
+  return (await fetchReportTrackSummaries(filters, onlyWithZones)).tracks;
 }
 
 export async function fetchTrackFavorites(): Promise<TrackFavoriteListResponse> {

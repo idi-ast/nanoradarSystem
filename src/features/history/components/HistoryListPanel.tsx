@@ -1,3 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+import { fetchBehaviorCategories } from "@/features/devices/services";
+import { useBehaviorVisibilityStore } from "@/features/devices/stores/behaviorVisibilityStore";
+import { BEHAVIOR_ORDER, behaviorLabel, isBehaviorVisible, orderedBehaviorKeys } from "@/features/devices/config/behaviorCategories";
 import { useMemo, useState } from "react";
 import {
   IconArrowNarrowDown,
@@ -8,6 +12,7 @@ import {
   IconClock,
   IconCopy,
   IconDownload,
+  IconFileText,
   IconPlaylist,
   IconRoute,
   IconSearch,
@@ -48,6 +53,9 @@ interface Props {
   onOnlyWithZonesChange: (v: boolean) => void;
   onlyFavorites: boolean;
   onOnlyFavoritesChange: (v: boolean) => void;
+  /** Genera el informe PDF del período completo (opcional). */
+  onGenerateReport?: () => void;
+  isGeneratingReport?: boolean;
 }
 
 type Tab = "tracks" | "zones";
@@ -199,7 +207,7 @@ function exportCsv(tracks: TrackSummary[]): void {
     t.max_snr ?? "",
     t.avg_snr ?? "",
     t.max_confidence ?? "",
-    t.behavior_class ?? "",
+    behaviorLabel(t.behavior_class),
     t.behavior_confidence != null
       ? Math.round(t.behavior_confidence * 100)
       : "",
@@ -237,7 +245,12 @@ export function HistoryListPanel({
   onOnlyWithZonesChange,
   onlyFavorites,
   onOnlyFavoritesChange,
+  onGenerateReport,
+  isGeneratingReport = false,
 }: Props) {
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  const categoryQuery = useQuery({ queryKey: ['report-behavior-categories'], queryFn: fetchBehaviorCategories, staleTime: 300000, retry: false, refetchOnWindowFocus: false });
+  const categoryOptions = orderedBehaviorKeys([...BEHAVIOR_ORDER, ...(categoryQuery.data ?? []), ...(filters.behaviorClass ? [filters.behaviorClass] : [])]).filter(c => isBehaviorVisible(c, visibility) || c === filters.behaviorClass);
   const [tab, setTab] = useState<Tab>("tracks");
   const [sort, setSort] = useState<TrackSort>({ by: "last_seen", dir: "desc" });
   const { favorites, hasFavorite, toggleAsync } = useTrackFavorites();
@@ -429,6 +442,18 @@ export function HistoryListPanel({
         </div>
 
         <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
+          Clasificación
+          <select
+            className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none"
+            value={filters.behaviorClass ?? ""}
+            onChange={e => set({ behaviorClass: e.target.value || undefined })}
+          >
+            <option value="">Todas las clasificaciones</option>
+            {categoryOptions.map(category => <option key={category} value={category}>{behaviorLabel(category)}</option>)}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
           Zona
           <select
             className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none"
@@ -526,6 +551,20 @@ export function HistoryListPanel({
                 <IconArrowNarrowUp size={15} />
               )}
             </button>
+            {onGenerateReport && (
+              <button
+                onClick={onGenerateReport}
+                disabled={isGeneratingReport}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  isGeneratingReport
+                    ? "Generando informe..."
+                    : "Generar informe PDF del período"
+                }
+              >
+                <IconFileText size={15} className={isGeneratingReport ? "animate-pulse" : ""} />
+              </button>
+            )}
             <button
               onClick={() => exportCsv(displayedTracks)}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors"
@@ -731,7 +770,7 @@ function TrackCard({
                 }}
                 title="Categoría de comportamiento asignada por el clasificador"
               >
-                {track.behavior_class}
+                {behaviorLabel(track.behavior_class)}
                 {track.behavior_confidence != null &&
                   ` · ${confidenceLabel(track.behavior_confidence, track.behavior_class)}`}
               </span>
@@ -819,7 +858,7 @@ function TrackCard({
             label="Categoría"
             value={
               track.behavior_class
-                ? `${track.behavior_class}${
+                ? `${behaviorLabel(track.behavior_class)}${
                     track.behavior_confidence != null
                       ? ` · ${confidenceLabel(
                           track.behavior_confidence,

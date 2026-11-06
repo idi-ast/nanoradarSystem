@@ -42,6 +42,10 @@ export function PtzFullscreenModal({
     if (!node || !currentStream) return;
     node.srcObject = currentStream;
     node.play().catch(() => { });
+    return () => {
+      node.pause();
+      node.srcObject = null;
+    };
   }, [stream, streamRef]);
 
   const barRef = useRef<HTMLDivElement>(null);

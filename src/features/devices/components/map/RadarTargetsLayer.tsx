@@ -1,3 +1,5 @@
+import { isBehaviorVisible, targetBehaviorKey, behaviorModelCategory } from "../../config/behaviorCategories";
+import { useBehaviorVisibilityStore } from "../../stores/behaviorVisibilityStore";
 import { useEffect, useMemo, useState } from "react";
 import { Source, Layer, Popup, Marker } from "react-map-gl";
 import type { RadarTarget, DeviceFilter, TrackHistoryPoint } from "../../types";
@@ -8,8 +10,7 @@ import {
   useRadarTargets,
 } from "../../context/useRadarContext";
 import { useTargetVisualStore } from "../../stores/targetVisualStore";
-import { useTargetCategoryResolution } from "../../hooks/useTargetCategoryResolution";
-import { ZONE_DETECTION_CATEGORIES, resolveBehaviorCategory } from "../../config";
+import { resolveBehaviorCategory } from "../../config";
 import { IconTargetNeutral } from "../../config/categories";
 import { Boat3DMarker } from "./Boat3DMarker";
 import { BoatsSharedCanvas } from "./BoatsSharedCanvas";
@@ -81,25 +82,18 @@ export function RadarTargetsLayer({
     });
   }, [targets, alert6Zones]);
 
-  const categoryFilteredTargets = zoneFilteredTargets;
+  const visibility = useBehaviorVisibilityStore(s => s.visibility);
+  const categoryFilteredTargets = useMemo(() => zoneFilteredTargets.filter(t => isBehaviorVisible(targetBehaviorKey(t), visibility)), [zoneFilteredTargets, visibility]);
 
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
 
-  const defaultCategoria = useTargetVisualStore(
-    (s) => s.defaultCategoriaDeteccion,
-  );
   const use3DBoat = useTargetVisualStore((s) => s.use3DBoat);
   const categoryModels = useTargetVisualStore((s) => s.categoryModels);
   const iconStyle2D = useTargetVisualStore((s) => s.iconStyle2D);
   const trackStrokeWidth = useTargetVisualStore((s) => s.trackStrokeWidth);
   const trackDurationSec = useTargetVisualStore((s) => s.trackDurationSec);
-  const categoryMap = useTargetCategoryResolution(
-    categoryFilteredTargets,
-    zones,
-    defaultCategoria,
-    instanceConfig.geofence.ACTIVE_MS,
-  );
+
 
   const timeBounds = useMemo(() => {
     let tMin = Infinity;
@@ -304,25 +298,21 @@ export function RadarTargetsLayer({
           const lat = lastPoint[0];
           const lon = lastPoint[1];
           const moving = isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS);
-          const catId = categoryMap.get(t.id) ?? defaultCategoria;
-          const cat =
-            ZONE_DETECTION_CATEGORIES.find((c) => c.id === catId) ??
-            ZONE_DETECTION_CATEGORIES[0];
+          const catId = behaviorModelCategory(t.behaviorClass, t.behaviorConfidence ?? 0);
           const behaviorCat = resolveBehaviorCategory(
             t.behaviorClass,
             t.behaviorConfidence ?? 0,
           );
-          // la clasificacion por comportamiento manda; si no hay, zona/default
-          const Icon = behaviorCat?.icon ?? cat?.icon ?? IconTargetNeutral;
+          // La representación sigue la clasificación, nunca el icono de una zona.
+          const Icon = behaviorCat?.icon ?? IconTargetNeutral;
           const isSelected = selectedTargetId === t.id;
           const dimmed = selectedTargetId !== null && !isSelected;
 
-          // Modo 3D: activo para todas las categorías cuando use3DBoat está activado
-          const show3D = use3DBoat;
+          // Las clases sin un modelo apropiado conservan su icono 2D.
+          const show3D = use3DBoat && catId !== null;
           // Modelo GLB según la categoría (preferencia del usuario o default)
           const modelPath =
-            categoryModels[catId] ??
-            DEFAULT_CATEGORY_MODELS[catId] ??
+            (catId !== null ? categoryModels[catId] ?? DEFAULT_CATEGORY_MODELS[catId] : undefined) ??
             "/3d/glb/cargo_ship.glb";
 
           return (
@@ -446,10 +436,6 @@ export function RadarTargetsLayer({
         historyTrackPoints.length > 0 &&
         (() => {
           const lastPt = historyTrackPoints[historyTrackPoints.length - 1];
-          const show3D = use3DBoat;
-          const modelPath =
-            DEFAULT_CATEGORY_MODELS[defaultCategoria] ??
-            "/3d/glb/cargo_ship.glb";
           return (
             <Marker
               key={`bd-${selectedTargetId}`}
@@ -457,25 +443,7 @@ export function RadarTargetsLayer({
               latitude={lastPt.lat}
               anchor="center"
             >
-              {show3D ? (
-                <div className="relative">
-                  <Boat3DMarker
-                    id={`bd-${selectedTargetId}`}
-                    lng={lastPt.lon}
-                    lat={lastPt.lat}
-                    modelPath={modelPath}
-                    history={historyTrackPoints.map((p) => [
-                      p.lat,
-                      p.lon,
-                      new Date(p.fecha).getTime(),
-                    ])}
-                    moving={false}
-                    isSelected
-                    size={64}
-                  />
-                </div>
-              ) : (
-                // Marcador activo del historial
+                {/* Sin clasificación fiable: marcador neutro del historial. */}
                 <div
                   className="relative cursor-pointer flex items-center justify-center"
                   style={{
@@ -495,7 +463,6 @@ export function RadarTargetsLayer({
                     )}
                   </span>
                 </div>
-              )}
             </Marker>
           );
         })()}

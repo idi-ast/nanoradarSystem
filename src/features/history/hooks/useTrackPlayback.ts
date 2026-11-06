@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { fetchTrackHistory } from "@/features/devices/services/radarService";
 import type { TrackHistoryPoint } from "@/features/devices/types";
@@ -26,6 +26,10 @@ export function trackKey(t: { track_id: string; tipo_radar: string }): string {
 interface UseTrackPlaybackResult {
   tracks: TrackPlaybackItem[];
   index: number;
+  activeTrackKey: string | null;
+  playbackTracks: TrackPlaybackItem[];
+  trackIndices: Record<string, number>;
+  selectTrack: (key: string | null) => void;
   isPlaying: boolean;
   speed: number;
   loading: boolean;
@@ -68,7 +72,7 @@ function getPoints(qc: QueryClient, track: TrackSummary) {
     queryKey: ["history-trajectory", trackKey(track), track.last_seen ?? ""],
     queryFn: () => loadPoints(track),
     staleTime: TRAJECTORY_STALE_MS,
-    gcTime: TRAJECTORY_STALE_MS,
+    gcTime: 60_000,
   });
 }
 
@@ -104,10 +108,23 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [activeTrackKey, setActiveTrackKey] = useState<string | null>(null);
+  const [parkedIndices, setParkedIndices] = useState<Record<string, number>>({});
+  const playbackTracks = useMemo(() => activeTrackKey
+    ? tracks.filter(t => trackKey(t.summary) === activeTrackKey) : tracks, [tracks, activeTrackKey]);
+  const trackIndices = useMemo(() => Object.fromEntries(tracks.map(t => {
+    const key = trackKey(t.summary);
+    return [key, !activeTrackKey || key === activeTrackKey ? index : parkedIndices[key] ?? 0];
+  })), [tracks, activeTrackKey, index, parkedIndices]);
 
   const qc = useQueryClient();
   // invalida cargas en curso cuando cambia la seleccion (playAll/clearAll)
   const generationRef = useRef(0);
+
+  useEffect(() => () => {
+    // Evitar que un lote siga descargando tracks después de salir de la página.
+    generationRef.current++;
+  }, []);
 
   const tracksRef = useRef<TrackPlaybackItem[]>([]);
   useEffect(() => {
@@ -123,28 +140,51 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
     [],
   );
 
+  const selectTrack = useCallback((key: string | null) => {
+    if (key === activeTrackKey || (key && !tracksRef.current.some(t => trackKey(t.summary) === key))) return;
+    // Park the current scope before switching, keeping other tracks stationary.
+    setParkedIndices(previous => {
+      const next = { ...previous };
+      for (const t of tracksRef.current) {
+        const id = trackKey(t.summary);
+        if (!activeTrackKey || id === activeTrackKey) next[id] = Math.min(index, Math.max(0, t.points.length - 1));
+      }
+      return next;
+    });
+    setIsPlaying(false);
+    setActiveTrackKey(key);
+    const target = tracksRef.current.find(t => trackKey(t.summary) === key);
+    setIndex(key && target ? Math.min(parkedIndices[key] ?? (!activeTrackKey ? index : 0), Math.max(0, target.points.length - 1)) : 0);
+  }, [activeTrackKey, index, parkedIndices]);
+
   const toggleTrack = useCallback(
     async (track: TrackSummary) => {
       const key = trackKey(track);
+      setParkedIndices(previous => ({ ...previous, ...trackIndices }));
       setIsPlaying(false);
       setIndex(0);
       if (tracksRef.current.some((it) => trackKey(it.summary) === key)) {
         setTracks((prev) => prev.filter((it) => trackKey(it.summary) !== key));
+        if (activeTrackKey === key) setActiveTrackKey(null);
         return; // deseleccion: no se pide nada
       }
+      setActiveTrackKey(key);
       setTracks((prev) => [
         ...prev,
         { summary: track, points: [], loading: true, error: null },
       ]);
+      const gen = generationRef.current;
       try {
         const points = await getPoints(qc, track);
+        if (gen !== generationRef.current) return;
         // si se deselecciono mientras cargaba, patchTrack no encuentra nada
         patchTrack(key, { points, loading: false, error: null });
       } catch (e) {
+        if (gen !== generationRef.current) return;
         patchTrack(key, { loading: false, error: errMsg(e) });
       }
     },
-    [qc, patchTrack],
+    [qc, patchTrack, activeTrackKey, trackIndices],
   );
 
   const playAll = useCallback(
@@ -157,6 +197,9 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
           current.some((it) => trackKey(it.summary) === trackKey(t)),
         );
       const gen = ++generationRef.current;
+      setActiveTrackKey(null);
+      setParkedIndices({});
+      setLoading(false);
       setIsPlaying(false);
       setIndex(0);
       if (allSelected) {
@@ -198,7 +241,7 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
 
   useEffect(() => {
     if (!isPlaying) return;
-    const maxLen = maxPointsLength(tracksRef.current);
+    const maxLen = maxPointsLength(activeTrackKey ? tracksRef.current.filter(t => trackKey(t.summary) === activeTrackKey) : tracksRef.current);
     if (maxLen === 0) return;
     const intervalId = window.setInterval(() => {
       setIndex((i) => {
@@ -210,27 +253,29 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
       });
     }, BASE_STEP_MS / speed);
     return () => window.clearInterval(intervalId);
-  }, [isPlaying, speed, tracks]);
+  }, [isPlaying, speed, tracks, activeTrackKey]);
 
   const togglePlay = useCallback(() => {
-    const maxLen = maxPointsLength(tracksRef.current);
+    const maxLen = maxPointsLength(activeTrackKey ? tracksRef.current.filter(t => trackKey(t.summary) === activeTrackKey) : tracksRef.current);
     if (maxLen === 0) return;
     setIndex((i) => (i >= maxLen - 1 ? 0 : i));
     setIsPlaying((p) => !p);
-  }, []);
+  }, [activeTrackKey]);
 
   const changeSpeed = useCallback((s: number) => setSpeed(s), []);
 
   const seekTo = useCallback((i: number) => {
-    const maxLen = maxPointsLength(tracksRef.current);
+    const maxLen = maxPointsLength(activeTrackKey ? tracksRef.current.filter(t => trackKey(t.summary) === activeTrackKey) : tracksRef.current);
     const max = Math.max(0, maxLen - 1);
     setIndex(Math.max(0, Math.min(max, Math.round(i))));
-  }, []);
+  }, [activeTrackKey]);
 
   const clearAll = useCallback(() => {
     generationRef.current++;
     setIsPlaying(false);
     setLoading(false);
+    setActiveTrackKey(null);
+    setParkedIndices({});
     setTracks([]);
     setIndex(0);
   }, []);
@@ -238,6 +283,10 @@ export function useTrackPlayback(): UseTrackPlaybackResult {
   return {
     tracks,
     index,
+    activeTrackKey,
+    playbackTracks,
+    trackIndices,
+    selectTrack,
     isPlaying,
     speed,
     loading,

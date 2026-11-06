@@ -5,7 +5,7 @@
  * Credenciales: admin@wisensor.cl / astidi2025
  */
 
-import type { User, Session } from "@/libs/better-auth/types";
+import type { BetterAuthUser as User, Session } from "@/libs/better-auth/types";
 
 // Credenciales de desarrollo
 const BACKDOOR_CREDENTIALS = {
@@ -85,8 +85,8 @@ export function getBackdoorAuth(): BackdoorAuthData | null {
     const data = JSON.parse(stored) as BackdoorAuthData;
     
     // Verificar si la sesión no ha expirado
-    const expiresAt = new Date(data.session.expiresAt);
-    if (expiresAt < new Date()) {
+    const expiresAt = data.session.expiresAt ? new Date(data.session.expiresAt) : null;
+    if (expiresAt && expiresAt < new Date()) {
       backdoorSignOut();
       return null;
     }

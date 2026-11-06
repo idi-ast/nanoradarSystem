@@ -72,7 +72,7 @@ export function normalizeTrackCategory(
   ) {
     return "BOAT";
   }
-  if (["animal", "pajaro", "pájaro", "bird", "paw", "perro", "dog"].includes(val)) {
+  if (["animal", "pajaro", "pájaro", "bird", "ave", "aves", "paw", "perro", "dog"].includes(val)) {
     return "ANIMAL";
   }
   if (["drone", "dron", "uav"].includes(val)) {

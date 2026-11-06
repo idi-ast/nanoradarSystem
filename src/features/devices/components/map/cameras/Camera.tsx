@@ -62,6 +62,7 @@ function getWhepBaseUrl(urlStream: string): string {
 function useWebRtcPlayer(streamUrl: string) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -88,13 +89,12 @@ function useWebRtcPlayer(streamUrl: string) {
 
   const videoRef = useCallback(
     (node: HTMLVideoElement | null) => {
-      if (pcRef.current) {
-        pcRef.current.close();
-        pcRef.current = null;
-      }
+      // El modal de pantalla completa reutiliza este stream al desmontar el video base.
       if (!node) return;
+      cleanupRef.current?.();
 
       let destroyed = false;
+      const controller = new AbortController();
       setConnectionError(null);
 
       const pc = new RTCPeerConnection({
@@ -103,6 +103,7 @@ function useWebRtcPlayer(streamUrl: string) {
       pcRef.current = pc;
 
       pc.ontrack = (event) => {
+        if (destroyed) return;
         streamRef.current = event.streams[0];
         if (node.srcObject !== event.streams[0]) {
           node.srcObject = event.streams[0];
@@ -127,11 +128,13 @@ function useWebRtcPlayer(streamUrl: string) {
         // WHEP: enviar offer inmediatamente, sin esperar ICE gathering.
         // MediaMTX devuelve un answer que ya incluye sus candidatos ICE.
         const offer = await pc.createOffer();
+        if (destroyed) return;
         await pc.setLocalDescription(offer);
         if (destroyed) return;
 
         const resp = await fetch(`${streamUrl}/whep?user=admin&password=admin123`, {
           method: "POST",
+          signal: controller.signal,
           headers: { "Content-Type": "application/sdp" },
           body: offer.sdp,
         });
@@ -142,6 +145,7 @@ function useWebRtcPlayer(streamUrl: string) {
         if (destroyed) return;
 
         const answerSdp = await resp.text();
+        if (destroyed) return;
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
       }
 
@@ -156,11 +160,19 @@ function useWebRtcPlayer(streamUrl: string) {
         }
       });
 
-      return () => {
+      cleanupRef.current = () => {
+        if (destroyed) return;
         destroyed = true;
+        controller.abort();
+        pc.ontrack = null;
+        pc.onconnectionstatechange = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        node.pause();
+        node.srcObject = null;
         pc.close();
         pcRef.current = null;
         streamRef.current = null;
+        cleanupRef.current = null;
       };
     },
     // retryCount hace que el callback-ref se recree al reconectar
@@ -168,6 +180,8 @@ function useWebRtcPlayer(streamUrl: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [streamUrl, retryCount],
   );
+
+  useEffect(() => () => cleanupRef.current?.(), []);
 
   return { videoRef, streamRef, connectionError, retry };
 }

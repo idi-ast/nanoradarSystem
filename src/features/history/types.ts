@@ -40,6 +40,7 @@ export interface TrackSummaryFilters {
   search?: string;
   minPoints: number;
   zone?: string;
+  behaviorClass?: string;
   /** IDs de tracks a forzar en la respuesta (ej. favoritos fuera de rango). */
   trackIds?: string[];
 }
@@ -54,3 +55,7 @@ export interface TrackListResponse {
 }
 
 export const TRACKS_PAGE_SIZE = 100;
+/** Identidad del track agregado que devuelve el historial, sin inferir identidad física. */
+export function analysisTrackKey(track: TrackSummary): string {
+  return JSON.stringify([track.tipo_radar, track.track_id, track.first_seen, track.last_seen]);
+}

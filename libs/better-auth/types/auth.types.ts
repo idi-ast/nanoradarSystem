@@ -19,7 +19,7 @@ export interface BetterAuthUser {
 export interface Session {
   id: string;
   userId: string;
-  expiresAt: Date;
+  expiresAt: Date | null;
   token: string;
   createdAt: Date;
   updatedAt: Date;

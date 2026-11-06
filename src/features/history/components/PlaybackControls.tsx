@@ -1,12 +1,12 @@
+import { behaviorLabel } from "@/features/devices/config/behaviorCategories";
 import { useMemo } from "react";
 import { IconPlayerPlay, IconPlayerPause, IconX } from "@tabler/icons-react";
-import type { TrackHistoryPoint } from "@/features/devices/types";
 import { PLAYBACK_SPEEDS, pathDistanceM } from "../hooks/useTrackPlayback";
 import type { TrackPlaybackItem } from "../hooks/useTrackPlayback";
-import { trackKey } from "../hooks/useTrackPlayback";
 
 interface Props {
   tracks: TrackPlaybackItem[];
+  totalTracks: number;
   index: number;
   isPlaying: boolean;
   speed: number;
@@ -14,174 +14,56 @@ interface Props {
   onSpeedChange: (s: number) => void;
   onSeek: (i: number) => void;
   onClose: () => void;
+  onShowAll: () => void;
 }
 
-function fmtTime(iso: string | undefined): string {
-  if (!iso) return "--:--:--";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "--:--:--";
-  return d.toLocaleTimeString("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
+function fmtTime(iso?: string): string {
+  if (!iso || !Number.isFinite(Date.parse(iso))) return "--:--:--";
+  return new Date(iso).toLocaleTimeString("es-CL", {
+    timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
   });
 }
-
 function fmtDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
+const number = (value: number) => value.toLocaleString('es-CL', { maximumFractionDigits: 1 });
 
-
-
-function formatDistanceKm(value: number): string {
-  if (value < 1) return `${value.toFixed(2)} km`;
-  if (value < 10) return `${value.toFixed(1)} km`;
-  return `${value.toFixed(0)} km`;
-}
-
-export function PlaybackControls({
-  tracks,
-  index,
-  isPlaying,
-  speed,
-  onTogglePlay,
-  onSpeedChange,
-  onSeek,
-  onClose,
-}: Props) {
-  const allPoints = useMemo(
-    () => tracks.reduce<TrackHistoryPoint[]>((acc, t) => acc.concat(t.points), []),
-    [tracks],
-  );
-  const length = useMemo(
-    () => tracks.reduce((m, t) => Math.max(m, t.points.length), 0),
-    [tracks],
-  );
-  const clamped = Math.min(Math.max(index, 0), Math.max(length - 1, 0));
-
-  const durationMs = useMemo(() => {
-    if (length < 2) return 0;
-    return (
-      new Date(allPoints[length - 1].fecha).getTime() -
-      new Date(allPoints[0].fecha).getTime()
-    );
-  }, [allPoints, length]);
-
-  const distanceKm = useMemo(() => {
-    let total = 0;
+export function PlaybackControls({ tracks, totalTracks, index, isPlaying, speed, onTogglePlay, onSpeedChange, onSeek, onClose, onShowAll }: Props) {
+  const stats = useMemo(() => {
+    let length = 0, points = 0, distance = 0, first = Infinity, last = -Infinity;
     for (const t of tracks) {
-      if (t.points && t.points.length > 0) {
-        total += pathDistanceM(t.points) / 1000;
+      length = Math.max(length, t.points.length);
+      points += t.points.length;
+      distance += pathDistanceM(t.points);
+      for (const p of t.points) {
+        const time = Date.parse(p.fecha);
+        if (Number.isFinite(time)) { first = Math.min(first, time); last = Math.max(last, time); }
       }
     }
-    return total;
+    return { length, points, distance, first: Number.isFinite(first) ? new Date(first).toISOString() : undefined, last: Number.isFinite(last) ? new Date(last).toISOString() : undefined, durationMs: Number.isFinite(first) && Number.isFinite(last) ? last - first : 0 };
   }, [tracks]);
+  const clamped = Math.min(Math.max(index, 0), Math.max(stats.length - 1, 0));
+  const single = tracks.length === 1 ? tracks[0] : null;
+  const current = single?.points[clamped];
+  const category = current?.behavior_class || single?.summary.behavior_class;
+  const loadingCount = tracks.filter(t => t.loading).length;
+  if (!tracks.length) return null;
 
-  const lastPointTime = allPoints[length - 1]?.fecha;
-
-  if (tracks.length === 0 || length === 0) return null;
-
-  const totalPoints = tracks.reduce((acc, t) => acc + t.points.length, 0);
-  const loadingCount = tracks.filter((t) => t.loading).length;
-
-  return (
-    <div className="absolute inset-x-0 bottom-0 z-10 bg-bg-100/90 backdrop-blur border-t border-border rounded-t-xl overflow-hidden">
-      <input
-        type="range"
-        min={0}
-        max={Math.max(length - 1, 1)}
-        step={1}
-        value={clamped}
-        onChange={(e) => onSeek(Number(e.target.value))}
-        aria-label="Progreso de la reproducción"
-        className="w-full relative block cursor-pointer bg-transparent"
-        style={{ accentColor: "#bbff00", height: "10px" }}
-      />
-      <div className="flex items-center gap-3 px-4 pb-2.5 pt-1">
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onTogglePlay}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-400 text-text-400 shadow hover:bg-lime-300 transition-colors"
-            title={isPlaying ? "Pausar" : "Reproducir"}
-          >
-            {isPlaying ? (
-              <IconPlayerPause size={18} />
-            ) : (
-              <IconPlayerPlay size={18} className="ml-0.5" />
-            )}
-          </button>
-          <div className="flex items-center gap-1 bg-bg-300 p-1 rounded-md">
-            {PLAYBACK_SPEEDS.map((s) => (
-              <button
-                key={s}
-                onClick={() => onSpeedChange(s)}
-                className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-                  speed === s
-                    ? "bg-bg-400 text-text-400"
-                    : "bg-bg-200 text-text-100/60 hover:bg-bg-300"
-                }`}
-              >
-                x{s}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-text-100/70 font-mono shrink-0">
-          <span className="text-[11px] text-text-100/70 font-mono shrink-0">
-            Dist: {formatDistanceKm(distanceKm)}
-          </span>
-          <span className="text-text-100/40">·</span>
-          <span>Último: {fmtTime(lastPointTime)}</span>
-        </div>
-
-        <div className="flex items-center gap-2 text-[11px] text-text-100/70 font-mono shrink-0">
-          <span>
-            {fmtTime(allPoints[0]?.fecha)} → {fmtTime(lastPointTime)}
-          </span>
-          <span className="text-text-100/40">·</span>
-          <span>{fmtDuration(durationMs)}</span>
-        </div>
-
-        <div className="flex-1 min-w-0 truncate text-[11px] text-text-100/60">
-          <span className="font-bold text-text-100/90">
-            {tracks.length} track{tracks.length !== 1 ? "s" : ""}
-          </span>
-          <span className="mx-1.5 text-text-100/30">·</span>
-          {tracks.slice(0, 5).map((t, i) => (
-            <span key={trackKey(t.summary)}>
-              {t.summary.track_id}
-              {t.loading && <span className="text-text-100/40">…</span>}
-              {i < Math.min(tracks.length, 5) - 1 && (
-                <span className="mx-1 text-text-100/30">,</span>
-              )}
-            </span>
-          ))}
-          {tracks.length > 5 && (
-            <span className="mx-1 text-text-100/40">+{tracks.length - 5}</span>
-          )}
-          <span className="mx-1.5 text-text-100/30">·</span>
-          {totalPoints} pts
-          <span className="mx-1.5 text-[11px] text-text-100/70 font-mono shrink-0">
-            {clamped + 1} / {length}
-          </span>
-          {loadingCount > 0 && (
-            <span className="ml-2 text-lime-300/80">Cargando {loadingCount}…</span>
-          )}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-100/50 hover:bg-bg-200 hover:text-text-100 transition-colors"
-          title="Cerrar tracks"
-        >
-          <IconX size={16} />
-        </button>
-      </div>
+  return <div className="absolute inset-x-0 bottom-0 z-10 overflow-hidden rounded-t-xl border-t border-border bg-bg-100/95 backdrop-blur" aria-label="Reproductor de tracks">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 text-xs">
+      <div className="min-w-0" aria-live="polite">{single ? <><strong className="text-sm text-text-100">Track ID: {single.summary.track_id}</strong><span className="ml-2 text-text-200">Radar: {single.summary.tipo_radar}</span>{category && <span className="ml-2 capitalize text-text-200">{behaviorLabel(category)}</span>}</> : <strong>{tracks.length} tracks · Reproducción conjunta</strong>}</div>
+      <div className="flex items-center gap-2">{single && totalTracks > 1 && <button type="button" onClick={onShowAll} className="rounded-md border border-border px-2 py-1 text-sky-400">Reproducir todos ({totalTracks})</button>}<button type="button" onClick={onClose} aria-label="Cerrar todos los tracks" title="Cerrar todos los tracks" className="rounded-md p-1.5 text-text-200 hover:bg-bg-200"><IconX size={16} /></button></div>
     </div>
-  );
+    <input type="range" min={0} max={Math.max(stats.length - 1, 1)} step={1} value={clamped} disabled={!stats.length} onChange={e => onSeek(Number(e.target.value))} aria-label="Progreso de la reproducción" aria-valuetext={single ? `${single.summary.track_id}: posición ${stats.length ? clamped + 1 : 0} de ${stats.length}` : `Posición ${stats.length ? clamped + 1 : 0} de ${stats.length}`} className="relative mt-2 block w-full cursor-pointer bg-transparent disabled:opacity-40" style={{ accentColor: '#bbff00', height: 10 }} />
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-2"><button type="button" onClick={onTogglePlay} disabled={!stats.length || Boolean(single?.loading)} aria-label={`${isPlaying ? 'Pausar' : 'Reproducir'}${single ? ` track ${single.summary.track_id}` : ' todos los tracks'}`} title={isPlaying ? 'Pausar' : 'Reproducir'} className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-400 text-text-400 shadow transition-colors hover:bg-lime-300 disabled:opacity-40">{isPlaying ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} className="ml-0.5" />}</button><div className="flex gap-1 rounded-md bg-bg-300 p-1">{PLAYBACK_SPEEDS.map(s => <button type="button" key={s} aria-pressed={speed === s} onClick={() => onSpeedChange(s)} className={`rounded-md px-2 py-1 text-[11px] font-semibold ${speed === s ? 'bg-bg-400 text-text-400' : 'bg-bg-200 text-text-200'}`}>x{s}</button>)}</div></div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-text-200"><span>Recorrido: {stats.distance >= 1000 ? `${number(stats.distance / 1000)} km` : `${number(stats.distance)} m`}</span><span>{fmtTime(stats.first)} → {fmtTime(stats.last)}</span><span>Duración: {fmtDuration(stats.durationMs)}</span><span>{number(stats.points)} pts · {stats.length ? clamped + 1 : 0} / {stats.length}</span>{current && <><span>Actual: {fmtTime(current.fecha)}</span><span>Velocidad: {current.speed != null && Number.isFinite(current.speed) ? `${number(current.speed * 3.6)} km/h` : 'N/D'}</span><span>Zona: {current.zona || 'Área libre'}</span><span>{current.lat.toFixed(6)}, {current.lon.toFixed(6)}</span></>}</div>
+      {loadingCount > 0 && <span role="status" className="text-xs text-sky-400">Cargando {loadingCount}…</span>}
+      {single?.error && <span role="alert" className="text-xs text-red-400">{single.error}</span>}
+      {single && !single.loading && !single.error && !stats.length && <span className="text-xs text-text-200">Sin posiciones disponibles para este track.</span>}
+    </div>
+  </div>;
 }

@@ -294,6 +294,7 @@ export function useNotificationPolling(interval = 30000) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startPolling = useCallback(() => {
+    if (intervalRef.current !== null) return;
     intervalRef.current = setInterval(() => {
       fetchUnreadCount();
     }, interval);

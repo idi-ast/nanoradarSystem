@@ -3,7 +3,9 @@ import type { RadarTarget, RawRadarPayload, CamaraActividad, MagosRadarTrack } f
 import { TARGET_TIMING } from "../config";
 import type { TargetTimingConfig } from "../config";
 import { useTargetVisualStore } from "../stores/targetVisualStore";
+import { useRadarConnectionStore, type RadarConnectionStatus } from "../stores/radarConnectionStore";
 import { toast } from "sonner";
+import { appendBoundedHistory } from "../utils/boundedHistory";
 
 /** Tiempo en ms que las actividades de cámara permanecen activas sin nuevo mensaje */
 const ACTIVITY_TIMEOUT_MS = 10_000;
@@ -53,10 +55,6 @@ interface TrackKinematicState {
   clampCount: number;
 }
 
-/** Mapa global de estado cinemático por trackId. Persiste entre barridos. */
-const trackKinematics = new Map<string, TrackKinematicState>();
-let lastCleanupTime = Date.now();
-
 /** Distancia aproximada en metros entre dos puntos (fórmula plana, suficiente para tracks cercanos) */
 function distMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const dLat = (lat2 - lat1) * METERS_PER_DEG_LAT;
@@ -75,7 +73,7 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 /** Limpia tracks inactivos del mapa de estado cinemático */
-function cleanupTrackStates(now: number): void {
+function cleanupTrackStates(trackKinematics: Map<string, TrackKinematicState>, now: number): void {
   for (const [tid, state] of trackKinematics) {
     if (now - state.lastUpdateMs > TRACK_STATE_TTL_MS) {
       trackKinematics.delete(tid);
@@ -95,9 +93,7 @@ function processDeviceMessages(
     const currentPos: [number, number, number] = [raw.lat, raw.lon, now];
     const existing = next.get(id);
 
-    const history: [number, number, number][] = existing
-      ? [...existing.history, currentPos].slice(-historyMaxPoints)
-      : [currentPos];
+    const history = appendBoundedHistory(existing?.history ?? [], [currentPos], historyMaxPoints);
 
     next.set(id, {
       id,
@@ -133,13 +129,8 @@ function processMagosradarMessages(
   now: number,
   historyMaxPoints: number,
   trackColor: string,
+  trackKinematics: Map<string, TrackKinematicState>,
 ) {
-  // Limpieza periódica de estados inactivos
-  if (now - lastCleanupTime > TRACK_STATE_CLEANUP_INTERVAL) {
-    cleanupTrackStates(now);
-    lastCleanupTime = now;
-  }
-
   for (const track of tracks) {
     const { trackId, positions } = track;
     if (!positions || positions.length === 0) continue;
@@ -236,16 +227,14 @@ function processMagosradarMessages(
     const newPoints: [number, number, number][] = effectivePoints.map((p) => [p.lat, p.lon, p.ts * 1000]);
 
     const existing = next.get(targetId);
-    const history: [number, number, number][] = existing
-      ? [...existing.history, ...newPoints].slice(-historyMaxPoints)
-      : newPoints;
+    const history = appendBoundedHistory(existing?.history ?? [], newPoints, historyMaxPoints);
 
     // Posición principal: última posición suavizada del track
     const mainLat = kin.smoothedLat;
     const mainLon = kin.smoothedLon;
 
     // Máximo nivel entre todas las posiciones del track
-    const maxNivel = Math.max(...sorted.map((p) => p.nivel));
+    const maxNivel = sorted.reduce((max, p) => Math.max(max, p.nivel), -Infinity);
 
     // Última posición del track (mayor ts)
     const lastPos = sorted[sorted.length - 1];
@@ -291,13 +280,14 @@ function processMagosradarMessages(
   }
 }
 
-export type WsStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+export type WsStatus = RadarConnectionStatus;
 
 export function useRadarWebSocket(
   url: string,
   timing: TargetTimingConfig = TARGET_TIMING,
   trackColor = "#f43f5e",
 ) {
+  const kinematicsRef = useRef(new Map<string, TrackKinematicState>());
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(new Map());
   const [cameraActivities, setCameraActivities] = useState<CamaraActividad[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
@@ -321,13 +311,22 @@ export function useRadarWebSocket(
 
   const clearTargets = useCallback(() => {
     setTargetsMap(new Map());
+    kinematicsRef.current.clear();
     bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
   }, []);
 
   useEffect(() => {
     if (!url || !url.startsWith("ws")) return;
 
+    const trackKinematics = kinematicsRef.current;
+    const owner = Symbol('radar-websocket');
+    const updateStatus = (status: WsStatus) => {
+      if (destroyed) return;
+      setWsStatus(status);
+      useRadarConnectionStore.getState().setStatus(owner,status);
+    };
     let destroyed = false;
+    let lastReceivedAt = Date.now();
     let retryCount = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let ws: WebSocket | null = null;
@@ -338,13 +337,15 @@ export function useRadarWebSocket(
 
       if (nanoRadar.length === 0 && magosRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
 
-      setTargetsMap((prev) => {
-        const next = new Map(prev);
-        processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
-        processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS, trackColor);
-        processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
-        return next;
-      });
+      if (nanoRadar.length > 0 || magosRadar.length > 0 || spotter.length > 0) {
+        setTargetsMap((prev) => {
+          const next = new Map(prev);
+          processDeviceMessages(next, nanoRadar, "nanoRadar", now, timing.HISTORY_MAX_POINTS);
+          processMagosradarMessages(next, magosRadar, now, timing.HISTORY_MAX_POINTS, trackColor, trackKinematics);
+          processDeviceMessages(next, spotter, "spotter", now, timing.HISTORY_MAX_POINTS);
+          return next;
+        });
+      }
 
       if (camaras.length > 0) {
         setCameraActivities(camaras.map((a) => ({ ...a, timestamp: now })));
@@ -353,19 +354,23 @@ export function useRadarWebSocket(
       bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
     }, SET_TIME_INTERVAL_MS);
 
+    // La limpieza cinemática sigue funcionando aunque ya no lleguen mensajes.
+    const kinematicsInterval = setInterval(() => {
+      cleanupTrackStates(trackKinematics, Date.now());
+    }, TRACK_STATE_CLEANUP_INTERVAL);
+
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
 
       setTargetsMap((prev) => {
-        const next = new Map(prev);
-        let changed = false;
-        for (const [id, target] of next.entries()) {
+        let next: Map<string, RadarTarget> | undefined;
+        for (const [id, target] of prev.entries()) {
           if (now - target.lastUpdate > effectiveTargetTimeoutMs) {
+            next ??= new Map(prev);
             next.delete(id);
-            changed = true;
           }
         }
-        return changed ? next : prev;
+        return next ?? prev;
       });
 
       setCameraActivities((prev) => {
@@ -378,23 +383,26 @@ export function useRadarWebSocket(
 
     function connect() {
       if (destroyed) return;
-      setWsStatus(retryCount === 0 ? "connecting" : "reconnecting");
+      updateStatus(retryCount === 0 ? "connecting" : "reconnecting");
 
       // Obtener token del localStorage y agregarlo como query param
       const token = localStorage.getItem("access_token");
-      const wsUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+      const wsUrl = token ? `${url}${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : url;
 
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         if (destroyed) { ws?.close(); return; }
         retryCount = 0;
-        setWsStatus("connected");
+        lastReceivedAt = Date.now();
+        updateStatus("connected");
       };
 
       ws.onmessage = (event: MessageEvent) => {
+        lastReceivedAt = Date.now();
         try {
           const raw = JSON.parse(event.data as string);
+          if (raw?.type === "pong") return;
           if (raw && typeof raw === "object") {
             // Manejo de alertas del sistema (almacenamiento)
             if (raw.type === "storage_alert") {
@@ -423,15 +431,17 @@ export function useRadarWebSocket(
       };
 
       ws.onerror = () => {
+        updateStatus("disconnected");
         // El error ya dispara onclose; solo logueamos en desarrollo
         if (import.meta.env.DEV) {
           console.warn("[useRadarWebSocket] Error de conexión con", url);
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
         if (destroyed) return;
-        setWsStatus("disconnected");
+        updateStatus("disconnected");
+        if (event.code === 4001) return;
         const delay = RECONNECT_DELAYS_MS[Math.min(retryCount, RECONNECT_DELAYS_MS.length - 1)];
         retryCount += 1;
         if (import.meta.env.DEV) {
@@ -441,12 +451,46 @@ export function useRadarWebSocket(
       };
     }
 
+    const heartbeatInterval = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (Date.now() - lastReceivedAt > 30000) {
+        updateStatus('disconnected'); ws.close(); return;
+      }
+      try { ws.send(JSON.stringify({type:'ping'})); }
+      catch { updateStatus('disconnected'); ws.close(); }
+    }, 10000);
+    const offline = () => { updateStatus('disconnected'); ws?.close(); };
+    const authChanged = () => {
+      if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null; }
+      updateStatus('reconnecting');
+      if (ws && ws.readyState < WebSocket.CLOSING) ws.close();
+      else connect();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('offline',offline);
+      window.addEventListener('radar-auth-token-changed',authChanged);
+    }
     connect();
 
     return () => {
       destroyed = true;
+      useRadarConnectionStore.getState().remove(owner);
+      clearInterval(heartbeatInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('offline',offline);
+        window.removeEventListener('radar-auth-token-changed',authChanged);
+      }
       if (retryTimer !== null) clearTimeout(retryTimer);
-      ws?.close();
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+      }
+      trackKinematics.clear();
+      bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
+      clearInterval(kinematicsInterval);
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };

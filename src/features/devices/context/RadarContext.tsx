@@ -126,7 +126,7 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   );
 
   /**
-   * Valor de baja frecuencia: solo cambia cuando el conjunto de IDs cambia.
+   * Valor de baja frecuencia: cambia al variar los IDs o su categoría de comportamiento.
    * TargetsDynamicPanel y similares se suscriben a esto para no re-renderizar
    * en cada actualización de coordenadas del WebSocket.
    */
@@ -134,8 +134,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const [stableTargets, setStableTargets] = useState(() => targets);
   useEffect(() => {
     const prev = prevIdsRef.current;
-    if (targets.length !== prev.size || !targets.every((t) => prev.has(t.id))) {
-      prevIdsRef.current = new Set(targets.map((t) => t.id));
+    if (targets.length !== prev.size || !targets.every((t) => prev.has(`${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`))) {
+      prevIdsRef.current = new Set(targets.map((t) => `${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`));
       setStableTargets(targets);
     }
   }, [targets]);

@@ -9,33 +9,11 @@ interface ApiSystemConfig {
   headers?: Record<string, string>;
 }
 
-type SessionExpiredCallback = (options: { stay: () => void; logout: () => void }) => void;
-
-/**
- * Control de expiración de sesión (definido en .env del frontend):
- * - VITE_SESSION_EXPIRATION=false → la sesión NUNCA expira: no hay modal
- *   "Sesión por expirar" ni cierre por inactividad. El token se renueva
- *   silenciosamente siempre que sea necesario.
- * - VITE_SESSION_EXPIRATION=true  → la sesión expira tras
- *   VITE_SESSION_MAX_HOURS horas de inactividad y muestra el modal.
- */
-const SESSION_EXPIRATION_ENABLED =
-  (import.meta.env.VITE_SESSION_EXPIRATION ?? "false").toString().trim().toLowerCase() ===
-  "true";
-const SESSION_MAX_HOURS = Number(import.meta.env.VITE_SESSION_MAX_HOURS ?? 8);
-const SESSION_MAX_MS = SESSION_MAX_HOURS * 60 * 60 * 1000;
-
 class ApiSystem {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
   private isRefreshing = false;
   private refreshPromise: Promise<string | null> | null = null;
-  private sessionExpiredCallback: SessionExpiredCallback | null = null;
-  private activityTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Timeout de inactividad (0 = expiración desactivada) */
-  private readonly ACTIVITY_TIMEOUT_MS = SESSION_EXPIRATION_ENABLED
-    ? SESSION_MAX_MS
-    : 0;
 
   constructor(config: ApiSystemConfig) {
     this.baseURL = config.baseURL;
@@ -43,64 +21,9 @@ class ApiSystem {
       "Content-Type": "application/json",
       ...config.headers,
     };
-    this.startActivityMonitor();
   }
 
-  private startActivityMonitor() {
-    if (typeof window === "undefined") return;
-    // Con expiración desactivada (VITE_SESSION_EXPIRATION=false) no se
-    // registra ningún temporizador: la sesión nunca expira por inactividad.
-    if (!this.ACTIVITY_TIMEOUT_MS || this.ACTIVITY_TIMEOUT_MS <= 0) return;
-    const resetTimer = () => {
-      if (this.activityTimer) clearTimeout(this.activityTimer);
-      this.activityTimer = setTimeout(() => {
-        this.handleInactivity();
-      }, this.ACTIVITY_TIMEOUT_MS);
-    };
-    ["mousedown", "keydown", "touchstart", "scroll"].forEach((evt) =>
-      window.addEventListener(evt, resetTimer, { passive: true })
-    );
-    resetTimer();
-  }
 
-  private handleInactivity() {
-    const token = localStorage.getItem("access_token");
-    if (token && !this.isTokenExpired(token)) {
-      this.refreshTokenSilently();
-    }
-  }
-
-  private isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  }
-
-  setSessionExpiredHandler(callback: SessionExpiredCallback | null) {
-    this.sessionExpiredCallback = callback;
-  }
-
-  private notifySessionExpired() {
-    if (this.sessionExpiredCallback) {
-      this.sessionExpiredCallback({
-        stay: () => this.refreshTokenSilently(),
-        logout: () => this.clearAuth(),
-      });
-    }
-  }
-
-  private clearAuth() {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("auth_role_id");
-    localStorage.removeItem("auth_id_empresa");
-    localStorage.removeItem("auth_empresa_principal");
-    this.removeHeader("Authorization");
-    window.location.href = "/login";
-  }
 
   private async refreshTokenSilently(): Promise<string | null> {
     if (this.isRefreshing) {
@@ -109,7 +32,6 @@ class ApiSystem {
 
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) {
-      this.notifySessionExpired();
       return null;
     }
 
@@ -141,7 +63,6 @@ class ApiSystem {
         return newAccessToken;
       } catch {
         this.isRefreshing = false;
-        this.notifySessionExpired();
         return null;
       }
     })();
@@ -154,7 +75,8 @@ class ApiSystem {
     endpoint: string,
     data?: unknown,
     params?: Record<string, unknown>,
-    isRetry = false
+    isRetry = false,
+    signal?: AbortSignal,
   ): Promise<ApiResponse<T>> {
     let url = `${this.baseURL}${endpoint}`;
 
@@ -186,6 +108,7 @@ class ApiSystem {
       method,
       headers,
       credentials: "include",
+      signal,
     };
 
     if (data && method !== "GET") {
@@ -229,13 +152,14 @@ class ApiSystem {
 
   async get<T>(
     endpoint: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    options?: { signal?: AbortSignal },
   ): Promise<ApiResponse<T>> {
-    return this.request<T>("GET", endpoint, undefined, params);
+    return this.request<T>("GET", endpoint, undefined, params, false, options?.signal);
   }
 
-  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>("POST", endpoint, data);
+  async post<T>(endpoint: string, data?: unknown, options?: { signal?: AbortSignal }): Promise<ApiResponse<T>> {
+    return this.request<T>("POST", endpoint, data, undefined, false, options?.signal);
   }
 
   async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
