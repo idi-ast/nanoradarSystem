@@ -29,6 +29,7 @@ export async function fetchTrackSummaries(
     to: filters.to ? new Date(filters.to).toISOString() : undefined,
     search: filters.search || undefined,
     min_points: filters.minPoints,
+    min_tracked_minutes: filters.minTrackedMinutes || undefined,
     zone: filters.zone || undefined,
     behavior_class: filters.behaviorClass || undefined,
     only_with_zones: onlyWithZones,

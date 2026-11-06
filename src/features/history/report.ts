@@ -1,10 +1,11 @@
+import { nightMapGroups, type ReportMapCapture } from './reportMapData';
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
 import { analysisTrackKey } from "./types";
 import type { AnalysisPoint, AnalysisZone, AnalysisFetchResult } from "./analysis";
-import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, type ReportSettings } from "./reportAnalytics";
+import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, type ReportSettings } from "./reportAnalytics";
 import { hourlyChart, activityMatrix, spatialChart } from "./reportCharts";
 import { computeTrackMovements, rankTrackMovements, type TrackMovement } from './reportMovement';
 
@@ -15,6 +16,7 @@ export interface TrackReportOptions {
   points?: AnalysisPoint[]; zones?: AnalysisZone[]; tracksAnalyzed?: number; pointsLimited?: boolean;
   settings?: Partial<ReportSettings>; quality?: Partial<AnalysisFetchResult>;
   demonstration?: boolean;
+  mapCaptures?: ReportMapCapture[];
 }
 export function resolveReportRange(filters: TrackSummaryFilters, defaultHours = 12): ReportRange {
   const to = filters.to ? new Date(filters.to) : new Date();
@@ -69,7 +71,9 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const settings = { ...DEFAULT_REPORT_SETTINGS, ...opts.settings };
   if (!Number.isSafeInteger(settings.minApproachPoints) || settings.minApproachPoints < 1) throw new Error("El mínimo de puntos para rankings debe ser un entero mayor o igual a 1");
   const zones = (opts.zones ?? []).filter(isValidAnalysisZone);
-  const selectedTracks = filterReportTracks(opts.tracks, settings.category);
+  const minMinutes = Math.max(opts.filters.minTrackedMinutes ?? 0, settings.minTrackedMinutes);
+  if (!Number.isFinite(minMinutes) || minMinutes < 0) throw new Error('El mínimo de minutos trackeados debe ser mayor o igual a cero');
+  const selectedTracks = filterReportTracks(opts.tracks, settings.category).filter(t => !minMinutes || (t.tracked_seconds ?? 0) > minMinutes * 60);
   const selectedKeys = new Set(selectedTracks.map(analysisTrackKey));
   const selectedPoints = settings.category ? (opts.points ?? []).filter(p => p.trackKey && selectedKeys.has(p.trackKey)) : opts.points ?? [];
   const analysis = computeOperationalAnalysis({ tracks: selectedTracks, points: selectedPoints, zones, from: range.from, to: range.to, settings });
@@ -90,26 +94,25 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     ...(opts.demonstration ? [note('DEMOSTRACIÓN - DATOS SINTÉTICOS. NO CORRESPONDE A UN CENTRO REAL.')] : []),
     { text: `${dateTime(range.from, settings.timeZone)}  a  ${dateTime(range.to, settings.timeZone)}`, bold: true, fontSize: 10 },
     note(`Categoría de actividad: ${reportCategoryLabel(settings.category)}. Radar: ${opts.filters.tipoRadar || 'todos'}. Zona: ${opts.filters.zone || 'todas'}.`),
+    ...(minMinutes > 0 ? [note(`Filtro: más de ${num(minMinutes)} minutos observados por track; excluye interrupciones superiores a 120 s.`)] : []),
     cards([[num(tracks.length), 'Tracks del período'], [num(analysis.nightTracks), 'Tracks observados de noche'], [num(analysis.nearNightTracks), 'Tracks próximos de noche'], [pct(analysis.nearNightTracks, analysis.nightTracks), 'Proporción nocturna próxima']]),
     heading('Lectura ejecutiva'),
     note(analysis.peakNightHour ? `Mayor proximidad nocturna a las ${hour(analysis.peakNightHour.hour)}: ${num(analysis.peakNightHour.near)} tracks distintos próximos a zonas críticas.` : 'No se observaron posiciones nocturnas próximas a las zonas críticas seleccionadas.'),
     note(`Proximidad: hasta ${settings.proximityM} m al perímetro. Zonas críticas: ${settings.criticalZones.join(', ') || 'ninguna seleccionada'}. ${coverageNote}`),
     { svg: hourlyChart(hourly, settings, 'near'), width: 515 },
   ];
-  const trackMap = new Map(tracks.map(t => [analysisTrackKey(t), t]));
-  const nightPoints = points.filter(p => isNight(localParts(p.fecha!, settings.timeZone)!.hour, settings));
-  const nightKeys = [...new Set(nightPoints.map(p => p.trackKey))];
-  // Small groups keep track identifiers legible, without dropping trajectories.
-  for (let i = 0; i < Math.max(1, nightKeys.length); i += 8) {
-    const keys = new Set(nightKeys.slice(i, i + 8));
+  const mapGroups = nightMapGroups(tracks, points, range.from, range.to, settings);
+  mapGroups.forEach((group, index) => {
+    const capture = opts.mapCaptures?.find(c => c.trackKeys.length === group.trackKeys.length && c.trackKeys.every((key, i) => key === group.trackKeys[i]));
     content.push(
-      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Trayectorias nocturnas e identificadores de track. Grupo ${Math.floor(i / 8) + 1} de ${Math.max(1, Math.ceil(nightKeys.length / 8))}.`, true),
-      { svg: spatialChart(nightPoints.filter(p => keys.has(p.trackKey)).map(p => ({ ...p, trackId: trackMap.get(p.trackKey!)?.track_id ?? p.trackId })), zones, settings, false, true), width: 515 },
+      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Trayectorias nocturnas e identificadores de track. Grupo ${index + 1} de ${mapGroups.length}.`, true),
+      capture ? { image: capture.image, width: 515 } : { svg: spatialChart(group.points, zones, settings, false, true), width: 515 },
+      note(capture ? 'Captura del mapa satelital del sistema con los trazados del período analizado. La imagen satelital es una base de referencia, no una fotografía tomada durante las detecciones.' : 'Sin captura satelital disponible: representación esquemática de las posiciones observadas.'),
       note('Cada color corresponde a un track. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
-      note(`Polígonos: ${zones.map((z, n) => `${n + 1}: ${z.nombre}`).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
-      ...(!nightKeys.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
+      note(`Polígonos: ${zones.map(z => z.nombre).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
+      ...(!group.points.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
     );
-  }
+  });
   const byHour = new Map<number, TrackMovement[]>();
   const undated: TrackMovement[] = [];
   for (const m of ordered) {

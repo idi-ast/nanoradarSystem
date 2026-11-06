@@ -67,8 +67,9 @@ assert.equal(filterReportApproaches(rankingAnalysis.approaches, 1).length, 3);
 for (const invalid of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => filterReportApproaches(rankingAnalysis.approaches, invalid));
 const reportCharts = load('src/features/history/reportCharts.ts', { './reportAnalytics': mod.exports });
 const movementModule = load('src/features/history/reportMovement.ts', { './types': types });
+const reportMapData = load('src/features/history/reportMapData.ts', { './types': types, './reportAnalytics': mod.exports });
 const report = load('src/features/history/report.ts', {
- './reportAnalytics': mod.exports, './reportCharts': reportCharts,
+ './reportMapData': reportMapData, './reportAnalytics': mod.exports, './reportCharts': reportCharts,
  './types': types,
  './reportMovement': movementModule,
  'pdfmake/build/pdfmake': {}, 'pdfmake/build/vfs_fonts': {},
@@ -114,7 +115,7 @@ const allCategories = report.buildTrackActivityReport({...categoryOptions, setti
 assert.equal(allCategories.content.find(item => item.columns?.[0]?.stack?.[1]?.text === 'Tracks del período').columns[0].stack[0].text, '5');
 const chartInputs = {};
 const scopedReport = load('src/features/history/report.ts', {
- './reportAnalytics': mod.exports, './types': types,
+ './reportMapData': reportMapData, './reportAnalytics': mod.exports, './types': types,
  './reportMovement': movementModule,
  './reportCharts': { ...reportCharts, hourlyChart: (hourly) => { chartInputs.hourly = hourly; return '<svg/>'; }, spatialChart: (positions) => { chartInputs.points = positions; return '<svg/>'; } },
  'pdfmake/build/pdfmake': {}, 'pdfmake/build/vfs_fonts': {},
@@ -221,3 +222,24 @@ assert.equal(requests[0].max_gap_seconds,90);
 assert.equal(requests[0].session_ref,undefined,'Explicit from/to must not be overridden by a ±12h session window');
 assert.equal(requests[0].from,new Date(track.first_seen).toISOString());
 console.log('PASS: timezone/DST, per-track counts, distance to polygon, episode gaps, coverage and fetching');
+
+// The minimum uses observed seconds, never elapsed wall-clock duration.
+const minuteTracks = [
+ {...track, track_id:'EXACT-FOUR', tracked_seconds:240},
+ {...track, track_id:'OVER-FOUR', tracked_seconds:300},
+ {...track, track_id:'LONG-WITH-GAPS', tracked_seconds:60},
+ {...track, track_id:'NO-OBSERVED-METRICS'},
+];
+const minutePoints = minuteTracks.flatMap(t => points.map(p => ({...p,trackKey:types.analysisTrackKey(t)})));
+const captureSettings = {...DEFAULT_REPORT_SETTINGS,minTrackedMinutes:4,minApproachPoints:1};
+const mapGroups = reportMapData.nightMapGroups([minuteTracks[1]],minutePoints,from,to,captureSettings);
+const capturedDocument = report.buildTrackActivityReport({...options,tracks:minuteTracks,points:minutePoints,settings:captureSettings,mapCaptures:[{trackKeys:mapGroups[0].trackKeys,image:'data:image/png;base64,CAPTURE',width:1600,height:1000}]}).docDefinition;
+const capturedText=JSON.stringify(capturedDocument.content);
+assert.ok(capturedText.includes('OVER-FOUR'));
+assert.ok(!capturedText.includes('EXACT-FOUR'));
+assert.ok(!capturedText.includes('LONG-WITH-GAPS'));
+assert.ok(!capturedText.includes('NO-OBSERVED-METRICS'));
+assert.equal(capturedDocument.content.filter(item=>item.image).length,1);
+assert.ok(capturedText.includes('Captura del mapa satelital'));
+assert.ok(!capturedText.includes('Sin captura satelital disponible'));
+console.log('PASS: minimum observed minutes, threshold boundary and satellite image embedded in PDF');

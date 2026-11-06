@@ -7,6 +7,7 @@ export interface TrackSummary {
   nivel_max: number | null;
   zones: string[];
   duration_seconds?: number | null;
+  tracked_seconds?: number | null;
   distance_m?: number | null;
   avg_speed?: number | null;
   max_speed?: number | null;
@@ -39,6 +40,7 @@ export interface TrackSummaryFilters {
   to?: string;
   search?: string;
   minPoints: number;
+  minTrackedMinutes?: number;
   zone?: string;
   behaviorClass?: string;
   /** IDs de tracks a forzar en la respuesta (ej. favoritos fuera de rango). */

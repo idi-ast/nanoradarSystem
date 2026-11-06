@@ -442,6 +442,15 @@ export function HistoryListPanel({
         </div>
 
         <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
+          Más de (minutos trackeados)
+          <input type="number" min={0} max={525600} step="0.1" value={filters.minTrackedMinutes ?? ''}
+            placeholder="Sin mínimo · ej. 4"
+            className="w-full bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none"
+            onChange={e => { const value = e.target.valueAsNumber; set({ minTrackedMinutes: Number.isFinite(value) ? Math.max(0, Math.min(525600, value)) : undefined }); }} />
+          <span>Tiempo observado acumulado. Excluye cortes de más de 120 s.</span>
+        </label>
+
+        <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
           Clasificación
           <select
             className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none"

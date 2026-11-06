@@ -18,6 +18,7 @@ export function useTrackSummaries(
       filters.to ?? "",
       filters.search ?? "",
       filters.minPoints,
+      filters.minTrackedMinutes ?? 0,
       filters.zone ?? "",
       filters.behaviorClass ?? "",
       onlyWithZones,
@@ -41,7 +42,7 @@ export function useTrackSummaries(
  * Útil cuando "Solo favoritos" está activo para mostrar favoritos fuera de
  * los filtros actuales (rango de fechas, búsqueda, etc.).
  */
-export function useFavoriteTrackSummaries(enabled = true) {
+export function useFavoriteTrackSummaries(enabled = true, minTrackedMinutes = 0) {
   const favoritesQuery = useQuery({
     queryKey: ["history-favorites"],
     queryFn: () => fetchTrackFavorites().then((res) => res.data ?? []),
@@ -70,14 +71,14 @@ export function useFavoriteTrackSummaries(enabled = true) {
     .join(";");
 
   return useQuery({
-    queryKey: ["history-favorite-tracks", favoriteIdsKey],
+    queryKey: ["history-favorite-tracks", favoriteIdsKey, minTrackedMinutes],
     queryFn: async () => {
       if (favoriteTrackIds.length === 0) return [];
       // Hacer una llamada por cada tipo_radar
       const promises = Object.entries(favoritesByRadar).map(
         async ([radar, trackIds]) => {
           const res = await fetchTrackSummaries(
-            { trackIds, tipoRadar: radar, minPoints: 1 },
+            { trackIds, tipoRadar: radar, minPoints: 1, minTrackedMinutes },
             1,
             trackIds.length,
             false,

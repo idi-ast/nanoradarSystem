@@ -12,6 +12,7 @@ export interface ReportSettings {
   maxGapSeconds: number;
   /** Minimum recorded points for the PDF movement table, not general analytics. */
   minApproachPoints: number;
+  minTrackedMinutes: number;
   /** Empty string includes all behavior categories in the PDF. */
   category: string;
   /** Legacy callers are accepted; both values use the operational report. */
@@ -21,7 +22,7 @@ export interface ReportSettings {
 }
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   timeZone: "America/Santiago", nightStart: 21, nightEnd: 7,
-  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, category: "lancha",
+  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, minTrackedMinutes: 0, category: "lancha",
   format: 'detailed', movementSort: 'distance', showHeatmap: false,
 };
 export const normalizeZone = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();

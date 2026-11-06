@@ -64,7 +64,7 @@ export default function HistoryPage() {
 
   // Cuando "Solo favoritos" está activo, traemos los resúmenes completos
   // de todos los favoritos (ignora filtros de fecha/búsqueda).
-  const favoritesSummaries = useFavoriteTrackSummaries(onlyFavorites);
+  const favoritesSummaries = useFavoriteTrackSummaries(onlyFavorites, filters.minTrackedMinutes ?? 0);
 
   const playback = useTrackPlayback();
   const visibility = useBehaviorVisibilityStore(s => s.visibility);
@@ -124,7 +124,7 @@ export default function HistoryPage() {
       const { resolveReportRange, downloadTrackActivityReport } = await import("../report");
       controller.signal.throwIfAborted();
       const effectiveRange = resolveReportRange(filters);
-      const reportFilters = { ...filters, from: effectiveRange.from.toISOString(), to: effectiveRange.to.toISOString() };
+      const reportFilters = { ...filters, minTrackedMinutes: Math.max(filters.minTrackedMinutes ?? 0, reportSettings.minTrackedMinutes), from: effectiveRange.from.toISOString(), to: effectiveRange.to.toISOString() };
       let listing: { tracks: TrackSummary[]; total: number; limited: boolean };
       if (onlyFavorites) {
         // Reconsultar los favoritos con el rango exacto: sus resúmenes de la
@@ -176,9 +176,17 @@ export default function HistoryPage() {
       }
 
       controller.signal.throwIfAborted();
+      setReportProgress("Cargando mapa satelital para el PDF...");
+      const { captureReportMaps } = await import('../captureReportMaps');
+      const { nightMapGroups } = await import('../reportMapData');
+      const groups = nightMapGroups(reportTracks, analysis.points, effectiveRange.from, effectiveRange.to, reportSettings);
+      const mapCaptures = await captureReportMaps(groups, analysisZones, reportSettings, controller.signal,
+        (done, count) => setReportProgress(`Capturando mapa satelital: ${done} de ${count}`));
+      controller.signal.throwIfAborted();
       setReportProgress("Construyendo gráficos y PDF...");
       const range = downloadTrackActivityReport({
-        tracks: listing.tracks,
+        tracks: reportTracks,
+        mapCaptures,
         total: listing.total,
         filters: reportFilters,
         onlyWithZones,
@@ -201,7 +209,7 @@ export default function HistoryPage() {
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("Error al generar el informe PDF", error);
-      toast.error("No se pudo generar el informe PDF.");
+      toast.error(error instanceof Error ? error.message : "No se pudo generar el informe PDF.");
     } finally {
       setIsGeneratingReport(false);
       setReportProgress("");

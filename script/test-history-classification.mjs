@@ -18,10 +18,11 @@ const api = load('src/features/history/api.ts', {
     return { data: { data: [{ track_id: `T${params.page}` }], total: 2, pages: 2 } };
   } } },
 });
-const filters = { minPoints: 5, tipoRadar: 'magos', behaviorClass: 'bolla' };
+const filters = { minPoints: 5, tipoRadar: 'magos', behaviorClass: 'bolla', minTrackedMinutes: 4 };
 await api.fetchTrackSummaries(filters, 2);
 assert.equal(calls[0].params.behavior_class, 'bolla');
 assert.equal(calls[0].params.page, 2);
+assert.equal(calls[0].params.min_tracked_minutes, 4);
 assert.equal(calls[0].params.min_points, 5);
 calls.length = 0;
 await api.fetchReportTrackSummaries(filters);
@@ -36,6 +37,7 @@ const hooks = load('src/features/history/hooks/useTrackSummaries.ts', {
 const boat = hooks.useTrackSummaries({ ...filters, behaviorClass: 'lancha' });
 const buoy = hooks.useTrackSummaries(filters);
 assert.notDeepEqual(boat.queryKey, buoy.queryKey);
+assert.notDeepEqual(buoy.queryKey, hooks.useTrackSummaries({ ...filters, minTrackedMinutes: 0 }).queryKey);
 await buoy.queryFn();
 assert.equal(calls.at(-1).params.behavior_class, 'bolla');
 console.log('PASS: history category request, clearing filter, report pagination and independent query cache');
