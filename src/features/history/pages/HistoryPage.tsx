@@ -132,7 +132,7 @@ export default function HistoryPage() {
     try {
       const { resolveReportRange, downloadTrackActivityReport } = await import("../report");
       controller.signal.throwIfAborted();
-      const reportFilters = buildReportFilters(reportPeriod, reportSettings.minTrackedMinutes, reportSettings.category);
+      const reportFilters = buildReportFilters(reportPeriod, reportSettings.minTrackedMinutes, reportSettings.category, reportSettings);
       const effectiveRange = resolveReportRange(reportFilters);
       const listing = await fetchReportTrackSummaries(reportFilters, false,
         (page, count) => setReportProgress(`Cargando resúmenes: página ${page} de ${count}`), controller.signal);
@@ -155,6 +155,7 @@ export default function HistoryPage() {
         analysis = await fetchAnalysisPoints(reportTracks, {
           from: reportFilters.from, to: reportFilters.to, signal: controller.signal,
           includeMovement: true, maxGapSeconds: reportSettings.maxGapSeconds,
+          hourStart: reportSettings.nightStart, hourEnd: reportSettings.nightEnd, timeZone: reportSettings.timeZone,
           onProgress: (done, count) => setReportProgress(`Analizando trayectorias: ${done} de ${count}`),
         });
       } catch (error) {

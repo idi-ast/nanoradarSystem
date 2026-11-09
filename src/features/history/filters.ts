@@ -35,7 +35,7 @@ function dayStart(day: string): number {
   }
   return lo;
 }
-export function buildReportFilters(period: ReportPeriod, minTrackedMinutes: number, category: string): TrackSummaryFilters {
+export function buildReportFilters(period: ReportPeriod, minTrackedMinutes: number, category: string, window?: { nightStart: number; nightEnd: number; timeZone: string }): TrackSummaryFilters {
   const from = dayStart(period.fromDate);
   const lastDay = dayStart(period.toDate);
   if (from > lastDay) throw new Error('La fecha inicial del informe debe ser anterior o igual a la final');
@@ -44,6 +44,7 @@ export function buildReportFilters(period: ReportPeriod, minTrackedMinutes: numb
   return {
     from: new Date(from).toISOString(),
     to: new Date(dayStart(nextDay.toISOString().slice(0, 10)) - 1).toISOString(),
+    hourStart: window?.nightStart, hourEnd: window?.nightEnd, timeZone: window?.timeZone,
     minPoints: 1, minTrackedMinutes, behaviorClass: category || undefined,
   };
 }

@@ -29,6 +29,9 @@ export async function fetchTrackSummaries(
     to: filters.to ? new Date(filters.to).toISOString() : undefined,
     search: filters.search || undefined,
     min_points: filters.minPoints,
+    hour_start: filters.hourStart,
+    hour_end: filters.hourEnd,
+    time_zone: filters.timeZone,
     min_tracked_minutes: filters.minTrackedMinutes || undefined,
     zone: filters.zone || undefined,
     behavior_class: filters.behaviorClass || undefined,
@@ -37,6 +40,10 @@ export async function fetchTrackSummaries(
     limit: pageSize,
     track_ids: filters.trackIds?.join(","),
   });
+  if (filters.hourStart !== undefined && (res.data.time_window?.hour_start !== filters.hourStart ||
+      res.data.time_window?.hour_end !== filters.hourEnd || res.data.time_window?.time_zone !== (filters.timeZone ?? 'America/Santiago'))) {
+    throw new Error('El backend no confirmó el horario del informe. Actualiza el backend antes de generar el PDF.');
+  }
   return res.data;
 }
 

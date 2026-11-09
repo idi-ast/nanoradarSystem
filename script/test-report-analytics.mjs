@@ -243,3 +243,48 @@ assert.equal(capturedDocument.content.filter(item=>item.image).length,1);
 assert.ok(capturedText.includes('Captura del mapa satelital'));
 assert.ok(!capturedText.includes('Sin captura satelital disponible'));
 console.log('PASS: minimum observed minutes, threshold boundary and satellite image embedded in PDF');
+
+// Regression: selecting 21:00–07:00 scopes the entire PDF, not only night maps.
+const dayOnly = { ...track, track_id: 'DAY-ONLY-14', first_seen: '2026-11-02T14:00:00-03:00', last_seen: '2026-11-02T14:01:00-03:00' };
+const mixed = { ...track, track_id: 'MIXED-DAY-NIGHT', first_seen: dayOnly.first_seen, last_seen: '2026-11-02T21:01:00-03:00' };
+const atSeven = { ...track, track_id: 'EXCLUDED-07', first_seen: '2026-11-03T07:00:00-03:00', last_seen: '2026-11-03T07:01:00-03:00' };
+const scopedPoints = [dayOnly, mixed, atSeven].flatMap(t => [t.first_seen,t.last_seen].map(fecha => ({ trackKey: types.analysisTrackKey(t), fecha, lat: 1, lon: 1, zona: null })));
+scopedPoints.push({ trackKey: types.analysisTrackKey(mixed), fecha: '2026-11-02T21:00:00-03:00', lat: 1, lon: 1, zona: null });
+const nightDoc = scopedReport.buildTrackActivityReport({ ...options, tracks: [dayOnly, mixed, atSeven], points: scopedPoints,
+ filters: { ...options.filters, to: '2026-11-04T03:00:00Z' }, settings: { showHeatmap: true, minApproachPoints: 1 },
+ quality: { movements: [{ trackKey: types.analysisTrackKey(mixed), distanceM: 999999, trackedSeconds: 25260, segmentCount: 2, gapCount: 0, maxGapSeconds: 120 }] },
+}).docDefinition;
+const nightText = JSON.stringify(nightDoc.content);
+assert.ok(!nightText.includes('DAY-ONLY-14'));
+assert.ok(!nightText.includes('EXCLUDED-07'));
+assert.ok(nightText.includes('MIXED-DAY-NIGHT'));
+assert.ok(!movementText(nightDoc).includes('14:00'));
+assert.ok(movementText(nightDoc).includes('21:00'));
+assert.ok(!movementText(nightDoc).includes('Historial completo'), 'Daytime full-history metrics must not leak into a night-only report');
+assert.equal(chartInputs.hourly[14].starts, 0);
+assert.equal(chartInputs.hourly[14].present, 0);
+assert.ok(chartInputs.points.every(p => isNight(localParts(p.fecha).hour, DEFAULT_REPORT_SETTINGS)));
+assert.equal(nightDoc.content.find(item => item.columns?.[0]?.stack?.[1]?.text === 'Tracks del período').columns[0].stack[0].text, '1');
+for (const [start,end,hours] of [
+ ['2026-11-02T21:00:00-03:00','2026-11-04T07:00:00-03:00',20],
+ ['2026-09-05T21:00:00-04:00','2026-09-06T07:00:00-03:00',9],
+ ['2026-04-04T21:00:00-03:00','2026-04-05T07:00:00-04:00',11],
+]) assert.equal(mod.exports.reportWindowSeconds(Date.parse(start), Date.parse(end), DEFAULT_REPORT_SETTINGS), hours * 3600);
+console.log('PASS: whole PDF excludes 14:00 and 07:00, retains nighttime portions of mixed tracks, and excludes daylight from elapsed time across DST');
+
+const windowRequests = [];
+const windowFetch = load('src/features/history/analysis.ts', {
+ './types': types,
+ '@/features/devices/services/radarService': { fetchTrackHistory: async (id, params) => {
+  windowRequests.push(params);
+  return { time_window: {hour_start:21,hour_end:7,time_zone:'America/Santiago'}, total_points:3,
+    movement:{distance_m:10,tracked_seconds:60,segment_count:1,gap_count:0,max_gap_seconds:120},
+    points:['2026-11-02T14:00:00-03:00','2026-11-02T21:00:00-03:00','2026-11-02T21:01:00-03:00'].map(fecha=>({fecha,lat:1,lon:1,zona:null})) };
+ } },
+});
+const fetchedWindow = await windowFetch.fetchAnalysisPoints([mixed], { from:from.toISOString(),to:to.toISOString(),hourStart:21,hourEnd:7,timeZone:'America/Santiago',includeMovement:true });
+assert.equal(windowRequests[0].hour_start,21);
+assert.equal(windowRequests[0].hour_end,7);
+assert.equal(fetchedWindow.points.length,2);
+assert.equal(fetchedWindow.movements[0].hourStart,21);
+assert.equal(fetchedWindow.movements[0].timeZone,'America/Santiago');

@@ -5,7 +5,7 @@ import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
 import { analysisTrackKey } from "./types";
 import type { AnalysisPoint, AnalysisZone, AnalysisFetchResult } from "./analysis";
-import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, type ReportSettings } from "./reportAnalytics";
+import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, reportWindowSeconds, type ReportSettings } from "./reportAnalytics";
 import { hourlyChart, activityMatrix, spatialChart } from "./reportCharts";
 import { computeTrackMovements, rankTrackMovements, type TrackMovement } from './reportMovement';
 
@@ -34,6 +34,7 @@ const C = { ink: '#0f172a', muted: '#64748b', blue: '#0369a1', teal: '#0f766e', 
 const num = (n: number) => n.toLocaleString('es-CL', { maximumFractionDigits: 1 });
 const pct = (a: number, b: number) => b ? `${(100 * a / b).toFixed(1)}%` : 'N/D';
 const hour = (n: number) => `${String(n).padStart(2, '0')}:00`;
+const dateOnly = (value: Date, timeZone: string) => new Intl.DateTimeFormat('es-CL', { timeZone, dateStyle: 'medium' }).format(value);
 const dateTime = (value: string | Date | null, timeZone: string) => {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'N/D';
   return new Intl.DateTimeFormat('es-CL', { timeZone, dateStyle: 'short', timeStyle: 'medium', hourCycle: 'h23' }).format(new Date(value));
@@ -53,7 +54,7 @@ const traveled = (m: TrackMovement) => m.distanceM == null ? 'N/D' : m.distanceM
 const trackTime = (seconds: number | null) => seconds != null && seconds > 0 ? seconds >= 3600 ? `${(seconds / 3600).toFixed(2)} h` : seconds >= 60 ? `${(seconds / 60).toFixed(1)} min` : `${seconds < .1 ? '<0,1' : num(seconds)} s` : '—';
 const movementSource = (m: TrackMovement) => m.source === 'full' ? 'Historial completo' : m.source === 'sample' ? 'Muestra (~)' : 'Sin trayectoria';
 const movementOrder = (settings: ReportSettings) => settings.movementSort === 'duration' ? 'mayor tiempo de seguimiento' : settings.movementSort === 'points' ? 'más puntos registrados' : 'mayor distancia recorrida';
-const movementMethod = (settings: ReportSettings) => `Recorrido: suma geodésica entre posiciones consecutivas separadas por hasta ${settings.maxGapSeconds} s, sin unir huecos largos. Trackeo: primera a última detección dentro del período; puede incluir interrupciones. Tiempo enlazado: suma de intervalos válidos. Historial completo: métricas antes de muestrear; ~: estimación sobre la muestra, que puede subestimar el recorrido. N/D no equivale a cero.`;
+const movementMethod = (settings: ReportSettings) => `Recorrido: suma geodésica entre posiciones consecutivas separadas por hasta ${settings.maxGapSeconds} s, sin unir huecos largos. Trackeo: tiempo entre primera y última detección dentro de la franja elegida; excluye las horas fuera de ella y puede incluir interrupciones. Tiempo enlazado: suma de intervalos válidos. Historial completo: métricas antes de muestrear; ~: estimación sobre la muestra, que puede subestimar el recorrido. N/D no equivale a cero.`;
 
 function reportDocument(opts: TrackReportOptions, settings: ReportSettings, content: Content[]): TDocumentDefinitions {
   return {
@@ -73,15 +74,60 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const zones = (opts.zones ?? []).filter(isValidAnalysisZone);
   const minMinutes = Math.max(opts.filters.minTrackedMinutes ?? 0, settings.minTrackedMinutes);
   if (!Number.isFinite(minMinutes) || minMinutes < 0) throw new Error('El mínimo de minutos trackeados debe ser mayor o igual a cero');
-  const selectedTracks = filterReportTracks(opts.tracks, settings.category).filter(t => !minMinutes || (t.tracked_seconds ?? 0) > minMinutes * 60);
+  const inWindow = (time: number) => {
+    const parts = localParts(time, settings.timeZone);
+    return Number.isFinite(time) && time >= +range.from && time <= +range.to && parts && isNight(parts.hour, settings);
+  };
+  const windowPoints = (opts.points ?? []).filter(p => inWindow(Date.parse(p.fecha ?? '')) &&
+    Number.isFinite(p.lat) && Math.abs(p.lat) <= 90 && Number.isFinite(p.lon) && Math.abs(p.lon) <= 180 && (p.lat !== 0 || p.lon !== 0));
+  const firstPoints = new Map<string, number>(), lastPoints = new Map<string, number>();
+  for (const p of windowPoints) {
+    if (!p.trackKey) continue;
+    const time = Date.parse(p.fecha!);
+    firstPoints.set(p.trackKey, Math.min(time, firstPoints.get(p.trackKey) ?? Infinity));
+    lastPoints.set(p.trackKey, Math.max(time, lastPoints.get(p.trackKey) ?? -Infinity));
+  }
+  const reportStart = (track: TrackSummary) => {
+    const start = Math.max(+range.from, Date.parse(track.first_seen ?? ''));
+    return inWindow(start) ? start : firstPoints.get(analysisTrackKey(track)) ?? NaN;
+  };
+  const reportEnd = (track: TrackSummary) => {
+    const end = Math.min(+range.to, Date.parse(track.last_seen ?? ''));
+    return inWindow(end) ? end : lastPoints.get(analysisTrackKey(track)) ?? NaN;
+  };
+  const selectedTracks = filterReportTracks(opts.tracks, settings.category)
+    .filter(t => (!minMinutes || (t.tracked_seconds ?? 0) > minMinutes * 60) && Number.isFinite(reportStart(t)));
   const selectedKeys = new Set(selectedTracks.map(analysisTrackKey));
-  const selectedPoints = settings.category ? (opts.points ?? []).filter(p => p.trackKey && selectedKeys.has(p.trackKey)) : opts.points ?? [];
+  const selectedPoints = windowPoints.filter(p => p.trackKey && selectedKeys.has(p.trackKey));
   const analysis = computeOperationalAnalysis({ tracks: selectedTracks, points: selectedPoints, zones, from: range.from, to: range.to, settings });
+  // Scope start-hour counts to the first observation inside the report window.
+  for (const h of analysis.hourly) { h.starts = 0; h.boatStarts = 0; }
+  for (const d of analysis.days) { d.starts = 0; d.boatStarts = 0; }
+  const boatKeys = new Set(analysis.boats.map(analysisTrackKey));
+  for (const t of analysis.tracks) {
+    const parts = localParts(reportStart(t), settings.timeZone)!;
+    const boat = boatKeys.has(analysisTrackKey(t));
+    analysis.hourly[parts.hour].starts++;
+    if (boat) analysis.hourly[parts.hour].boatStarts++;
+    const day = analysis.days.find(d => d.day === parts.day);
+    if (day) { day.starts++; if (boat) day.boatStarts++; }
+  }
+  for (const h of analysis.hourly) h.startsPerHour = h.exposureHours > 0 ? h.starts / h.exposureHours : null;
   const { tracks, hourly, days, points } = analysis;
   const quality = opts.quality ?? {};
   const analyzed = opts.tracksAnalyzed ?? quality.tracksAnalyzed ?? new Set(points.map(p => p.trackKey)).size;
   const nightLabel = `${hour(settings.nightStart)} - ${hour(settings.nightEnd)}`;
-  const movements = computeTrackMovements(tracks, points, range.from, range.to, settings.maxGapSeconds, quality.movements);
+  const trackMap = new Map(tracks.map(t => [analysisTrackKey(t), t]));
+  const scopedMovements = (quality.movements ?? []).filter(m => {
+    if (m.hourStart === settings.nightStart && m.hourEnd === settings.nightEnd && m.timeZone === settings.timeZone) return true;
+    // Legacy metrics are safe only when their whole interval fits the window.
+    const t = trackMap.get(m.trackKey);
+    const start = Math.max(+range.from, Date.parse(t?.first_seen ?? ''));
+    const end = Math.min(+range.to, Date.parse(t?.last_seen ?? ''));
+    return Number.isFinite(start) && Number.isFinite(end) && reportWindowSeconds(start, end, settings) === (end - start) / 1000;
+  });
+  const movements = computeTrackMovements(tracks, points, range.from, range.to, settings.maxGapSeconds, scopedMovements)
+    .map(m => ({ ...m, elapsedSeconds: reportWindowSeconds(reportStart(m.track), reportEnd(m.track), settings) }));
   const eligible = movements.filter(m => m.track.point_count >= settings.minApproachPoints);
   const ranked = rankTrackMovements(eligible, settings.movementSort, settings.minApproachPoints);
   const rankedKeys = new Set(ranked.map(m => m.key));
@@ -92,7 +138,8 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     { text: 'Actividad y vigilancia operativa del centro', bold: true, fontSize: 11, margin: [0, 0, 0, 10] },
     ...title('02 / Vigilancia nocturna', 'Actividad durante la noche', `Franja ${nightLabel}. Horario local ${settings.timeZone}.`),
     ...(opts.demonstration ? [note('DEMOSTRACIÓN - DATOS SINTÉTICOS. NO CORRESPONDE A UN CENTRO REAL.')] : []),
-    { text: `${dateTime(range.from, settings.timeZone)}  a  ${dateTime(range.to, settings.timeZone)}`, bold: true, fontSize: 10 },
+    { text: `Días consultados: ${dateOnly(range.from, settings.timeZone)}  a  ${dateOnly(range.to, settings.timeZone)}`, bold: true, fontSize: 10 },
+    note(`Horario aplicado a todas las secciones: ${nightLabel}; inicio incluido y fin excluido. Solo se analizan observaciones dentro de esa franja cada día.`),
     note(`Categoría de actividad: ${reportCategoryLabel(settings.category)}. Radar: ${opts.filters.tipoRadar || 'todos'}. Zona: ${opts.filters.zone || 'todas'}.`),
     ...(minMinutes > 0 ? [note(`Filtro: más de ${num(minMinutes)} minutos observados por track; excluye interrupciones superiores a 120 s.`)] : []),
     cards([[num(tracks.length), 'Tracks del período'], [num(analysis.nightTracks), 'Tracks observados de noche'], [num(analysis.nearNightTracks), 'Tracks próximos de noche'], [pct(analysis.nearNightTracks, analysis.nightTracks), 'Proporción nocturna próxima']]),
@@ -116,7 +163,7 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const byHour = new Map<number, TrackMovement[]>();
   const undated: TrackMovement[] = [];
   for (const m of ordered) {
-    const start = Math.max(range.from.getTime(), Date.parse(m.track.first_seen ?? ''));
+    const start = reportStart(m.track);
     const parts = localParts(start, settings.timeZone);
     if (!parts) { undated.push(m); continue; }
     if (!byHour.has(parts.hour)) byHour.set(parts.hour, []);
@@ -128,9 +175,9 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const addRows = (label: string, entries: TrackMovement[]) => entries.forEach((m, i) => {
     const index = String(i + 1).padStart(2, '0');
     if (maxAccumulatedSeconds > 0 && m.trackedSeconds === maxAccumulatedSeconds) highlightedRows.add(rows.length);
-    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(Math.max(range.from.getTime(), Date.parse(m.track.first_seen ?? ''))), settings.timeZone)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
+    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
   });
-  for (const [h, entries] of [...byHour].sort((a, b) => a[0] - b[0])) addRows(hour(h), entries);
+  for (const [h, entries] of [...byHour].sort((a, b) => (a[0] - settings.nightStart + 24) % 24 - (b[0] - settings.nightStart + 24) % 24)) addRows(hour(h), entries);
   addRows('Sin fecha', undated);
   content.push(
     ...title('05 / Recorrido y seguimiento', 'Distancia recorrida y tiempo de trackeo', `Agrupado por hora de inicio dentro del período (todas las fechas). Orden dentro de cada hora: ${movementOrder(settings)}. Mínimo ${settings.minApproachPoints} puntos.`, true),

@@ -39,6 +39,9 @@ export interface TrackSummaryFilters {
   from?: string;
   to?: string;
   search?: string;
+  hourStart?: number;
+  hourEnd?: number;
+  timeZone?: string;
   minPoints: number;
   minTrackedMinutes?: number;
   zone?: string;
@@ -47,7 +50,9 @@ export interface TrackSummaryFilters {
   trackIds?: string[];
 }
 
+export interface TrackTimeWindow { hour_start: number; hour_end: number; time_zone: string }
 export interface TrackListResponse {
+  time_window?: TrackTimeWindow | null;
   data: TrackSummary[];
   message: string;
   total: number;

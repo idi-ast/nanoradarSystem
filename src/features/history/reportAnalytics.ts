@@ -51,6 +51,17 @@ const formatters = new Map<string, Intl.DateTimeFormat>();
 export function isNight(hour: number, settings: ReportSettings) {
   return settings.nightStart > settings.nightEnd ? hour >= settings.nightStart || hour < settings.nightEnd : hour >= settings.nightStart && hour < settings.nightEnd;
 }
+/** Elapsed time restricted to the recurring report window, including DST. */
+export function reportWindowSeconds(from: number, to: number, settings: ReportSettings): number {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return 0;
+  let seconds = 0;
+  for (let cursor = from; cursor < to;) {
+    const end = Math.min(to, (Math.floor(cursor / 3600000) + 1) * 3600000);
+    if (isNight(localParts(cursor, settings.timeZone)!.hour, settings)) seconds += (end - cursor) / 1000;
+    cursor = end;
+  }
+  return seconds;
+}
 export function isValidAnalysisZone(zone: AnalysisZone) {
   return zone.vertices.length >= 3 && zone.vertices.every(([lat, lon]) => Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lon) && Math.abs(lon) <= 180);
 }

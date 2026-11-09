@@ -18,7 +18,7 @@ const track = { track_id: 'T23', tipo_radar: 'magos', behavior_class: 'lancha', 
 const playbackTrack = { summary: track, points: [] };
 const historyFilters = { search: 'T23', from: '2026-06-01T15:00', to: '2026-06-01T16:00', minPoints: 10, minTrackedMinutes: 200, behaviorClass: 'bolla', tipoRadar: 'nano', zone: 'otra' };
 const period = { fromDate: '2026-11-08', toDate: '2026-11-09' };
-const settings = { category: 'lancha', minTrackedMinutes: 0, maxGapSeconds: 120, criticalZones: ['otra'] };
+const settings = { nightStart: 21, nightEnd: 7, timeZone: 'America/Santiago', category: 'lancha', minTrackedMinutes: 0, maxGapSeconds: 120, criticalZones: ['otra'] };
 const states = [historyFilters, period, 1, true, true, false, true, settings, ''];
 let cursor = 0;
 const state = { useState: init => {
@@ -75,6 +75,11 @@ await find(tree, 'report-dialog').onGenerate();
 assert.equal(calls.report[0].from, '2026-11-08T03:00:00.000Z');
 assert.equal(calls.report[0].to, '2026-11-10T02:59:59.999Z');
 assert.equal(calls.report[0].behaviorClass, 'lancha');
+assert.equal(calls.report[0].hourStart, 21);
+assert.equal(calls.report[0].hourEnd, 7);
+assert.equal(calls.report[0].timeZone, 'America/Santiago');
+assert.equal(calls.analysis[1].hourStart, 21);
+assert.equal(calls.analysis[1].hourEnd, 7);
 assert.equal(calls.report[0].minTrackedMinutes, 0);
 assert.equal(calls.report[1], false);
 assert.equal(calls.analysis[0][0], track, 'report includes category hidden in history');

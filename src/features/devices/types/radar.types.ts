@@ -202,6 +202,7 @@ export interface TrackHistoryPoint {
 
 /** Respuesta del endpoint de historial de tracks */
 export interface TrackHistoryResponse {
+  time_window?: { hour_start: number; hour_end: number; time_zone: string } | null;
   track_id: string;
   tipo_radar: string;
   points: TrackHistoryPoint[];

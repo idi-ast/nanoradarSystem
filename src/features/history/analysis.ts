@@ -33,8 +33,10 @@ export interface AnalysisFetchResult {
 export interface MovementObservation {
   trackKey: string; distanceM: number | null; trackedSeconds: number;
   segmentCount: number; gapCount: number; maxGapSeconds: number;
+  hourStart?: number; hourEnd?: number; timeZone?: string;
 }
 export interface AnalysisOptions {
+  hourStart?: number; hourEnd?: number; timeZone?: string;
   maxTracks?: number;
   targetPoints?: number;
   maxPointsPerTrack?: number;
@@ -50,6 +52,9 @@ export interface AnalysisOptions {
 
 /** Selección repartida por todo el período, sin favorecer los tracks más largos. */
 export async function fetchAnalysisPoints(tracks: TrackSummary[], options: AnalysisOptions = {}): Promise<AnalysisFetchResult> {
+  const hourFormatter = options.hourStart !== undefined ? new Intl.DateTimeFormat('en-GB', {
+    timeZone: options.timeZone ?? 'America/Santiago', hour: '2-digit', hourCycle: 'h23',
+  }) : null;
   const maxTracks = Math.max(1, options.maxTracks ?? 160);
   const candidates = [...tracks].sort((a, b) => (a.first_seen ?? "").localeCompare(b.first_seen ?? ""));
   const selected = candidates.length <= maxTracks ? candidates : Array.from({ length: maxTracks }, (_, i) => candidates[Math.round(i * (candidates.length - 1) / Math.max(1, maxTracks - 1))]);
@@ -70,15 +75,20 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
           tipo_radar: track.tipo_radar,
           from: Number.isFinite(from) ? new Date(from).toISOString() : undefined,
           to: Number.isFinite(to) ? new Date(to).toISOString() : undefined,
+          hour_start: options.hourStart, hour_end: options.hourEnd, time_zone: options.timeZone,
           limit: perTrack, sample: true,
           include_metrics: options.includeMovement || undefined,
           max_gap_seconds: options.includeMovement ? options.maxGapSeconds ?? 120 : undefined,
         }, options.signal);
         options.signal?.throwIfAborted();
+        const windowMatches = options.hourStart === undefined ||
+          (res.time_window?.hour_start === options.hourStart && res.time_window?.hour_end === options.hourEnd && res.time_window?.time_zone === (options.timeZone ?? 'America/Santiago'));
+        if (!windowMatches) throw new Error('La trayectoria no confirmó el horario solicitado');
         successful++;
         if (res.movement) movements.push({ trackKey: analysisTrackKey(track), distanceM: res.movement.distance_m,
           trackedSeconds: res.movement.tracked_seconds, segmentCount: res.movement.segment_count,
-          gapCount: res.movement.gap_count, maxGapSeconds: res.movement.max_gap_seconds });
+          gapCount: res.movement.gap_count, maxGapSeconds: res.movement.max_gap_seconds,
+          hourStart: options.hourStart, hourEnd: options.hourEnd, timeZone: options.hourStart !== undefined ? options.timeZone ?? 'America/Santiago' : undefined });
         available += res.total_points ?? res.points.length;
         if (res.sampled || res.points.length >= perTrack) limited = true;
         if (res.total_points == null) { uniform = false; limited = true; }
@@ -86,6 +96,11 @@ export async function fetchAnalysisPoints(tracks: TrackSummary[], options: Analy
         for (const p of res.points ?? []) {
           const time = p.fecha ? new Date(p.fecha).getTime() : NaN;
           if (!Number.isFinite(p.lat) || Math.abs(p.lat) > 90 || !Number.isFinite(p.lon) || Math.abs(p.lon) > 180 || (p.lat === 0 && p.lon === 0) || !Number.isFinite(time) || time < from || time > to) { invalid++; continue; }
+          if (hourFormatter) {
+            const hour = Number(hourFormatter.format(new Date(time)));
+            const start = options.hourStart!, end = options.hourEnd!;
+            if (!(start > end ? hour >= start || hour < end : hour >= start && hour < end)) { invalid++; continue; }
+          }
           const key = `${time}:${p.lat}:${p.lon}`;
           if (seen.has(key)) continue;
           seen.add(key);

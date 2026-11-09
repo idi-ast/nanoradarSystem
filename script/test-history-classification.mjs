@@ -12,10 +12,11 @@ function load(path, mocks) {
   return exports;
 }
 const calls = [];
+let timeWindow;
 const api = load('src/features/history/api.ts', {
   '@/apis/apiSystem': { apiSystem: { get: async (path, params) => {
     calls.push({ path, params });
-    return { data: { data: [{ track_id: `T${params.page}` }], total: 2, pages: 2 } };
+    return { data: { time_window: timeWindow, data: [{ track_id: `T${params.page}` }], total: 2, pages: 2 } };
   } } },
 });
 const filters = { minPoints: 5, tipoRadar: 'magos', behaviorClass: 'bolla', minTrackedMinutes: 4 };
@@ -50,3 +51,13 @@ assert.equal(lookup.only_with_zones, false);
 assert.notDeepEqual(hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T23'] }).queryKey,
   hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T24'] }).queryKey);
 console.log('PASS: history category request, clearing filter, report pagination and independent query cache');
+
+const nightFilters = { ...filters, hourStart: 21, hourEnd: 7, timeZone: 'America/Santiago' };
+await assert.rejects(api.fetchReportTrackSummaries(nightFilters), /backend/);
+timeWindow = { hour_start: 21, hour_end: 7, time_zone: 'America/Santiago' };
+calls.length = 0;
+await api.fetchReportTrackSummaries(nightFilters);
+assert.ok(calls.every(call => call.params.hour_start === 21 && call.params.hour_end === 7 && call.params.time_zone === 'America/Santiago'));
+timeWindow = { ...timeWindow, hour_end: 8 };
+await assert.rejects(api.fetchReportTrackSummaries(nightFilters), /horario/);
+console.log('PASS: report sends recurring local hours on every page and rejects a backend that ignores them');

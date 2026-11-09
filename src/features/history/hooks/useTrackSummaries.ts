@@ -18,6 +18,7 @@ export function useTrackSummaries(
       filters.to ?? "",
       filters.search ?? "",
       filters.minPoints,
+      filters.hourStart, filters.hourEnd, filters.timeZone,
       filters.trackIds?.join(",") ?? "",
       filters.minTrackedMinutes ?? 0,
       filters.zone ?? "",
