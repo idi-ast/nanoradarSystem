@@ -1,6 +1,6 @@
-# Analítica interactiva: /analisi
+# Analítica interactiva: /analisis
 
-La página está registrada como **Análisis** en el menú lateral, dentro de las rutas protegidas existentes. La URL solicitada es `/analisi`.
+La página está registrada como **Análisis** en el menú lateral, dentro de las rutas protegidas existentes. La URL es `/analisis`; `/analisi` redirige a esa ruta. Solo admin (rol 2) y superadmin (rol 1) ven el acceso en el menú y pueden montar la página. El cliente (rol 3) y un rol ausente se redirigen al inicio, sin cargar el panel de análisis.
 
 ## Uso
 
@@ -46,4 +46,10 @@ Las pruebas verifican conversión horaria de verano/invierno y DST de Chile, val
 
 La prueba de render usa los componentes de la página y del detalle con consultas controladas y un sustituto de Mapbox para Node. Comprueba las métricas de posiciones ampliadas del track, además de separación de huecos, duplicados e identidad por radar. Se revisó la vista inicial en navegador con datos sintéticos; estas comprobaciones no verifican Mapbox con GPU ni la integración con el servidor de producción.
 
-Para comprobar en navegador: abrir `/analisi`, cambiar período/radar, alternar clasificación y zona, revisar tooltips y calendario, alternar noche en el mapa, pulsar una celda y usar Ver en mapa. Confirmar también que un período sin registros muestra ausencia de datos, que una fecha inválida no ejecuta consultas y que salir de la página detiene nuevas cargas.
+Para comprobar en navegador: abrir `/analisis`, cambiar período/radar, alternar clasificación y zona, revisar tooltips y calendario, alternar noche en el mapa, pulsar una celda y usar Ver en mapa. Confirmar también que un período sin registros muestra ausencia de datos, que una fecha inválida no ejecuta consultas y que salir de la página detiene nuevas cargas.
+
+## Acceso por rol
+
+`NavigationItem.allowedRoles` oculta Análisis en el menú de escritorio y móvil para otros roles. `ActivityAnalysisRoute` valida el rol al abrir la URL directamente. El backend exige `get_current_admin_user` en `/api-system/analysis/activity`: devuelve 401 sin sesión válida y 403 a otros roles, antes de ejecutar consultas. Los endpoints compartidos de historial e informes conservan su acceso anterior. Desplegar frontend y backend juntos para aplicar todas las restricciones.
+
+Validación: `node script/test-analysis-access.mjs` y, desde backend, `python -m unittest discover -s tests -p test_analysis_access.py -v`.

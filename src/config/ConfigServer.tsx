@@ -10,6 +10,7 @@ import {
   IconMapPin,
 } from "@tabler/icons-react";
 import React from "react";
+import { ROLES, type RoleId } from "@/context/role";
 
 // Imports del template (rutas base de la plantilla)
 import { AdminPage } from "@/template/admin";
@@ -54,6 +55,7 @@ export interface CompanyConfig {
 }
 
 export interface NavigationItem {
+  allowedRoles?: RoleId[];
   id: number;
   name: string;
   link: string;
@@ -129,7 +131,8 @@ export const configServer = () => {
     {
       id: 5,
       name: "Análisis",
-      link: "/analisi",
+      link: "/analisis",
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
       icon: IconChartBar,
       component: ActivityAnalysisRoute,
       target: false,

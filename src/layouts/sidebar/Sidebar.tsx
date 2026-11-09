@@ -5,7 +5,7 @@ import type { CompanyConfig, AppConfig } from "@/config/ConfigServer";
 import { Link, NavLink } from "react-router";
 import { useEffect, useState } from "react";
 import { useBreakpoint } from "@/hooks/useBreakpoints";
-import LineGradientWhite from "@/components/ui/LineGradientWhite";
+import { useRole } from "@/context/role";
 
 function Sidebar({
   useCompany,
@@ -114,6 +114,7 @@ const MenuNavigation = ({
   isCollapsed: boolean;
   useConfigApp: AppConfig;
 }) => {
+  const { roleId } = useRole();
   return (
     <div
       className={` ${_isCollapsed ? "mt-4  p-1 " : "mt-4 p-1 mx-1 rounded-lg"} `}
@@ -122,7 +123,7 @@ const MenuNavigation = ({
         <h4 className="text-text-200 text-xs tracking-wider ps-1 ">MENU</h4>
       </div>
       <div className="flex flex-col gap-5">
-        {_useConfigApp.NAVIGATION_APP.map((item) => {
+        {_useConfigApp.NAVIGATION_APP.filter(item => !item.allowedRoles || (roleId !== null && item.allowedRoles.includes(roleId))).map((item) => {
           const Icon = item.icon;
           return (
             <div key={item.id} className="relative">

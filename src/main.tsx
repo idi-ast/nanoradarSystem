@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import Template from "./layouts/Template";
 import { ThemeProvider } from "./context/ThemeContext";
 import { configServer } from "@/config/ConfigServer";
@@ -69,6 +69,7 @@ createRoot(document.getElementById("root")!).render(
                       element={<item.component />}
                     />
                   ))}
+                  <Route path="/analisi" element={<Navigate to="/analisis" replace />} />
                   <Route path="/usuarios" element={<Users />} />
                   <Route path="/perfil" element={<Perfil />} />
 
