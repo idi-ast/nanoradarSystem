@@ -12,7 +12,7 @@ function load(file, mocks) {
  const require = createRequire(new URL(`../${file}`, import.meta.url));
  const source = ts.transpileModule(readFileSync(new URL(`../${file}`, import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports = {};
- runInNewContext(source,{exports,require: name=>name in mocks ? mocks[name] : require(name),console});
+ runInNewContext(source,{exports,require: name=>name in mocks ? mocks[name] : require(name),console,setTimeout,clearTimeout});
  return exports;
 }
 const types = load('src/features/history/types.ts',{});
@@ -173,7 +173,8 @@ assert.ok(reportHeadings.indexOf('Distancia recorrida y tiempo de trackeo') < re
 assert.ok(!reportHeadings.includes('Dónde se concentran las detecciones'));
 for (const removed of ['¿A qué hora aumenta la actividad?', 'Registros prioritarios y evidencia', 'Composición y calidad de los datos', 'Detalle de actividad próxima a zonas críticas']) assert.ok(!JSON.stringify(document.content).includes(removed));
 const withHeatmap = report.buildTrackActivityReport({...options, settings: {showHeatmap: true}}).docDefinition;
-assert.equal(withHeatmap.content.filter(item => item.fontSize === 23).at(-1).text, 'Dónde se concentran las detecciones');
+assert.ok(withHeatmap.content.some(item => item.fontSize === 23 && item.text === 'Dónde se concentran las detecciones'));
+assert.equal(withHeatmap.content.filter(item => item.fontSize === 23).at(-1).text, 'Detalle individual de tracks');
 const boundaryTrack = {...track, first_seen: '2026-11-02T23:59:30-03:00', last_seen: '2026-11-03T00:00:30-03:00'};
 const boundaryPoints = [boundaryTrack.first_seen, boundaryTrack.last_seen].map(fecha => ({trackKey: types.analysisTrackKey(boundaryTrack), fecha, lat: 1, lon: 1, zona: null}));
 const boundary = computeOperationalAnalysis({tracks:[boundaryTrack],points:boundaryPoints,zones:[],from,to:new Date('2026-11-03T01:00:00-03:00')});
@@ -288,3 +289,91 @@ assert.equal(windowRequests[0].hour_end,7);
 assert.equal(fetchedWindow.points.length,2);
 assert.equal(fetchedWindow.movements[0].hourStart,21);
 assert.equal(fetchedWindow.movements[0].timeZone,'America/Santiago');
+
+// Presence must remain visible when no sampled position is within 100 m.
+const farTracks = Array.from({length:5},(_,i)=>({...track,track_id:`FAR-${i}`}));
+const farPoints = farTracks.flatMap(t=>points.map(p=>({...p,lat:1,lon:1,trackKey:types.analysisTrackKey(t)})));
+const farDoc = scopedReport.buildTrackActivityReport({...options,tracks:farTracks,points:farPoints,settings:{minApproachPoints:1}}).docDefinition;
+const farText = JSON.stringify(farDoc.content);
+assert.ok(farText.includes('5 tracks en el período y horario seleccionados'));
+assert.ok(farText.includes('Mayor actividad observada a las 21:00: 5 tracks distintos'));
+assert.ok(farText.includes('Hay actividad en el horario seleccionado'));
+assert.equal(chartInputs.hourly[21].present,5);
+assert.equal(chartInputs.hourly[21].near,0,'Presence must not be reported as proximity');
+const activitySvg = reportCharts.hourlyChart(chartInputs.hourly, DEFAULT_REPORT_SETTINGS, 'activity');
+assert.ok(activitySvg.includes('Observados en el horario'));
+assert.ok(activitySvg.includes('Próximos a zonas críticas'));
+assert.ok([...activitySvg.matchAll(/height="([0-9.]+)" fill="#0284c7"/g)].some(match=>Number(match[1])>10),'Blue activity bars must be nonempty even when proximity is zero');
+const missingZoneDoc = report.buildTrackActivityReport({...options,settings:{criticalZones:['missing-zone']}}).docDefinition;
+assert.ok(JSON.stringify(missingZoneDoc.content).includes('Proximidad no calculada'));
+const svgPoints=[0,60,120,600,660,720].map((seconds,i)=>({...points[0],lon:.0005+i*.00001,fecha:new Date(Date.parse(points[0].fecha)+seconds*1000).toISOString()}));
+const trajectorySvg = reportCharts.spatialChart(svgPoints,[],DEFAULT_REPORT_SETTINGS,false,true);
+assert.equal((trajectorySvg.match(/data-report-endpoint=/g)??[]).length,2);
+assert.equal((trajectorySvg.match(/stroke-width="1.3"/g)??[]).length,4,'SVG fallback preserves the full observed path and its gap');
+console.log('PASS: executive activity with zero proximity, missing zone diagnostics, full trajectories and only start/end markers');
+
+// Eight table tracks with six transient failures must recover all eight maps.
+const eightTracks = Array.from({length:8},(_,i)=>({...track,track_id:`MAP-${i}`}));
+const attempts = new Map();
+let activeRequests=0, peakRequests=0, permanent=false;
+const coverageFetch = load('src/features/history/analysis.ts', {
+ './types':types,
+ '@/features/devices/services/radarService':{fetchTrackHistory:async(id)=>{
+  const index=Number(id.split('-')[1]);
+  const attempt=(attempts.get(id)??0)+1;attempts.set(id,attempt);
+  activeRequests++;peakRequests=Math.max(peakRequests,activeRequests);
+  try {
+   await new Promise(resolve=>setTimeout(resolve,1));
+   if(index<6 && (permanent || attempt===1)) throw Object.assign(new Error('unavailable'),{status:permanent?404:503});
+   return {total_points:2,sampled:false,points:points.slice(0,2)};
+  } finally { activeRequests--; }
+ }},
+});
+const fetchedEight=await coverageFetch.fetchAnalysisPoints(eightTracks,{retryAttempts:1,retryDelayMs:0});
+assert.equal(fetchedEight.failedTracks,0);
+assert.equal(fetchedEight.trackCoverage.filter(c=>c.status==='available').length,8);
+assert.equal(fetchedEight.points.length,16);
+assert.ok(peakRequests<=4);
+assert.ok(eightTracks.slice(0,6).every(t=>attempts.get(t.track_id)===2));
+const allMapGroups=reportMapData.nightMapGroups(eightTracks,fetchedEight.points,from,to,DEFAULT_REPORT_SETTINGS);
+assert.equal(allMapGroups[0].trackKeys.length,8);
+assert.equal(new Set(Object.values(allMapGroups[0].colors)).size,8);
+assert.equal(reportMapData.reportMapDetails(allMapGroups).length,8,'Coincident paths each have an individual detail');
+const eightDoc=report.buildTrackActivityReport({...options,tracks:eightTracks,points:fetchedEight.points,quality:fetchedEight}).docDefinition;
+assert.ok(JSON.stringify(eightDoc.content).includes('8 de 8 tracks de la tabla'));
+const panels=eightDoc.content.flatMap(item=>item.columns??[]).filter(item=>item.stack?.[0]?.text?.startsWith('MAP-'));
+assert.equal(panels.length,8);
+assert.equal(new Set(panels.map(panel=>panel.stack[0].text)).size,8);
+// Actual missing trajectories remain explicit; no coordinates are invented.
+permanent=true;attempts.clear();
+const partialEight=await coverageFetch.fetchAnalysisPoints(eightTracks,{retryAttempts:1,retryDelayMs:0});
+assert.equal(partialEight.failedTracks,6);
+assert.equal(partialEight.trackCoverage.filter(c=>c.status==='failed').length,6);
+assert.ok(eightTracks.slice(0,6).every(t=>attempts.get(t.track_id)===1),'Do not retry permanent 404 errors');
+const partialDoc=report.buildTrackActivityReport({...options,tracks:eightTracks,points:partialEight.points,quality:partialEight}).docDefinition;
+assert.ok(JSON.stringify(partialDoc.content).includes('2 de 8 tracks de la tabla'));
+const partialTable=movementText(partialDoc);
+assert.ok(eightTracks.every(t=>partialTable.includes(t.track_id)));
+assert.equal((partialTable.match(/HTTP 404/g)??[]).length,6);
+const lowTrack={...track,track_id:'LOW-POINTS',point_count:99};
+const filteredGroups=reportMapData.nightMapGroups([...eightTracks,lowTrack],[...fetchedEight.points,{...points[0],trackKey:types.analysisTrackKey(lowTrack)}],from,to,DEFAULT_REPORT_SETTINGS);
+assert.equal(filteredGroups[0].trackKeys.length,8,'Maps and table use the same recorded-point threshold');
+const requestedKeys=eightTracks.map(types.analysisTrackKey);
+attempts.clear();permanent=false;
+const priorityFetch=await coverageFetch.fetchAnalysisPoints([lowTrack,...eightTracks],{maxTracks:8,priorityTrackKeys:requestedKeys,retryAttempts:1,retryDelayMs:0});
+assert.equal(priorityFetch.trackCoverage.find(c=>c.trackKey===types.analysisTrackKey(lowTrack)).status,'not-requested');
+assert.equal(priorityFetch.trackCoverage.filter(c=>c.status==='available').length,8);
+console.log('PASS: eight of eight maps after bounded retries, overlapping-track details, per-track missing-map reasons and table/map eligibility');
+
+// A single overview contains every track; individual panels finish the PDF.
+for (const showHeatmap of [false,true]) {
+ const doc=report.buildTrackActivityReport({...options,tracks:eightTracks,points:fetchedEight.points,settings:{showHeatmap}}).docDefinition;
+ const headings=doc.content.filter(item=>item.fontSize===23).map(item=>item.text);
+ assert.equal(headings.filter(title=>title==='Mapa de actividad en la zona').length,1);
+ const firstDetail=headings.indexOf('Detalle individual de tracks');
+ assert.ok(firstDetail>headings.indexOf('Distancia recorrida y tiempo de trackeo'));
+ assert.ok(firstDetail>headings.indexOf('Calendario de actividad observada'));
+ if(showHeatmap) assert.ok(firstDetail>headings.indexOf('Dónde se concentran las detecciones'));
+ assert.ok(headings.slice(firstDetail).every(title=>title==='Detalle individual de tracks'));
+}
+console.log('PASS: exactly one overview map and individual details after every other section');

@@ -12,7 +12,7 @@ import { HistoryListPanel } from "../components/HistoryListPanel";
 import { TrackPlaybackMap } from "../components/TrackPlaybackMap";
 import { PlaybackControls } from "../components/PlaybackControls";
 import type { TrackSummaryFilters } from "../types";
-import { TRACKS_PAGE_SIZE } from "../types";
+import { analysisTrackKey, TRACKS_PAGE_SIZE } from "../types";
 import { fetchReportTrackSummaries } from "../api";
 import { fetchAnalysisPoints, type AnalysisFetchResult, type AnalysisZone } from "../analysis";
 import { extractZoneVertices } from "@/features/devices/components/map/utils/geoHelpers";
@@ -154,6 +154,8 @@ export default function HistoryPage() {
       try {
         analysis = await fetchAnalysisPoints(reportTracks, {
           from: reportFilters.from, to: reportFilters.to, signal: controller.signal,
+          retryAttempts: 1,
+          priorityTrackKeys: reportTracks.filter(t => t.point_count >= reportSettings.minApproachPoints).map(analysisTrackKey),
           includeMovement: true, maxGapSeconds: reportSettings.maxGapSeconds,
           hourStart: reportSettings.nightStart, hourEnd: reportSettings.nightEnd, timeZone: reportSettings.timeZone,
           onProgress: (done, count) => setReportProgress(`Analizando trayectorias: ${done} de ${count}`),
@@ -161,14 +163,15 @@ export default function HistoryPage() {
       } catch (error) {
         if (controller.signal.aborted) throw error;
         console.error("No se pudieron cargar las posiciones para el informe", error);
+        throw error;
       }
 
       controller.signal.throwIfAborted();
       setReportProgress("Cargando mapa satelital para el PDF...");
       const { captureReportMaps } = await import('../captureReportMaps');
-      const { nightMapGroups } = await import('../reportMapData');
+      const { nightMapGroups, reportMapDetails } = await import('../reportMapData');
       const groups = nightMapGroups(reportTracks, analysis.points, effectiveRange.from, effectiveRange.to, reportSettings);
-      const mapCaptures = await captureReportMaps(groups, analysisZones, reportSettings, controller.signal,
+      const mapCaptures = await captureReportMaps([...groups, ...reportMapDetails(groups)], analysisZones, reportSettings, controller.signal,
         (done, count) => setReportProgress(`Capturando mapa satelital: ${done} de ${count}`));
       controller.signal.throwIfAborted();
       setReportProgress("Construyendo gráficos y PDF...");

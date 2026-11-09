@@ -18,7 +18,10 @@ const from=new Date('2026-11-06T00:00:00-03:00'),to=new Date('2026-11-07T00:00:0
 const tracks=Array.from({length:9},(_,i)=>({track_id:`T${i}`,tipo_radar:'magos',first_seen:from.toISOString(),last_seen:to.toISOString(),point_count:100,zones:[],nivel_max:0}));
 const points=tracks.flatMap(t=>[0,60].map(seconds=>({trackKey:types.analysisTrackKey(t),lat:-42,lon:-73+seconds*.000001,fecha:new Date(+from+seconds*1000).toISOString(),zona:null})));
 const groups=data.nightMapGroups(tracks,[...points,points[0],{...points[0],fecha:'2026-11-06T15:00:00-03:00'},{...points[0],trackKey:'unrelated'},{...points[0],lat:NaN}],from,to,settings);
-assert.equal(groups.length,2);assert.equal(groups[0].trackKeys.length,8);assert.equal(groups[1].trackKeys.length,1);
+assert.equal(groups.length,1);assert.equal(groups[0].trackKeys.length,9);
+assert.equal(new Set(Object.values(groups[0].colors)).size,9);
+assert.ok(Object.values(groups[0].colors).every(color=>/^#[0-9a-f]{6}$/i.test(color)),'All overview colors must work in PDFMake and Mapbox');
+assert.equal(data.reportMapDetails(groups).length,9);
 assert.equal(groups.flatMap(g=>g.points).length,18);
 assert.ok(groups[0].points.every(p=>p.trackId && p.radar==='magos'));
 let mode='ok', containers=0;const instances=[];
@@ -27,7 +30,7 @@ class MapMock {
  on(event,fn){if(!this.handlers.has(event))this.handlers.set(event,new Set());this.handlers.get(event).add(fn);return this;}
  off(event,fn){this.handlers.get(event)?.delete(fn);return this;}
  emit(event){for(const fn of [...(this.handlers.get(event)??[])])fn();}
- addSource(id,source){this.sources.set(id,{...source,setData(data){this.data=data;}});}
+ addSource(id,source){this.sources.set(id,{...source,updates:[],setData(data){this.data=data;this.updates.push(data);}});}
  getSource(id){return this.sources.get(id);}
  addLayer(layer){this.layers.push(layer);}
  fitBounds(){}
@@ -49,10 +52,25 @@ runInNewContext(source,{exports,document,setTimeout,clearTimeout,DOMException,re
  return require(name);
 }});
 const captures=await exports.captureReportMaps(groups,[],settings);
-assert.equal(captures.length,2);assert.equal(captures[0].width,1600);assert.equal(captures[0].height,1000);
+assert.equal(captures.length,1);assert.equal(captures[0].width,1600);assert.equal(captures[0].height,1000);
 assert.equal(instances[0].options.preserveDrawingBuffer,true);
 assert.ok(instances[0].layers.some(l=>l.id==='report-track-label'));
 assert.equal(instances[0].removed,true);assert.equal(containers,0);
+assert.equal(instances[0].layers.find(l=>l.id==='report-tracks').paint['line-dasharray'],undefined);
+for (let i=0;i<groups.length;i++) {
+ const markers=instances[0].sources.get('report-markers').updates[i].features;
+ assert.equal(markers.length,groups[i].trackKeys.length*2,'Only two markers per track in satellite captures');
+ assert.ok(markers.every(f=>['start','end'].includes(f.properties.endpoint)));
+}
+const splitPoints=[0,60,120,600,660,720,1200,1260,1320].map(seconds=>({...points[0],fecha:new Date(+from+seconds*1000).toISOString(),lon:-73+seconds*.000001}));
+const reportGeometry=geometry.buildTrackTrajectories(splitPoints,120,{markers:'track-ends'});
+assert.equal(reportGeometry.lines.features[0].geometry.coordinates.length,3,'Preserve three observed segments');
+assert.equal(reportGeometry.lines.features[0].geometry.coordinates.flat().length,9,'Preserve every coordinate, not just endpoints');
+assert.equal(reportGeometry.markers.features.length,2);
+assert.ok(reportGeometry.markers.features[0].properties.label.endsWith('Inicio'));
+assert.ok(reportGeometry.markers.features[1].properties.label.endsWith('Fin'));
+assert.equal(geometry.buildTrackTrajectories([splitPoints[0]],120,{markers:'track-ends'}).markers.features.length,1);
+assert.equal(geometry.buildTrackTrajectories(splitPoints,120).markers.features.length,6,'Keep the existing analysis dashboard marker behavior');
 mode='error';await assert.rejects(exports.captureReportMaps(groups,[],settings),/No se pudo cargar/);
 assert.equal(instances.at(-1).removed,true);assert.equal(containers,0);
 mode='missing-tiles';await assert.rejects(exports.captureReportMaps(groups,[],settings),/no terminó de cargar/);assert.equal(containers,0);

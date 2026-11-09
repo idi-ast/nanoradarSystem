@@ -60,7 +60,7 @@ export async function captureReportMaps(groups: ReportMapGroup[], zones: Analysi
     map.addLayer({ id: 'report-zones-label', type: 'symbol', source: 'report-zone-names', layout: { 'text-field': ['get', 'name'], 'text-size': 22 }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#111827', 'text-halo-width': 2 } });
     map.addSource('report-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     map.addSource('report-markers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    map.addLayer({ id: 'report-tracks', type: 'line', source: 'report-lines', paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': .85, 'line-dasharray': [2, 1.5] } });
+    map.addLayer({ id: 'report-tracks', type: 'line', source: 'report-lines', paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': .85 } });
     map.addLayer({ id: 'report-marker-glow', type: 'circle', source: 'report-markers', paint: { 'circle-radius': 14, 'circle-color': ['get', 'color'], 'circle-opacity': .65, 'circle-blur': .8 } });
     map.addLayer({ id: 'report-points', type: 'circle', source: 'report-markers', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2 } });
     map.addLayer({ id: 'report-track-label', type: 'symbol', source: 'report-markers', layout: { 'text-field': ['get', 'label'], 'text-size': 18, 'text-offset': [0, 1.5], 'text-anchor': 'top' }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#111827', 'text-halo-width': 2 } });
@@ -69,7 +69,11 @@ export async function captureReportMaps(groups: ReportMapGroup[], zones: Analysi
       signal?.throwIfAborted();
       onProgress?.(i, nonempty.length);
       const group = nonempty[i];
-      const geometry = buildTrackTrajectories(group.points, settings.maxGapSeconds);
+      const geometry = buildTrackTrajectories(group.points, settings.maxGapSeconds, { markers: 'track-ends' });
+      for (const feature of [...geometry.lines.features, ...geometry.markers.features]) {
+        const color = group.colors?.[String(feature.properties?.trackKey)];
+        if (color && feature.properties) feature.properties.color = color;
+      }
       (map.getSource('report-lines') as GeoJSONSource).setData(geometry.lines);
       (map.getSource('report-markers') as GeoJSONSource).setData(geometry.markers);
       const bounds = new mapboxgl.LngLatBounds();

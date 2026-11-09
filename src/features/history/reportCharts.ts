@@ -6,12 +6,13 @@ export const escapeXml = (text: unknown) => String(text).replace(/[&<>"']/g, c =
 const text = (x: number, y: number, value: unknown, size = 8, color = '#475569', anchor = 'start') => `<text x="${x}" y="${y}" font-family="Roboto" font-size="${size}" fill="${color}" text-anchor="${anchor}">${escapeXml(value)}</text>`;
 const svg = (width: number, height: number, body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="white"/>${body}</svg>`;
 const rect = (x: number, y: number, w: number, h: number, color: string) => `<rect x="${x}" y="${y}" width="${Math.max(0, w)}" height="${Math.max(0, h)}" fill="${color}"/>`;
-export function hourlyChart(hours: HourStats[], settings: ReportSettings, mode: 'starts' | 'near' = 'starts') {
+export function hourlyChart(hours: HourStats[], settings: ReportSettings, mode: 'starts' | 'near' | 'activity' = 'starts') {
   const W = 515, H = 230, x0 = 38, y0 = 30, pw = 464, ph = 142;
-  const maxValue = Math.max(1, ...hours.map(h => mode === 'starts' ? h.starts : isNight(h.hour, settings) ? h.near : 0));
+  const countFor = (h: HourStats) => mode === 'starts' ? h.starts : isNight(h.hour, settings) ? mode === 'activity' ? h.present : h.near : 0;
+  const maxValue = Math.max(1, ...hours.map(countFor));
   const step = Math.max(1, Math.ceil(maxValue / 4));
   const max = step * 4;
-  let body = text(x0, 13, mode === 'starts' ? 'Tracks cuyo primer registro ocurre en esa hora' : 'Tracks distintos próximos a zonas críticas en horario nocturno', 9, '#0f172a');
+  let body = text(x0, 13, mode === 'starts' ? 'Tracks cuyo primer registro ocurre en esa hora' : mode === 'activity' ? 'Tracks distintos observados y próximos a zonas críticas' : 'Tracks distintos próximos a zonas críticas en horario nocturno', 9, '#0f172a');
   hours.forEach((h, i) => { if (isNight(h.hour, settings)) body += rect(x0 + i * pw / 24, y0, pw / 24, ph, '#f1f5f9'); });
   for (let i = 0; i <= 4; i++) {
     const y = y0 + ph - i * ph / 4;
@@ -20,14 +21,16 @@ export function hourlyChart(hours: HourStats[], settings: ReportSettings, mode: 
   }
   hours.forEach((h, i) => {
     const x = x0 + i * pw / 24 + 2, width = pw / 24 - 4;
-    const count = mode === 'starts' ? h.starts : isNight(h.hour, settings) ? h.near : 0, height = count / max * ph;
-    body += rect(x, y0 + ph - height, mode === 'starts' ? width * .58 : width, height, mode === 'starts' ? '#0284c7' : '#d97706');
+    const count = countFor(h), height = count / max * ph;
+    body += rect(x, y0 + ph - height, mode === 'near' ? width : width * .58, height, mode === 'near' ? '#d97706' : '#0284c7');
+    if (mode === 'activity') body += rect(x + width * .62, y0 + ph - (isNight(h.hour, settings) ? h.near : 0) / max * ph, width * .38, (isNight(h.hour, settings) ? h.near : 0) / max * ph, '#d97706');
     if (mode === 'starts') body += rect(x + width * .62, y0 + ph - h.boatStarts / max * ph, width * .38, h.boatStarts / max * ph, '#0d9488');
     if (count) body += text(x + width / 2, y0 + ph - height - 4, count, 6.5, '#0f172a', 'middle');
     body += text(x + width / 2, y0 + ph + 13, String(h.hour).padStart(2, '0'), 7, '#475569', 'middle');
   });
   body += text(x0 + pw / 2, 202, `Hora local - ${settings.timeZone}`, 8, '#475569', 'middle');
-  body += rect(38, 215, 8, 8, mode === 'starts' ? '#0284c7' : '#d97706') + text(51, 222, mode === 'starts' ? 'Todos los tracks' : 'Proximidad nocturna observada', 8);
+  body += rect(38, 215, 8, 8, mode === 'near' ? '#d97706' : '#0284c7') + text(51, 222, mode === 'starts' ? 'Todos los tracks' : mode === 'activity' ? 'Observados en el horario' : 'Proximidad nocturna observada', 8);
+  if (mode === 'activity') body += rect(220, 215, 8, 8, '#d97706') + text(233, 222, 'Próximos a zonas críticas', 8);
   if (mode === 'starts') body += rect(177, 215, 8, 8, '#0d9488') + text(190, 222, 'Clasificados como embarcación', 8);
   body += text(502, 222, 'Fondo gris: franja nocturna', 7, '#64748b', 'end');
   return svg(W, H, body);
@@ -53,7 +56,7 @@ export function activityMatrix(days: DayStats[], settings: ReportSettings) {
   return svg(W, H, body);
 }
 
-export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], settings: ReportSettings, focus = false, trajectories = false) {
+export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], settings: ReportSettings, focus = false, trajectories = false, colorsByTrack?: Record<string, string>) {
   const W = 515, H = 264, x0 = 42, y0 = 17, pw = 459, ph = 200;
   const critical = zones.filter(z => settings.criticalZones.map(normalizeZone).includes(normalizeZone(z.nombre)));
   const displayedZones = focus ? critical : zones;
@@ -98,13 +101,16 @@ export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], set
     }
     trajectoryTrackCount = tracks.size;
     const colors = ['#0369a1', '#be123c', '#15803d', '#7e22ce', '#c2410c', '#0f766e', '#a16207', '#475569'];
-    [...tracks.values()].forEach((series, i) => {
+    [...tracks.entries()].forEach(([key, series], i) => {
       series.sort((a, b) => Date.parse(a.fecha!) - Date.parse(b.fecha!));
-      const color = colors[i % colors.length];
+      const color = colorsByTrack?.[key] ?? colors[i % colors.length];
       for (let n = 0; n < series.length; n++) {
         const p = series[n], prev = series[n - 1];
         if (prev && Date.parse(p.fecha!) - Date.parse(prev.fecha!) <= settings.maxGapSeconds * 1000) body += `<line x1="${x(prev.lon)}" y1="${y(prev.lat)}" x2="${x(p.lon)}" y2="${y(p.lat)}" stroke="${color}" stroke-width="1.3"/>`;
-        body += `<circle cx="${x(p.lon)}" cy="${y(p.lat)}" r="1.3" fill="${color}"/>`;
+        if (n === 0 || n === series.length - 1) {
+          const endpoint = series.length === 1 ? 'Inicio / fin' : n === 0 ? 'Inicio' : 'Fin';
+          body += `<circle data-report-endpoint="${n === 0 ? 'start' : 'end'}" cx="${x(p.lon)}" cy="${y(p.lat)}" r="2.4" fill="${n === 0 ? '#ffffff' : color}" stroke="${color}" stroke-width="1"><title>${endpoint}</title></circle>`;
+        }
       }
       const end = series[series.length - 1];
       if (i >= 8) return;
@@ -127,7 +133,7 @@ export function spatialChart(points: AnalysisPoint[], zones: AnalysisZone[], set
   body += text(x0, 229, (cx - pw / 2 / scale / 111320 / cos).toFixed(4), 7) + text(x0 + pw, 229, (cx + pw / 2 / scale / 111320 / cos).toFixed(4), 7, '#475569', 'end');
   body += text(x0 + pw / 2, 229, 'Longitud', 7, '#475569', 'middle');
   if (!trajectories) ['#bae6fd', '#facc15', '#f97316', '#dc2626'].forEach((c, i) => { body += rect(x0 + i * 14, 241, 14, 7, c); });
-  body += text(trajectories ? x0 : 106, 247, trajectories ? trajectoryTrackCount > 8 ? 'Hasta 8 etiquetas visibles. Selecciona un track en la tabla para aislarlo.' : 'Trazados por track · Etiquetas unidas al último punto observado' : `1 - ${max} posiciones/celda · escala logarítmica`, 7);
+  body += text(trajectories ? x0 : 106, 247, trajectories ? trajectoryTrackCount > 8 ? 'Todos los tracks dibujados; hasta 8 etiquetas. Ver detalles al final.' : 'Trazados por track · Puntos solo en inicio y fin' : `1 - ${max} posiciones/celda · escala logarítmica`, 7);
   body += text(x0, 260, trajectories ? 'Esquema geográfico. Los trazados respetan el hueco máximo configurado.' : 'Esquema geográfico sin imagen satelital. Densidad de posiciones, no de embarcaciones únicas.', 7);
   return svg(W, H, body);
 }

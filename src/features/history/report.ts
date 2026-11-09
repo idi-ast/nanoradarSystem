@@ -1,11 +1,11 @@
-import { nightMapGroups, type ReportMapCapture } from './reportMapData';
+import { nightMapGroups, reportMapDetails, type ReportMapCapture } from './reportMapData';
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
 import { analysisTrackKey } from "./types";
 import type { AnalysisPoint, AnalysisZone, AnalysisFetchResult } from "./analysis";
-import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, reportWindowSeconds, type ReportSettings } from "./reportAnalytics";
+import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, normalizeZone, reportWindowSeconds, type ReportSettings } from "./reportAnalytics";
 import { hourlyChart, activityMatrix, spatialChart } from "./reportCharts";
 import { computeTrackMovements, rankTrackMovements, type TrackMovement } from './reportMovement';
 
@@ -134,6 +134,17 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   // Retain tracks without trajectory metrics so the table can explicitly show N/D.
   const ordered = [...ranked, ...eligible.filter(m => !rankedKeys.has(m.key)).sort((a, b) => a.key.localeCompare(b.key))];
   const coverageNote = `${num(analyzed)} historiales solicitados correctamente; ${num(points.length)} posiciones válidas analizadas. ${opts.limited || opts.pointsLimited || quality.failedTracks ? 'Cobertura parcial o muestreada.' : 'Sin recorte declarado.'}`;
+  const peakObservedHour = [...hourly].filter(h => isNight(h.hour, settings) && h.present > 0)
+    .sort((a, b) => b.present - a.present || (a.hour - settings.nightStart + 24) % 24 - (b.hour - settings.nightStart + 24) % 24)[0];
+  const selectedCriticalZones = new Set(settings.criticalZones.map(normalizeZone));
+  const analyzedCriticalZones = zones.filter(z => selectedCriticalZones.has(normalizeZone(z.nombre)));
+  const proximityNote = !analyzedCriticalZones.length
+    ? 'Proximidad no calculada: no hay polígonos válidos para las zonas críticas seleccionadas.'
+    : !points.length
+      ? 'Proximidad no calculada: no hay posiciones válidas analizadas en el horario del informe.'
+      : analysis.peakNightHour
+        ? `${num(analysis.nearNightTracks)} tracks distintos observados a ${settings.proximityM} m o menos de las zonas críticas. Mayor proximidad a las ${hour(analysis.peakNightHour.hour)}: ${num(analysis.peakNightHour.near)} tracks.`
+        : `Hay actividad en el horario seleccionado; ninguna posición analizada quedó a ${settings.proximityM} m o menos de las zonas críticas. La muestra no permite descartar acercamientos fuera de las posiciones analizadas.`;
   const content: Content[] = [
     { text: 'Actividad y vigilancia operativa del centro', bold: true, fontSize: 11, margin: [0, 0, 0, 10] },
     ...title('02 / Vigilancia nocturna', 'Actividad durante la noche', `Franja ${nightLabel}. Horario local ${settings.timeZone}.`),
@@ -144,20 +155,36 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     ...(minMinutes > 0 ? [note(`Filtro: más de ${num(minMinutes)} minutos observados por track; excluye interrupciones superiores a 120 s.`)] : []),
     cards([[num(tracks.length), 'Tracks del período'], [num(analysis.nightTracks), 'Tracks observados de noche'], [num(analysis.nearNightTracks), 'Tracks próximos de noche'], [pct(analysis.nearNightTracks, analysis.nightTracks), 'Proporción nocturna próxima']]),
     heading('Lectura ejecutiva'),
-    note(analysis.peakNightHour ? `Mayor proximidad nocturna a las ${hour(analysis.peakNightHour.hour)}: ${num(analysis.peakNightHour.near)} tracks distintos próximos a zonas críticas.` : 'No se observaron posiciones nocturnas próximas a las zonas críticas seleccionadas.'),
+    note(`${num(tracks.length)} tracks en el período y horario seleccionados. Se analizaron posiciones válidas de ${num(analysis.nightTracks)} tracks distintos dentro de esa franja.`),
+    ...(peakObservedHour ? [note(`Mayor actividad observada a las ${hour(peakObservedHour.hour)}: ${num(peakObservedHour.present)} tracks distintos, incluyendo los que están lejos de las zonas críticas.`)] : [note('No hay posiciones válidas analizadas para distribuir la actividad por hora.')]),
+    note(proximityNote),
     note(`Proximidad: hasta ${settings.proximityM} m al perímetro. Zonas críticas: ${settings.criticalZones.join(', ') || 'ninguna seleccionada'}. ${coverageNote}`),
-    { svg: hourlyChart(hourly, settings, 'near'), width: 515 },
+    { svg: hourlyChart(hourly, settings, 'activity'), width: 515 },
   ];
-  const mapGroups = nightMapGroups(tracks, points, range.from, range.to, settings);
+  const tableTracks = ordered.map(m => m.track);
+  const mapGroups = nightMapGroups(tableTracks, points, range.from, range.to, settings);
+  const mapByTrack = new Map(mapGroups.flatMap((group, i) => group.trackKeys.map(key => [key, i + 1] as const)));
+  const trackCoverage = new Map((quality.trackCoverage ?? []).map(item => [item.trackKey, item]));
+  const missingMapTracks = tableTracks.filter(t => !mapByTrack.has(analysisTrackKey(t)));
+  const mapStatus = (track: TrackSummary) => {
+    const key = analysisTrackKey(track);
+    const group = mapByTrack.get(key);
+    if (group) return `Mapa ${group}`;
+    return trackCoverage.get(key)?.reason ?? 'Sin posiciones válidas para el mapa.';
+  };
+  const mapCoverageNote = `${num(mapByTrack.size)} de ${num(tableTracks.length)} tracks de la tabla con posiciones representadas en los mapas.`;
   mapGroups.forEach((group, index) => {
     const capture = opts.mapCaptures?.find(c => c.trackKeys.length === group.trackKeys.length && c.trackKeys.every((key, i) => key === group.trackKeys[i]));
     content.push(
-      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Trayectorias nocturnas e identificadores de track. Grupo ${index + 1} de ${mapGroups.length}.`, true),
-      capture ? { image: capture.image, width: 515 } : { svg: spatialChart(group.points, zones, settings, false, true), width: 515 },
+      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Mapa general · ${num(group.trackKeys.length)} tracks en este mapa.`, true),
+      note(mapCoverageNote),
+      note(`Tracks de este mapa: ${group.trackKeys.map(key => trackMap.get(key)).filter(Boolean).map(t => `${t!.track_id} / ${t!.tipo_radar}`).join(' · ') || 'ninguno con posiciones válidas'}.`),
+      capture ? { image: capture.image, width: 515 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 515 },
       note(capture ? 'Captura del mapa satelital del sistema con los trazados del período analizado. La imagen satelital es una base de referencia, no una fotografía tomada durante las detecciones.' : 'Sin captura satelital disponible: representación esquemática de las posiciones observadas.'),
-      note('Cada color corresponde a un track. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
+      note('Cada color corresponde a un track. Los puntos indican solo inicio y fin; la línea conserva el recorrido observado. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
       note(`Polígonos: ${zones.map(z => z.nombre).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
       ...(!group.points.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
+      ...(index === 0 && missingMapTracks.length ? [note(`Tracks de la tabla sin mapa: ${missingMapTracks.map(t => `${t.track_id} / ${t.tipo_radar}: ${mapStatus(t)}`).join(' | ')}`)] : []),
     );
   });
   const byHour = new Map<number, TrackMovement[]>();
@@ -175,7 +202,7 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const addRows = (label: string, entries: TrackMovement[]) => entries.forEach((m, i) => {
     const index = String(i + 1).padStart(2, '0');
     if (maxAccumulatedSeconds > 0 && m.trackedSeconds === maxAccumulatedSeconds) highlightedRows.add(rows.length);
-    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
+    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}\n${mapStatus(m.track)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
   });
   for (const [h, entries] of [...byHour].sort((a, b) => (a[0] - settings.nightStart + 24) % 24 - (b[0] - settings.nightStart + 24) % 24)) addRows(hour(h), entries);
   addRows('Sin fecha', undated);
@@ -183,7 +210,7 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     ...title('05 / Recorrido y seguimiento', 'Distancia recorrida y tiempo de trackeo', `Agrupado por hora de inicio dentro del período (todas las fechas). Orden dentro de cada hora: ${movementOrder(settings)}. Mínimo ${settings.minApproachPoints} puntos.`, true),
     table(['Horario', 'Track / radar', 'Recorrido (m)', 'Trackeo', 'Tiempo enlazado', 'Puntos', 'Base'], rows, [31, 119, 58, 42, 48, 33, '*'], true, highlightedRows),
     note('Rojo: tracks con el mayor tiempo enlazado acumulado del listado, incluidos los empates.'),
-    note(movementMethod(settings)), note(coverageNote),
+    note(movementMethod(settings)), note(mapCoverageNote), note(coverageNote),
   );
   for (let i = 0; i < Math.max(1, days.length); i += 28) {
     content.push(...title('03 / Distribución temporal', 'Calendario de actividad observada', `Tiempo de trackeo acumulado por fecha y hora, en minutos. Se suman intervalos entre posiciones consecutivas separados por hasta ${settings.maxGapSeconds} s, repartidos entre las horas que atraviesan.`, true),
@@ -198,6 +225,24 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     { svg: spatialChart(points, zones, settings, true), width: 515 },
     note(`Polígonos del mapa general: ${zones.map((z, i) => `${i + 1}: ${z.nombre}`).join(' | ') || 'No hay zonas disponibles'}. Contorno rojo: zona crítica. La densidad depende de la frecuencia de registro y del muestreo.`),
   );
+  const detailGroups = reportMapDetails(mapGroups);
+  for (let start = 0; start < detailGroups.length; start += 4) {
+    const page = detailGroups.slice(start, start + 4);
+    content.push(...title('02 / Vigilancia nocturna', 'Detalle individual de tracks',
+      'Cada panel muestra un solo track. Permite distinguir recorridos superpuestos en el mapa general, con el mismo color y sus puntos de inicio y fin.', true));
+    for (let row = 0; row < page.length; row += 2) {
+      content.push({ columns: page.slice(row, row + 2).map(group => {
+        const key = group.trackKeys[0], track = trackMap.get(key)!;
+        const capture = opts.mapCaptures?.find(c => c.trackKeys.length === 1 && c.trackKeys[0] === key);
+        const panel: Content[] = [
+          { text: `${track.track_id} / ${track.tipo_radar} · Mapa ${mapByTrack.get(key)}`, bold: true, fontSize: 10, margin: [0, 0, 0, 5] },
+          capture ? { image: capture.image, width: 249 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 249 },
+          note(`${num(group.points.length)} posiciones analizadas · Inicio y fin marcados. Cortes según el hueco máximo configurado.`),
+        ];
+        return { width: 249, stack: panel };
+      }), columnGap: 17, margin: [0, 6, 0, 12], unbreakable: true });
+    }
+  }
   return { range, docDefinition: reportDocument(opts, settings, content) };
 }
 

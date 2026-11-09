@@ -18,7 +18,7 @@ const track = { track_id: 'T23', tipo_radar: 'magos', behavior_class: 'lancha', 
 const playbackTrack = { summary: track, points: [] };
 const historyFilters = { search: 'T23', from: '2026-06-01T15:00', to: '2026-06-01T16:00', minPoints: 10, minTrackedMinutes: 200, behaviorClass: 'bolla', tipoRadar: 'nano', zone: 'otra' };
 const period = { fromDate: '2026-11-08', toDate: '2026-11-09' };
-const settings = { nightStart: 21, nightEnd: 7, timeZone: 'America/Santiago', category: 'lancha', minTrackedMinutes: 0, maxGapSeconds: 120, criticalZones: ['otra'] };
+const settings = { nightStart: 21, nightEnd: 7, timeZone: 'America/Santiago', category: 'lancha', minTrackedMinutes: 0, maxGapSeconds: 120, minApproachPoints: 100, criticalZones: ['otra'] };
 const states = [historyFilters, period, 1, true, true, false, true, settings, ''];
 let cursor = 0;
 const state = { useState: init => {
@@ -41,7 +41,7 @@ const page = load('src/features/history/pages/HistoryPage.tsx', {
   '../components/TrackPlaybackMap': { TrackPlaybackMap: 'playback-map' },
   '../components/PlaybackControls': { PlaybackControls: 'playback-controls' },
   '../components/ReportSettingsDialog': { ReportSettingsDialog: 'report-dialog' },
-  '../types': { TRACKS_PAGE_SIZE: 100 },
+  '../types': { TRACKS_PAGE_SIZE: 100, analysisTrackKey: t => JSON.stringify([t.tipo_radar,t.track_id,t.first_seen,t.last_seen]) },
   '../api': { fetchReportTrackSummaries: async (...args) => { calls.report = args; return { tracks: [track], total: 1, limited: false }; } },
   '../analysis': { fetchAnalysisPoints: async (...args) => { calls.analysis = args; return { points: [], tracksAnalyzed: 1 }; } },
   '@/features/devices/components/map/utils/geoHelpers': { extractZoneVertices: () => [] },
@@ -53,7 +53,7 @@ const page = load('src/features/history/pages/HistoryPage.tsx', {
     downloadTrackActivityReport: options => { calls.pdf = options; return { from: new Date(options.filters.from), to: new Date(options.filters.to) }; },
   },
   '../captureReportMaps': { captureReportMaps: async () => [] },
-  '../reportMapData': { nightMapGroups: (...args) => { calls.night = args; return []; } },
+  '../reportMapData': { reportMapDetails: () => [], nightMapGroups: (...args) => { calls.night = args; return []; } },
 }).default;
 function render() { cursor = 0; return page(); }
 function find(node, type) {
@@ -79,6 +79,8 @@ assert.equal(calls.report[0].hourStart, 21);
 assert.equal(calls.report[0].hourEnd, 7);
 assert.equal(calls.report[0].timeZone, 'America/Santiago');
 assert.equal(calls.analysis[1].hourStart, 21);
+assert.equal(calls.analysis[1].retryAttempts, 1);
+assert.equal(calls.analysis[1].priorityTrackKeys.length, 1);
 assert.equal(calls.analysis[1].hourEnd, 7);
 assert.equal(calls.report[0].minTrackedMinutes, 0);
 assert.equal(calls.report[1], false);
