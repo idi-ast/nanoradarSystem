@@ -139,7 +139,11 @@ function processMagosradarMessages(
     const trackIdStr = String(trackId);
 
     // Ordenar posiciones por timestamp ascendente para el trazo correcto
-    const sorted = [...positions].sort((a, b) => a.ts - b.ts);
+    const sorted = positions.filter(p =>
+      Number.isFinite(p.lat) && Math.abs(p.lat) <= 90 &&
+      Number.isFinite(p.lon) && Math.abs(p.lon) <= 180 && Number.isFinite(p.ts),
+    ).sort((a, b) => a.ts - b.ts);
+    if (sorted.length === 0) continue;
 
     // ── Obtener o inicializar estado cinemático del track ──
     let kin = trackKinematics.get(trackIdStr);
@@ -280,6 +284,16 @@ function processMagosradarMessages(
   }
 }
 
+/** Pending updates are keyed by target, never by the last radar frame. */
+function createMessageBuffer() {
+  return {
+    nanoRadar: new Map<string, RawRadarPayload["nanoRadar"][number]>(),
+    magosRadar: new Map<string, MagosRadarTrack>(),
+    spotter: new Map<string, RawRadarPayload["spotter"][number]>(),
+    camaras: [] as CamaraActividad[],
+  };
+}
+
 export type WsStatus = RadarConnectionStatus;
 
 export function useRadarWebSocket(
@@ -297,22 +311,12 @@ export function useRadarWebSocket(
     ? inactiveIconTimeoutSec * 1000
     : timing.TARGET_TIMEOUT_MS;
 
-  const bufferRef = useRef<{
-    nanoRadar: RawRadarPayload["nanoRadar"];
-    magosRadar: MagosRadarTrack[];
-    spotter: RawRadarPayload["spotter"];
-    camaras: CamaraActividad[];
-  }>({
-    nanoRadar: [],
-    magosRadar: [],
-    spotter: [],
-    camaras: [],
-  });
+  const bufferRef = useRef(createMessageBuffer());
 
   const clearTargets = useCallback(() => {
     setTargetsMap(new Map());
     kinematicsRef.current.clear();
-    bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
+    bufferRef.current = createMessageBuffer();
   }, []);
 
   useEffect(() => {
@@ -332,7 +336,11 @@ export function useRadarWebSocket(
     let ws: WebSocket | null = null;
 
     const processingInterval = setInterval(() => {
-      const { nanoRadar, magosRadar, spotter, camaras } = bufferRef.current;
+      const buffer = bufferRef.current;
+      const nanoRadar = [...buffer.nanoRadar.values()];
+      const magosRadar = [...buffer.magosRadar.values()];
+      const spotter = [...buffer.spotter.values()];
+      const { camaras } = buffer;
       const now = Date.now();
 
       if (nanoRadar.length === 0 && magosRadar.length === 0 && spotter.length === 0 && camaras.length === 0) return;
@@ -351,7 +359,7 @@ export function useRadarWebSocket(
         setCameraActivities(camaras.map((a) => ({ ...a, timestamp: now })));
       }
 
-      bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
+      bufferRef.current = createMessageBuffer();
     }, SET_TIME_INTERVAL_MS);
 
     // La limpieza cinemática sigue funcionando aunque ya no lleguen mensajes.
@@ -418,9 +426,26 @@ export function useRadarWebSocket(
             }
 
             const parsed = raw as RawRadarPayload;
-            if (parsed.nanoRadar) bufferRef.current.nanoRadar = parsed.nanoRadar;
-            if (parsed.magosRadar) bufferRef.current.magosRadar = parsed.magosRadar;
-            if (parsed.spotter) bufferRef.current.spotter = parsed.spotter;
+            // Los mensajes son incrementales: otro radar o un array vacío
+            // no deben borrar detecciones pendientes antes del próximo flush.
+            const pending = bufferRef.current;
+            if (Array.isArray(parsed.nanoRadar)) {
+              for (const detection of parsed.nanoRadar) pending.nanoRadar.set(String(detection.id), detection);
+            }
+            if (Array.isArray(parsed.magosRadar)) {
+              for (const track of parsed.magosRadar) {
+                if (!Array.isArray(track.positions) || !track.positions.length) continue;
+                const key = String(track.trackId);
+                const previous = pending.magosRadar.get(key);
+                pending.magosRadar.set(key, {
+                  ...previous, ...track,
+                  positions: appendBoundedHistory(previous?.positions ?? [], track.positions, timing.HISTORY_MAX_POINTS),
+                });
+              }
+            }
+            if (Array.isArray(parsed.spotter)) {
+              for (const detection of parsed.spotter) pending.spotter.set(String(detection.id), detection);
+            }
             if (parsed.actividad?.camaras) {
               bufferRef.current.camaras = parsed.actividad.camaras as CamaraActividad[];
             }
@@ -489,7 +514,7 @@ export function useRadarWebSocket(
         ws.close();
       }
       trackKinematics.clear();
-      bufferRef.current = { nanoRadar: [], magosRadar: [], spotter: [], camaras: [] };
+      bufferRef.current = createMessageBuffer();
       clearInterval(kinematicsInterval);
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);

@@ -2,13 +2,15 @@
 
 ## Configuración
 
-Generar informe respeta el período, radar, zona, búsqueda y favoritos del historial.
+Generar informe usa un período propio por días completos en America/Santiago (desde/hasta incluidos). Por defecto propone ayer. No hereda fechas, horas, radar, zona, búsqueda por ID, favoritos, mínimos ni categorías ocultas del historial. La categoría y el mínimo de minutos se eligen dentro del diálogo del PDF. Las fechas y opciones del informe, incluidas las zonas críticas, se conservan al cerrar y volver a abrir el diálogo durante la sesión de la página. Para abarcar una noche completa de 21:00 a 07:00, selecciona tanto el día de inicio como el día siguiente. Los cambios de hora de Chile se respetan, incluyendo días de 23 o 25 horas.
+
+Buscar por ID exacto en el historial consulta ese ID en todos los radares y fechas, con mínimo de un punto, ignorando zonas, favoritos, mínimos y visibilidad de categorías. Los filtros anteriores se conservan y vuelven a aplicarse al borrar el ID. El botón Crear informe PDF está disponible incluso sin resultados visibles.
 
 - Franja nocturna predeterminada: 21:00-07:00, America/Santiago.
 - Detecciones de embarcaciones: Lancha. Es posible elegir otra categoría o todas. La selección se aplica antes de solicitar posiciones y a todos los indicadores, mapas y tablas.
 - Orden de recorrido: mayor distancia recorrida; también permite mayor tiempo de seguimiento o más puntos.
 - Incluir mapa de calor: desactivado. Activa la sección de distribución geográfica.
-- Opciones avanzadas desplegadas, con proximidad al perímetro (100 m), hueco máximo para sumar tiempo (120 s) y mínimo de puntos por track (100).
+- Opciones avanzadas plegadas, con proximidad al perímetro (100 m), hueco máximo para sumar tiempo (120 s) y mínimo de puntos por track (100).
 
 El mínimo usa el `point_count` del resumen del período, no la cantidad de posiciones descargadas. Solo restringe la tabla de recorrido; los gráficos y mapas conservan todos los tracks de la categoría seleccionada.
 
@@ -38,6 +40,9 @@ Las posiciones se cargan de hasta 160 tracks repartidos por el período, con un 
 Desde `frontend`:
 
 ```sh
+node script/test-history-page-filters.mjs
+node script/test-history-filters.mjs
+node script/test-history-classification.mjs
 node script/test-report-analytics.mjs
 node script/generate-report-preview.mjs
 npm run build

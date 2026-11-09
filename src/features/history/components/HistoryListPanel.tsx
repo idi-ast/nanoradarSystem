@@ -248,6 +248,7 @@ export function HistoryListPanel({
   onGenerateReport,
   isGeneratingReport = false,
 }: Props) {
+  const searchingById = Boolean(filters.search?.trim());
   const visibility = useBehaviorVisibilityStore(s => s.visibility);
   const categoryQuery = useQuery({ queryKey: ['report-behavior-categories'], queryFn: fetchBehaviorCategories, staleTime: 300000, retry: false, refetchOnWindowFocus: false });
   const categoryOptions = orderedBehaviorKeys([...BEHAVIOR_ORDER, ...(categoryQuery.data ?? []), ...(filters.behaviorClass ? [filters.behaviorClass] : [])]).filter(c => isBehaviorVisible(c, visibility) || c === filters.behaviorClass);
@@ -379,6 +380,7 @@ export function HistoryListPanel({
             Desde
             <input
               type="datetime-local"
+              disabled={searchingById}
               className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none focus:ring-2 focus:ring-brand-100/50"
               value={filters.from ?? ""}
               onChange={(e) => set({ from: e.target.value || undefined })}
@@ -388,6 +390,7 @@ export function HistoryListPanel({
             Hasta
             <input
               type="datetime-local"
+              disabled={searchingById}
               className="bg-bg-100 border border-border-200 rounded-md px-2 py-1.5 text-[11px] text-text-100 focus:outline-none focus:ring-2 focus:ring-brand-100/50"
               value={filters.to ?? ""}
               onChange={(e) => set({ to: e.target.value || undefined })}
@@ -402,13 +405,16 @@ export function HistoryListPanel({
           />
           <input
             type="text"
-            placeholder="Buscar track (ej. T23)"
+            placeholder="Buscar ID exacto (ej. T23)"
+            aria-label="Buscar track por ID exacto"
             className="w-full bg-bg-100 border border-border-200 rounded-md py-1.5 pl-8 pr-2 text-[11px] text-text-100 focus:outline-none focus:ring-2 focus:ring-brand-100/50"
             value={filters.search ?? ""}
-            onChange={(e) => set({ search: e.target.value || undefined })}
+            onChange={(e) => { setTab("tracks"); set({ search: e.target.value || undefined }); }}
           />
         </div>
 
+        {searchingById && <p role="status" className="text-[10px] text-amber-500">Búsqueda por ID en todo el historial. Se omiten fechas, radar, zonas, categoría, mínimos, favoritos y categorías ocultas. Borra el ID para volver a los filtros.</p>}
+        <fieldset disabled={searchingById} className="space-y-2 disabled:opacity-50">
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-0.5 text-[10px] text-text-100/60">
             Radar
@@ -504,7 +510,10 @@ export function HistoryListPanel({
             )}
           </label>
         </div>
+        </fieldset>
       </div>
+
+      {onGenerateReport && <div className="shrink-0 px-3 pt-2"><button type="button" onClick={onGenerateReport} disabled={isGeneratingReport} className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-bg-200 disabled:opacity-50"><IconFileText size={15} />{isGeneratingReport ? "Generando informe..." : "Crear informe PDF"}</button></div>}
 
       {displayedTracks.length > 0 && (
         <div className="shrink-0 px-3 pt-2 pb-1.5 space-y-2">
@@ -560,20 +569,6 @@ export function HistoryListPanel({
                 <IconArrowNarrowUp size={15} />
               )}
             </button>
-            {onGenerateReport && (
-              <button
-                onClick={onGenerateReport}
-                disabled={isGeneratingReport}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  isGeneratingReport
-                    ? "Generando informe..."
-                    : "Generar informe PDF del período"
-                }
-              >
-                <IconFileText size={15} className={isGeneratingReport ? "animate-pulse" : ""} />
-              </button>
-            )}
             <button
               onClick={() => exportCsv(displayedTracks)}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border-200 text-text-100/70 hover:bg-bg-200 transition-colors"

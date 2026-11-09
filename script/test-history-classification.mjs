@@ -40,4 +40,13 @@ assert.notDeepEqual(boat.queryKey, buoy.queryKey);
 assert.notDeepEqual(buoy.queryKey, hooks.useTrackSummaries({ ...filters, minTrackedMinutes: 0 }).queryKey);
 await buoy.queryFn();
 assert.equal(calls.at(-1).params.behavior_class, 'bolla');
+const filterHelpers = load('src/features/history/filters.ts', {});
+await api.fetchTrackSummaries(filterHelpers.resolveHistoryFilters({ ...filters, search: ' T23 ', from: '2026-11-09T15:00', zone: 'modulo' }));
+const lookup = calls.at(-1).params;
+assert.equal(lookup.track_ids, 'T23');
+assert.equal(lookup.min_points, 1);
+for (const field of ['from', 'to', 'tipo_radar', 'search', 'behavior_class', 'min_tracked_minutes', 'zone']) assert.equal(lookup[field], undefined);
+assert.equal(lookup.only_with_zones, false);
+assert.notDeepEqual(hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T23'] }).queryKey,
+  hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T24'] }).queryKey);
 console.log('PASS: history category request, clearing filter, report pagination and independent query cache');
