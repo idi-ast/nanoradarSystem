@@ -47,9 +47,11 @@ export function TrackExplorer({ analysis, zones, spatial, range, selectedKey, on
   const rows = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('es');
     const value = (m: TrackMovement) => sort === 'distance' ? m.distanceM : sort === 'duration' ? m.elapsedSeconds : m.track.point_count;
+    const startHours = new Map(movements.map(m => [m.key,
+      localParts(Math.max(Date.parse(range.from), Date.parse(m.track.first_seen ?? '')), settings.timeZone)?.hour ?? 24]));
     return movements.filter(m => !needle || `${m.track.track_id} ${m.track.tipo_radar} ${m.track.behavior_class ?? ''}`.toLocaleLowerCase('es').includes(needle)).sort((a, b) => {
-      const ah = localParts(Math.max(Date.parse(range.from), Date.parse(a.track.first_seen ?? '')), settings.timeZone)?.hour ?? 24;
-      const bh = localParts(Math.max(Date.parse(range.from), Date.parse(b.track.first_seen ?? '')), settings.timeZone)?.hour ?? 24;
+      const ah = startHours.get(a.key)!;
+      const bh = startHours.get(b.key)!;
       return ah - bh || (value(b) ?? -1) - (value(a) ?? -1) || a.key.localeCompare(b.key);
     });
   }, [movements, search, sort, range.from, settings.timeZone]);
