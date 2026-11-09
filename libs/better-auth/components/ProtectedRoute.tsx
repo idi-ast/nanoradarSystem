@@ -47,6 +47,7 @@ export function PublicOnlyRoute({
   children,
   redirectTo = "/dashboard",
 }: PublicOnlyRouteProps) {
+  const location = useLocation();
   const { isAuthenticated, isLoading } = useBetterSession();
 
   if (isLoading) {
@@ -58,7 +59,10 @@ export function PublicOnlyRoute({
   }
 
   if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    const destination = location.state?.from;
+    const target = typeof destination?.pathname === 'string' && destination.pathname.startsWith('/') && !destination.pathname.startsWith('//')
+      ? `${destination.pathname}${destination.search ?? ''}${destination.hash ?? ''}` : redirectTo;
+    return <Navigate to={target} replace />;
   }
 
   return <>{children}</>;

@@ -14,6 +14,14 @@ Buscar por ID exacto en el historial consulta ese ID en todos los radares y fech
 
 El mínimo usa el `point_count` del resumen del período **y horario solicitados**, no la cantidad de posiciones descargadas. Se aplica a la tabla de recorrido y a los mapas de tracks para que usen la misma selección. Los indicadores y gráficos de actividad conservan todos los tracks de la categoría seleccionada.
 
+## Enlaces de IDs al historial
+
+Las IDs de la tabla, la lista del mapa general, los avisos de tracks sin mapa y los títulos de detalles individuales incluyen hipervínculos al sitio que genera el PDF. El enlace usa el origen del frontend (incluido su puerto) y la ruta `/historial?track=<ID codificada>`; no copia tokens ni otros parámetros de la página actual. Los textos dentro de capturas o esquemas de imagen no son enlaces; sus IDs equivalentes en los títulos y listas sí lo son.
+
+Al abrir el enlace, el historial busca automáticamente la ID exacta y omite los demás filtros, como en una búsqueda manual por ID. También responde a cambios de ID en la URL sin desmontar la página; editar o borrar la búsqueda actualiza ese parámetro. Si es necesario iniciar sesión, se conserva la ruta completa con sus parámetros para volver al track después del login. Se mantienen los controles normales de acceso al sitio.
+
+En generación fuera del navegador se puede proporcionar `historyBaseUrl` explícitamente; sin un origen HTTP/HTTPS válido las IDs quedan como texto normal. La vista previa admite el origen como cuarto argumento de su ejecutable compilado para verificar enlaces con un dominio de prueba.
+
 ## Orden del PDF
 
 1. **02 / Vigilancia nocturna**: página principal con lectura ejecutiva, indicadores y gráfico de tracks distintos observados por hora (azul) junto con los próximos a zonas críticas (ámbar). La actividad sigue visible aunque ninguna posición de la muestra esté a la distancia configurada; proximidad cero no equivale a ausencia de tracks. A continuación, mapas nocturnos con trazados e identificadores, en un único mapa general que contiene todos los tracks con posiciones disponibles. El mapa de trazados siempre aparece y no depende del interruptor de mapa de calor. Conserva todos los puntos del recorrido como geometría de líneas y dibuja únicamente dos marcadores por track: Inicio y Fin (uno combinado si hay una sola posición). Los cortes superiores al hueco máximo se conservan, sin marcadores en cada corte ni puntos intermedios. El mapa general asigna un color a cada track y conserva todos los recorridos en una sola vista, sin dividirlos en grupos de ocho. Los detalles individuales se colocan al final de todo el PDF, después de la tabla, calendario y mapa de calor opcional, en páginas de hasta cuatro paneles, con el mismo color que el mapa general, para distinguir recorridos superpuestos. Cada mapa enumera los IDs que contiene; la tabla indica el número de mapa de cada track. Si faltan posiciones, se indica la cantidad representada frente al total de filas y se identifica cada track sin mapa con su motivo. Las líneas de la captura satelital son continuas dentro de cada segmento observado.
@@ -40,6 +48,7 @@ Las posiciones se cargan de hasta 160 tracks, priorizando los elegibles para la 
 Desde `frontend`:
 
 ```sh
+node script/test-track-link-auth.mjs
 node script/test-history-page-filters.mjs
 node script/test-history-filters.mjs
 node script/test-history-classification.mjs

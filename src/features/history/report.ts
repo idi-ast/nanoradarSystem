@@ -1,5 +1,5 @@
 import { nightMapGroups, reportMapDetails, type ReportMapCapture } from './reportMapData';
-import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
+import type { Content, ContentText, TDocumentDefinitions } from "pdfmake/interfaces";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
@@ -17,6 +17,17 @@ export interface TrackReportOptions {
   settings?: Partial<ReportSettings>; quality?: Partial<AnalysisFetchResult>;
   demonstration?: boolean;
   mapCaptures?: ReportMapCapture[];
+  historyBaseUrl?: string;
+}
+export function trackHistoryUrl(trackId: string, baseUrl?: string): string | undefined {
+  if (!baseUrl) return undefined;
+  try {
+    const base = new URL(baseUrl);
+    if (!['http:', 'https:'].includes(base.protocol)) return undefined;
+    const url = new URL('/historial', base.origin);
+    url.searchParams.set('track', trackId);
+    return url.toString();
+  } catch { return undefined; }
 }
 export function resolveReportRange(filters: TrackSummaryFilters, defaultHours = 12): ReportRange {
   const to = filters.to ? new Date(filters.to) : new Date();
@@ -43,9 +54,9 @@ function title(kicker: string, heading: string, description: string, pageBreak =
   return [{ text: kicker.toUpperCase(), color: C.teal, bold: true, fontSize: 8, characterSpacing: 1, ...(pageBreak ? { pageBreak: 'before' as const } : {}) }, { text: heading, fontSize: 23, bold: true, color: C.ink, margin: [0, 5, 0, 7] }, { text: description, fontSize: 9, color: C.muted, margin: [0, 0, 0, 15] }];
 }
 const heading = (text: string): Content => ({ text, bold: true, fontSize: 12, color: C.ink, margin: [0, 12, 0, 6] });
-const note = (text: string): Content => ({ text, color: C.muted, fontSize: 8, margin: [0, 5, 0, 7], lineHeight: 1.25 });
-function table(headers: string[], rows: (string | number)[][], widths?: (number | string)[], small = false, highlightedRows = new Set<number>()): Content {
-  return { table: { headerRows: 1, widths: widths ?? headers.map(() => '*'), dontBreakRows: true, body: [headers.map(text => ({ text, bold: true, color: '#ffffff', fillColor: C.ink, fontSize: small ? 7 : 8 })), ...(rows.length ? rows : [headers.map((_, i) => i ? '' : 'Sin registros disponibles')]).map((row, i) => row.map(value => ({ text: String(value), ...(highlightedRows.has(i) ? { color: C.red, bold: true } : {}), fillColor: i % 2 ? '#ffffff' : '#f1f5f9', fontSize: small ? 7 : 8 })))] }, layout: { hLineWidth: () => .3, vLineWidth: () => 0, hLineColor: () => '#e2e8f0', paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => small ? 3 : 5, paddingBottom: () => small ? 3 : 5 }, margin: [0, 3, 0, 8] };
+const note = (text: ContentText['text']): Content => ({ text, color: C.muted, fontSize: 8, margin: [0, 5, 0, 7], lineHeight: 1.25 });
+function table(headers: string[], rows: (string | number | ContentText)[][], widths?: (number | string)[], small = false, highlightedRows = new Set<number>()): Content {
+  return { table: { headerRows: 1, widths: widths ?? headers.map(() => '*'), dontBreakRows: true, body: [headers.map(text => ({ text, bold: true, color: '#ffffff', fillColor: C.ink, fontSize: small ? 7 : 8 })), ...(rows.length ? rows : [headers.map((_, i) => i ? '' : 'Sin registros disponibles')]).map((row, i) => row.map(value => ({ ...(typeof value === 'object' ? value : { text: String(value) }), ...(highlightedRows.has(i) ? { color: C.red, bold: true } : {}), fillColor: i % 2 ? '#ffffff' : '#f1f5f9', fontSize: small ? 7 : 8 })))] }, layout: { hLineWidth: () => .3, vLineWidth: () => 0, hLineColor: () => '#e2e8f0', paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => small ? 3 : 5, paddingBottom: () => small ? 3 : 5 }, margin: [0, 3, 0, 8] };
 }
 function cards(items: [string, string][]): Content {
   return { columns: items.map(([value, label]) => ({ width: '*', stack: [{ text: value, bold: true, color: C.blue, fontSize: 24, margin: [0, 0, 0, 5] }, { text: label, color: C.muted, fontSize: 8 }], margin: [0, 0, 8, 8] })), columnGap: 8, margin: [0, 8, 0, 10] };
@@ -72,6 +83,10 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const settings = { ...DEFAULT_REPORT_SETTINGS, ...opts.settings };
   if (!Number.isSafeInteger(settings.minApproachPoints) || settings.minApproachPoints < 1) throw new Error("El mínimo de puntos para rankings debe ser un entero mayor o igual a 1");
   const zones = (opts.zones ?? []).filter(isValidAnalysisZone);
+  const trackLink = (track: TrackSummary): ContentText => {
+    const link = trackHistoryUrl(track.track_id, opts.historyBaseUrl);
+    return { text: track.track_id, ...(link ? { link, decoration: 'underline' as const } : {}) };
+  };
   const minMinutes = Math.max(opts.filters.minTrackedMinutes ?? 0, settings.minTrackedMinutes);
   if (!Number.isFinite(minMinutes) || minMinutes < 0) throw new Error('El mínimo de minutos trackeados debe ser mayor o igual a cero');
   const inWindow = (time: number) => {
@@ -178,13 +193,13 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     content.push(
       ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Mapa general · ${num(group.trackKeys.length)} tracks en este mapa.`, true),
       note(mapCoverageNote),
-      note(`Tracks de este mapa: ${group.trackKeys.map(key => trackMap.get(key)).filter(Boolean).map(t => `${t!.track_id} / ${t!.tipo_radar}`).join(' · ') || 'ninguno con posiciones válidas'}.`),
+      note([{ text: 'Tracks de este mapa: ' }, ...(group.trackKeys.length ? group.trackKeys.flatMap((key, i) => { const t = trackMap.get(key)!; return [{ text: i ? ' · ' : '' }, trackLink(t), { text: ` / ${t.tipo_radar}` }]; }) : [{ text: 'ninguno con posiciones válidas' }]), { text: '.' }]),
       capture ? { image: capture.image, width: 515 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 515 },
       note(capture ? 'Captura del mapa satelital del sistema con los trazados del período analizado. La imagen satelital es una base de referencia, no una fotografía tomada durante las detecciones.' : 'Sin captura satelital disponible: representación esquemática de las posiciones observadas.'),
       note('Cada color corresponde a un track. Los puntos indican solo inicio y fin; la línea conserva el recorrido observado. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
       note(`Polígonos: ${zones.map(z => z.nombre).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
       ...(!group.points.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
-      ...(index === 0 && missingMapTracks.length ? [note(`Tracks de la tabla sin mapa: ${missingMapTracks.map(t => `${t.track_id} / ${t.tipo_radar}: ${mapStatus(t)}`).join(' | ')}`)] : []),
+      ...(index === 0 && missingMapTracks.length ? [note([{ text: 'Tracks de la tabla sin mapa: ' }, ...missingMapTracks.flatMap((t, i) => [{ text: i ? ' | ' : '' }, trackLink(t), { text: ` / ${t.tipo_radar}: ${mapStatus(t)}` }])])] : []),
     );
   });
   const byHour = new Map<number, TrackMovement[]>();
@@ -196,13 +211,13 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     if (!byHour.has(parts.hour)) byHour.set(parts.hour, []);
     byHour.get(parts.hour)!.push(m);
   }
-  const rows: string[][] = [];
+  const rows: (string | ContentText)[][] = [];
   const highlightedRows = new Set<number>();
   const maxAccumulatedSeconds = eligible.reduce((max, m) => Math.max(max, m.trackedSeconds ?? 0), 0);
   const addRows = (label: string, entries: TrackMovement[]) => entries.forEach((m, i) => {
     const index = String(i + 1).padStart(2, '0');
     if (maxAccumulatedSeconds > 0 && m.trackedSeconds === maxAccumulatedSeconds) highlightedRows.add(rows.length);
-    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}\n${mapStatus(m.track)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
+    rows.push([i === 0 ? label : '', { text: [{ text: `${index} - ` }, trackLink(m.track), { text: ` / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}\n${mapStatus(m.track)}` }] }, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
   });
   for (const [h, entries] of [...byHour].sort((a, b) => (a[0] - settings.nightStart + 24) % 24 - (b[0] - settings.nightStart + 24) % 24)) addRows(hour(h), entries);
   addRows('Sin fecha', undated);
@@ -235,7 +250,7 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
         const key = group.trackKeys[0], track = trackMap.get(key)!;
         const capture = opts.mapCaptures?.find(c => c.trackKeys.length === 1 && c.trackKeys[0] === key);
         const panel: Content[] = [
-          { text: `${track.track_id} / ${track.tipo_radar} · Mapa ${mapByTrack.get(key)}`, bold: true, fontSize: 10, margin: [0, 0, 0, 5] },
+          { text: [trackLink(track), { text: ` / ${track.tipo_radar} · Mapa ${mapByTrack.get(key)}` }], bold: true, fontSize: 10, margin: [0, 0, 0, 5] },
           capture ? { image: capture.image, width: 249 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 249 },
           note(`${num(group.points.length)} posiciones analizadas · Inicio y fin marcados. Cortes según el hueco máximo configurado.`),
         ];
@@ -248,7 +263,9 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
 
 export function downloadTrackActivityReport(opts: TrackReportOptions): ReportRange {
   initializeReportFonts();
-  const { docDefinition, range } = buildTrackActivityReport(opts);
+  const { docDefinition, range } = buildTrackActivityReport({ ...opts,
+    historyBaseUrl: opts.historyBaseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined),
+  });
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   pdfMake.createPdf(docDefinition).download(`informe-operativo-${stamp}.pdf`);
   return range;

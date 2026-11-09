@@ -10,7 +10,7 @@ function load(path, mocks = {}) {
   const source = ts.transpileModule(readFileSync(path, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
-  runInNewContext(source, { exports, AbortController, console, require: name => name in mocks ? mocks[name] : require(name) });
+  runInNewContext(source, { exports, AbortController, console, URLSearchParams, require: name => name in mocks ? mocks[name] : require(name) });
   return exports;
 }
 const helpers = load('src/features/history/filters.ts');
@@ -21,14 +21,17 @@ const period = { fromDate: '2026-11-08', toDate: '2026-11-09' };
 const settings = { nightStart: 21, nightEnd: 7, timeZone: 'America/Santiago', category: 'lancha', minTrackedMinutes: 0, maxGapSeconds: 120, minApproachPoints: 100, criticalZones: ['otra'] };
 const states = [historyFilters, period, 1, true, true, false, true, settings, ''];
 let cursor = 0;
+let urlParams = new URLSearchParams('track=T23');
+const effects=[];
 const state = { useState: init => {
   const i = cursor++;
   if (!(i in states)) states[i] = typeof init === 'function' ? init() : init;
   return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }];
-}, useMemo: fn => fn(), useCallback: fn => fn, useEffect: () => {}, useRef: value => ({ current: value }) };
+}, useMemo: fn => fn(), useCallback: fn => fn, useEffect: fn => effects.push(fn), useRef: value => ({ current: value }) };
 const calls = {};
 const page = load('src/features/history/pages/HistoryPage.tsx', {
   react: state,
+  'react-router': { useSearchParams: () => [urlParams, value => {urlParams=value;}] },
   '@/features/devices/config/behaviorCategories': { isBehaviorVisible: () => false },
   '@/features/devices/stores/behaviorVisibilityStore': { useBehaviorVisibilityStore: fn => fn({ visibility: {} }) },
   '../hooks/useTrackSummaries': {
@@ -55,7 +58,7 @@ const page = load('src/features/history/pages/HistoryPage.tsx', {
   '../captureReportMaps': { captureReportMaps: async () => [] },
   '../reportMapData': { reportMapDetails: () => [], nightMapGroups: (...args) => { calls.night = args; return []; } },
 }).default;
-function render() { cursor = 0; return page(); }
+function render() { cursor = 0; effects.length=0; return page(); }
 function find(node, type) {
   if (!node || typeof node !== 'object') return;
   if (node.type === type) return node.props;
@@ -105,3 +108,15 @@ assert.equal(calls.history[3], true);
 assert.equal(calls.favoritesEnabled, true);
 assert.equal(find(tree, 'history-list').page, 1);
 console.log('PASS: HistoryPage ID bypass, favorite and visibility bypass, independent PDF pipeline and restored history filters');
+
+assert.equal(urlParams.has('track'),false,'Clearing the ID also clears the deep-link query');
+urlParams=new URLSearchParams('track=T99');
+render();effects[0]();tree=render();
+assert.equal(calls.history[0].trackIds[0],'T99','A second PDF link updates an already mounted history page');
+assert.equal(find(tree,'history-list').filters.search,'T99');
+states.length=0;
+urlParams=new URLSearchParams('track=T%2B23%2F%26');
+render();
+assert.equal(calls.history[0].trackIds[0],'T+23/&','Initial page load immediately searches the decoded ID');
+assert.equal(calls.history[0].minPoints,1);
+console.log('PASS: initial PDF deep link, navigation to another track and URL synchronization on clearing search');

@@ -12,7 +12,7 @@ function load(file, mocks) {
  const require = createRequire(new URL(`../${file}`, import.meta.url));
  const source = ts.transpileModule(readFileSync(new URL(`../${file}`, import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const exports = {};
- runInNewContext(source,{exports,require: name=>name in mocks ? mocks[name] : require(name),console,setTimeout,clearTimeout});
+ runInNewContext(source,{exports,require: name=>name in mocks ? mocks[name] : require(name),console,setTimeout,clearTimeout,URL,URLSearchParams});
  return exports;
 }
 const types = load('src/features/history/types.ts',{});
@@ -341,9 +341,10 @@ assert.equal(new Set(Object.values(allMapGroups[0].colors)).size,8);
 assert.equal(reportMapData.reportMapDetails(allMapGroups).length,8,'Coincident paths each have an individual detail');
 const eightDoc=report.buildTrackActivityReport({...options,tracks:eightTracks,points:fetchedEight.points,quality:fetchedEight}).docDefinition;
 assert.ok(JSON.stringify(eightDoc.content).includes('8 de 8 tracks de la tabla'));
-const panels=eightDoc.content.flatMap(item=>item.columns??[]).filter(item=>item.stack?.[0]?.text?.startsWith('MAP-'));
+const panelTitle = item => { const value=item.stack?.[0]?.text; return Array.isArray(value)?value.map(part=>part.text).join(''):value; };
+const panels=eightDoc.content.flatMap(item=>item.columns??[]).filter(item=>panelTitle(item)?.startsWith('MAP-'));
 assert.equal(panels.length,8);
-assert.equal(new Set(panels.map(panel=>panel.stack[0].text)).size,8);
+assert.equal(new Set(panels.map(panelTitle)).size,8);
 // Actual missing trajectories remain explicit; no coordinates are invented.
 permanent=true;attempts.clear();
 const partialEight=await coverageFetch.fetchAnalysisPoints(eightTracks,{retryAttempts:1,retryDelayMs:0});
@@ -377,3 +378,21 @@ for (const showHeatmap of [false,true]) {
  assert.ok(headings.slice(firstDetail).every(title=>title==='Detalle individual de tracks'));
 }
 console.log('PASS: exactly one overview map and individual details after every other section');
+
+const idWithSymbols='T23 / + & ñ';
+const deepLink=report.trackHistoryUrl(idWithSymbols,'https://radar.example.invalid:8443/current?token=ignored#section');
+assert.equal(new URL(deepLink).pathname,'/historial');
+assert.equal(new URL(deepLink).searchParams.get('track'),idWithSymbols);
+assert.equal(new URL(deepLink).origin,'https://radar.example.invalid:8443');
+assert.equal(new URL(deepLink).searchParams.has('token'),false);
+for(const invalid of [undefined,'','javascript:alert(1)','not a URL']) assert.equal(report.trackHistoryUrl('T23',invalid),undefined);
+const linkedDoc=report.buildTrackActivityReport({...options,historyBaseUrl:'https://radar.example.invalid'}).docDefinition;
+const collectLinks=value=>{
+ if(!value||typeof value!=='object')return [];
+ return [...(typeof value.link==='string'?[value.link]:[]),...Object.values(value).flatMap(collectLinks)];
+};
+const links=collectLinks(linkedDoc.content);
+assert.equal(links.length,6,'Two eligible tracks must be linked in table, map roster and individual details');
+for (const id of ['REPORT-100','REPORT-200']) assert.equal(links.filter(link=>new URL(link).searchParams.get('track')===id).length,3);
+assert.ok(links.every(link=>new URL(link).pathname==='/historial'&&new URL(link).searchParams.has('track')));
+console.log('PASS: PDF track links use the frontend origin, encode IDs and cover table, map roster and detail titles');

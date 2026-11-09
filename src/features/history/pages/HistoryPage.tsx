@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router";
 import { isBehaviorVisible } from "@/features/devices/config/behaviorCategories";
 import { useBehaviorVisibilityStore } from "@/features/devices/stores/behaviorVisibilityStore";
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
@@ -33,14 +34,21 @@ function getDefaultFromDate(): string {
 }
 
 export default function HistoryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedTrackId = searchParams.get('track')?.trim() || undefined;
   const [filters, setFilters] = useState<TrackSummaryFilters>({
     minPoints: 2,
+    search: linkedTrackId,
     from: getDefaultFromDate(),
   });
   const searchingById = Boolean(filters.search?.trim());
   const effectiveFilters = resolveHistoryFilters(filters);
   const [reportPeriod, setReportPeriod] = useState(defaultReportPeriod);
   const [page, setPage] = useState(1);
+  useEffect(() => {
+    setFilters(current => current.search === linkedTrackId ? current : { ...current, search: linkedTrackId });
+    setPage(1);
+  }, [linkedTrackId]);
   const [onlyWithZones, setOnlyWithZones] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const showingFavorites = onlyFavorites && !searchingById;
@@ -109,7 +117,11 @@ export default function HistoryPage() {
   const handleFiltersChange = useCallback((f: TrackSummaryFilters) => {
     setFilters(f);
     setPage(1);
-  }, []);
+    const next = new URLSearchParams(searchParams);
+    if (f.search?.trim()) next.set('track', f.search.trim());
+    else next.delete('track');
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleOnlyWithZonesChange = useCallback((v: boolean) => {
     setOnlyWithZones(v);
