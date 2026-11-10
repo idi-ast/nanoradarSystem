@@ -1,3 +1,4 @@
+import { PtzTargetStatus } from "./PtzTargetStatus";
 import { memo } from "react";
 import type { RadarTarget } from "../../types";
 import { DEVICE_LABEL } from "../map/devicesConfig";
@@ -76,6 +77,7 @@ export const TargetCard = memo(function TargetCard({
           </span>
         </p>
       </div>
+      <PtzTargetStatus targetId={target.id} />
       {target.underSurveillance && <SurveillanceStatus target={target} />}
       {target.deviceType === "magosradar" && (
         <ClassificationBadge

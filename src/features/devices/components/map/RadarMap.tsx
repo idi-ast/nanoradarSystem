@@ -35,6 +35,7 @@ import { RadarProvider } from "../../context";
 import { useRadarContext } from "../../context/useRadarContext";
 import { RadarZonesLayer } from "./RadarZonesLayer";
 import { RadarZonesPulseLayer } from "./RadarZonesPulseLayer";
+import { PtzTrackingOverlay } from "./PtzTrackingOverlay";
 import { RadarTargetsLayer } from "./RadarTargetsLayer";
 import { DrawingPreviewLayer } from "./DrawingPreviewLayer";
 import { ZoneEditLayer } from "./ZoneEditLayer";
@@ -851,6 +852,7 @@ export const RadarMap = memo(function RadarMap({
           )}
 
         </ReactMapGL>
+        <PtzTrackingOverlay onSelectTarget={setSelectedTargetId} />
 
         {visibleWidthM != null && (
           <div className="absolute bottom-[42px] left-[12px] z-10 pointer-events-none flex flex-col gap-1 items-start">

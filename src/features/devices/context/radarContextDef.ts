@@ -70,6 +70,9 @@ export interface RadarContextValue {
  */
 export interface RadarTargetsContextValue {
   targets: RadarTarget[];
+  trackingSessions: import("../types/ptzTracking").PtzTrackingSession[];
+  trackingUnavailable: boolean;
+  trackingNow: number;
   /** Actividades recientes de cámaras recibidas desde el WebSocket */
   cameraActivities: CamaraActividad[];
 }

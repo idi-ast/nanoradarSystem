@@ -1,3 +1,5 @@
+import { isPtzPositionRetained } from "../../utils/ptzTracking";
+import { IconCamera } from "@tabler/icons-react";
 import { isBehaviorVisible, targetBehaviorKey, behaviorModelCategory } from "../../config/behaviorCategories";
 import { useBehaviorVisibilityStore } from "../../stores/behaviorVisibilityStore";
 import { useEffect, useMemo, useState } from "react";
@@ -55,7 +57,7 @@ export function RadarTargetsLayer({
     () =>
       deviceFilter === "all"
         ? allTargets
-        : allTargets.filter((t) => t.deviceType === deviceFilter),
+        : allTargets.filter((t) => t.deviceType === deviceFilter || t.ptzTracking?.length),
     [allTargets, deviceFilter],
   );
 
@@ -74,6 +76,7 @@ export function RadarTargetsLayer({
       return rawVertices;
     });
     return targets.filter((t) => {
+      if (t.ptzTracking?.length) return true;
       const lastPoint = t.history[t.history.length - 1];
       if (!lastPoint) return false;
       return !zoneVerticesList.some((vertices) =>
@@ -83,7 +86,7 @@ export function RadarTargetsLayer({
   }, [targets, alert6Zones]);
 
   const visibility = useBehaviorVisibilityStore(s => s.visibility);
-  const categoryFilteredTargets = useMemo(() => zoneFilteredTargets.filter(t => isBehaviorVisible(targetBehaviorKey(t), visibility)), [zoneFilteredTargets, visibility]);
+  const categoryFilteredTargets = useMemo(() => zoneFilteredTargets.filter(t => t.ptzTracking?.length || isBehaviorVisible(targetBehaviorKey(t), visibility)), [zoneFilteredTargets, visibility]);
 
   const { targetColors, timing } = instanceConfig;
   const id = instanceConfig.id;
@@ -117,12 +120,12 @@ export function RadarTargetsLayer({
     return categoryFilteredTargets
       .map((t) => ({
         ...t,
-        history: t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
+        history: t.ptzTracking?.length ? t.history : t.history.filter((p) => p[2] >= tStart && p[2] <= tEnd),
       }))
       .filter((t) => t.history.length > 0);
   }, [categoryFilteredTargets, historyRange, timeBounds]);
 
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(Date.now);
   const selected =
     categoryFilteredTargets.find((t) => t.id === selectedTargetId) ?? null;
 
@@ -297,7 +300,9 @@ export function RadarTargetsLayer({
           const lastPoint = t.history[t.history.length - 1];
           const lat = lastPoint[0];
           const lon = lastPoint[1];
-          const moving = isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS);
+          const retained = isPtzPositionRetained(t, now);
+          const moving = !retained && isTargetMoving(t, now, timing.TRACKING_ACTIVE_MS);
+          const hiddenCategory = !isBehaviorVisible(targetBehaviorKey(t), visibility);
           const catId = behaviorModelCategory(t.behaviorClass, t.behaviorConfidence ?? 0);
           const behaviorCat = resolveBehaviorCategory(
             t.behaviorClass,
@@ -306,7 +311,7 @@ export function RadarTargetsLayer({
           // La representación sigue la clasificación, nunca el icono de una zona.
           const Icon = behaviorCat?.icon ?? IconTargetNeutral;
           const isSelected = selectedTargetId === t.id;
-          const dimmed = selectedTargetId !== null && !isSelected;
+          const dimmed = selectedTargetId !== null && !isSelected && !t.ptzTracking?.length;
 
           // Las clases sin un modelo apropiado conservan su icono 2D.
           const show3D = use3DBoat && catId !== null;
@@ -425,6 +430,15 @@ export function RadarTargetsLayer({
                   );
                 })()
               )}
+              {Boolean(t.ptzTracking?.length) && <>
+                <span aria-hidden="true" className={`pointer-events-none absolute -inset-2 rounded-full border-2 ${retained ? 'border-dashed border-amber-400' : 'border-cyan-300'}`} />
+                <div className="absolute bottom-full left-1/2 mb-3 -translate-x-1/2 whitespace-nowrap rounded-md border border-cyan-400/40 bg-slate-950/95 px-2 py-1 text-[11px] text-cyan-100 shadow-lg">
+                  <span className="flex items-center gap-1 font-semibold"><IconCamera size={13} />PTZ {t.ptzTracking?.map(s => `#${s.ptzId}`).join(', ')} · {t.id.replace('magosradar_', '')}</span>
+                  <span className={retained ? 'text-amber-300' : 'text-cyan-200'}>{retained ? `Última posición conocida · sin señal hace ${Math.max(1, Math.floor((now - t.lastUpdate) / 1000))} s` : 'Detección reciente'}</span>
+                  {hiddenCategory && <span className="block text-slate-300">Categoría oculta · visible por PTZ</span>}
+                  {deviceFilter !== 'all' && deviceFilter !== t.deviceType && <span className="block text-slate-300">Visible por seguimiento PTZ</span>}
+                </div>
+              </>}
               {t.underSurveillance && <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-amber-300">{moving ? 'Bajo vigilancia' : 'Vigilancia · Sin señal'}</span>}
             </Marker>
           );

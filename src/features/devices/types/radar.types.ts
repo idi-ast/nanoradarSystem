@@ -10,6 +10,7 @@ export interface RadarConfig {
 export type DeviceFilter = "all" | "nanoRadar" | "spotter" | "magosradar";
 
 export interface RadarTarget {
+  ptzTracking?: import("./ptzTracking").PtzTargetSelection[];
   /** Saved for operator surveillance; does not imply a current detection. */
   underSurveillance?: boolean;
   id: string;
