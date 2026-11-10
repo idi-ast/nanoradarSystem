@@ -10,6 +10,8 @@ export interface RadarConfig {
 export type DeviceFilter = "all" | "nanoRadar" | "spotter" | "magosradar";
 
 export interface RadarTarget {
+  /** Saved for operator surveillance; does not imply a current detection. */
+  underSurveillance?: boolean;
   id: string;
   lat: number;
   lon: number;

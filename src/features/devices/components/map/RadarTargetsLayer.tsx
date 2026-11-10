@@ -336,7 +336,7 @@ export function RadarTargetsLayer({
                     dimmed={dimmed}
                     size={64}
                   />
-                  {t.nivel === 4 && (
+                  {t.nivel === 4 && moving && (
                     <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping pointer-events-none" />
                   )}
                 </div>
@@ -418,13 +418,14 @@ export function RadarTargetsLayer({
                           />
                         </span>
                       )}
-                      {t.nivel === 4 && (
+                      {t.nivel === 4 && moving && (
                         <span className="absolute inset-0 rounded-full border-2 border-sky-400/60 animate-ping" />
                       )}
                     </div>
                   );
                 })()
               )}
+              {t.underSurveillance && <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-amber-300">{moving ? 'Bajo vigilancia' : 'Vigilancia · Sin señal'}</span>}
             </Marker>
           );
         })}

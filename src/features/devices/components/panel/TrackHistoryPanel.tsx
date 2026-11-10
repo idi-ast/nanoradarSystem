@@ -24,6 +24,7 @@ import {
 } from "./ClassificationBadge";
 import { fetchTrackBehavior, type TrackBehavior } from "../../services";
 import { formatSpeed } from "@/utils/units";
+import { TrackSurveillanceButton } from "./TrackSurveillance";
 import { toast } from "sonner";
 
 interface Props {
@@ -325,9 +326,11 @@ export const TrackHistoryPanel = memo(function TrackHistoryPanel({
           )}
         </div>
 
+        {target.deviceType === "magosradar" && <TrackSurveillanceButton target={target} />}
+
         {target.speed != null && (
           <p className="text-[10px] text-text-200">
-            Velocidad actual:{" "}
+            Última velocidad registrada:{" "}
             <span className="text-sky-300 font-bold">{formatSpeed(target.speed)}</span>
           </p>
         )}

@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { useSurveillanceTargets } from "../hooks/useSurveillanceTargets";
 import { useRadarWebSocket } from "../hooks/useRadarWebSocket";
 import { useRadarData } from "../hooks/useRadarData";
 import { useZoneDrawing } from "../hooks/useZoneDrawing";
@@ -17,7 +18,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
   const { data: devicesData } = useConfigDevices();
   const magosradarTrackColor = devicesData?.data?.magosradares?.[0]?.trackColor ?? "#f43f5e";
-  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor);
+  const { targets: liveTargets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor);
+  const targets = useSurveillanceTargets(liveTargets, resolved.id);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -134,8 +136,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const [stableTargets, setStableTargets] = useState(() => targets);
   useEffect(() => {
     const prev = prevIdsRef.current;
-    if (targets.length !== prev.size || !targets.every((t) => prev.has(`${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`))) {
-      prevIdsRef.current = new Set(targets.map((t) => `${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`));
+    if (targets.length !== prev.size || !targets.every((t) => prev.has(`${t.id}:${Boolean(t.underSurveillance)}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`))) {
+      prevIdsRef.current = new Set(targets.map((t) => `${t.id}:${Boolean(t.underSurveillance)}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`));
       setStableTargets(targets);
     }
   }, [targets]);

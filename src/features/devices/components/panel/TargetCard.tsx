@@ -1,6 +1,7 @@
 import { memo } from "react";
 import type { RadarTarget } from "../../types";
 import { DEVICE_LABEL } from "../map/devicesConfig";
+import { SurveillanceStatus } from "./TrackSurveillance";
 import { ClassificationBadge } from "./ClassificationBadge";
 
 interface Props {
@@ -75,6 +76,7 @@ export const TargetCard = memo(function TargetCard({
           </span>
         </p>
       </div>
+      {target.underSurveillance && <SurveillanceStatus target={target} />}
       {target.deviceType === "magosradar" && (
         <ClassificationBadge
           trackId={rawId}
