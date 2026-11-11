@@ -92,7 +92,8 @@ interface TargetVisualState {
   trackDurationSec: number;
   /**
    * Tiempo en segundos antes de que un ícono inactivo se elimine del mapa.
-   * 0 = valor por defecto del sistema (70 s).
+   * Se respeta como mínimo la ventana de detección activa del radar.
+   * 0 = valor por defecto del sistema según la instancia.
    */
   inactiveIconTimeoutSec: number;
   /** Habilitar zoom automático del mapa al detectar actividad */

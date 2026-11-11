@@ -108,6 +108,11 @@ function processDeviceMessages(
   });
 }
 
+function validMagosPosition(p: MagosRadarTrack["positions"][number]): boolean {
+  return Number.isFinite(p.lat) && Math.abs(p.lat) <= 90 &&
+    Number.isFinite(p.lon) && Math.abs(p.lon) <= 180 && Number.isFinite(p.ts);
+}
+
 /**
  * Procesa tracks de magosRadar en el nuevo formato agrupado.
  *
@@ -131,18 +136,32 @@ function processMagosradarMessages(
   trackColor: string,
   trackKinematics: Map<string, TrackKinematicState>,
 ) {
+  // Retire aliases across the whole flush, including an old-ID frame buffered
+  // just before the canonical update. Do not wait for the inactivity timeout.
+  const retired = new Set<string>();
+  for (const track of tracks) {
+    if (!track.positions?.some(validMagosPosition)) continue;
+    const id = `magosradar_${track.trackId}`;
+    for (const alias of track.mergedTrackIds ?? []) {
+      if (String(alias) === String(track.trackId)) continue;
+      retired.add(String(alias));
+      const previous = next.get(`magosradar_${alias}`);
+      if (!next.has(id) && previous) next.set(id, { ...previous, id });
+    }
+  }
+  for (const alias of retired) {
+    next.delete(`magosradar_${alias}`);
+    trackKinematics.delete(alias);
+  }
   for (const track of tracks) {
     const { trackId, positions } = track;
-    if (!positions || positions.length === 0) continue;
+    if (!positions || positions.length === 0 || retired.has(String(trackId))) continue;
 
     const targetId = `magosradar_${trackId}`;
     const trackIdStr = String(trackId);
 
     // Ordenar posiciones por timestamp ascendente para el trazo correcto
-    const sorted = positions.filter(p =>
-      Number.isFinite(p.lat) && Math.abs(p.lat) <= 90 &&
-      Number.isFinite(p.lon) && Math.abs(p.lon) <= 180 && Number.isFinite(p.ts),
-    ).sort((a, b) => a.ts - b.ts);
+    const sorted = positions.filter(validMagosPosition).sort((a, b) => a.ts - b.ts);
     if (sorted.length === 0) continue;
 
     // ── Obtener o inicializar estado cinemático del track ──
@@ -264,6 +283,7 @@ function processMagosradarMessages(
 
     next.set(targetId, {
       id: targetId,
+      mergedTrackIds: track.mergedTrackIds ?? existing?.mergedTrackIds,
       lat: mainLat,
       lon: mainLon,
       nivel: maxNivel,
@@ -308,9 +328,12 @@ export function useRadarWebSocket(
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
 
   const inactiveIconTimeoutSec = useTargetVisualStore((s) => s.inactiveIconTimeoutSec);
-  const effectiveTargetTimeoutMs = inactiveIconTimeoutSec > 0
+  const requestedTargetTimeoutMs = inactiveIconTimeoutSec > 0
     ? inactiveIconTimeoutSec * 1000
     : timing.TARGET_TIMEOUT_MS;
+  // Never remove a detection that the map still considers active. Older
+  // browsers can have the previous 5s default saved in their preferences.
+  const effectiveTargetTimeoutMs = Math.max(timing.TRACKING_ACTIVE_MS, requestedTargetTimeoutMs);
 
   const bufferRef = useRef(createMessageBuffer());
 

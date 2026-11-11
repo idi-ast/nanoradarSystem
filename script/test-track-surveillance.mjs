@@ -94,3 +94,22 @@ store.getState().observe(scope, [make(boat.id, boat.lastUpdate + 2000)]);
 assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope).length, 1, 'A new allowed observation restores watched target visibility');
 store.setState({ entries: {} });
 console.log('PASS: exclusion overrides saved surveillance and persists until a new allowed observation');
+
+// Backend identity fusion transfers surveillance and cannot resurrect old IDs.
+store.setState({ entries: {} });
+const alias = make('magosradar_T500', Date.now());
+const canonical = { ...make('magosradar_T1', alias.lastUpdate + 100), mergedTrackIds: ['T500'] };
+store.getState().watch(scope, alias);
+let fused = mod.mergeSurveillanceTargets([canonical], store.getState().entries, scope);
+assert.equal(fused.length, 1);
+assert.equal(fused[0].id, canonical.id);
+assert.equal(fused[0].underSurveillance, true);
+store.getState().observe(scope, [canonical]);
+fused = mod.mergeSurveillanceTargets([], store.getState().entries, scope);
+assert.equal(fused.length, 1);
+assert.equal(fused[0].id, canonical.id);
+assert.equal(fused[0].lastUpdate, canonical.lastUpdate);
+assert.equal(store.getState().entries[JSON.stringify([scope, alias.id])], undefined);
+store.persist.rehydrate();
+assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope)[0].id, canonical.id);
+console.log('PASS: fusion transfers surveillance to canonical ID, with bounded history, real timestamps and reload continuity');

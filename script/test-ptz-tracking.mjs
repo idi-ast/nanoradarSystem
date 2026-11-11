@@ -28,6 +28,13 @@ assert.equal(utils.isPtzPositionRetained(result[0], now), false);
 const live = { ...result[0], ptzTracking: undefined, history: [[-41, -73, now-1000], [-41.01, -73, now]] };
 assert.equal(utils.mergePtzTargets([live], snapshot, now).length, 1, 'A selected live target cannot duplicate');
 assert.equal(utils.mergePtzTargets([live], snapshot, now)[0].history.length, 2);
+// A status poll can still reference the retired ID until the PTZ switches.
+const canonical = { ...live, id: 'magosradar_T1', mergedTrackIds: ['T23'] };
+const fused = utils.mergePtzTargets([canonical], snapshot, now);
+assert.equal(fused.length, 1, 'Old PTZ status must not resurrect an absorbed radar track');
+assert.equal(fused[0].id, 'magosradar_T1');
+assert.equal(fused[0].ptzTracking[0].ptzId, 8);
+assert.equal(fused[0].history.length, 2);
 const waiting = { ...session, tracking_state: 'waiting', target: { ...target, observed_at: 994, age_seconds: 6, signal_state: 'retained' } };
 const oldSnapshot = { ...snapshot, sessions: [waiting] };
 result = utils.mergePtzTargets([], oldSnapshot, now);

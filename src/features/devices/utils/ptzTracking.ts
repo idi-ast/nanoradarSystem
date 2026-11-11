@@ -7,13 +7,16 @@ export const PTZ_STATUS_MAX_AGE_MS = 4000;
 export function mergePtzTargets(targets: RadarTarget[], snapshot: PtzTrackingSnapshot | undefined, now: number): RadarTarget[] {
   if (!snapshot || now - snapshot.receivedAt > PTZ_STATUS_MAX_AGE_MS) return targets;
   const merged = new Map(targets.map(target => [target.id, target]));
+  const aliases = new Map<string, string>(targets.flatMap(target =>
+    (target.mergedTrackIds ?? []).map(id => [`magosradar_${id}`, target.id] as const)));
   for (const session of snapshot.sessions) {
     const target = session.target;
     if (!target || !['following', 'waiting'].includes(session.tracking_state)
       || !Number.isFinite(target.lat) || Math.abs(target.lat) > 90
       || !Number.isFinite(target.lon) || Math.abs(target.lon) > 180
       || !Number.isFinite(target.observed_at)) continue;
-    const id = `magosradar_${target.track_id}`;
+    const rawId = `magosradar_${target.track_id}`;
+    const id = aliases.get(rawId) ?? rawId;
     // Convert server observation time to the browser clock. Polling isn't a new detection.
     const lastUpdate = snapshot.receivedAt - Math.max(0, snapshot.server_time - target.observed_at) * 1000;
     const existing = merged.get(id);

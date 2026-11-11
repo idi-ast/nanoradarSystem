@@ -23,6 +23,7 @@ import {
 import { DEFAULT_CATEGORY_MODELS } from "../../../stores/targetVisualStore";
 import { DEFAULT_ICON_STYLE_2D } from "../../../stores/targetVisualStore";
 import { useRole } from "@/context/role";
+import { useRadarContext } from "../../../context/useRadarContext";
 
 /** Opciones de modelo GLB disponibles por categoría */
 const CATEGORY_MODEL_OPTIONS: Record<
@@ -243,6 +244,7 @@ function Preview2D({
 }
 
 function TargetVisualPanel() {
+  const { instanceConfig: { timing } } = useRadarContext();
   const {
     defaultCategoriaDeteccion,
     setDefaultCategoria,
@@ -459,7 +461,11 @@ function TargetVisualPanel() {
               max={300}
               step={5}
               value={inactiveIconTimeoutSec}
-              format={(v) => (v === 0 ? "sistema (70s)" : `${v}s`)}
+              format={(v) => v === 0
+                ? `sistema (${Math.max(timing.TRACKING_ACTIVE_MS, timing.TARGET_TIMEOUT_MS) / 1000}s)`
+                : v * 1000 < timing.TRACKING_ACTIVE_MS
+                  ? `${timing.TRACKING_ACTIVE_MS / 1000}s (mínimo)`
+                  : `${v}s`}
               onChange={setInactiveIconTimeoutSec}
             />
           </Section>

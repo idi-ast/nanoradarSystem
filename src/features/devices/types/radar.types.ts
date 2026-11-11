@@ -10,6 +10,8 @@ export interface RadarConfig {
 export type DeviceFilter = "all" | "nanoRadar" | "spotter" | "magosradar";
 
 export interface RadarTarget {
+  /** Raw Magos IDs absorbed by this canonical track (not separate objects). */
+  mergedTrackIds?: string[];
   ptzTracking?: import("./ptzTracking").PtzTargetSelection[];
   /** Saved for operator surveillance; does not imply a current detection. */
   underSurveillance?: boolean;
@@ -169,7 +171,8 @@ export interface MagosRadarPosition {
 
 /** Track agrupado de MagosRadar con su historial de posiciones (nuevo formato del WebSocket) */
 export interface MagosRadarTrack {
-  trackId: number;
+  trackId: string | number;
+  mergedTrackIds?: string[];
   /** Color estable asignado por el backend al track */
   trackColor?: string;
   /** Clasificación de comportamiento (bolla/persona/lancha/...) */

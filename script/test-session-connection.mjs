@@ -30,7 +30,7 @@ class Socket {
 const window={addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name),dispatchEvent:event=>listeners.get(event.type)?.()};
 const {appendBoundedHistory}=load('src/features/devices/utils/boundedHistory.ts');
 const module=load('src/features/devices/hooks/useRadarWebSocket.ts',{
- react,'../stores/radarConnectionStore':connections,'../config':{TARGET_TIMING:{HISTORY_MAX_POINTS:10,TARGET_TIMEOUT_MS:600000}},
+ react,'../stores/radarConnectionStore':connections,'../config':{TARGET_TIMING:{HISTORY_MAX_POINTS:10,TARGET_TIMEOUT_MS:600000,TRACKING_ACTIVE_MS:10000}},
  '../stores/targetVisualStore':{useTargetVisualStore:select=>select({inactiveIconTimeoutSec:0})},sonner:{toast:{}},'../utils/boundedHistory':{appendBoundedHistory},
 },{localStorage,WebSocket:Socket,Date:Clock,window,setInterval(fn,delay){const id=++next;intervals.set(id,{fn,delay});return id;},clearInterval:id=>intervals.delete(id),setTimeout(fn,delay){const id=++next;timers.set(id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id)});
 module.useRadarWebSocket('ws://example.invalid/wsRadar?existing=yes');

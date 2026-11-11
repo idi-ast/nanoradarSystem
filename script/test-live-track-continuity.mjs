@@ -30,7 +30,7 @@ class Socket {
 }
 const { appendBoundedHistory } = load('src/features/devices/utils/boundedHistory.ts');
 const { useRadarWebSocket } = load('src/features/devices/hooks/useRadarWebSocket.ts', {
-  react, '../config': { TARGET_TIMING: { HISTORY_MAX_POINTS: 100, TARGET_TIMEOUT_MS: 600000 } },
+  react, '../config': { TARGET_TIMING: { HISTORY_MAX_POINTS: 100, TARGET_TIMEOUT_MS: 600000, TRACKING_ACTIVE_MS: 10000 } },
   '../stores/targetVisualStore': { useTargetVisualStore: fn => fn({ inactiveIconTimeoutSec: 5 }) },
   '../stores/radarConnectionStore': { useRadarConnectionStore: { getState: () => ({ setStatus() {}, remove() {} }) } },
   '../utils/boundedHistory': { appendBoundedHistory }, sonner: { toast: {} },
@@ -55,6 +55,18 @@ tick(200);
 assert.ok(boat(), 'An empty/other-radar frame must not discard a pending active boat');
 assert.ok(states[0].has('magosradar_T99'));
 assert.ok(states[0].has('nanoRadar_a'));
+// A live track must survive gaps longer than the stored 5s icon preference.
+const initialHistoryLength = boat().history.length;
+for (let i = 0; i < 4; i++) {
+  time += 6000;
+  // Run cleanup at the problematic age, before the next radar sweep arrives.
+  [...intervals.values()].filter(interval => interval.delay !== 200).forEach(interval => interval.fn());
+  assert.ok(boat(), 'A detection still within the 10s active window must not disappear');
+  time += 1000;
+  sendBoat();
+  tick(200);
+}
+assert.equal(boat().history.length, initialHistoryLength + 4, 'Gaps must preserve the original trail');
 // Repeated updates to the same ID must retain every position within a flush.
 time += 100;
 sendBoat();
@@ -65,7 +77,7 @@ send({ spotter: [{ id: 's1', lat: -41, lon: -73 }] });
 send({ spotter: [{ id: 's2', lat: -41, lon: -73 }] });
 send({ spotter: [] });
 tick(200);
-assert.equal(boat().history.length, 3);
+assert.equal(boat().history.length, initialHistoryLength + 6);
 assert.ok(states[0].has('spotter_s1'));
 assert.ok(states[0].has('spotter_s2'));
 for (let i = 0; i < 180; i++) {
@@ -73,7 +85,7 @@ for (let i = 0; i < 180; i++) {
   sendBoat();
   send({ magosRadar: [{ trackId: 'T99', positions: [position()] }] });
   tick(200);
-  tick(5000);
+  tick(10000);
   assert.ok(boat(), `Active boat disappeared at ${i * 2} seconds`);
   assert.equal(boat().lastUpdate, time);
 }
@@ -103,9 +115,29 @@ sendBoat();
 tick(200);
 assert.ok(boat(), 'Leaving exclusion can reuse the radar track ID');
 assert.equal(boat().history.length, 1, 'Reentry must start from a clean visible position');
-time += 5001;
-tick(5000);
+// Two markers already exist; an alias update is also queued in this flush.
+time += 100;
+send({ magosRadar: [{ trackId: 'T24', positions: [position()] }] });
+tick(200);
+const canonicalHistoryLength = boat().history.length;
+assert.ok(states[0].has('magosradar_T24'));
+time += 100;
+send({ magosRadar: [{ trackId: 'T24', positions: [position()] }] });
+send({ magosRadar: [{ trackId: 'T23', mergedTrackIds: ['T24'], positions: [position()] }] });
+tick(200);
+assert.equal(states[0].has('magosradar_T24'), false, 'Fusion must retire the cached and buffered alias immediately');
+assert.ok(boat());
+assert.equal(boat().history.length, canonicalHistoryLength + 1, 'Keep the dominant trail');
+assert.deepEqual(Array.from(boat().mergedTrackIds), ['T24']);
+// A weak late alias in the same batch cannot overwrite canonical retirement.
+time += 100;
+send({ magosRadar: [{ trackId: 'T23', mergedTrackIds: ['T24'], positions: [position()] }] });
+send({ magosRadar: [{ trackId: 'T24', positions: [position()] }] });
+tick(200);
+assert.equal(states[0].has('magosradar_T24'), false);
+time += 10001;
+tick(10000);
 assert.equal(boat(), undefined);
 cleanup();
 assert.equal(intervals.size, 0);
-console.log('PASS: interleaved sweeps, empty broadcasts, six-minute active track continuity, bounded history, invalid coordinates and real inactivity');
+console.log('PASS: interleaved sweeps, empty broadcasts, 7s sweep gaps with the saved 5s preference, six-minute active track continuity, duplicate retirement, bounded history, invalid coordinates and real inactivity');

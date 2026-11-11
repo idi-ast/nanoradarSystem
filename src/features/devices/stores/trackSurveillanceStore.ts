@@ -49,7 +49,17 @@ export const useTrackSurveillanceStore = create<State>()(persist((set, get) => (
   observe: (scope, targets, force = false) => {
     let entries: State['entries'] | undefined;
     for (const target of targets) {
-      const id = key(scope, target.id), previous = get().entries[id];
+      if (!valid(target)) continue;
+      const id = key(scope, target.id);
+      const aliases = (target.mergedTrackIds ?? []).map(alias => key(scope, `magosradar_${alias}`))
+        .filter(alias => alias !== id && (entries ?? get().entries)[alias]);
+      if (aliases.length) {
+        entries ??= { ...get().entries };
+        const watched = Boolean(entries[id]) || aliases.some(alias => !entries![alias].excluded);
+        for (const alias of aliases) delete entries[alias];
+        if (watched) entries[id] = { scope, target: snapshot(target) };
+      }
+      const previous = (entries ?? get().entries)[id];
       if (!previous || (force && previous.excluded) || !valid(target) || target.lastUpdate <= previous.target.lastUpdate ||
           (!force && !previous.excluded && target.lastUpdate - previous.target.lastUpdate < 5000)) continue;
       entries ??= { ...get().entries };
@@ -72,8 +82,9 @@ export function mergeSurveillanceTargets(live: RadarTarget[], entries: State['en
   const saved = Object.values(entries).filter(entry => entry.scope === scope && !entry.excluded);
   if (!saved.length) return live;
   const watched = new Map(saved.map(entry => [entry.target.id, entry.target]));
-  const merged = live.map(target => watched.has(target.id) ? { ...target, underSurveillance: true } : target);
-  const liveIds = new Set(live.map(target => target.id));
+  const merged = live.map(target => watched.has(target.id) || target.mergedTrackIds?.some(id => watched.has(`magosradar_${id}`))
+    ? { ...target, underSurveillance: true } : target);
+  const liveIds = new Set(live.flatMap(target => [target.id, ...(target.mergedTrackIds ?? []).map(id => `magosradar_${id}`)]));
   for (const [id, target] of watched) if (!liveIds.has(id)) merged.push(target);
   return merged;
 }
