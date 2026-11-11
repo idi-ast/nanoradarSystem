@@ -69,11 +69,11 @@ assert.ok(!html.includes('Regresando al inicio'));
 console.log('PASS: PTZ target retention, timestamps, clock skew, duplicate cameras, stale status, release and camera state rendering');
 
 // Render the real map layer with hidden categories, another device filter and a
-// historical range that excludes the selected PTZ target. It must stay visible.
+// historical range that excludes the selected PTZ target. Exclusion remains mandatory.
 let mapTargets = utils.mergePtzTargets([], oldSnapshot, now);
 const mapState = {
   instanceConfig: { id:'test', timing:{ TRACKING_ACTIVE_MS:10000, COLOR_REFRESH_MS:200, TRAIL_FADE_POINTS:120 }, targetColors:{ moving:'#00ffff' } },
-  zones: [{ idTipoAlerta:6, poligono:{ vertices:[] } }],
+  zones: [],
 };
 const icon = () => createElement('span', null, 'objeto');
 const visual = { use3DBoat:false, categoryModels:{}, trackStrokeWidth:2, trackDurationSec:120,
@@ -101,10 +101,17 @@ assert.ok(html.includes('Última posición conocida'));
 assert.ok(html.includes('border-dashed'));
 assert.ok(html.includes('Categoría oculta'));
 assert.ok(html.includes('Visible por seguimiento PTZ'));
+mapState.zones = [{ idTipoAlerta:6, poligono:{vertices:[]} }];
+html = renderToStaticMarkup(createElement(RadarTargetsLayer, layerProps));
+assert.ok(!html.includes('data-marker'), 'Exclusion must hide even a selected PTZ target');
+mapState.zones = [{ idTipoAlerta:1, poligono:{vertices:[]} }];
+html = renderToStaticMarkup(createElement(RadarTargetsLayer, layerProps));
+assert.ok(!html.includes('data-marker'), 'No-detection zones must also hide selected PTZ targets');
+mapState.zones = [];
 mapTargets = [live];
 html = renderToStaticMarkup(createElement(RadarTargetsLayer, layerProps));
 assert.ok(!html.includes('data-marker'), 'Ordinary hidden targets keep their presentation filters');
-console.log('PASS: selected PTZ marker bypasses category, device, ignore-zone and timeline presentation filters; ordinary targets do not');
+console.log('PASS: selected PTZ marker bypasses category, device and timeline presentation filters; exclusion always wins');
 
 let currentUserId = 1, queryOptions, queryResult = { data: snapshot, isError: false }, hookNow = now;
 let requestedSignal;

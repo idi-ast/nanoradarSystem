@@ -39,7 +39,8 @@ const { useRadarWebSocket } = load('src/features/devices/hooks/useRadarWebSocket
   setInterval(fn, delay) { const id = ++intervalId; intervals.set(id, { fn, delay }); return id; },
   clearInterval: id => intervals.delete(id), setTimeout() {}, clearTimeout() {},
 });
-useRadarWebSocket('ws://example.invalid');
+const exclusions = [];
+useRadarWebSocket('ws://example.invalid', undefined, undefined, ids => exclusions.push(...ids));
 const cleanup = effects[0]();
 const socket = Socket.all[0];
 const send = payload => socket.onmessage({ data: JSON.stringify(payload) });
@@ -89,6 +90,19 @@ sendBoat();
 tick(200);
 assert.ok(Number.isFinite(boat().lat), 'The next valid detection must retain valid kinematics');
 assert.equal(boat().lastUpdate, time);
+// Entering exclusion removes both rendered and buffered observations immediately.
+time += 100;
+sendBoat();
+send({ magosRadar: [], magosRadarExcluded:['T23'] });
+assert.equal(boat(), undefined);
+assert.ok(exclusions.includes('magosradar_T23'));
+tick(200);
+assert.equal(boat(), undefined, 'A buffered pre-exclusion point must not resurrect the target');
+time += 100;
+sendBoat();
+tick(200);
+assert.ok(boat(), 'Leaving exclusion can reuse the radar track ID');
+assert.equal(boat().history.length, 1, 'Reentry must start from a clean visible position');
 time += 5001;
 tick(5000);
 assert.equal(boat(), undefined);

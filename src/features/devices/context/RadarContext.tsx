@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { usePtzTracking } from "../hooks/usePtzTracking";
 import { mergePtzTargets } from "../utils/ptzTracking";
+import { useSurveillanceScope, useTrackSurveillanceStore } from "../stores/trackSurveillanceStore";
 import { useSurveillanceTargets } from "../hooks/useSurveillanceTargets";
 import { useRadarWebSocket } from "../hooks/useRadarWebSocket";
 import { useRadarData } from "../hooks/useRadarData";
@@ -20,7 +21,11 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
   const { data: devicesData } = useConfigDevices();
   const magosradarTrackColor = devicesData?.data?.magosradares?.[0]?.trackColor ?? "#f43f5e";
-  const { targets: liveTargets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor);
+  const surveillanceScope = useSurveillanceScope(resolved.id);
+  const excludeTracks = useCallback((ids: string[]) => {
+    useTrackSurveillanceStore.getState().exclude(surveillanceScope, ids);
+  }, [surveillanceScope]);
+  const { targets: liveTargets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor, excludeTracks);
   const watchedTargets = useSurveillanceTargets(liveTargets, resolved.id);
   const { snapshot, unavailable: trackingUnavailable, now } = usePtzTracking();
   const targets = useMemo(() => mergePtzTargets(watchedTargets, snapshot, now), [watchedTargets, snapshot, now]);

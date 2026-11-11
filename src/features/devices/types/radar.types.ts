@@ -220,6 +220,8 @@ export interface RawRadarPayload {
   magosradar: RawRadarMessage[];
   /** Nuevo formato de tracks agrupados con array de posiciones */
   magosRadar?: MagosRadarTrack[];
+  /** IDs to remove on exclusion entry; no excluded positions are transmitted. */
+  magosRadarExcluded?: string[];
   spotter: RawRadarMessage[];
   actividad?: ActividadPayload;
 }

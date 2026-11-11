@@ -300,6 +300,7 @@ export function useRadarWebSocket(
   url: string,
   timing: TargetTimingConfig = TARGET_TIMING,
   trackColor = "#f43f5e",
+  onExcludedTracks?: (ids: string[]) => void,
 ) {
   const kinematicsRef = useRef(new Map<string, TrackKinematicState>());
   const [targetsMap, setTargetsMap] = useState<Map<string, RadarTarget>>(new Map());
@@ -429,11 +430,25 @@ export function useRadarWebSocket(
             // Los mensajes son incrementales: otro radar o un array vacío
             // no deben borrar detecciones pendientes antes del próximo flush.
             const pending = bufferRef.current;
+            const excluded = new Set((parsed.magosRadarExcluded ?? []).map(String));
+            if (excluded.size) {
+              for (const id of excluded) {
+                pending.magosRadar.delete(id);
+                trackKinematics.delete(id);
+              }
+              setTargetsMap(previous => {
+                const next = new Map(previous);
+                for (const id of excluded) next.delete(`magosradar_${id}`);
+                return next;
+              });
+              onExcludedTracks?.([...excluded].map(id => `magosradar_${id}`));
+            }
             if (Array.isArray(parsed.nanoRadar)) {
               for (const detection of parsed.nanoRadar) pending.nanoRadar.set(String(detection.id), detection);
             }
             if (Array.isArray(parsed.magosRadar)) {
               for (const track of parsed.magosRadar) {
+                if (excluded.has(String(track.trackId))) continue;
                 if (!Array.isArray(track.positions) || !track.positions.length) continue;
                 const key = String(track.trackId);
                 const previous = pending.magosRadar.get(key);
@@ -519,7 +534,7 @@ export function useRadarWebSocket(
       clearInterval(processingInterval);
       clearInterval(cleanupInterval);
     };
-  }, [url, timing.HISTORY_MAX_POINTS, effectiveTargetTimeoutMs, trackColor]);
+  }, [url, timing.HISTORY_MAX_POINTS, effectiveTargetTimeoutMs, trackColor, onExcludedTracks]);
 
   const targets = useMemo(() => Array.from(targetsMap.values()), [targetsMap]);
 

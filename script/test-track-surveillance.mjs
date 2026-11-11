@@ -80,3 +80,17 @@ assert.ok(html.includes('Mantener bajo vigilancia'));
 assert.ok(!html.includes('Última posición conocida'));
 store.setState({ entries: {} });
 console.log('PASS: lost tracks retained with real timestamps, account scoping, bounded snapshots/writes, reload, final observation, new IDs and manual release');
+
+store.setState({ entries: {} });
+store.getState().watch(scope, boat);
+store.getState().observe(scope, [make(boat.id, boat.lastUpdate + 1000)]);
+store.getState().exclude(scope, [boat.id]);
+assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope).length, 0, 'Saved surveillance cannot resurrect an excluded target');
+store.getState().observe(scope, [make(boat.id, boat.lastUpdate + 1000)], true);
+assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope).length, 0, 'Final cached observation cannot undo an exclusion');
+store.persist.rehydrate();
+assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope).length, 0);
+store.getState().observe(scope, [make(boat.id, boat.lastUpdate + 2000)]);
+assert.equal(mod.mergeSurveillanceTargets([], store.getState().entries, scope).length, 1, 'A new allowed observation restores watched target visibility');
+store.setState({ entries: {} });
+console.log('PASS: exclusion overrides saved surveillance and persists until a new allowed observation');

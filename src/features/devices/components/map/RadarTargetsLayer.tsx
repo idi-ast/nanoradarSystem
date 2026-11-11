@@ -61,9 +61,9 @@ export function RadarTargetsLayer({
     [allTargets, deviceFilter],
   );
 
-  // Zonas con tipo de alerta 6: restringir targets solo dentro de esos polígonos
+  // Exclusion takes precedence over PTZ selection and all presentation overrides.
   const alert6Zones = useMemo(
-    () => zones.filter((z) => z.idTipoAlerta === 6),
+    () => zones.filter((z) => z.idTipoAlerta === 6 || z.idTipoAlerta === 1),
     [zones],
   );
 
@@ -76,7 +76,6 @@ export function RadarTargetsLayer({
       return rawVertices;
     });
     return targets.filter((t) => {
-      if (t.ptzTracking?.length) return true;
       const lastPoint = t.history[t.history.length - 1];
       if (!lastPoint) return false;
       return !zoneVerticesList.some((vertices) =>

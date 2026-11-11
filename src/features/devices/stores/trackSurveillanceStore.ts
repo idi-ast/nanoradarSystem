@@ -9,11 +9,12 @@ export function useSurveillanceScope(instanceId: string) {
   const userId = useUserStore(state => state.user?.id ?? null);
   return JSON.stringify([userId, instanceId]);
 }
-interface Entry { scope: string; target: RadarTarget }
+interface Entry { scope: string; target: RadarTarget; excluded?: boolean }
 interface State {
   entries: Record<string, Entry>;
   watch: (scope: string, target: RadarTarget) => void;
   release: (scope: string, id: string) => void;
+  exclude: (scope: string, ids: string[]) => void;
   observe: (scope: string, targets: RadarTarget[], force?: boolean) => void;
 }
 const key = (scope: string, id: string) => JSON.stringify([scope, id]);
@@ -35,12 +36,22 @@ export const useTrackSurveillanceStore = create<State>()(persist((set, get) => (
   release: (scope, id) => set(state => {
     const entries = { ...state.entries }; delete entries[key(scope, id)]; return { entries };
   }),
+  exclude: (scope, ids) => {
+    let entries: State['entries'] | undefined;
+    for (const targetId of ids) {
+      const id = key(scope, targetId), previous = get().entries[id];
+      if (!previous || previous.excluded) continue;
+      entries ??= { ...get().entries };
+      entries[id] = { ...previous, excluded: true };
+    }
+    if (entries) set({ entries });
+  },
   observe: (scope, targets, force = false) => {
     let entries: State['entries'] | undefined;
     for (const target of targets) {
       const id = key(scope, target.id), previous = get().entries[id];
-      if (!previous || !valid(target) || target.lastUpdate <= previous.target.lastUpdate ||
-          (!force && target.lastUpdate - previous.target.lastUpdate < 5000)) continue;
+      if (!previous || (force && previous.excluded) || !valid(target) || target.lastUpdate <= previous.target.lastUpdate ||
+          (!force && !previous.excluded && target.lastUpdate - previous.target.lastUpdate < 5000)) continue;
       entries ??= { ...get().entries };
       entries[id] = { scope, target: snapshot(target) };
     }
@@ -58,7 +69,7 @@ export const useTrackSurveillanceStore = create<State>()(persist((set, get) => (
 }));
 
 export function mergeSurveillanceTargets(live: RadarTarget[], entries: State['entries'], scope: string) {
-  const saved = Object.values(entries).filter(entry => entry.scope === scope);
+  const saved = Object.values(entries).filter(entry => entry.scope === scope && !entry.excluded);
   if (!saved.length) return live;
   const watched = new Map(saved.map(entry => [entry.target.id, entry.target]));
   const merged = live.map(target => watched.has(target.id) ? { ...target, underSurveillance: true } : target);
