@@ -119,7 +119,7 @@ class Socket {
   close() { this.closed = true; }
 }
 class Clock extends Date { static now() { return clock; } }
-const timing = { HISTORY_MAX_POINTS: 1500, TARGET_TIMEOUT_MS: 600000 };
+const timing = { HISTORY_MAX_POINTS: 1500, TARGET_TIMEOUT_MS: 600000, TRACKING_ACTIVE_MS: 10000 };
 const wsModule = load('src/features/devices/hooks/useRadarWebSocket.ts', {
   react: wsHost.react, '../config': { TARGET_TIMING: timing },
   '../stores/targetVisualStore': { useTargetVisualStore: selector => selector({ inactiveIconTimeoutSec: 0 }) },

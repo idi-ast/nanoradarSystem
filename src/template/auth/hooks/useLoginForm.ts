@@ -25,7 +25,9 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: Location })?.from?.pathname || "/";
+  const destination = (location.state as { from?: Pick<Location, 'pathname' | 'search' | 'hash'> })?.from;
+  const from = destination?.pathname?.startsWith('/') && !destination.pathname.startsWith('//')
+    ? `${destination.pathname}${destination.search ?? ''}${destination.hash ?? ''}` : '/';
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;

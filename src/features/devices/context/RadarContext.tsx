@@ -1,4 +1,8 @@
 import { type ReactNode, useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { usePtzTracking } from "../hooks/usePtzTracking";
+import { mergePtzTargets } from "../utils/ptzTracking";
+import { useSurveillanceScope, useTrackSurveillanceStore } from "../stores/trackSurveillanceStore";
+import { useSurveillanceTargets } from "../hooks/useSurveillanceTargets";
 import { useRadarWebSocket } from "../hooks/useRadarWebSocket";
 import { useRadarData } from "../hooks/useRadarData";
 import { useZoneDrawing } from "../hooks/useZoneDrawing";
@@ -17,7 +21,15 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const resolved = useMemo(() => resolveRadarConfig(instance), [instance]);
   const { data: devicesData } = useConfigDevices();
   const magosradarTrackColor = devicesData?.data?.magosradares?.[0]?.trackColor ?? "#f43f5e";
-  const { targets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor);
+  const surveillanceScope = useSurveillanceScope(resolved.id);
+  const excludeTracks = useCallback((ids: string[]) => {
+    useTrackSurveillanceStore.getState().exclude(surveillanceScope, ids);
+  }, [surveillanceScope]);
+  const { targets: liveTargets, clearTargets, cameraActivities } = useRadarWebSocket(resolved.wsUrl, resolved.timing, magosradarTrackColor, excludeTracks);
+  const watchedTargets = useSurveillanceTargets(liveTargets, resolved.id);
+  const { snapshot, unavailable: trackingUnavailable, now } = usePtzTracking();
+  const targets = useMemo(() => mergePtzTargets(watchedTargets, snapshot, now), [watchedTargets, snapshot, now]);
+  const trackingSessions = useMemo(() => snapshot?.sessions ?? [], [snapshot]);
   const { config, zones, isLoading, error, refreshData, addZone, updateZone, deleteZone } =
     useRadarData();
   const drawing = useZoneDrawing();
@@ -121,8 +133,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
    * Solo los componentes que llamen a useRadarTargets() re-renderizarán.
    */
   const targetsValue = useMemo<RadarTargetsContextValue>(
-    () => ({ targets, cameraActivities }),
-    [targets, cameraActivities],
+    () => ({ targets, cameraActivities, trackingSessions, trackingUnavailable, trackingNow: now }),
+    [targets, cameraActivities, trackingSessions, trackingUnavailable, now],
   );
 
   /**
@@ -134,8 +146,8 @@ export function RadarProvider({ children, instance = ACTIVE_RADAR }: RadarProvid
   const [stableTargets, setStableTargets] = useState(() => targets);
   useEffect(() => {
     const prev = prevIdsRef.current;
-    if (targets.length !== prev.size || !targets.every((t) => prev.has(`${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`))) {
-      prevIdsRef.current = new Set(targets.map((t) => `${t.id}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`));
+    if (targets.length !== prev.size || !targets.every((t) => prev.has(`${t.id}:${Boolean(t.underSurveillance)}:${JSON.stringify(t.ptzTracking)}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`))) {
+      prevIdsRef.current = new Set(targets.map((t) => `${t.id}:${Boolean(t.underSurveillance)}:${JSON.stringify(t.ptzTracking)}:${t.behaviorClass ?? ""}:${Math.round((t.behaviorConfidence ?? 0) * 20)}:${t.behaviorSource ?? ""}`));
       setStableTargets(targets);
     }
   }, [targets]);

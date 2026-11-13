@@ -12,6 +12,7 @@ export interface ReportSettings {
   maxGapSeconds: number;
   /** Minimum recorded points for the PDF movement table, not general analytics. */
   minApproachPoints: number;
+  minTrackedMinutes: number;
   /** Empty string includes all behavior categories in the PDF. */
   category: string;
   /** Legacy callers are accepted; both values use the operational report. */
@@ -21,7 +22,7 @@ export interface ReportSettings {
 }
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   timeZone: "America/Santiago", nightStart: 21, nightEnd: 7,
-  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, category: "lancha",
+  criticalZones: ["modulo"], proximityM: 100, maxGapSeconds: 120, minApproachPoints: 100, minTrackedMinutes: 0, category: "lancha",
   format: 'detailed', movementSort: 'distance', showHeatmap: false,
 };
 export const normalizeZone = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -49,6 +50,17 @@ export function localParts(value: string | Date | number, timeZone = "America/Sa
 const formatters = new Map<string, Intl.DateTimeFormat>();
 export function isNight(hour: number, settings: ReportSettings) {
   return settings.nightStart > settings.nightEnd ? hour >= settings.nightStart || hour < settings.nightEnd : hour >= settings.nightStart && hour < settings.nightEnd;
+}
+/** Elapsed time restricted to the recurring report window, including DST. */
+export function reportWindowSeconds(from: number, to: number, settings: ReportSettings): number {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return 0;
+  let seconds = 0;
+  for (let cursor = from; cursor < to;) {
+    const end = Math.min(to, (Math.floor(cursor / 3600000) + 1) * 3600000);
+    if (isNight(localParts(cursor, settings.timeZone)!.hour, settings)) seconds += (end - cursor) / 1000;
+    cursor = end;
+  }
+  return seconds;
 }
 export function isValidAnalysisZone(zone: AnalysisZone) {
   return zone.vertices.length >= 3 && zone.vertices.every(([lat, lon]) => Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lon) && Math.abs(lon) <= 180);

@@ -52,14 +52,15 @@ const code = readFileSync('src/features/analysis/hooks/useActivityAnalysis.ts', 
 const js = (await import('typescript')).default.transpileModule(code, { compilerOptions: { module: 1, target: 9 } }).outputText;
 const calls = [];
 const context = { exports: {}, require(name) {
- if (name === '@tanstack/react-query') return { useQuery: options => options };
+ if (name === '@tanstack/react-query') return { useQuery: options => options, useQueryClient:()=>({removeQueries(){}}) };
+ if(name==='react') return {useState:()=>[null,()=>{}],useEffect:()=>{}};
  if (name === '../analyticsData') return helpers;
  if (name === '../activityApi') return { fetchActivityAnalysis: async (...args) => { calls.push(['activity', args]); return { range: args[0], listing: { tracks: [], total: 0, limited: false }, spatial: { points: [], tracksAnalyzed: 0, tracksTotal: 0, pointsLimited: false } }; } };
  throw Error(name);
 }, Date };
 runInNewContext(js, context);
 const options = context.exports.useActivityAnalysis(filters);
-assert.equal(options.gcTime, 0);
+assert.equal(options.gcTime, 60000);
 assert.equal(options.structuralSharing, false);
 assert.equal(options.refetchOnWindowFocus, false);
 assert.deepEqual(Array.from(options.queryKey), Array.from(context.exports.useActivityAnalysis({ ...filters, proximityM: 300 }).queryKey));
@@ -95,6 +96,51 @@ assert.notEqual(batched.spatial.points[0].trackKey, batched.spatial.points[1].tr
 await assert.rejects(apiContext.exports.fetchActivityAnalysis(data.range, '', 2, stopped.signal));
 assert.equal(apiCalls.length, 1);
 
+// Summaries arrive before the spatial query completes; the second request must
+// use summary identities and never repeat the expensive aggregation.
+let finishPoints;
+let progressiveCalls = [];
+const summaryPayload = { listing: { tracks: batchTracks, total: 2, limited: false }, spatial: { points: [], pending: true, tracksAnalyzed: 0, tracksTotal: 2, failedTracks: 0 }, timings: { summaryMs: 7, spatialMs: 0, totalMs: 8 } };
+const progressiveApi = { get: async (path, params, config) => { progressiveCalls.push({ path, params, config }); return { data: summaryPayload }; }, post: (path, body, config) => { progressiveCalls.push({ path, body, config }); return new Promise(resolve => { finishPoints = resolve; }); } };
+const progressiveContext = { exports: {}, require(name) {
+ if(name === '@/apis/apiSystem') return { apiSystem: progressiveApi };
+ if(name === '@/features/history/types') return { analysisTrackKey: t => JSON.stringify([t.tipo_radar, t.track_id, t.first_seen, t.last_seen]) };
+ throw Error(name);
+}, Date, Set };
+runInNewContext(apiCode, progressiveContext);
+let receivedSummary;
+let completed = false;
+const progressive = progressiveContext.exports.fetchActivityAnalysis(data.range, '', 2, abort.signal, s => { receivedSummary = s; }).then(value => { completed = true; return value; });
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(receivedSummary.spatial.pending, true);
+assert.equal(completed, false, 'Render the summary without waiting for trajectories');
+assert.equal(progressiveCalls.length, 2);
+assert.equal(progressiveCalls[0].params.include_points, false);
+assert.equal(progressiveCalls[1].path, '/analysis/activity/points');
+assert.equal(progressiveCalls[1].body.tracks[1].slot, 1);
+assert.equal(progressiveCalls[1].config.signal, abort.signal);
+finishPoints({ data: { spatial: { points: [{ ...batchPoint, trackIndex: 1 }], pending: false, tracksAnalyzed: 1, tracksTotal: 2 }, timings: { spatialMs: 11, totalMs: 12 } } });
+const finished = await progressive;
+assert.equal(finished.spatial.pending, false);
+assert.equal(finished.spatial.points[0].radar, 'nano');
+assert.equal(finished.timings.totalMs, 20);
+const changingPeriod = new AbortController();
+progressiveCalls = [];
+await assert.rejects(progressiveContext.exports.fetchActivityAnalysis(data.range, '', 2, changingPeriod.signal, () => changingPeriod.abort()));
+assert.equal(progressiveCalls.length, 1, 'Cancel after summaries without starting positions');
+const manyTracks = Array.from({ length: 1000 }, (_, i) => ({ ...batchTracks[0], track_id: `T${i}`, first_seen: new Date(Date.parse(batchTracks[0].first_seen) + i * 1000).toISOString() }));
+const targets = progressiveContext.exports.activityTargets(manyTracks);
+assert.equal(targets.length, 160);
+assert.equal(targets[0].slot, 0);
+assert.equal(targets[159].slot, 999);
+assert.equal(new Set(targets.map(t => t.slot)).size, 160);
+// A failed position load must leave the already-published summary identifiable
+// as incomplete, rather than manufacture a successful empty spatial result.
+progressiveApi.post = async () => { throw Error('spatial unavailable'); };
+receivedSummary = null;
+await assert.rejects(progressiveContext.exports.fetchActivityAnalysis(data.range, '', 2, abort.signal, s => { receivedSummary = s; }), /spatial unavailable/);
+assert.equal(receivedSummary.spatial.pending, true);
+
 // Render the actual page with isolated query fixtures; no credentials or backend.
 mkdirSync('tmp/analysis', { recursive: true });
 const output = 'tmp/analysis/page.cjs';
@@ -111,13 +157,24 @@ const point = { lat: -41.4995, lon: -73.0005, fecha: track.first_seen, trackKey,
 const fixture = { result: { isPending: false, isFetching: false, isError: false, refetch() {}, data: { listing: { tracks: [track], total: 1, limited: false }, spatial: { points: [point], tracksAnalyzed: 1, tracksTotal: 1, pointsLimited: false, uniformSampling: true }, range: validateAnalysisFilters(filters), loadedAt: '2026-11-03T03:00:00Z' } }, zones: { data: [{ nombre: 'modulo', poligono: { color: '#ef4444', vertices: [[-41.5, -73.001], [-41.5, -73], [-41.499, -73], [-41.499, -73.001]] } }], isError: false } };
 globalThis.__activityPageFixture = fixture;
 const render = () => renderToStaticMarkup(createElement(QueryClientProvider, {client:new QueryClient()}, createElement(MemoryRouter, null, createElement(Page))));
+render();
+await new Promise(resolve=>setTimeout(resolve,0));
 const html = render();
 for (const text of ['Análisis de actividad', 'Actividad por hora', 'Recorridos de tracks', 'Distancia recorrida y tiempo de trackeo', 'Tiempo enlazado', 'Calendario de actividad', 'T-DEMO', 'Ver en mapa', 'America/Santiago']) assert.ok(html.includes(text), text);
 const loadedFixture = fixture.result;
+fixture.result = { ...loadedFixture, isFetching: true, isSpatialLoading: true, data: { ...loadedFixture.data, spatial: { ...loadedFixture.data.spatial, points: [], pending: true } } };
+const partialHtml = render();
+assert.ok(partialHtml.includes('Tracks del período'));
+assert.ok(partialHtml.includes('Cargando trayectorias del análisis'));
+assert.ok(partialHtml.includes('Acercamientos pendientes de cargar las trayectorias.'));
+assert.ok(!partialHtml.includes('No hay posiciones válidas para calcular acercamientos.'));
+
 fixture.result = { ...loadedFixture, data: { ...loadedFixture.data, listing: { tracks: [], total: 0, limited: false }, spatial: { points: [], tracksAnalyzed: 0, tracksTotal: 0, pointsLimited: false } } };
 assert.ok(render().includes('No hay tracks para esta selección'));
 fixture.result = { ...loadedFixture, data: undefined, isPending: true, isFetching: true };
-assert.ok(render().includes('Generando reporte'));
+const loadingHtml=render();
+assert.ok(loadingHtml.includes('Cargando resúmenes del análisis'));
+assert.ok(!loadingHtml.includes('fixed inset-0'),'Network loading must not block the entire page');
 fixture.result = { ...fixture.result, isPending: false, isFetching: false, isError: true };
 assert.ok(render().includes('No se pudo cargar el análisis'));
 // Render a selected track against an already-loaded detail query. This verifies
@@ -136,4 +193,4 @@ for (const text of ['Detalle del track','Tiempo enlazado acumulado','Primera det
 assert.ok(explorerHtml.includes('2 min'),'The selected track must use the expanded positions');
 client.clear();
 delete globalThis.__activityPageFixture;
-console.log('PASS: Chile/DST dates, filter validation, bounded heat grid, query/cancellation and page render states');
+console.log('PASS: Chile/DST dates, filters, heat grid, progressive queries/cancellation, bounded samples and page render states');

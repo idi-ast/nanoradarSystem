@@ -4,18 +4,55 @@ import { analysisTrackKey, type TrackSummary } from '@/features/history/types';
 
 interface ActivityResponse {
   listing: { tracks: TrackSummary[]; total: number; limited: boolean };
-  spatial: Omit<AnalysisFetchResult, 'points'> & { points: (AnalysisPoint & { trackIndex: number })[] };
+  spatial: Omit<AnalysisFetchResult, 'points'> & { pending?: boolean; points: (AnalysisPoint & { trackIndex: number })[] };
   timings: { summaryMs: number; spatialMs: number; totalMs: number };
+}
+
+export interface ActivityAnalysisData {
+  listing: ActivityResponse['listing'];
+  spatial: AnalysisFetchResult & { pending?: boolean };
+  timings: ActivityResponse['timings'];
+  range: { from: string; to: string };
+  loadedAt: string;
+}
+
+export function activityTargets(tracks: TrackSummary[]) {
+  const ordered = tracks.map((track, slot) => ({ track, slot }))
+    .filter(({ track }) => track.first_seen && track.last_seen)
+    .sort((a, b) => (a.track.first_seen ?? '').localeCompare(b.track.first_seen ?? '') ||
+      a.track.tipo_radar.localeCompare(b.track.tipo_radar) || a.track.track_id.localeCompare(b.track.track_id));
+  const selected = ordered.length <= 160 ? ordered : Array.from({ length: 160 }, (_, i) => ordered[Math.round(i * (ordered.length - 1) / 159)]);
+  return selected.map(({ track, slot }) => ({ slot, track_id: track.track_id, tipo_radar: track.tipo_radar === 'unknown' ? null : track.tipo_radar,
+    first_seen: track.first_seen, last_seen: track.last_seen }));
 }
 
 export async function fetchActivityAnalysis(
   range: { from: string; to: string }, radar: string, minPoints: number, signal: AbortSignal,
-) {
+  onSummary?: (data: ActivityAnalysisData) => void,
+): Promise<ActivityAnalysisData> {
   signal.throwIfAborted();
   const { data } = await apiSystem.get<ActivityResponse>('/analysis/activity', {
     ...range, tipo_radar: radar || undefined, min_points: minPoints,
+    ...(onSummary ? { include_points: false } : {}),
   }, { signal });
   signal.throwIfAborted();
+  const summary = normalizeActivity(data, range);
+  if (!onSummary || !data.spatial.pending) return summary;
+  onSummary(summary);
+  signal.throwIfAborted();
+  const targets = activityTargets(data.listing.tracks);
+  if (!targets.length) return { ...summary, spatial: { ...summary.spatial, pending: false } };
+  const result = await apiSystem.post<Pick<ActivityResponse, 'spatial' | 'timings'>>('/analysis/activity/points', {
+    ...range, tracks: targets, total_tracks: data.listing.tracks.length,
+  }, { signal });
+  signal.throwIfAborted();
+  return normalizeActivity({ ...data, spatial: result.data.spatial, timings: {
+    summaryMs: data.timings.summaryMs, spatialMs: result.data.timings.spatialMs,
+    totalMs: data.timings.totalMs + result.data.timings.totalMs,
+  } }, range);
+}
+
+function normalizeActivity(data: ActivityResponse, range: { from: string; to: string }): ActivityAnalysisData {
   const keys = data.listing.tracks.map(analysisTrackKey);
   const from = new Date(range.from).getTime(), to = new Date(range.to).getTime();
   const seen = new Set<string>();

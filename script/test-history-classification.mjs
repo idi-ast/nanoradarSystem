@@ -12,16 +12,18 @@ function load(path, mocks) {
   return exports;
 }
 const calls = [];
+let timeWindow;
 const api = load('src/features/history/api.ts', {
   '@/apis/apiSystem': { apiSystem: { get: async (path, params) => {
     calls.push({ path, params });
-    return { data: { data: [{ track_id: `T${params.page}` }], total: 2, pages: 2 } };
+    return { data: { time_window: timeWindow, data: [{ track_id: `T${params.page}` }], total: 2, pages: 2 } };
   } } },
 });
-const filters = { minPoints: 5, tipoRadar: 'magos', behaviorClass: 'bolla' };
+const filters = { minPoints: 5, tipoRadar: 'magos', behaviorClass: 'bolla', minTrackedMinutes: 4 };
 await api.fetchTrackSummaries(filters, 2);
 assert.equal(calls[0].params.behavior_class, 'bolla');
 assert.equal(calls[0].params.page, 2);
+assert.equal(calls[0].params.min_tracked_minutes, 4);
 assert.equal(calls[0].params.min_points, 5);
 calls.length = 0;
 await api.fetchReportTrackSummaries(filters);
@@ -36,6 +38,26 @@ const hooks = load('src/features/history/hooks/useTrackSummaries.ts', {
 const boat = hooks.useTrackSummaries({ ...filters, behaviorClass: 'lancha' });
 const buoy = hooks.useTrackSummaries(filters);
 assert.notDeepEqual(boat.queryKey, buoy.queryKey);
+assert.notDeepEqual(buoy.queryKey, hooks.useTrackSummaries({ ...filters, minTrackedMinutes: 0 }).queryKey);
 await buoy.queryFn();
 assert.equal(calls.at(-1).params.behavior_class, 'bolla');
+const filterHelpers = load('src/features/history/filters.ts', {});
+await api.fetchTrackSummaries(filterHelpers.resolveHistoryFilters({ ...filters, search: ' T23 ', from: '2026-11-09T15:00', zone: 'modulo' }));
+const lookup = calls.at(-1).params;
+assert.equal(lookup.track_ids, 'T23');
+assert.equal(lookup.min_points, 1);
+for (const field of ['from', 'to', 'tipo_radar', 'search', 'behavior_class', 'min_tracked_minutes', 'zone']) assert.equal(lookup[field], undefined);
+assert.equal(lookup.only_with_zones, false);
+assert.notDeepEqual(hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T23'] }).queryKey,
+  hooks.useTrackSummaries({ minPoints: 1, trackIds: ['T24'] }).queryKey);
 console.log('PASS: history category request, clearing filter, report pagination and independent query cache');
+
+const nightFilters = { ...filters, hourStart: 21, hourEnd: 7, timeZone: 'America/Santiago' };
+await assert.rejects(api.fetchReportTrackSummaries(nightFilters), /backend/);
+timeWindow = { hour_start: 21, hour_end: 7, time_zone: 'America/Santiago' };
+calls.length = 0;
+await api.fetchReportTrackSummaries(nightFilters);
+assert.ok(calls.every(call => call.params.hour_start === 21 && call.params.hour_end === 7 && call.params.time_zone === 'America/Santiago'));
+timeWindow = { ...timeWindow, hour_end: 8 };
+await assert.rejects(api.fetchReportTrackSummaries(nightFilters), /horario/);
+console.log('PASS: report sends recurring local hours on every page and rejects a backend that ignores them');

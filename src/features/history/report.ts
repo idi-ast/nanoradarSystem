@@ -1,10 +1,11 @@
-import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
+import { nightMapGroups, reportMapDetails, type ReportMapCapture } from './reportMapData';
+import type { Content, ContentText, TDocumentDefinitions } from "pdfmake/interfaces";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { TrackSummary, TrackSummaryFilters } from "./types";
 import { analysisTrackKey } from "./types";
 import type { AnalysisPoint, AnalysisZone, AnalysisFetchResult } from "./analysis";
-import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, type ReportSettings } from "./reportAnalytics";
+import { computeOperationalAnalysis, DEFAULT_REPORT_SETTINGS, filterReportTracks, isValidAnalysisZone, reportCategoryLabel, localParts, isNight, normalizeZone, reportWindowSeconds, type ReportSettings } from "./reportAnalytics";
 import { hourlyChart, activityMatrix, spatialChart } from "./reportCharts";
 import { computeTrackMovements, rankTrackMovements, type TrackMovement } from './reportMovement';
 
@@ -15,6 +16,18 @@ export interface TrackReportOptions {
   points?: AnalysisPoint[]; zones?: AnalysisZone[]; tracksAnalyzed?: number; pointsLimited?: boolean;
   settings?: Partial<ReportSettings>; quality?: Partial<AnalysisFetchResult>;
   demonstration?: boolean;
+  mapCaptures?: ReportMapCapture[];
+  historyBaseUrl?: string;
+}
+export function trackHistoryUrl(trackId: string, baseUrl?: string): string | undefined {
+  if (!baseUrl) return undefined;
+  try {
+    const base = new URL(baseUrl);
+    if (!['http:', 'https:'].includes(base.protocol)) return undefined;
+    const url = new URL('/historial', base.origin);
+    url.searchParams.set('track', trackId);
+    return url.toString();
+  } catch { return undefined; }
 }
 export function resolveReportRange(filters: TrackSummaryFilters, defaultHours = 12): ReportRange {
   const to = filters.to ? new Date(filters.to) : new Date();
@@ -32,6 +45,7 @@ const C = { ink: '#0f172a', muted: '#64748b', blue: '#0369a1', teal: '#0f766e', 
 const num = (n: number) => n.toLocaleString('es-CL', { maximumFractionDigits: 1 });
 const pct = (a: number, b: number) => b ? `${(100 * a / b).toFixed(1)}%` : 'N/D';
 const hour = (n: number) => `${String(n).padStart(2, '0')}:00`;
+const dateOnly = (value: Date, timeZone: string) => new Intl.DateTimeFormat('es-CL', { timeZone, dateStyle: 'medium' }).format(value);
 const dateTime = (value: string | Date | null, timeZone: string) => {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'N/D';
   return new Intl.DateTimeFormat('es-CL', { timeZone, dateStyle: 'short', timeStyle: 'medium', hourCycle: 'h23' }).format(new Date(value));
@@ -40,9 +54,9 @@ function title(kicker: string, heading: string, description: string, pageBreak =
   return [{ text: kicker.toUpperCase(), color: C.teal, bold: true, fontSize: 8, characterSpacing: 1, ...(pageBreak ? { pageBreak: 'before' as const } : {}) }, { text: heading, fontSize: 23, bold: true, color: C.ink, margin: [0, 5, 0, 7] }, { text: description, fontSize: 9, color: C.muted, margin: [0, 0, 0, 15] }];
 }
 const heading = (text: string): Content => ({ text, bold: true, fontSize: 12, color: C.ink, margin: [0, 12, 0, 6] });
-const note = (text: string): Content => ({ text, color: C.muted, fontSize: 8, margin: [0, 5, 0, 7], lineHeight: 1.25 });
-function table(headers: string[], rows: (string | number)[][], widths?: (number | string)[], small = false, highlightedRows = new Set<number>()): Content {
-  return { table: { headerRows: 1, widths: widths ?? headers.map(() => '*'), dontBreakRows: true, body: [headers.map(text => ({ text, bold: true, color: '#ffffff', fillColor: C.ink, fontSize: small ? 7 : 8 })), ...(rows.length ? rows : [headers.map((_, i) => i ? '' : 'Sin registros disponibles')]).map((row, i) => row.map(value => ({ text: String(value), ...(highlightedRows.has(i) ? { color: C.red, bold: true } : {}), fillColor: i % 2 ? '#ffffff' : '#f1f5f9', fontSize: small ? 7 : 8 })))] }, layout: { hLineWidth: () => .3, vLineWidth: () => 0, hLineColor: () => '#e2e8f0', paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => small ? 3 : 5, paddingBottom: () => small ? 3 : 5 }, margin: [0, 3, 0, 8] };
+const note = (text: ContentText['text']): Content => ({ text, color: C.muted, fontSize: 8, margin: [0, 5, 0, 7], lineHeight: 1.25 });
+function table(headers: string[], rows: (string | number | ContentText)[][], widths?: (number | string)[], small = false, highlightedRows = new Set<number>()): Content {
+  return { table: { headerRows: 1, widths: widths ?? headers.map(() => '*'), dontBreakRows: true, body: [headers.map(text => ({ text, bold: true, color: '#ffffff', fillColor: C.ink, fontSize: small ? 7 : 8 })), ...(rows.length ? rows : [headers.map((_, i) => i ? '' : 'Sin registros disponibles')]).map((row, i) => row.map(value => ({ ...(typeof value === 'object' ? value : { text: String(value) }), ...(highlightedRows.has(i) ? { color: C.red, bold: true } : {}), fillColor: i % 2 ? '#ffffff' : '#f1f5f9', fontSize: small ? 7 : 8 })))] }, layout: { hLineWidth: () => .3, vLineWidth: () => 0, hLineColor: () => '#e2e8f0', paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => small ? 3 : 5, paddingBottom: () => small ? 3 : 5 }, margin: [0, 3, 0, 8] };
 }
 function cards(items: [string, string][]): Content {
   return { columns: items.map(([value, label]) => ({ width: '*', stack: [{ text: value, bold: true, color: C.blue, fontSize: 24, margin: [0, 0, 0, 5] }, { text: label, color: C.muted, fontSize: 8 }], margin: [0, 0, 8, 8] })), columnGap: 8, margin: [0, 8, 0, 10] };
@@ -51,7 +65,7 @@ const traveled = (m: TrackMovement) => m.distanceM == null ? 'N/D' : m.distanceM
 const trackTime = (seconds: number | null) => seconds != null && seconds > 0 ? seconds >= 3600 ? `${(seconds / 3600).toFixed(2)} h` : seconds >= 60 ? `${(seconds / 60).toFixed(1)} min` : `${seconds < .1 ? '<0,1' : num(seconds)} s` : '—';
 const movementSource = (m: TrackMovement) => m.source === 'full' ? 'Historial completo' : m.source === 'sample' ? 'Muestra (~)' : 'Sin trayectoria';
 const movementOrder = (settings: ReportSettings) => settings.movementSort === 'duration' ? 'mayor tiempo de seguimiento' : settings.movementSort === 'points' ? 'más puntos registrados' : 'mayor distancia recorrida';
-const movementMethod = (settings: ReportSettings) => `Recorrido: suma geodésica entre posiciones consecutivas separadas por hasta ${settings.maxGapSeconds} s, sin unir huecos largos. Trackeo: primera a última detección dentro del período; puede incluir interrupciones. Tiempo enlazado: suma de intervalos válidos. Historial completo: métricas antes de muestrear; ~: estimación sobre la muestra, que puede subestimar el recorrido. N/D no equivale a cero.`;
+const movementMethod = (settings: ReportSettings) => `Recorrido: suma geodésica entre posiciones consecutivas separadas por hasta ${settings.maxGapSeconds} s, sin unir huecos largos. Trackeo: tiempo entre primera y última detección dentro de la franja elegida; excluye las horas fuera de ella y puede incluir interrupciones. Tiempo enlazado: suma de intervalos válidos. Historial completo: métricas antes de muestrear; ~: estimación sobre la muestra, que puede subestimar el recorrido. N/D no equivale a cero.`;
 
 function reportDocument(opts: TrackReportOptions, settings: ReportSettings, content: Content[]): TDocumentDefinitions {
   return {
@@ -69,71 +83,149 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
   const settings = { ...DEFAULT_REPORT_SETTINGS, ...opts.settings };
   if (!Number.isSafeInteger(settings.minApproachPoints) || settings.minApproachPoints < 1) throw new Error("El mínimo de puntos para rankings debe ser un entero mayor o igual a 1");
   const zones = (opts.zones ?? []).filter(isValidAnalysisZone);
-  const selectedTracks = filterReportTracks(opts.tracks, settings.category);
+  const trackLink = (track: TrackSummary): ContentText => {
+    const link = trackHistoryUrl(track.track_id, opts.historyBaseUrl);
+    return { text: track.track_id, ...(link ? { link, decoration: 'underline' as const } : {}) };
+  };
+  const minMinutes = Math.max(opts.filters.minTrackedMinutes ?? 0, settings.minTrackedMinutes);
+  if (!Number.isFinite(minMinutes) || minMinutes < 0) throw new Error('El mínimo de minutos trackeados debe ser mayor o igual a cero');
+  const inWindow = (time: number) => {
+    const parts = localParts(time, settings.timeZone);
+    return Number.isFinite(time) && time >= +range.from && time <= +range.to && parts && isNight(parts.hour, settings);
+  };
+  const windowPoints = (opts.points ?? []).filter(p => inWindow(Date.parse(p.fecha ?? '')) &&
+    Number.isFinite(p.lat) && Math.abs(p.lat) <= 90 && Number.isFinite(p.lon) && Math.abs(p.lon) <= 180 && (p.lat !== 0 || p.lon !== 0));
+  const firstPoints = new Map<string, number>(), lastPoints = new Map<string, number>();
+  for (const p of windowPoints) {
+    if (!p.trackKey) continue;
+    const time = Date.parse(p.fecha!);
+    firstPoints.set(p.trackKey, Math.min(time, firstPoints.get(p.trackKey) ?? Infinity));
+    lastPoints.set(p.trackKey, Math.max(time, lastPoints.get(p.trackKey) ?? -Infinity));
+  }
+  const reportStart = (track: TrackSummary) => {
+    const start = Math.max(+range.from, Date.parse(track.first_seen ?? ''));
+    return inWindow(start) ? start : firstPoints.get(analysisTrackKey(track)) ?? NaN;
+  };
+  const reportEnd = (track: TrackSummary) => {
+    const end = Math.min(+range.to, Date.parse(track.last_seen ?? ''));
+    return inWindow(end) ? end : lastPoints.get(analysisTrackKey(track)) ?? NaN;
+  };
+  const selectedTracks = filterReportTracks(opts.tracks, settings.category)
+    .filter(t => (!minMinutes || (t.tracked_seconds ?? 0) > minMinutes * 60) && Number.isFinite(reportStart(t)));
   const selectedKeys = new Set(selectedTracks.map(analysisTrackKey));
-  const selectedPoints = settings.category ? (opts.points ?? []).filter(p => p.trackKey && selectedKeys.has(p.trackKey)) : opts.points ?? [];
+  const selectedPoints = windowPoints.filter(p => p.trackKey && selectedKeys.has(p.trackKey));
   const analysis = computeOperationalAnalysis({ tracks: selectedTracks, points: selectedPoints, zones, from: range.from, to: range.to, settings });
+  // Scope start-hour counts to the first observation inside the report window.
+  for (const h of analysis.hourly) { h.starts = 0; h.boatStarts = 0; }
+  for (const d of analysis.days) { d.starts = 0; d.boatStarts = 0; }
+  const boatKeys = new Set(analysis.boats.map(analysisTrackKey));
+  for (const t of analysis.tracks) {
+    const parts = localParts(reportStart(t), settings.timeZone)!;
+    const boat = boatKeys.has(analysisTrackKey(t));
+    analysis.hourly[parts.hour].starts++;
+    if (boat) analysis.hourly[parts.hour].boatStarts++;
+    const day = analysis.days.find(d => d.day === parts.day);
+    if (day) { day.starts++; if (boat) day.boatStarts++; }
+  }
+  for (const h of analysis.hourly) h.startsPerHour = h.exposureHours > 0 ? h.starts / h.exposureHours : null;
   const { tracks, hourly, days, points } = analysis;
   const quality = opts.quality ?? {};
   const analyzed = opts.tracksAnalyzed ?? quality.tracksAnalyzed ?? new Set(points.map(p => p.trackKey)).size;
   const nightLabel = `${hour(settings.nightStart)} - ${hour(settings.nightEnd)}`;
-  const movements = computeTrackMovements(tracks, points, range.from, range.to, settings.maxGapSeconds, quality.movements);
+  const trackMap = new Map(tracks.map(t => [analysisTrackKey(t), t]));
+  const scopedMovements = (quality.movements ?? []).filter(m => {
+    if (m.hourStart === settings.nightStart && m.hourEnd === settings.nightEnd && m.timeZone === settings.timeZone) return true;
+    // Legacy metrics are safe only when their whole interval fits the window.
+    const t = trackMap.get(m.trackKey);
+    const start = Math.max(+range.from, Date.parse(t?.first_seen ?? ''));
+    const end = Math.min(+range.to, Date.parse(t?.last_seen ?? ''));
+    return Number.isFinite(start) && Number.isFinite(end) && reportWindowSeconds(start, end, settings) === (end - start) / 1000;
+  });
+  const movements = computeTrackMovements(tracks, points, range.from, range.to, settings.maxGapSeconds, scopedMovements)
+    .map(m => ({ ...m, elapsedSeconds: reportWindowSeconds(reportStart(m.track), reportEnd(m.track), settings) }));
   const eligible = movements.filter(m => m.track.point_count >= settings.minApproachPoints);
   const ranked = rankTrackMovements(eligible, settings.movementSort, settings.minApproachPoints);
   const rankedKeys = new Set(ranked.map(m => m.key));
   // Retain tracks without trajectory metrics so the table can explicitly show N/D.
   const ordered = [...ranked, ...eligible.filter(m => !rankedKeys.has(m.key)).sort((a, b) => a.key.localeCompare(b.key))];
   const coverageNote = `${num(analyzed)} historiales solicitados correctamente; ${num(points.length)} posiciones válidas analizadas. ${opts.limited || opts.pointsLimited || quality.failedTracks ? 'Cobertura parcial o muestreada.' : 'Sin recorte declarado.'}`;
+  const peakObservedHour = [...hourly].filter(h => isNight(h.hour, settings) && h.present > 0)
+    .sort((a, b) => b.present - a.present || (a.hour - settings.nightStart + 24) % 24 - (b.hour - settings.nightStart + 24) % 24)[0];
+  const selectedCriticalZones = new Set(settings.criticalZones.map(normalizeZone));
+  const analyzedCriticalZones = zones.filter(z => selectedCriticalZones.has(normalizeZone(z.nombre)));
+  const proximityNote = !analyzedCriticalZones.length
+    ? 'Proximidad no calculada: no hay polígonos válidos para las zonas críticas seleccionadas.'
+    : !points.length
+      ? 'Proximidad no calculada: no hay posiciones válidas analizadas en el horario del informe.'
+      : analysis.peakNightHour
+        ? `${num(analysis.nearNightTracks)} tracks distintos observados a ${settings.proximityM} m o menos de las zonas críticas. Mayor proximidad a las ${hour(analysis.peakNightHour.hour)}: ${num(analysis.peakNightHour.near)} tracks.`
+        : `Hay actividad en el horario seleccionado; ninguna posición analizada quedó a ${settings.proximityM} m o menos de las zonas críticas. La muestra no permite descartar acercamientos fuera de las posiciones analizadas.`;
   const content: Content[] = [
     { text: 'Actividad y vigilancia operativa del centro', bold: true, fontSize: 11, margin: [0, 0, 0, 10] },
     ...title('02 / Vigilancia nocturna', 'Actividad durante la noche', `Franja ${nightLabel}. Horario local ${settings.timeZone}.`),
     ...(opts.demonstration ? [note('DEMOSTRACIÓN - DATOS SINTÉTICOS. NO CORRESPONDE A UN CENTRO REAL.')] : []),
-    { text: `${dateTime(range.from, settings.timeZone)}  a  ${dateTime(range.to, settings.timeZone)}`, bold: true, fontSize: 10 },
+    { text: `Días consultados: ${dateOnly(range.from, settings.timeZone)}  a  ${dateOnly(range.to, settings.timeZone)}`, bold: true, fontSize: 10 },
+    note(`Horario aplicado a todas las secciones: ${nightLabel}; inicio incluido y fin excluido. Solo se analizan observaciones dentro de esa franja cada día.`),
     note(`Categoría de actividad: ${reportCategoryLabel(settings.category)}. Radar: ${opts.filters.tipoRadar || 'todos'}. Zona: ${opts.filters.zone || 'todas'}.`),
+    ...(minMinutes > 0 ? [note(`Filtro: más de ${num(minMinutes)} minutos observados por track; excluye interrupciones superiores a 120 s.`)] : []),
     cards([[num(tracks.length), 'Tracks del período'], [num(analysis.nightTracks), 'Tracks observados de noche'], [num(analysis.nearNightTracks), 'Tracks próximos de noche'], [pct(analysis.nearNightTracks, analysis.nightTracks), 'Proporción nocturna próxima']]),
     heading('Lectura ejecutiva'),
-    note(analysis.peakNightHour ? `Mayor proximidad nocturna a las ${hour(analysis.peakNightHour.hour)}: ${num(analysis.peakNightHour.near)} tracks distintos próximos a zonas críticas.` : 'No se observaron posiciones nocturnas próximas a las zonas críticas seleccionadas.'),
+    note(`${num(tracks.length)} tracks en el período y horario seleccionados. Se analizaron posiciones válidas de ${num(analysis.nightTracks)} tracks distintos dentro de esa franja.`),
+    ...(peakObservedHour ? [note(`Mayor actividad observada a las ${hour(peakObservedHour.hour)}: ${num(peakObservedHour.present)} tracks distintos, incluyendo los que están lejos de las zonas críticas.`)] : [note('No hay posiciones válidas analizadas para distribuir la actividad por hora.')]),
+    note(proximityNote),
     note(`Proximidad: hasta ${settings.proximityM} m al perímetro. Zonas críticas: ${settings.criticalZones.join(', ') || 'ninguna seleccionada'}. ${coverageNote}`),
-    { svg: hourlyChart(hourly, settings, 'near'), width: 515 },
+    { svg: hourlyChart(hourly, settings, 'activity'), width: 515 },
   ];
-  const trackMap = new Map(tracks.map(t => [analysisTrackKey(t), t]));
-  const nightPoints = points.filter(p => isNight(localParts(p.fecha!, settings.timeZone)!.hour, settings));
-  const nightKeys = [...new Set(nightPoints.map(p => p.trackKey))];
-  // Small groups keep track identifiers legible, without dropping trajectories.
-  for (let i = 0; i < Math.max(1, nightKeys.length); i += 8) {
-    const keys = new Set(nightKeys.slice(i, i + 8));
+  const tableTracks = ordered.map(m => m.track);
+  const mapGroups = nightMapGroups(tableTracks, points, range.from, range.to, settings);
+  const mapByTrack = new Map(mapGroups.flatMap((group, i) => group.trackKeys.map(key => [key, i + 1] as const)));
+  const trackCoverage = new Map((quality.trackCoverage ?? []).map(item => [item.trackKey, item]));
+  const missingMapTracks = tableTracks.filter(t => !mapByTrack.has(analysisTrackKey(t)));
+  const mapStatus = (track: TrackSummary) => {
+    const key = analysisTrackKey(track);
+    const group = mapByTrack.get(key);
+    if (group) return `Mapa ${group}`;
+    return trackCoverage.get(key)?.reason ?? 'Sin posiciones válidas para el mapa.';
+  };
+  const mapCoverageNote = `${num(mapByTrack.size)} de ${num(tableTracks.length)} tracks de la tabla con posiciones representadas en los mapas.`;
+  mapGroups.forEach((group, index) => {
+    const capture = opts.mapCaptures?.find(c => c.trackKeys.length === group.trackKeys.length && c.trackKeys.every((key, i) => key === group.trackKeys[i]));
     content.push(
-      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Trayectorias nocturnas e identificadores de track. Grupo ${Math.floor(i / 8) + 1} de ${Math.max(1, Math.ceil(nightKeys.length / 8))}.`, true),
-      { svg: spatialChart(nightPoints.filter(p => keys.has(p.trackKey)).map(p => ({ ...p, trackId: trackMap.get(p.trackKey!)?.track_id ?? p.trackId })), zones, settings, false, true), width: 515 },
-      note('Cada color corresponde a un track. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
-      note(`Polígonos: ${zones.map((z, n) => `${n + 1}: ${z.nombre}`).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
-      ...(!nightKeys.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
+      ...title('02 / Vigilancia nocturna', 'Mapa de actividad en la zona', `Mapa general · ${num(group.trackKeys.length)} tracks en este mapa.`, true),
+      note(mapCoverageNote),
+      note([{ text: 'Tracks de este mapa: ' }, ...(group.trackKeys.length ? group.trackKeys.flatMap((key, i) => { const t = trackMap.get(key)!; return [{ text: i ? ' · ' : '' }, trackLink(t), { text: ` / ${t.tipo_radar}` }]; }) : [{ text: 'ninguno con posiciones válidas' }]), { text: '.' }]),
+      capture ? { image: capture.image, width: 515 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 515 },
+      note(capture ? 'Captura del mapa satelital del sistema con los trazados del período analizado. La imagen satelital es una base de referencia, no una fotografía tomada durante las detecciones.' : 'Sin captura satelital disponible: representación esquemática de las posiciones observadas.'),
+      note('Cada color corresponde a un track. Los puntos indican solo inicio y fin; la línea conserva el recorrido observado. No se enlazan huecos superiores al máximo configurado. Un track no equivale a una embarcación física identificada.'),
+      note(`Polígonos: ${zones.map(z => z.nombre).join(' | ') || 'sin zonas disponibles'}. Contorno rojo: zona crítica.`),
+      ...(!group.points.length ? [note('Sin posiciones nocturnas válidas para representar trazados.')] : []),
+      ...(index === 0 && missingMapTracks.length ? [note([{ text: 'Tracks de la tabla sin mapa: ' }, ...missingMapTracks.flatMap((t, i) => [{ text: i ? ' | ' : '' }, trackLink(t), { text: ` / ${t.tipo_radar}: ${mapStatus(t)}` }])])] : []),
     );
-  }
+  });
   const byHour = new Map<number, TrackMovement[]>();
   const undated: TrackMovement[] = [];
   for (const m of ordered) {
-    const start = Math.max(range.from.getTime(), Date.parse(m.track.first_seen ?? ''));
+    const start = reportStart(m.track);
     const parts = localParts(start, settings.timeZone);
     if (!parts) { undated.push(m); continue; }
     if (!byHour.has(parts.hour)) byHour.set(parts.hour, []);
     byHour.get(parts.hour)!.push(m);
   }
-  const rows: string[][] = [];
+  const rows: (string | ContentText)[][] = [];
   const highlightedRows = new Set<number>();
   const maxAccumulatedSeconds = eligible.reduce((max, m) => Math.max(max, m.trackedSeconds ?? 0), 0);
   const addRows = (label: string, entries: TrackMovement[]) => entries.forEach((m, i) => {
     const index = String(i + 1).padStart(2, '0');
     if (maxAccumulatedSeconds > 0 && m.trackedSeconds === maxAccumulatedSeconds) highlightedRows.add(rows.length);
-    rows.push([i === 0 ? label : '', `${index} - ${m.track.track_id} / ${m.track.tipo_radar}\n${dateTime(new Date(Math.max(range.from.getTime(), Date.parse(m.track.first_seen ?? ''))), settings.timeZone)}`, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
+    rows.push([i === 0 ? label : '', { text: [{ text: `${index} - ` }, trackLink(m.track), { text: ` / ${m.track.tipo_radar}\n${dateTime(new Date(reportStart(m.track)), settings.timeZone)}\n${mapStatus(m.track)}` }] }, traveled(m), trackTime(m.elapsedSeconds), trackTime(m.trackedSeconds), num(m.track.point_count), movementSource(m)]);
   });
-  for (const [h, entries] of [...byHour].sort((a, b) => a[0] - b[0])) addRows(hour(h), entries);
+  for (const [h, entries] of [...byHour].sort((a, b) => (a[0] - settings.nightStart + 24) % 24 - (b[0] - settings.nightStart + 24) % 24)) addRows(hour(h), entries);
   addRows('Sin fecha', undated);
   content.push(
     ...title('05 / Recorrido y seguimiento', 'Distancia recorrida y tiempo de trackeo', `Agrupado por hora de inicio dentro del período (todas las fechas). Orden dentro de cada hora: ${movementOrder(settings)}. Mínimo ${settings.minApproachPoints} puntos.`, true),
     table(['Horario', 'Track / radar', 'Recorrido (m)', 'Trackeo', 'Tiempo enlazado', 'Puntos', 'Base'], rows, [31, 119, 58, 42, 48, 33, '*'], true, highlightedRows),
     note('Rojo: tracks con el mayor tiempo enlazado acumulado del listado, incluidos los empates.'),
-    note(movementMethod(settings)), note(coverageNote),
+    note(movementMethod(settings)), note(mapCoverageNote), note(coverageNote),
   );
   for (let i = 0; i < Math.max(1, days.length); i += 28) {
     content.push(...title('03 / Distribución temporal', 'Calendario de actividad observada', `Tiempo de trackeo acumulado por fecha y hora, en minutos. Se suman intervalos entre posiciones consecutivas separados por hasta ${settings.maxGapSeconds} s, repartidos entre las horas que atraviesan.`, true),
@@ -148,12 +240,32 @@ export function buildTrackActivityReport(opts: TrackReportOptions): { docDefinit
     { svg: spatialChart(points, zones, settings, true), width: 515 },
     note(`Polígonos del mapa general: ${zones.map((z, i) => `${i + 1}: ${z.nombre}`).join(' | ') || 'No hay zonas disponibles'}. Contorno rojo: zona crítica. La densidad depende de la frecuencia de registro y del muestreo.`),
   );
+  const detailGroups = reportMapDetails(mapGroups);
+  for (let start = 0; start < detailGroups.length; start += 4) {
+    const page = detailGroups.slice(start, start + 4);
+    content.push(...title('02 / Vigilancia nocturna', 'Detalle individual de tracks',
+      'Cada panel muestra un solo track. Permite distinguir recorridos superpuestos en el mapa general, con el mismo color y sus puntos de inicio y fin.', true));
+    for (let row = 0; row < page.length; row += 2) {
+      content.push({ columns: page.slice(row, row + 2).map(group => {
+        const key = group.trackKeys[0], track = trackMap.get(key)!;
+        const capture = opts.mapCaptures?.find(c => c.trackKeys.length === 1 && c.trackKeys[0] === key);
+        const panel: Content[] = [
+          { text: [trackLink(track), { text: ` / ${track.tipo_radar} · Mapa ${mapByTrack.get(key)}` }], bold: true, fontSize: 10, margin: [0, 0, 0, 5] },
+          capture ? { image: capture.image, width: 249 } : { svg: spatialChart(group.points, zones, settings, false, true, group.colors), width: 249 },
+          note(`${num(group.points.length)} posiciones analizadas · Inicio y fin marcados. Cortes según el hueco máximo configurado.`),
+        ];
+        return { width: 249, stack: panel };
+      }), columnGap: 17, margin: [0, 6, 0, 12], unbreakable: true });
+    }
+  }
   return { range, docDefinition: reportDocument(opts, settings, content) };
 }
 
 export function downloadTrackActivityReport(opts: TrackReportOptions): ReportRange {
   initializeReportFonts();
-  const { docDefinition, range } = buildTrackActivityReport(opts);
+  const { docDefinition, range } = buildTrackActivityReport({ ...opts,
+    historyBaseUrl: opts.historyBaseUrl ?? (typeof window !== 'undefined' ? window.location.origin : undefined),
+  });
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   pdfMake.createPdf(docDefinition).download(`informe-operativo-${stamp}.pdf`);
   return range;

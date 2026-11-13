@@ -10,6 +10,7 @@ import {
 import { DEVICE_LABEL, getActiveDeviceTypes } from "./devicesConfig";
 import { useConfigDevices } from "@/features/config-devices/hooks/useConfigDevices";
 import { isPointInPolygon } from "./utils/geoHelpers";
+import { PtzTargetStatus } from "../panel/PtzTargetStatus";
 import { TargetCard } from "../panel/TargetCard";
 import {
   resolveBehaviorCategory,
@@ -49,7 +50,7 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
   const handleToggle = onToggleCollapsed ?? (() => setInternalCollapsed((prev) => !prev));
 
   const filteredTargets = useMemo(() => {
-    const visible = stableTargets.filter(t => isBehaviorVisible(targetBehaviorKey(t), visibility));
+    const visible = stableTargets.filter(t => t.ptzTracking?.length || isBehaviorVisible(targetBehaviorKey(t), visibility));
     if (!searchTrackId) return visible;
     const lower = searchTrackId.toLowerCase();
     return visible.filter((t) => t.id.toLowerCase().includes(lower));
@@ -190,6 +191,8 @@ export const FloatingTargetsPanel = memo(function FloatingTargetsPanel({
                   >
                     <Icon size={18} stroke={1.8} />
                   </div>
+
+                  <PtzTargetStatus targetId={t.id} />
 
                   {/* Nivel de alerta */}
                   <span

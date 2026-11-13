@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, Navigate } from 'react-router';
+import { useRole } from '@/context/role';
 import { AnalysisLoadingOverlay } from './components/AnalysisLoadingOverlay';
 
 const ActivityAnalysisPage = lazy(() => import('./ActivityAnalysisPage'));
@@ -13,5 +14,7 @@ class AnalysisErrorBoundary extends Component<{ children: ReactNode }, { failed:
   }
 }
 export default function ActivityAnalysisRoute() {
+  const { isAdmin, isSuperAdmin } = useRole();
+  if (!isAdmin && !isSuperAdmin) return <Navigate to="/" replace />;
   return <AnalysisErrorBoundary><Suspense fallback={<AnalysisLoadingOverlay />}><ActivityAnalysisPage /></Suspense></AnalysisErrorBoundary>;
 }
